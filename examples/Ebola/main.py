@@ -20,4 +20,5 @@ if '__main__' == __name__:
                             html=os.path.join(DATA_DIR, 'trees', 'tree_{}_{}.html'.format(method, model)),
                             prediction_method=method, model=model,
                             verbose=True, columns=[loc], work_dir=work_dir,
-                            column2parameters={loc: parameter_file} if os.path.exists(parameter_file) else None)
+                            column2parameters={loc: parameter_file} if os.path.exists(parameter_file) else None,
+                            date_column='date')

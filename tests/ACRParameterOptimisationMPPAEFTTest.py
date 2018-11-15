@@ -14,7 +14,7 @@ TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')
 STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')
 
 
-class ACRParameterOptimisationEFTTest(unittest.TestCase):
+class ACRParameterOptimisationMPPAEFTTest(unittest.TestCase):
 
     def setUp(self):
         self.feature = 'Country'
@@ -26,6 +26,16 @@ class ACRParameterOptimisationEFTTest(unittest.TestCase):
         self.assertAlmostEqual(-123.173, self.acr_result.likelihood, places=3,
                                msg='Likelihood was supposed to be the {:.3f}, got {:3f}'
                                .format(-123.173, self.acr_result.likelihood))
+
+    def test_restricted_likelihood(self):
+        self.assertAlmostEqual(-125.359, self.acr_result.restricted_likelihood, places=3,
+                               msg='Restricted likelihood was supposed to be the {:.3f}, got {:3f}'
+                               .format(-125.359, self.acr_result.likelihood))
+
+    def test_changes_per_avg_branch(self):
+        self.assertAlmostEqual(0.149, self.acr_result.norm_sf, places=3,
+                               msg='SF was supposed to be the {:.3f} changes per avg branch, got {:3f}'
+                               .format(0.149, self.acr_result.sf))
 
     def test_sf(self):
         self.assertAlmostEqual(5.38, self.acr_result.sf, places=3,

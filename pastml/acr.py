@@ -9,11 +9,11 @@ import pandas as pd
 from pastml import get_personalized_feature_name, get_state2allowed_states, ALLOWED_STATES, col_name2cat, value2list
 from pastml.annotation import preannotate_tree, get_tree_stats
 from pastml.cytoscape_manager import visualize
-from pastml.ml import is_ml, ml_acr, MPPA, MAP, JOINT, F81, is_marginal
-from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file
-from pastml.tree import rescale_tree, read_tree, name_tree, collapse_zero_branches, date_tips, REASONABLE_NUMBER_OF_TIPS
+from pastml.ml import is_ml, ml_acr, MPPA, MAP, JOINT, F81, is_marginal
+from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS
+from pastml.tree import read_tree, name_tree, collapse_zero_branches, date_tips, REASONABLE_NUMBER_OF_TIPS
 
 COPY = 'copy'
 
@@ -105,8 +105,6 @@ def reconstruct_ancestral_states(tree, feature, states, avg_br_len, prediction_m
         freqs, sf = None, None
         if params is not None:
             freqs, sf = parse_parameters(params, states)
-            if sf:
-                sf *= avg_br_len
         res = ml_acr(tree, feature, prediction_method, model, states, avg_br_len, freqs, sf)
     elif is_parsimonious(prediction_method):
         res = parsimonious_acr(tree, feature, prediction_method, states)
@@ -132,7 +130,6 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None):
     avg_br_len = get_tree_stats(tree)
 
     logging.info('\n=============RECONSTRUCTING ANCESTRAL STATES=============\n')
-    rescale_tree(tree, 1. / avg_br_len)
 
     def _work(args):
         return reconstruct_ancestral_states(*args)
@@ -147,8 +144,6 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None):
                                             avg_br_len, method, model,
                                             column2parameters[column] if column in column2parameters else None)
                                            for (column, method, model) in zip(columns, prediction_methods, models)))
-
-    rescale_tree(tree, avg_br_len)
 
     return acr_results
 
@@ -205,7 +200,7 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
     root.name = 'ROOT'
     root.dist = 0
 
-    df = pd.read_table(data, sep=data_sep, index_col=id_index, header=0)
+    df = pd.read_table(data, sep=data_sep, index_col=id_index, header=0, dtype=str)
     df.index = df.index.map(str)
 
     if columns is None:
@@ -242,10 +237,10 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
     if name_column is None and len(columns) == 1:
         name_column = columns[0]
 
-    df = df[columns].astype(np.str)
+    df = df[columns]
     node_names = np.array([n.name for n in root.traverse()])
     tip_names = np.array([n.name for n in root])
-    df_index_ids = df.index.astype(np.str)
+    df_index_ids = df.index.astype(str)
     df = df[np.in1d(df_index_ids, node_names)]
 
     if not df.shape[0]:
@@ -299,7 +294,10 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
                 df.loc['character', 'value'] = acr_result.character
                 df.loc['method', 'value'] = acr_result.method
                 df.loc['model', 'value'] = acr_result.model
+                df.loc['log likelihood', 'value'] = acr_result.likelihood
+                df.loc['log restricted likelihood', 'value'] = acr_result.restricted_likelihood
                 df.loc['scaling factor', 'value'] = acr_result.sf
+                df.loc['changes per avg branch length', 'value'] = acr_result.norm_sf
                 for state, freq in zip(acr_result.states, acr_result.frequencies):
                     df.loc[state, 'value'] = freq
                 df.to_csv(out_param_file, index_label='parameter')

@@ -25,18 +25,6 @@ METACHILD = 'metachild'
 FONT_SIZE = 'node_fontsize'
 
 
-def rescale_tree(tree, sf):
-    """
-    Multiplies all the tree branches by the given scaling factor.
-
-    :param tree: ete3.Tree, the tree to be rescaled
-    :param sf: float, scaling factor
-    :return: void, the initial tree is modified
-    """
-    for n in tree.traverse():
-        n.dist *= sf
-
-
 def get_dist_to_root(tip):
     dist_to_root = 0
     n = tip

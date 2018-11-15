@@ -8,11 +8,12 @@ from scipy.optimize import minimize
 from pastml import get_personalized_feature_name, get_state2allowed_states, ALLOWED_STATES
 
 ACRMLJointResult = namedtuple('ACRMLJointResult',
-                              field_names=['likelihood', 'frequencies', 'sf', 'character', 'states', 'method', 'model'])
+                              field_names=['likelihood', 'restricted_likelihood', 'frequencies', 'sf', 'norm_sf',
+                                           'character', 'states', 'method', 'model'])
 
 ACRMLMarginalResult = namedtuple('ACRMLMarginalResult',
-                                 field_names=['likelihood', 'frequencies', 'sf', 'character', 'states', 'method',
-                                              'model', 'marginal_probabilities'])
+                                 field_names=['likelihood', 'restricted_likelihood', 'frequencies', 'sf', 'norm_sf',
+                                              'character', 'states', 'method', 'model', 'marginal_probabilities'])
 
 MIN_VALUE = np.log10(np.finfo(np.float64).eps)
 MAX_VALUE = np.log10(np.finfo(np.float64).max)
@@ -156,9 +157,10 @@ def rescale(likelihood_array, node, going_up=True):
     return factors
 
 
-def optimize_likelihood_params(tree, feature, frequencies, sf, optimise_sf=True, optimise_frequencies=True):
+def optimize_likelihood_params(tree, feature, frequencies, sf, avg_br_len, optimise_sf=True, optimise_frequencies=True):
     """
     Optimizes the likelihood parameters (state frequencies and scaling factor) for the given tree.
+    :param avg_br_len: float, avg branch length
     :param tree: ete3.Tree, tree of interest
     :param feature: str, character for which the likelihood is optimised
     :param frequencies: numpy array of initial state frequencies
@@ -171,7 +173,7 @@ def optimize_likelihood_params(tree, feature, frequencies, sf, optimise_sf=True,
     if optimise_frequencies:
         bounds += [np.array([1e-6, 10e6], np.float64)] * (len(frequencies) - 1)
     if optimise_sf:
-        bounds += [np.array([0.001, 10.])]
+        bounds += [np.array([0.001 / avg_br_len, 10. / avg_br_len])]
     bounds = np.array(bounds, np.float64)
 
     def get_freq_sf_from_params(ps):
@@ -187,8 +189,6 @@ def optimize_likelihood_params(tree, feature, frequencies, sf, optimise_sf=True,
             return np.nan
         freqs, sf_val = get_freq_sf_from_params(ps)
         res = get_bottom_up_likelihood(tree, feature, freqs, sf_val, True)
-        # logging.info('{}\t{}\t->\t{}'.format(frequencies if optimise_frequencies else '',
-        #                                      sf_val if optimise_sf else '', res))
         return np.inf if pd.isnull(res) else -res
 
     params = None
@@ -204,6 +204,7 @@ def optimize_likelihood_params(tree, feature, frequencies, sf, optimise_sf=True,
             vs = np.random.uniform(bounds[:, 0], bounds[:, 1])
         fres = minimize(get_v, x0=vs, method='L-BFGS-B', bounds=bounds)
         if fres.success and not np.any(np.isnan(fres.x)):
+            logging.info('Calculated an optimum candidate of {}'.format(fres.fun))
             if optimum is None or fres.fun < optimum:
                 params = fres.x
                 optimum = fres.fun
@@ -491,7 +492,7 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, freqs=No
     if sf:
         optimise_sf = False
     else:
-        sf = 1.
+        sf = 1. / avg_br_len
         optimise_sf = True
     likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, True)
     logging.info('Initial {} values:{}{}{}{}.\n'
@@ -499,17 +500,18 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, freqs=No
                          ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[state2index[state]])
                                  for state in states),
                          '\n\tfraction of missing data:\t{:.3f}'.format(missing_data) if missing_data else '',
-                         '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'.format(sf / avg_br_len, sf),
+                         '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'.format(sf, sf * avg_br_len),
                          '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
     if optimise_sf or optimise_frequencies:
         frequencies, sf = optimize_likelihood_params(tree, feature, frequencies, sf,
-                                                     optimise_frequencies=optimise_frequencies, optimise_sf=optimise_sf)
+                                                     optimise_frequencies=optimise_frequencies, optimise_sf=optimise_sf,
+                                                     avg_br_len=avg_br_len)
         likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, True)
         logging.info('Optimised {} values:{}{}{}\n'
                      .format(feature,
                              ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[state2index[state]])
                                      for state in states) if optimise_frequencies else '',
-                             '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'.format(sf / avg_br_len, sf),
+                             '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'.format(sf, sf * avg_br_len),
                              '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
     else:
         logging.info('Both scaling factor and frequencies are fixed for {}.\n'.format(feature))
@@ -525,10 +527,11 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, freqs=No
             logging.info('Choosing MAP ancestral states for {}.\n'.format(feature))
             choose_ancestral_states_map(tree, feature, states)
         alter_zero_tip_allowed_states(tree, feature)
-        new_likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, True)
+        restricted_likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, True)
         unalter_zero_tip_allowed_states(tree, feature, state2index)
-        logging.info('Log likelihood for {} after state selection:\t{:.3f}\n'.format(feature, new_likelihood))
-        return ACRMLMarginalResult(likelihood=likelihood, frequencies=frequencies, sf=sf / avg_br_len,
+        logging.info('Log likelihood for {} after state selection:\t{:.3f}\n'.format(feature, restricted_likelihood))
+        return ACRMLMarginalResult(likelihood=likelihood, restricted_likelihood=restricted_likelihood,
+                                   frequencies=frequencies, sf=sf, norm_sf=sf * avg_br_len,
                                    method=prediction_method, model=model, character=feature, states=states,
                                    marginal_probabilities=marginal_df)
     # joint
@@ -538,8 +541,9 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, freqs=No
         logging.info('Choosing joint ancestral states for {}.\n'.format(feature))
         choose_ancestral_states_joint(tree, feature, states, frequencies)
         alter_zero_tip_allowed_states(tree, feature)
-        new_likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, False)
+        restricted_likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, False)
         unalter_zero_tip_allowed_states(tree, feature, state2index)
-        logging.info('Log likelihood for {} after state selection:\t{:.3f}\n'.format(feature, new_likelihood))
-    return ACRMLJointResult(likelihood=likelihood, frequencies=frequencies, sf=sf / avg_br_len,
+        logging.info('Log likelihood for {} after state selection:\t{:.3f}\n'.format(feature, restricted_likelihood))
+    return ACRMLJointResult(likelihood=likelihood, restricted_likelihood=restricted_likelihood,
+                            frequencies=frequencies, sf=sf, norm_sf=sf * avg_br_len,
                             method=prediction_method, model=model, character=feature, states=states)
