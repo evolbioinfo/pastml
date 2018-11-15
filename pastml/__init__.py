@@ -1,8 +1,3 @@
-import numpy as np
-
-ALLOWED_STATES = 'ALLOWED_STATES'
-
-
 def col_name2cat(column):
     """
     Reformats the column string to make sure it contains only numerical or letter characters.
@@ -37,18 +32,3 @@ def value2list(n, value, default_value):
     else:
         value += [default_value] * (n - len(value))
     return value
-
-
-def get_state2allowed_states(states, by_name=True):
-    # tips allowed state arrays won't be modified so we might as well just share them
-    n = len(states)
-    all_ones = np.ones(n, np.int)
-    state2array = {}
-    for index, state in enumerate(states):
-        allowed_state_array = np.zeros(n, np.int)
-        allowed_state_array[index] = 1
-        state2array[state if by_name else index] = allowed_state_array
-    if by_name:
-        state2array[None] = all_ones
-        state2array[''] = all_ones
-    return all_ones, state2array

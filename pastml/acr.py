@@ -6,37 +6,18 @@ from multiprocessing.pool import ThreadPool
 import numpy as np
 import pandas as pd
 
-from pastml import get_personalized_feature_name, get_state2allowed_states, ALLOWED_STATES, col_name2cat, value2list
+from pastml import col_name2cat, value2list
 from pastml.annotation import preannotate_tree, get_tree_stats
 from pastml.cytoscape_manager import visualize
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file
-from pastml.ml import is_ml, ml_acr, MPPA, MAP, JOINT, F81, is_marginal
+from pastml.ml import is_ml, ml_acr, MPPA, MAP, JOINT, F81, is_marginal, JC, EFT
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS
 from pastml.tree import read_tree, name_tree, collapse_zero_branches, date_tips, REASONABLE_NUMBER_OF_TIPS
 
 COPY = 'copy'
 
 ACRCopyResult = namedtuple('ACRCopyResult', field_names=['character', 'states', 'method'])
-
-
-def initialize_allowed_states(tree, feature, states):
-    """
-    Initializes the allowed state arrays for tips based on their states given by the feature.
-    :param tree: ete3.Tree, tree for which the tip likelihoods are to be initialized
-    :param feature: str, feature in which the tip states are stored (the value could be None for a missing state)
-    :param states: numpy array of ordered states.
-    :return: void, adds the get_personalised_feature_name(feature, ALLOWED_STATES) feature to tree tips.
-    """
-    allowed_states_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
-
-    all_ones, state2array = get_state2allowed_states(states)
-
-    for node in tree.traverse():
-        if node.is_leaf():
-            node.add_feature(allowed_states_feature, state2array[getattr(node, feature, '')])
-        else:
-            node.add_feature(allowed_states_feature, all_ones)
 
 
 def parse_parameters(params, states):
@@ -99,8 +80,6 @@ def reconstruct_ancestral_states(tree, feature, states, avg_br_len, prediction_m
     if COPY == prediction_method:
         return ACRCopyResult(character=feature, states=states, method=prediction_method)
 
-    initialize_allowed_states(tree, feature, states)
-
     if is_ml(prediction_method):
         freqs, sf = None, None
         if params is not None:
@@ -111,12 +90,6 @@ def reconstruct_ancestral_states(tree, feature, states, avg_br_len, prediction_m
     else:
         raise ValueError('Method {} is unknown, should be one of ML ({}, {}, {}), one of MP ({}, {}, {}) or {}'
                          .format(prediction_method, MPPA, MAP, JOINT, ACCTRAN, DELTRAN, DOWNPASS, COPY))
-
-    allowed_states_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
-    for node in tree.traverse():
-        selected_states = states[getattr(node, allowed_states_feature).astype(bool)].tolist()
-        node.add_feature(feature, selected_states[0] if len(selected_states) == 1 else selected_states)
-
     return res
 
 

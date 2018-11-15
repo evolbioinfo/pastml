@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
-from pastml import get_personalized_feature_name, get_state2allowed_states, ALLOWED_STATES
+from pastml import get_personalized_feature_name
 
 ACRMLJointResult = namedtuple('ACRMLJointResult',
                               field_names=['likelihood', 'restricted_likelihood', 'frequencies', 'sf', 'norm_sf',
@@ -18,7 +18,7 @@ ACRMLMarginalResult = namedtuple('ACRMLMarginalResult',
 MIN_VALUE = np.log10(np.finfo(np.float64).eps)
 MAX_VALUE = np.log10(np.finfo(np.float64).max)
 
-JOINT = 'joint'
+JOINT = 'JOINT'
 MPPA = 'MPPA'
 MAP = 'MAP'
 
@@ -33,6 +33,7 @@ LH_SF = 'LIKELIHOOD_SF'
 BU_LH_SF = 'BOTTOM_UP_LIKELIHOOD_SF'
 BU_LH_JOINT_STATES = 'BOTTOM_UP_LIKELIHOOD_JOINT_STATES'
 TD_LH_SF = 'TOP_DOWM_LIKELIHOOD_SF'
+ALLOWED_STATES = 'ALLOWED_STATES'
 
 
 def is_marginal(method):
@@ -264,6 +265,25 @@ def calculate_top_down_likelihood(tree, feature, frequencies, sf):
         node.add_feature(lh_sf_feature, factors)
 
 
+def initialize_allowed_states(tree, feature, states):
+    """
+    Initializes the allowed state arrays for tips based on their states given by the feature.
+    :param tree: ete3.Tree, tree for which the tip likelihoods are to be initialized
+    :param feature: str, feature in which the tip states are stored (the value could be None for a missing state)
+    :param states: numpy array of ordered states.
+    :return: void, adds the get_personalised_feature_name(feature, ALLOWED_STATES) feature to tree tips.
+    """
+    allowed_states_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
+
+    all_ones, state2array = get_state2allowed_states(states)
+
+    for node in tree.traverse():
+        if node.is_leaf():
+            node.add_feature(allowed_states_feature, state2array[getattr(node, feature, '')])
+        else:
+            node.add_feature(allowed_states_feature, all_ones)
+
+
 def alter_zero_tip_allowed_states(tree, feature):
     """
     Alters the bottom-up likelihood arrays for zero-distance tips
@@ -464,6 +484,21 @@ def choose_ancestral_states_joint(tree, feature, states, frequencies):
     chose_consistent_state(tree, (getattr(tree, lh_feature) * frequencies).argmax())
 
 
+def get_state2allowed_states(states, by_name=True):
+    # tips allowed state arrays won't be modified so we might as well just share them
+    n = len(states)
+    all_ones = np.ones(n, np.int)
+    state2array = {}
+    for index, state in enumerate(states):
+        allowed_state_array = np.zeros(n, np.int)
+        allowed_state_array[index] = 1
+        state2array[state if by_name else index] = allowed_state_array
+    if by_name:
+        state2array[None] = all_ones
+        state2array[''] = all_ones
+    return all_ones, state2array
+
+
 def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, freqs=None, sf=None):
     optimise_frequencies = F81 == model
     n = len(states)
@@ -488,6 +523,8 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, freqs=No
         total_count = frequencies.sum() + missing_data
         frequencies /= frequencies.sum()
         missing_data /= total_count
+
+    initialize_allowed_states(tree, feature, states)
     alter_zero_tip_allowed_states(tree, feature)
     if sf:
         optimise_sf = False
@@ -515,6 +552,7 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, freqs=No
                              '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
     else:
         logging.info('Both scaling factor and frequencies are fixed for {}.\n'.format(feature))
+
     if is_marginal(prediction_method):
         calculate_top_down_likelihood(tree, feature, frequencies, sf)
         unalter_zero_tip_allowed_states(tree, feature, state2index)
@@ -530,7 +568,7 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, freqs=No
         restricted_likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, True)
         unalter_zero_tip_allowed_states(tree, feature, state2index)
         logging.info('Log likelihood for {} after state selection:\t{:.3f}\n'.format(feature, restricted_likelihood))
-        return ACRMLMarginalResult(likelihood=likelihood, restricted_likelihood=restricted_likelihood,
+        result = ACRMLMarginalResult(likelihood=likelihood, restricted_likelihood=restricted_likelihood,
                                    frequencies=frequencies, sf=sf, norm_sf=sf * avg_br_len,
                                    method=prediction_method, model=model, character=feature, states=states,
                                    marginal_probabilities=marginal_df)
@@ -544,6 +582,13 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, freqs=No
         restricted_likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, False)
         unalter_zero_tip_allowed_states(tree, feature, state2index)
         logging.info('Log likelihood for {} after state selection:\t{:.3f}\n'.format(feature, restricted_likelihood))
-    return ACRMLJointResult(likelihood=likelihood, restricted_likelihood=restricted_likelihood,
+        result = ACRMLJointResult(likelihood=likelihood, restricted_likelihood=restricted_likelihood,
                             frequencies=frequencies, sf=sf, norm_sf=sf * avg_br_len,
                             method=prediction_method, model=model, character=feature, states=states)
+
+    allowed_states_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
+    for node in tree.traverse():
+        selected_states = states[getattr(node, allowed_states_feature).astype(bool)].tolist()
+        node.add_feature(feature, selected_states[0] if len(selected_states) == 1 else selected_states)
+
+    return result
