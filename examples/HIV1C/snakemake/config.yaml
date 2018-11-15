@@ -1,0 +1,23 @@
+folder: ".."
+data_dir: 'data'
+fasta_la: 'HIV1_ALL_2017_pol_DNA.fasta'
+fasta_phylotype: 'HIV-1C.fasta'
+data_phylotype: 'HIV-1C.tab'
+
+# check if the following executable are available on your system or update the values accordingly
+# e.g. on a cluster one might replace mafft: mafft with something like mafft: "module load mafft/7.397; mafft"
+mafft: mafft
+tnt: tnt
+## only one of the following tree reconstruction tools is needed, the one that corresponds to the tree_types variable in Snakefile
+fasttree: fasttree
+raxml: raxmlHPC-PTHREADS
+phyml: phyml
+
+# all_pairs_quartet_dist executable from the tqDist tool
+all_pairs_quartet_dist: all_pairs_quartet_dist
+
+# This command is called in the beginning of every rule and allows to add some command-line configurations if needed
+src: echo ""
+
+# This command is called before every python script execution, e.g. it could be used to activate a conda environment
+py_config: "source activate pastmlenv"
