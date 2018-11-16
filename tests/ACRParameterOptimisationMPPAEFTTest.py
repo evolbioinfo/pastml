@@ -4,9 +4,10 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from pastml import get_personalized_feature_name
+from pastml import get_personalized_feature_name, STATES
 from pastml.acr import acr
-from pastml.ml import LH, LH_SF, MPPA, EFT
+from pastml.ml import LH, LH_SF, MPPA, EFT, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD, CHANGES_PER_AVG_BRANCH, \
+    SCALING_FACTOR, FREQUENCIES, MARGINAL_PROBABILITIES
 from pastml.tree import read_tree
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
@@ -23,35 +24,35 @@ class ACRParameterOptimisationMPPAEFTTest(unittest.TestCase):
         self.acr_result = acr(self.tree, df, prediction_method=MPPA, model=EFT)[0]
 
     def test_likelihood(self):
-        self.assertAlmostEqual(-123.173, self.acr_result.likelihood, places=3,
+        self.assertAlmostEqual(-123.173, self.acr_result[LOG_LIKELIHOOD], places=3,
                                msg='Likelihood was supposed to be the {:.3f}, got {:3f}'
-                               .format(-123.173, self.acr_result.likelihood))
+                               .format(-123.173, self.acr_result[LOG_LIKELIHOOD]))
 
     def test_restricted_likelihood(self):
-        self.assertAlmostEqual(-125.359, self.acr_result.restricted_likelihood, places=3,
+        self.assertAlmostEqual(-125.359, self.acr_result[RESTRICTED_LOG_LIKELIHOOD], places=3,
                                msg='Restricted likelihood was supposed to be the {:.3f}, got {:3f}'
-                               .format(-125.359, self.acr_result.likelihood))
+                               .format(-125.359, self.acr_result[RESTRICTED_LOG_LIKELIHOOD]))
 
     def test_changes_per_avg_branch(self):
-        self.assertAlmostEqual(0.149, self.acr_result.norm_sf, places=3,
+        self.assertAlmostEqual(0.149, self.acr_result[CHANGES_PER_AVG_BRANCH], places=3,
                                msg='SF was supposed to be the {:.3f} changes per avg branch, got {:3f}'
-                               .format(0.149, self.acr_result.sf))
+                               .format(0.149, self.acr_result[CHANGES_PER_AVG_BRANCH]))
 
     def test_sf(self):
-        self.assertAlmostEqual(5.38, self.acr_result.sf, places=3,
+        self.assertAlmostEqual(5.38, self.acr_result[SCALING_FACTOR], places=3,
                                msg='SF was supposed to be the {:.3f}, got {:3f}'
-                               .format(5.38, self.acr_result.sf))
+                               .format(5.38, self.acr_result[SCALING_FACTOR]))
 
     def test_frequencies(self):
         for loc, expected_value in {'Africa': 0.325, 'Albania': 0.208, 'EastEurope': 0.065,
                                     'Greece': 0.26, 'WestEurope': 0.143}.items():
-            value = self.acr_result.frequencies[np.where(self.acr_result.states == loc)][0]
+            value = self.acr_result[FREQUENCIES][np.where(self.acr_result[STATES] == loc)][0]
             self.assertAlmostEqual(value, expected_value, places=3,
                                    msg='Frequency of {} was supposed to be the {:.3f}, got {:3f}'
                                    .format(loc, expected_value, value))
 
     def test_frequencies_sum_to_1(self):
-        value = self.acr_result.frequencies.sum()
+        value = self.acr_result[FREQUENCIES].sum()
         self.assertAlmostEqual(value, 1, places=3,
                                msg='Frequencies were supposed to sum to 1, not to {:3f}'.format(value))
 
@@ -75,7 +76,7 @@ class ACRParameterOptimisationMPPAEFTTest(unittest.TestCase):
         expected_values = {'Africa': 0.70653324, 'Albania': 0.03733449, 'EastEurope': 0.04927248,
                            'Greece': 0.04667803, 'WestEurope': 0.16018175}
         node_name = 'ROOT'
-        mps = self.acr_result.marginal_probabilities
+        mps = self.acr_result[MARGINAL_PROBABILITIES]
         for loc, expected_value in expected_values.items():
             value = mps.loc[node_name, loc]
             self.assertAlmostEqual(value, expected_value, places=3,
@@ -86,7 +87,7 @@ class ACRParameterOptimisationMPPAEFTTest(unittest.TestCase):
         expected_values = {'Africa': 0.43054907, 'Albania': 0.00376214, 'EastEurope': 0.00185369,
                            'Greece': 0.00470286, 'WestEurope': 0.55913223}
         node_name = 'node_4'
-        mps = self.acr_result.marginal_probabilities
+        mps = self.acr_result[MARGINAL_PROBABILITIES]
         for loc, expected_value in expected_values.items():
             value = mps.loc[node_name, loc]
             self.assertAlmostEqual(value, expected_value, places=3,
@@ -96,7 +97,7 @@ class ACRParameterOptimisationMPPAEFTTest(unittest.TestCase):
     def test_marginal_probs_tip(self):
         expected_values = {'Africa': 0, 'Albania': 1, 'EastEurope': 0, 'Greece': 0, 'WestEurope': 0}
         node_name = '02ALAY1660'
-        mps = self.acr_result.marginal_probabilities
+        mps = self.acr_result[MARGINAL_PROBABILITIES]
         for loc, expected_value in expected_values.items():
             value = mps.loc[node_name, loc]
             self.assertAlmostEqual(value, expected_value, places=3,

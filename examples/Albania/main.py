@@ -26,8 +26,7 @@ if '__main__' == __name__:
     # ACR with parsimony
     for method in (DOWNPASS, ACCTRAN, DELTRAN):
         pastml_pipeline(data=STATES_INPUT, tree=TREE_NWK,
-                        html_compressed=os.path.join(DATA_DIR, 'maps',
-                                                     'Albanian_map_{}.html'.format(method)),
+                        html_compressed=os.path.join(DATA_DIR, 'maps', 'Albanian_map_{}.html'.format(method)),
                         html=os.path.join(DATA_DIR, 'trees', 'Albanian_tree_{}.html'.format(method)),
                         data_sep=',', verbose=True, prediction_method=method,
                         work_dir=os.path.join(DATA_DIR, 'pastml', method))

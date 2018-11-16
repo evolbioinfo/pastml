@@ -6,16 +6,17 @@ from multiprocessing.pool import ThreadPool
 import numpy as np
 import pandas as pd
 
-from pastml import col_name2cat, value2list
+from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER
 from pastml.annotation import preannotate_tree, get_tree_stats
 from pastml.cytoscape_manager import visualize
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file
-from pastml.ml import is_ml, ml_acr, MPPA, MAP, JOINT, F81, is_marginal, JC, EFT
+from pastml.ml import is_ml, ml_acr, MPPA, MAP, JOINT, F81, is_marginal, JC, EFT, FREQUENCIES, MARGINAL_PROBABILITIES, \
+    SCALING_FACTOR, MODEL
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS
 from pastml.tree import read_tree, name_tree, collapse_zero_branches, date_tips, REASONABLE_NUMBER_OF_TIPS
 
-COPY = 'copy'
+COPY = 'COPY'
 
 ACRCopyResult = namedtuple('ACRCopyResult', field_names=['character', 'states', 'method'])
 
@@ -31,11 +32,18 @@ def parse_parameters(params, states):
                              .format(params))
         try:
             param_dict = pd.read_csv(params, header=0, index_col=0)
-            param_dict = param_dict.to_dict()[param_dict.columns[0]]
+            if 'value' not in param_dict.columns:
+                logging.info('Could not find the "value" column in the parameter file {}. '
+                             'It should be a csv file with two columns, the first one containing parameter names, '
+                             'and the second, named "value", containing parameter values. '
+                             'Ignoring these parameters.'.format(params))
+                return frequencies, sf
+            param_dict = param_dict.to_dict()['value']
             params = param_dict
         except:
             logging.info('The specified parameter file {} is malformatted, '
-                         'should be a csv file with parameter name in the first column and value in the second column. '
+                         'should be a csv file with two columns, the first one containing parameter names, '
+                         'and the second, named "value", containing parameter values. '
                          'Ignoring these parameters.'.format(params))
             return frequencies, sf
     frequencies_specified = set(states) & set(params.keys())
@@ -47,7 +55,7 @@ def parse_parameters(params, states):
             frequencies = np.array([params[state] for state in states])
             try:
                 frequencies = frequencies.astype(np.float64)
-                if frequencies.sum() != 1:
+                if np.round(frequencies.sum() - 1, 3) != 0:
                     logging.error('Specified frequencies ({}) do not sum up to one,'
                                   'ignoring them.'.format(frequencies))
                     frequencies = None
@@ -55,11 +63,12 @@ def parse_parameters(params, states):
                     logging.error('Some of the specified frequencies ({}) are negative,'
                                   'ignoring them.'.format(frequencies))
                     frequencies = None
+                frequencies /= frequencies.sum()
             except:
                 logging.error('Specified frequencies ({}) must not be negative, ignoring them.'.format(frequencies))
                 frequencies = None
-    if 'scaling factor' in params:
-        sf = params['scaling factor']
+    if SCALING_FACTOR in params:
+        sf = params[SCALING_FACTOR]
         try:
             sf = np.float64(sf)
             if sf <= 0:
@@ -72,25 +81,23 @@ def parse_parameters(params, states):
     return frequencies, sf
 
 
-def reconstruct_ancestral_states(tree, feature, states, avg_br_len, prediction_method=MPPA, model=None, params=None):
+def reconstruct_ancestral_states(tree, feature, states, avg_br_len, num_nodes,
+                                 prediction_method=MPPA, model=None, params=None):
     logging.info('ACR settings for {}:\n\tMethod:\t{}{}.\n'.format(feature, prediction_method,
                                                                    '\n\tModel:\t{}'.format(model)
                                                                    if model and is_ml(prediction_method) else ''))
-
     if COPY == prediction_method:
-        return ACRCopyResult(character=feature, states=states, method=prediction_method)
-
+        return {CHARACTER: feature, STATES: states, METHOD: prediction_method}
     if is_ml(prediction_method):
         freqs, sf = None, None
         if params is not None:
             freqs, sf = parse_parameters(params, states)
-        res = ml_acr(tree, feature, prediction_method, model, states, avg_br_len, freqs, sf)
-    elif is_parsimonious(prediction_method):
-        res = parsimonious_acr(tree, feature, prediction_method, states)
-    else:
-        raise ValueError('Method {} is unknown, should be one of ML ({}, {}, {}), one of MP ({}, {}, {}) or {}'
-                         .format(prediction_method, MPPA, MAP, JOINT, ACCTRAN, DELTRAN, DOWNPASS, COPY))
-    return res
+        return ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_nodes, freqs, sf)
+    if is_parsimonious(prediction_method):
+        return parsimonious_acr(tree, feature, prediction_method, states, num_nodes)
+
+    raise ValueError('Method {} is unknown, should be one of ML ({}, {}, {}), one of MP ({}, {}, {}) or {}'
+                     .format(prediction_method, MPPA, MAP, JOINT, ACCTRAN, DELTRAN, DOWNPASS, COPY))
 
 
 def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None):
@@ -100,7 +107,7 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None):
     else:
         column2parameters = {}
 
-    avg_br_len = get_tree_stats(tree)
+    avg_br_len, num_nodes = get_tree_stats(tree)
 
     logging.info('\n=============RECONSTRUCTING ANCESTRAL STATES=============\n')
 
@@ -114,7 +121,7 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None):
         acr_results = \
             pool.map(func=_work, iterable=((tree, column, np.sort([_ for _ in df[column].unique()
                                                                    if pd.notnull(_) and _ != '']),
-                                            avg_br_len, method, model,
+                                            avg_br_len, num_nodes, method, model,
                                             column2parameters[column] if column in column2parameters else None)
                                            for (column, method, model) in zip(columns, prediction_methods, models)))
 
@@ -175,25 +182,29 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
 
     df = pd.read_table(data, sep=data_sep, index_col=id_index, header=0, dtype=str)
     df.index = df.index.map(str)
+    df.columns = [col_name2cat(column) for column in df.columns]
 
     if columns is None:
         columns = list(df.columns)
+    else:
+        columns = [col_name2cat(column) for column in columns]
 
     min_date, max_date = 0, 0
     # As the date column is only used for visualisation if there is no visualisation we are not gonna validate it
-    if html_compressed or html:
-        if date_column and date_column not in df.columns:
+    if (html_compressed or html) and date_column:
+        date_column = col_name2cat(date_column)
+        if date_column not in df.columns:
             raise ValueError('The date column {} not found among the annotation columns: {}.'
                              .format(date_column, quote(df.columns)))
-        if date_column:
-            if df[date_column].dtype == float:
+        try:
+            df[date_column] = pd.to_datetime(df[date_column], infer_datetime_format=True)
+        except ValueError:
+            try:
                 df[date_column] = pd.to_datetime(df[date_column], format='%Y.0')
-            elif df[date_column].dtype == int:
-                df[date_column] = pd.to_datetime(df[date_column], format='%Y')
-            else:
-                df[date_column] = pd.to_datetime(df[date_column], infer_datetime_format=True)
-                min_date, max_date = date_tips(root, df[date_column])
-                logging.info("Dates vary between {} and {}.".format(min_date, max_date))
+            except ValueError:
+                raise ValueError("Could not infer the date format for column {}, please check it.".format(date_column))
+        min_date, max_date = date_tips(root, df[date_column])
+        logging.info("Dates vary between {} and {}.".format(min_date, max_date))
 
     unknown_columns = set(columns) - set(df.columns)
     if unknown_columns:
@@ -203,24 +214,24 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
                                  'is' if len(unknown_columns) == 1 else 'are',
                                  quote(df.columns)))
 
-    if name_column and (name_column not in columns):
-        raise ValueError('The name column ({}) should be one of those specified as columns ({}).'
-                         .format(quote([name_column]), quote(columns)))
-
-    if name_column is None and len(columns) == 1:
+    if name_column:
+        name_column = col_name2cat(name_column)
+        if name_column not in columns:
+            raise ValueError('The name column ({}) should be one of those specified as columns ({}).'
+                             .format(quote([name_column]), quote(columns)))
+    elif len(columns) == 1:
         name_column = columns[0]
 
     df = df[columns]
     node_names = np.array([n.name for n in root.traverse()])
     tip_names = np.array([n.name for n in root])
-    df_index_ids = df.index.astype(str)
-    df = df[np.in1d(df_index_ids, node_names)]
+    df = df[np.in1d(df.index, node_names)]
 
     if not df.shape[0]:
         raise ValueError('Your tree tip names (e.g. {}) do not correspond to annotation id column values (e.g. {}). '
                          'Check your annotation file.'
                          .format(', '.join(tip_names[: min(len(tip_names), 3)]),
-                                 ', '.join(df_index_ids[: min(len(df_index_ids), 3)])))
+                                 ', '.join(df.index[: min(len(df), 3)])))
 
     percentage_unknown = df.isnull().sum(axis=0) / df.shape[0]
     max_unknown_percentage = percentage_unknown.max()
@@ -239,18 +250,13 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
     acr_results = acr(root, df, prediction_method=prediction_method, model=model, column2parameters=column2parameters)
 
     if work_dir and not out_data:
-        out_data = os.path.join(work_dir, get_combined_ancestral_state_file(method=prediction_method, model=model,
-                                                                            columns=columns))
+        out_data = os.path.join(work_dir, get_combined_ancestral_state_file(columns=columns))
     if out_data:
-        states = acr_results[0].states.tolist() if len(columns) == 1 else []
-        df = pd.DataFrame(columns=columns + states)
+        df = pd.DataFrame(columns=columns)
         for node in root.traverse():
             for column in columns:
                 value = getattr(node, column, None)
-                df.loc[node.name, column] = None if isinstance(value, list) else value
-                if len(columns) == 1:
-                    for _ in (value if isinstance(value, list) else [value]):
-                        df.loc[node.name, _] = True
+                df.loc[node.name, column] = ' or '.join(value) if isinstance(value, list) else value
         df.to_csv(out_data, sep='\t')
 
     if work_dir:
@@ -258,38 +264,26 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
         root.write(outfile=new_tree, format_root_node=True)
 
         for acr_result in acr_results:
-            if is_ml(acr_result.method):
-                out_param_file = \
-                    os.path.join(work_dir,
-                                 get_pastml_parameter_file(method=acr_result.method, model=acr_result.model,
-                                                           column=acr_result.character))
-                df = pd.DataFrame(columns=['value'])
-                df.loc['character', 'value'] = acr_result.character
-                df.loc['method', 'value'] = acr_result.method
-                df.loc['model', 'value'] = acr_result.model
-                df.loc['log likelihood', 'value'] = acr_result.likelihood
-                df.loc['log restricted likelihood', 'value'] = acr_result.restricted_likelihood
-                df.loc['scaling factor', 'value'] = acr_result.sf
-                df.loc['changes per avg branch length', 'value'] = acr_result.norm_sf
-                for state, freq in zip(acr_result.states, acr_result.frequencies):
+            out_param_file = \
+                os.path.join(work_dir,
+                             get_pastml_parameter_file(method=acr_result[METHOD],
+                                                       model=acr_result[MODEL] if MODEL in acr_result else None,
+                                                       column=acr_result[CHARACTER]))
+            df = pd.DataFrame(columns=['value'])
+            for name, value in acr_result.items():
+                if name not in [FREQUENCIES, STATES, MARGINAL_PROBABILITIES]:
+                    df.loc[name, 'value'] = value
+            if is_ml(acr_result[METHOD]):
+                for state, freq in zip(acr_result[STATES], acr_result[FREQUENCIES]):
                     df.loc[state, 'value'] = freq
-                df.to_csv(out_param_file, index_label='parameter')
-                if is_marginal(acr_result.method):
-                    out_mp_file = \
-                        os.path.join(work_dir,
-                                     get_pastml_marginal_prob_file(method=acr_result.method, model=acr_result.model,
-                                                                   column=acr_result.character))
-                    acr_result.marginal_probabilities.to_csv(out_mp_file, sep='\t')
-            elif is_parsimonious(acr_result.method):
-                out_param_file = \
+            df.to_csv(out_param_file, index_label='parameter')
+
+            if is_marginal(acr_result[METHOD]):
+                out_mp_file = \
                     os.path.join(work_dir,
-                                 get_pastml_parameter_file(method=acr_result.method, model=None,
-                                                           column=acr_result.character))
-                df = pd.DataFrame(columns=['value'])
-                df.loc['character', 'value'] = acr_result.character
-                df.loc['method', 'value'] = acr_result.method
-                df.loc['parsimonious steps', 'value'] = acr_result.steps
-                df.to_csv(out_param_file, index_label='parameter')
+                                 get_pastml_marginal_prob_file(method=acr_result[METHOD], model=acr_result[MODEL],
+                                                               column=acr_result[CHARACTER]))
+                acr_result[MARGINAL_PROBABILITIES].to_csv(out_mp_file, sep='\t')
 
     if html or html_compressed:
         logging.info('\n=============VISUALIZING=============\n')

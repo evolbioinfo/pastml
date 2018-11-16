@@ -1,7 +1,5 @@
 import logging
 
-from pastml import col_name2cat
-
 
 def get_tree_stats(tree):
     len_sum = 0
@@ -41,12 +39,10 @@ def get_tree_stats(tree):
                          max_polynomy,
                          max_len,
                          avg_br_len))
-    return avg_br_len
+    return avg_br_len, num_nodes
 
 
 def preannotate_tree(df, tree):
-    df.columns = [col_name2cat(col) for col in df.columns]
-    df.index = df.index.map(str)
     df.fillna('', inplace=True)
     for _ in tree.traverse():
         if _.name in df.index:

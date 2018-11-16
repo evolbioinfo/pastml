@@ -6,7 +6,7 @@ import pandas as pd
 
 from pastml.tree import read_tree, collapse_zero_branches
 from pastml.acr import acr
-from pastml.parsimony import DELTRAN
+from pastml.parsimony import DELTRAN, STEPS
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')
@@ -23,8 +23,8 @@ class ACRStateDeltranTest(unittest.TestCase):
         self.acr_result = acr(self.tree, df, prediction_method=DELTRAN)[0]
 
     def test_num_steps(self):
-        self.assertEqual(32, self.acr_result.steps,
-                         msg='Was supposed to have {} parsimonious steps, got {}.'.format(32, self.acr_result.steps))
+        self.assertEqual(32, self.acr_result[STEPS],
+                         msg='Was supposed to have {} parsimonious steps, got {}.'.format(32, self.acr_result[STEPS]))
 
     def test_num_nodes(self):
         state2num = Counter()

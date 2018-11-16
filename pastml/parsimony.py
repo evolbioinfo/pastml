@@ -1,7 +1,10 @@
 import logging
-from collections import namedtuple, Counter
+from collections import Counter
 
-from pastml import get_personalized_feature_name
+from pastml import get_personalized_feature_name, METHOD, STATES, CHARACTER, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
+    NUM_NODES
+
+STEPS = 'steps'
 
 DOWNPASS = 'DOWNPASS'
 ACCTRAN = 'ACCTRAN'
@@ -200,11 +203,7 @@ def deltran(tree, feature):
                 node.add_feature(ps_feature, state_intersection)
 
 
-ACRParsimoniousResult = namedtuple('ACRParsimoniousResult',
-                                   field_names=['steps', 'character', 'states', 'method'])
-
-
-def parsimonious_acr(tree, feature, prediction_method, states):
+def parsimonious_acr(tree, feature, prediction_method, states, num_nodes):
     """
     Calculates parsimonious states on the tree and stores them in the corresponding feature.
 
@@ -212,7 +211,7 @@ def parsimonious_acr(tree, feature, prediction_method, states):
     :param prediction_method: str, ACCTRAN (accelerated transformation), DELTRAN (delayed transformation) or DOWNPASS
     :param tree: ete3.Tree, the tree of interest
     :param feature: str, character for which the parsimonious states are reconstructed
-    :return: void, add parsimonious states as the `feature` feature to each node
+    :return: dict, mapping between reconstruction parameters and values
     """
     initialise_tip_parsimonious_states(tree, feature, states)
     uppass(tree, feature)
@@ -224,9 +223,14 @@ def parsimonious_acr(tree, feature, prediction_method, states):
             deltran(tree, feature)
     num_steps = get_num_parsimonious_steps(tree, feature)
     logging.info("Parsimonious reconstruction for {} requires {} state changes.\n".format(feature, num_steps))
-    choose_parsimonious_states(tree, feature)
+    num_scenarios, unresolved_nodes = choose_parsimonious_states(tree, feature)
+    logging.info('{} node{} unresolved ({:.2f}%) for {}, leading to {:g} ancestral scenario{}.\n'
+                 .format(unresolved_nodes, 's are' if unresolved_nodes > 1 else ' is',
+                         unresolved_nodes * 100 / num_nodes, feature,
+                         num_scenarios, 's' if num_scenarios > 1 else ''))
 
-    return ACRParsimoniousResult(steps=num_steps, character=feature, states=states, method=prediction_method)
+    return {STEPS: num_steps, CHARACTER: feature, STATES: states, METHOD: prediction_method,
+            NUM_SCENARIOS: num_scenarios, NUM_UNRESOLVED_NODES: unresolved_nodes, NUM_NODES: num_nodes}
 
 
 def choose_parsimonious_states(tree, feature):
@@ -237,17 +241,23 @@ def choose_parsimonious_states(tree, feature):
 
     :param feature: str, character for which the parsimonious states are reconstructed
     :param tree: ete3.Tree, the tree of interest
-    :return: void, add parsimonious states as the `feature` feature to each node
+    :return: int, number of ancestral scenarios selected,
+    calculated by multiplying the number of selected states for all nodes.
+    Also adds parsimonious states as the `feature` feature to each node
     """
+    num_scenarios = 1
+    unresolved_nodes = 0
     ps_feature = get_personalized_feature_name(feature, PARS_STATES)
     for node in tree.traverse():
         states = getattr(node, ps_feature)
         node.add_feature(feature, next(iter(states)) if len(states) == 1 else list(states))
+        num_scenarios *= len(states)
+        unresolved_nodes += 1 if len(states) > 1 else 0
         node.del_feature(ps_feature)
+    return num_scenarios, unresolved_nodes
 
 
 def get_num_parsimonious_steps(tree, feature):
-
     ps_feature = get_personalized_feature_name(feature, PARS_STATES)
     ps_feature_num = get_personalized_feature_name(feature, PARS_STATE2NUM)
 

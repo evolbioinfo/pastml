@@ -3,8 +3,7 @@ import os
 from pastml import col_name2cat
 from pastml.ml import is_ml, is_marginal
 
-COMBINED_ANCESTRAL_STATE_CSV_ML = 'combined_ancestral_states.characters_{states}.method_{method}.model_{model}.csv'
-COMBINED_ANCESTRAL_STATE_CSV_MP = 'combined_ancestral_states.characters_{states}.method_{method}.csv'
+COMBINED_ANCESTRAL_STATE_CSV = 'combined_ancestral_states.characters_{states}.csv'
 NAMED_TREE_NWK = 'named.tree_{tree}'
 
 PASTML_ANCESTRAL_STATES_CSV_ML = 'ancestral_states.character_{state}.method_{method}.model_{model}.csv'
@@ -42,18 +41,15 @@ def get_pastml_ancestral_state_file(method, model, column):
     return template.format(state=col_name2cat(column), method=method, model=model)
 
 
-def get_combined_ancestral_state_file(method, model, columns):
+def get_combined_ancestral_state_file(columns):
     """
     Get the filename where the combined ancestral states are saved (for one or several columns).
     This file is inside the work_dir that can be specified for the pastml_pipeline method.
-    :param method: str, the ancestral state prediction method used by PASTML.
-    :param model: str, the state evolution model used by PASTML.
     :param columns: list of str, the column(s) for which ancestral states are reconstructed with PASTML.
     :return: str, filename
     """
-    template = COMBINED_ANCESTRAL_STATE_CSV_ML if is_ml(method) else COMBINED_ANCESTRAL_STATE_CSV_MP
-    return template.format(states='_'.join(col_name2cat(column) for column in columns),
-                           method=method, model=model)
+    template = COMBINED_ANCESTRAL_STATE_CSV
+    return template.format(states='_'.join(col_name2cat(column) for column in columns))
 
 
 def get_named_tree_file(tree):

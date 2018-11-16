@@ -1,19 +1,21 @@
 import logging
-from collections import namedtuple, defaultdict
+from collections import defaultdict
 
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
-from pastml import get_personalized_feature_name
+from pastml import get_personalized_feature_name, CHARACTER, STATES, METHOD, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
+    NUM_NODES
 
-ACRMLJointResult = namedtuple('ACRMLJointResult',
-                              field_names=['likelihood', 'restricted_likelihood', 'frequencies', 'sf', 'norm_sf',
-                                           'character', 'states', 'method', 'model'])
-
-ACRMLMarginalResult = namedtuple('ACRMLMarginalResult',
-                                 field_names=['likelihood', 'restricted_likelihood', 'frequencies', 'sf', 'norm_sf',
-                                              'character', 'states', 'method', 'model', 'marginal_probabilities'])
+MARGINAL_PROBABILITIES = 'marginal_probabilities'
+JOINT_RESTRICTED_LOG_LIKELIHOOD = 'joint_restricted_log_likelihood'
+MODEL = 'model'
+CHANGES_PER_AVG_BRANCH = 'changes_per_avg_branch'
+SCALING_FACTOR = 'SF'
+FREQUENCIES = 'frequencies'
+RESTRICTED_LOG_LIKELIHOOD = 'restricted_log_likelihood'
+LOG_LIKELIHOOD = 'log_likelihood'
 
 MIN_VALUE = np.log10(np.finfo(np.float64).eps)
 MAX_VALUE = np.log10(np.finfo(np.float64).max)
@@ -105,55 +107,51 @@ def get_bottom_up_likelihood(tree, feature, frequencies, sf, is_marginal=True):
 
     mu = get_mu(frequencies)
     for node in tree.traverse('postorder'):
-        likelihood_array = np.ones(len(frequencies), dtype=np.float64)
-
+        likelihood_array = np.ones(len(frequencies), dtype=np.float64) * getattr(node, allowed_state_feature)
+        factors = 0
         for child in node.children:
             child_likelihoods = get_pij(frequencies, mu, child.dist, sf) * getattr(child, lh_feature)
 
             if is_marginal:
-                likelihood_array *= child_likelihoods.sum(axis=1)
+                child_likelihoods = child_likelihoods.sum(axis=1)
             else:
-                likelihood_array *= child_likelihoods.max(axis=1)
                 child_states = child_likelihoods.argmax(axis=1)
                 child.add_feature(lh_joint_state_feature, child_states)
+                child_likelihoods = child_likelihoods.max(axis=1)
+
+            factors += rescale(child_likelihoods, fraction_of_limit=len(node.children))
+            likelihood_array *= child_likelihoods
 
         if np.all(likelihood_array == 0):
             return -np.inf
 
-        factors = rescale(likelihood_array, node, going_up=True)
-        likelihood_array *= getattr(node, allowed_state_feature)
+        factors += rescale(likelihood_array, fraction_of_limit=len(node.up.children) if not node.is_root() else 1)
         node.add_feature(lh_feature, likelihood_array)
         node.add_feature(lh_sf_feature, factors + sum(getattr(_, lh_sf_feature) for _ in node.children))
     return np.log(getattr(tree, lh_feature).dot(frequencies)) - getattr(tree, lh_sf_feature) * np.log(10)
 
 
-def rescale(likelihood_array, node, going_up=True):
+def rescale(likelihood_array, fraction_of_limit):
     """
     Rescales the likelihood array if it gets too small/large, by multiplying it by a factor of 10.
+    :param fraction_of_limit: int, to be rescaled the min (max) non-zero likelihood value should be
+    smaller that MIN_VALUE / fraction_of_limit (larger than MAX_LIMIT / fraction_of_limit).
     :param likelihood_array: numpy array containing the likelihood to be rescaled
-    :param node: ete3.TreeNode who's likelihood is about to be rescaled.
-    :param going_up: bool, whether we are going bottom-up (true) or top-down (false) in the tree with this likelihood calculation.
     :return: float, factor of 10 by which the likelihood array has been multiplies.
     """
+
+    max_limit = MAX_VALUE / fraction_of_limit
+    min_limit = MIN_VALUE / fraction_of_limit
 
     min_lh_value = np.log10(np.min(likelihood_array[np.nonzero(likelihood_array)]))
     max_lh_value = np.log10(np.max(likelihood_array[np.nonzero(likelihood_array)]))
 
-    num_siblings = 2
-    # if we go up, this likelihood will be multiplied by those of our siblings at the next step
-    if going_up and not node.is_root():
-        num_siblings = len(node.up.children)
-    # if we go down, this likelihood will be multiplied by those of our children at the next step
-    elif not going_up and not node.is_leaf():
-        num_siblings = len(node.children)
-
     factors = 0
-
-    if max_lh_value > MAX_VALUE / num_siblings:
-        factors = MAX_VALUE / num_siblings - max_lh_value
+    if max_lh_value > max_limit:
+        factors = max_limit - max_lh_value - 1
         likelihood_array *= np.power(10, factors)
-    elif min_lh_value < MIN_VALUE / num_siblings:
-        factors = min(-min_lh_value, MAX_VALUE / num_siblings - max_lh_value)
+    elif min_lh_value < min_limit:
+        factors = min(-min_lh_value, max_limit - max_lh_value)
         likelihood_array *= np.power(10, factors)
     return factors
 
@@ -168,7 +166,7 @@ def optimize_likelihood_params(tree, feature, frequencies, sf, avg_br_len, optim
     :param sf: float, initial scaling factor
     :param optimise_sf: bool, whether the scaling factor needs to be optimised
     :param optimise_frequencies: bool, whether the state frequencies need to be optimised
-    :return: tuple (frequencies, scaling_factor) with the optimized parameters
+    :return: tuple ((frequencies, scaling_factor), optimum) with the optimized parameters and log likelihood
     """
     bounds = []
     if optimise_frequencies:
@@ -192,26 +190,24 @@ def optimize_likelihood_params(tree, feature, frequencies, sf, avg_br_len, optim
         res = get_bottom_up_likelihood(tree, feature, freqs, sf_val, True)
         return np.inf if pd.isnull(res) else -res
 
-    params = None
-    optimum = None
-    for i in range(5 if optimise_frequencies else 3):
+    # params = None
+    # optimum = None
+    for i in range(10):
         if i == 0:
             vs = np.hstack((frequencies[:-1] / frequencies[-1] if optimise_frequencies else [],
-                            [sf] if optimise_sf else []))
-        elif i == 1 and optimise_frequencies:
-            vs = np.hstack((np.ones(len(frequencies) - 1, np.float64),
                             [sf] if optimise_sf else []))
         else:
             vs = np.random.uniform(bounds[:, 0], bounds[:, 1])
         fres = minimize(get_v, x0=vs, method='L-BFGS-B', bounds=bounds)
         if fres.success and not np.any(np.isnan(fres.x)):
-            logging.info('Calculated an optimum candidate of {}'.format(fres.fun))
-            if optimum is None or fres.fun < optimum:
-                params = fres.x
-                optimum = fres.fun
-    if params is None:
-        return None, None
-    return get_freq_sf_from_params(params)
+            return get_freq_sf_from_params(fres.x), -fres.fun
+    #         logging.info('Calculated an optimum candidate of {}'.format(-fres.fun))
+    #         if optimum is None or fres.fun < optimum:
+    #             params = fres.x
+    #             optimum = fres.fun
+    # if params is None:
+    #     return None, None
+    # return get_freq_sf_from_params(params), -optimum
 
 
 def calculate_top_down_likelihood(tree, feature, frequencies, sf):
@@ -259,7 +255,7 @@ def calculate_top_down_likelihood(tree, feature, frequencies, sf):
         factors = getattr(parent, lh_sf_feature) + getattr(parent, bu_lh_sf_feature) - getattr(node, bu_lh_sf_feature)
 
         td_likelihood = parent_likelihood.dot(node_pjis)
-        factors += rescale(td_likelihood, node, going_up=False)
+        factors += rescale(td_likelihood, fraction_of_limit=len(node.children) if not node.is_leaf() else 1)
 
         node.add_feature(lh_feature, td_likelihood)
         node.add_feature(lh_sf_feature, factors)
@@ -412,14 +408,19 @@ def choose_ancestral_states_mppa(tree, feature, states):
     :param tree: ete3.Tree, the tree of interest
     :param feature: str, character for which the ancestral states are to be chosen
     :param states: numpy.array of possible character states in order corresponding to the probabilities array
-    :return: void, add ancestral states as the `feature` feature to each node
-    (as a list if multiple states are possible or as a string if only one state is chosen)
+    :return: int, number of ancestral scenarios selected,
+    calculated by multiplying the number of selected states for all nodes.
+    Also modified the get_personalized_feature_name(feature, ALLOWED_STATES) feature of each node
+    to only contain the selected states.
     """
     lh_feature = get_personalized_feature_name(feature, LH)
     allowed_state_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
 
     n = len(states)
     _, state2array = get_state2allowed_states(states, False)
+
+    num_scenarios = 1
+    unresolved_nodes = 0
 
     for node in tree.traverse():
         marginal_likelihoods = getattr(node, lh_feature)
@@ -433,13 +434,17 @@ def choose_ancestral_states_mppa(tree, feature, states):
                 best_correstion = correction
                 best_k = k
 
+        num_scenarios *= best_k
         indices_selected = sorted(range(n), key=lambda _: -marginal_likelihoods[_])[:best_k]
         if best_k == 1:
             allowed_states = state2array[indices_selected[0]]
         else:
             allowed_states = np.zeros(len(states), dtype=np.int)
             allowed_states[indices_selected] = 1
+            unresolved_nodes += 1
         node.add_feature(allowed_state_feature, allowed_states)
+
+    return num_scenarios, unresolved_nodes
 
 
 def choose_ancestral_states_map(tree, feature, states):
@@ -449,7 +454,10 @@ def choose_ancestral_states_map(tree, feature, states):
     :param tree: ete3.Tree, the tree of interest
     :param feature: str, character for which the ancestral states are to be chosen
     :param states: numpy.array of possible character states in order corresponding to the probabilities array
-    :return: void, add ancestral states as the `feature` feature to each node
+    :return: int, number of ancestral scenarios selected,
+    calculated by multiplying the number of selected states for all nodes, which is always 1.
+    Also modified the get_personalized_feature_name(feature, ALLOWED_STATES) feature of each node
+    to only contain the selected states.
     """
     lh_feature = get_personalized_feature_name(feature, LH)
     allowed_state_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
@@ -458,6 +466,7 @@ def choose_ancestral_states_map(tree, feature, states):
     for node in tree.traverse():
         marginal_likelihoods = getattr(node, lh_feature)
         node.add_feature(allowed_state_feature, state2array[marginal_likelihoods.argmax()])
+    return 1, 0
 
 
 def choose_ancestral_states_joint(tree, feature, states, frequencies):
@@ -468,7 +477,10 @@ def choose_ancestral_states_joint(tree, feature, states, frequencies):
     :param tree: ete3.Tree, the tree of interest
     :param feature: str, character for which the ancestral states are to be chosen
     :param states: numpy.array of possible character states in order corresponding to the probabilities array
-    :return: void, adds ancestral states as the `feature` feature to each node
+    :return: int, number of ancestral scenarios selected,
+    calculated by multiplying the number of selected states for all nodes, which is always 1.
+    Also modified the get_personalized_feature_name(feature, ALLOWED_STATES) feature of each node
+    to only contain the selected states.
     """
     lh_feature = get_personalized_feature_name(feature, BU_LH)
     lh_state_feature = get_personalized_feature_name(feature, BU_LH_JOINT_STATES)
@@ -482,6 +494,7 @@ def choose_ancestral_states_joint(tree, feature, states, frequencies):
             chose_consistent_state(child, getattr(child, lh_state_feature)[state_index])
 
     chose_consistent_state(tree, (getattr(tree, lh_feature) * frequencies).argmax())
+    return 1, 0
 
 
 def get_state2allowed_states(states, by_name=True):
@@ -499,30 +512,51 @@ def get_state2allowed_states(states, by_name=True):
     return all_ones, state2array
 
 
-def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, freqs=None, sf=None):
-    optimise_frequencies = F81 == model
+def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_nodes, freqs=None, sf=None):
+    """
+    Calculates ML states on the tree and stores them in the corresponding feature.
+
+    :param states: numpy array of possible states
+    :param prediction_method: str, MPPA (marginal approximation), MAP (max a posteriori) or JOINT
+    :param tree: ete3.Tree, the tree of interest
+    :param feature: str, character for which the ML states are reconstructed
+    :param model: str, evolutionary model, F81 (Felsenstein 81-like), JC (Jukes-Cantor-like) or EFT (estimate from tips)
+    :param avg_br_len: float, average non-zero branch length of the tree.
+    :param freqs: numpy array of predefined frequencies (or None if they are to be estimated)
+    :param sf: float, predefined scaling factor (or None if it is to be estimated)
+    :return: dict, mapping between reconstruction parameters and values
+    """
     n = len(states)
     state2index = dict(zip(states, range(n)))
     missing_data = 0.
+    observed_frequencies = np.zeros(n, np.float64)
+    for _ in tree:
+        state = getattr(_, feature, None)
+        if state is not None and state != '':
+            observed_frequencies[state2index[state]] += 1
+        else:
+            missing_data += 1
+    total_count = observed_frequencies.sum() + missing_data
+    observed_frequencies /= observed_frequencies.sum()
+    missing_data /= total_count
+
+    logging.info('Observed frequencies for {}:{}{}.\n'
+                 .format(feature,
+                         ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, observed_frequencies[state2index[state]])
+                                 for state in states),
+                         '\n\tfraction of missing data:\t{:.3f}'.format(missing_data) if missing_data else ''))
+
     if freqs is not None and F81 != model:
-        logging.warning('Some frequencies were specified in the parameter file, but the selected model ({}) ignores them. '
+        logging.warning('Some frequencies were specified in the parameter file, '
+                        'but the selected model ({}) ignores them. '
                         'Use F81 for taking user-specified frequencies into account.'.format(model))
-    if JC == model:
-        frequencies = np.ones(n, dtype=np.float64) / n
-    elif freqs is not None and F81 == model:
+    optimise_frequencies = F81 == model and freqs is None
+    if EFT == model:
+        frequencies = observed_frequencies
+    elif F81 == model and freqs is not None:
         frequencies = freqs
-        optimise_frequencies = False
     else:
-        frequencies = np.zeros(n, np.float64)
-        for _ in tree:
-            state = getattr(_, feature, None)
-            if state is not None and state != '':
-                frequencies[state2index[state]] += 1
-            else:
-                missing_data += 1
-        total_count = frequencies.sum() + missing_data
-        frequencies /= frequencies.sum()
-        missing_data /= total_count
+        frequencies = np.ones(n, dtype=np.float64) / n
 
     initialize_allowed_states(tree, feature, states)
     alter_zero_tip_allowed_states(tree, feature)
@@ -532,59 +566,95 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, freqs=No
         sf = 1. / avg_br_len
         optimise_sf = True
     likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, True)
-    logging.info('Initial {} values:{}{}{}{}.\n'
-                 .format(feature,
-                         ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[state2index[state]])
-                                 for state in states),
-                         '\n\tfraction of missing data:\t{:.3f}'.format(missing_data) if missing_data else '',
-                         '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'.format(sf, sf * avg_br_len),
-                         '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
-    if optimise_sf or optimise_frequencies:
-        frequencies, sf = optimize_likelihood_params(tree, feature, frequencies, sf,
-                                                     optimise_frequencies=optimise_frequencies, optimise_sf=optimise_sf,
-                                                     avg_br_len=avg_br_len)
-        likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, True)
+    if not optimise_sf and not optimise_frequencies:
+        logging.info('Both SF and frequencies are fixed for {},{}\n'
+                     .format(feature,
+                             '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
+    else:
+        logging.info('Initial values for {} parameter optimisation:{}{}{}.\n'
+                     .format(feature,
+                             ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[state2index[state]])
+                                     for state in states),
+                             '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'.format(sf, sf * avg_br_len),
+                             '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
+        if optimise_sf:
+            (_, sf), likelihood = optimize_likelihood_params(tree, feature, frequencies, sf,
+                                                             optimise_frequencies=False, optimise_sf=optimise_sf,
+                                                             avg_br_len=avg_br_len)
+            if optimise_frequencies:
+                logging.info('Pre-optimised SF for {}:{}{}.\n'
+                             .format(feature,
+                                     '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'.format(sf, sf * avg_br_len),
+                                     '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
+        if optimise_frequencies:
+            (frequencies, sf), likelihood = optimize_likelihood_params(tree, feature, frequencies, sf,
+                                                                       optimise_frequencies=optimise_frequencies,
+                                                                       optimise_sf=optimise_sf,
+                                                                       avg_br_len=avg_br_len)
+
         logging.info('Optimised {} values:{}{}{}\n'
                      .format(feature,
                              ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[state2index[state]])
                                      for state in states) if optimise_frequencies else '',
                              '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'.format(sf, sf * avg_br_len),
                              '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
-    else:
-        logging.info('Both scaling factor and frequencies are fixed for {}.\n'.format(feature))
 
-    if is_marginal(prediction_method):
+    result = {LOG_LIKELIHOOD: likelihood, CHARACTER: feature, METHOD: prediction_method, MODEL: model,
+              FREQUENCIES: frequencies, SCALING_FACTOR: sf, CHANGES_PER_AVG_BRANCH: sf * avg_br_len, STATES: states}
+
+    # Calculate joint restricted likelihood
+    get_bottom_up_likelihood(tree, feature, frequencies, sf, False)
+    unalter_zero_tip_joint_states(tree, feature, state2index)
+    num_scenarios, unresolved_nodes = choose_ancestral_states_joint(tree, feature, states, frequencies)
+    alter_zero_tip_allowed_states(tree, feature)
+    joint_restricted_likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, False)
+    unalter_zero_tip_allowed_states(tree, feature, state2index)
+    logging.info('Log likelihood for {} after {} state selection:\t{:.3f}\n'
+                 .format(feature, JOINT, joint_restricted_likelihood))
+
+    if JOINT == prediction_method:
+        restricted_likelihood = joint_restricted_likelihood
+    else:
+        # remove joint state selection
+        initialize_allowed_states(tree, feature, states)
+        alter_zero_tip_allowed_states(tree, feature)
+        get_bottom_up_likelihood(tree, feature, frequencies, sf, True)
         calculate_top_down_likelihood(tree, feature, frequencies, sf)
         unalter_zero_tip_allowed_states(tree, feature, state2index)
         calculate_marginal_likelihoods(tree, feature, frequencies)
         marginal_df = convert_likelihoods_to_probabilities(tree, feature, states)
         if MPPA == prediction_method:
-            logging.info('Choosing MPPA ancestral states for {}.\n'.format(feature))
-            choose_ancestral_states_mppa(tree, feature, states)
+            num_scenarios, unresolved_nodes = choose_ancestral_states_mppa(tree, feature, states)
         elif MAP == prediction_method:
-            logging.info('Choosing MAP ancestral states for {}.\n'.format(feature))
-            choose_ancestral_states_map(tree, feature, states)
+            num_scenarios, unresolved_nodes = choose_ancestral_states_map(tree, feature, states)
         alter_zero_tip_allowed_states(tree, feature)
         restricted_likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, True)
         unalter_zero_tip_allowed_states(tree, feature, state2index)
-        logging.info('Log likelihood for {} after state selection:\t{:.3f}\n'.format(feature, restricted_likelihood))
-        result = ACRMLMarginalResult(likelihood=likelihood, restricted_likelihood=restricted_likelihood,
-                                   frequencies=frequencies, sf=sf, norm_sf=sf * avg_br_len,
-                                   method=prediction_method, model=model, character=feature, states=states,
-                                   marginal_probabilities=marginal_df)
-    # joint
-    else:
+        result[JOINT_RESTRICTED_LOG_LIKELIHOOD] = joint_restricted_likelihood
+        result[MARGINAL_PROBABILITIES] = marginal_df
+        logging.info('Log likelihood for {} after {} state selection:\t{:.3f}\n'
+                     .format(feature, prediction_method, restricted_likelihood))
+    result[RESTRICTED_LOG_LIKELIHOOD] = restricted_likelihood
+    result[NUM_NODES] = num_nodes
+
+    if MPPA == prediction_method:
+        logging.info('{} node{} unresolved ({:.2f}%) for {}, leading to {:g} ancestral scenario{}.\n'
+                     .format(unresolved_nodes, 's are' if unresolved_nodes > 1 else ' is',
+                             unresolved_nodes * 100 / num_nodes, feature,
+                             num_scenarios, 's' if num_scenarios > 1 else ''))
+        if not unresolved_nodes:
+            logging.info('As all the nodes are resolved for {}, switching the prediction to {}.\n'
+                         .format(feature, JOINT))
+
+        # remove MPPA state selection
+        initialize_allowed_states(tree, feature, states)
+        alter_zero_tip_allowed_states(tree, feature)
         get_bottom_up_likelihood(tree, feature, frequencies, sf, False)
         unalter_zero_tip_joint_states(tree, feature, state2index)
-        logging.info('Choosing joint ancestral states for {}.\n'.format(feature))
-        choose_ancestral_states_joint(tree, feature, states, frequencies)
-        alter_zero_tip_allowed_states(tree, feature)
-        restricted_likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, False)
-        unalter_zero_tip_allowed_states(tree, feature, state2index)
-        logging.info('Log likelihood for {} after state selection:\t{:.3f}\n'.format(feature, restricted_likelihood))
-        result = ACRMLJointResult(likelihood=likelihood, restricted_likelihood=restricted_likelihood,
-                            frequencies=frequencies, sf=sf, norm_sf=sf * avg_br_len,
-                            method=prediction_method, model=model, character=feature, states=states)
+        num_scenarios, unresolved_nodes = choose_ancestral_states_joint(tree, feature, states, frequencies)
+
+        result[NUM_UNRESOLVED_NODES] = unresolved_nodes
+        result[NUM_SCENARIOS] = num_scenarios
 
     allowed_states_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
     for node in tree.traverse():
