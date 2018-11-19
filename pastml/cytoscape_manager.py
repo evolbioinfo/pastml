@@ -133,11 +133,11 @@ def set_cyto_features_tree(n, state, suffix=''):
     n.add_feature('{}{}'.format(EDGE_SIZE, suffix), 20)
 
 
-def _tree2json(tree, categories, name_feature, node2tooltip, min_date=0, max_date=0, is_compressed=True):
+def _tree2json(tree, column2states, name_feature, node2tooltip, min_date=0, max_date=0, is_compressed=True):
     e_size_scaling, font_scaling, size_scaling, transform_e_size, transform_size = get_size_transformations(tree)
 
     for n in tree.traverse():
-        state = getattr(n, name_feature, '') if name_feature is not None else ''
+        state = get_column_value_str(n, name_feature, format_list=False, list_value='') if name_feature else ''
 
         if is_compressed:
             tips_inside, tips_below = getattr(n, TIPS_INSIDE, []), getattr(n, TIPS_BELOW, [])
@@ -146,8 +146,8 @@ def _tree2json(tree, categories, name_feature, node2tooltip, min_date=0, max_dat
             if isinstance(tips_below, dict):
                 tips_below = [tips_below]
 
-            set_cyto_features_compressed(n, tips_inside, tips_below, size_scaling, e_size_scaling, font_scaling, transform_size,
-                                         transform_e_size, state, suffix='')
+            set_cyto_features_compressed(n, tips_inside, tips_below, size_scaling, e_size_scaling, font_scaling,
+                                         transform_size, transform_e_size, state, suffix='')
 
             if min_date != max_date:
                 for year in range(int(max_date), int(min_date) - 1, -1):
@@ -180,9 +180,17 @@ def _tree2json(tree, categories, name_feature, node2tooltip, min_date=0, max_dat
     node2id = {tree: 0}
     i = 1
 
-    sort_key = lambda n: (*('{}:{}'.format(_, getattr(n, _, 'false') if getattr(n, _, '') else 'false')
-                            for _ in categories), -getattr(n, NODE_SIZE, 0),
-                          str(getattr(n, name_feature, '.')) if name_feature else '', n.name)
+    # sort_key = lambda n: (*('{}:{}'.format(_, getattr(n, _, 'false') if getattr(n, _, '') else 'false')
+    #                         for _ in categories), -getattr(n, NODE_SIZE, 0),
+    #                       str(getattr(n, name_feature, '.')) if name_feature else '', n.name)
+    n2sort_name = {}
+    for node in tree.traverse('preorder'):
+        if node.is_root():
+            n2sort_name[node] = (node.name,)
+        else:
+            n2sort_name[node] = (*n2sort_name[node.up], node.name)
+
+    sort_key = lambda n: n2sort_name[n]
     while not todo.empty():
         n = todo.get_nowait()
         for c in sorted(n.children, key=sort_key):
@@ -190,13 +198,19 @@ def _tree2json(tree, categories, name_feature, node2tooltip, min_date=0, max_dat
             i += 1
             todo.put_nowait(c)
 
+    one_column = next(iter(column2states.keys())) if len(column2states) == 1 else None
+
     for n, n_id in sorted(node2id.items(), key=lambda ni: ni[1]):
         if n == tree and not is_compressed and int(n.dist / dist_step) > 0:
             fake_id = 'fake_node_{}'.format(n_id)
             nodes.append(get_fake_node(n, fake_id))
             edges.append(get_edge(n, fake_id, n_id, minLen=int(n.dist / dist_step)))
-
-        clazz = tuple('{}_{}'.format(cat, getattr(n, cat)) for cat in categories if hasattr(n, cat))
+        if one_column:
+            values = getattr(n, one_column, [])
+            clazz = tuple('{}_{}'.format(value, True) for value in (values if isinstance(values, list) else [values]))
+        else:
+            clazz = tuple('{}_{}'.format(column, get_column_value_str(n, column, format_list=False, list_value=''))
+                          for column in column2states.keys())
         if clazz:
             clazzes.add(clazz)
         nodes.append(get_node(n, n_id, tooltip=node2tooltip[n], clazz=clazz))
@@ -243,7 +257,7 @@ def get_size_transformations(tree):
     return e_size_scaling, font_scaling, size_scaling, transform_e_size, transform_size
 
 
-def save_as_cytoscape_html(tree, out_html, categories, layout='dagre', name_feature=STATE,
+def save_as_cytoscape_html(tree, out_html, column2states, layout='dagre', name_feature=STATE,
                            name2colour=None, n2tooltip=None, min_date=0, max_date=0, is_compressed=True):
     """
     Converts a tree to an html representation using Cytoscape.js.
@@ -269,7 +283,7 @@ def save_as_cytoscape_html(tree, out_html, categories, layout='dagre', name_feat
     graph_name = os.path.splitext(os.path.basename(out_html))[0]
 
     json_dict, clazzes \
-        = _tree2json(tree, categories=categories, name_feature=name_feature,
+        = _tree2json(tree, column2states, name_feature=name_feature,
                      node2tooltip=n2tooltip, min_date=min_date, max_date=max_date, is_compressed=is_compressed)
     env = Environment(loader=PackageLoader('pastml'))
     template = env.get_template('pie_tree.js')
@@ -316,28 +330,25 @@ def _get_edge(**data):
     return {DATA: data}
 
 
-def visualize(tree, columns, name_column=None, html=None, html_compressed=None,
+def get_column_value_str(n, column, format_list=True, list_value='<unresolved>'):
+    values = getattr(n, column, [])
+    return (' or '.join(values) if format_list else list_value) if isinstance(values, list) else values
+
+
+def visualize(tree, column2states, name_column=None, html=None, html_compressed=None,
               tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, min_date=0, max_date=0):
-    one_column = len(columns) == 1
-
-    column2values = {}
-    for feature in columns:
-        column2values[feature] = annotate(tree, feature, unique=one_column)
-
-    if not name_column and one_column:
-        name_column = columns[0]
+    one_column = next(iter(column2states.keys())) if len(column2states) == 1 else None
 
     name2colour = {}
-    for cat in columns:
-        unique_values = column2values[cat]
-        num_unique_values = len(unique_values)
+    for column, states in column2states.items():
+        num_unique_values = len(states)
         colours = get_enough_colours(num_unique_values)
-        for value, col in zip(unique_values, colours):
-            name2colour['{}_{}'.format(value, True) if one_column else '{}_{}'.format(cat, value)] = col
-        logging.info('Mapped states to colours for {} as following: {} -> {}'.format(cat, unique_values, colours))
+        for value, col in zip(states, colours):
+            name2colour['{}_{}'.format(value, True) if one_column else '{}_{}'.format(column, value)] = col
+        logging.getLogger('pastml').debug('Mapped states to colours for {} as following: {} -> {}.'.format(column, states, colours))
         # let ambiguous values be white
-        if not one_column:
-            name2colour['{}_'.format(cat)] = WHITE
+        if one_column is None:
+            name2colour['{}_'.format(column)] = WHITE
 
     # set internal node dates to min of its tips' dates
     for n in tree.traverse('postorder'):
@@ -349,37 +360,19 @@ def visualize(tree, columns, name_column=None, html=None, html_compressed=None,
 
     def get_category_str(n):
         if one_column:
-            return '{}: {}'.format(columns[0], ' or '.join('{}'.format(_)
-                                                           for _ in column2values[columns[0]]
-                                                           if hasattr(n, _) and getattr(n, _, '') != ''))
-        return '<br>'.join('{}: {}'.format(_, getattr(n, _))
-                           for _ in columns if hasattr(n, _) and getattr(n, _, '') != '')
+            return '{}: {}'.format(one_column, get_column_value_str(n, one_column, format_list=True))
+        return '<br>'.join('{}: {}'.format(column, get_column_value_str(n, column, format_list=False))
+                           for column in column2states.keys())
 
     if html:
-        save_as_cytoscape_html(tree, html, categories=column2values[columns[0]] if one_column else columns,
+        save_as_cytoscape_html(tree, html, column2states=column2states,
                                name2colour=name2colour,
                                n2tooltip={n: get_category_str(n) for n in tree.traverse()},
                                name_feature='name', min_date=min_date, max_date=max_date, is_compressed=False)
 
     if html_compressed:
-        tree = compress_tree(tree, categories=column2values[columns[0]] if one_column else columns,
-                             tip_size_threshold=tip_size_threshold)
-        save_as_cytoscape_html(tree, html_compressed, categories=column2values[columns[0]] if one_column else columns,
+        tree = compress_tree(tree, column2states=column2states, tip_size_threshold=tip_size_threshold)
+        save_as_cytoscape_html(tree, html_compressed, column2states=column2states,
                                name2colour=name2colour, n2tooltip={n: get_category_str(n) for n in tree.traverse()},
                                min_date=min_date, max_date=max_date, name_feature=name_column, is_compressed=True)
     return tree
-
-
-def annotate(tree, feature, unique=True):
-    all_states = set()
-    for node in tree.traverse():
-        possible_states = getattr(node, feature, [])
-        if isinstance(possible_states, list):
-            node.add_feature(feature, '')
-        else:
-            all_states.add(possible_states)
-        if unique:
-            for state in (possible_states if isinstance(possible_states, list) else [possible_states]):
-                node.add_feature(state, True)
-                all_states.add(state)
-    return sorted(all_states)

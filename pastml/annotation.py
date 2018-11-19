@@ -26,19 +26,19 @@ def get_tree_stats(tree):
                 num_zero_tips += 1
 
     avg_br_len = len_sum / (num_nodes - num_zero_nodes)
-    logging.info('\n=============CHECKING THE TREE=============\n'
-                 '\tnumber of tips:\t{}\n'
-                 '\tnumber of zero-branch tips:\t{}\n'
-                 '\tnumber of internal nodes:\t{}\n'
-                 '\tmax number of children per node:\t{}\n'
-                 '\tmax branch length:\t{:.5f}\n'
-                 '\tavg non-zero branch length:\t{:.5f}\n'
-                 .format(num_tips,
-                         num_zero_tips,
-                         num_nodes - num_tips,
-                         max_polynomy,
-                         max_len,
-                         avg_br_len))
+    logging.getLogger('pastml').debug('\n=============CHECKING THE TREE=============\n'
+                  '\tnumber of tips:\t{}\n'
+                  '\tnumber of zero-branch tips:\t{}\n'
+                  '\tnumber of internal nodes:\t{}\n'
+                  '\tmax number of children per node:\t{}\n'
+                  '\tmax branch length:\t{:.5f}\n'
+                  '\tavg non-zero branch length:\t{:.5f}\n'
+                  .format(num_tips,
+                          num_zero_tips,
+                          num_nodes - num_tips,
+                          max_polynomy,
+                          max_len,
+                          avg_br_len))
     return avg_br_len, num_nodes
 
 

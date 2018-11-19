@@ -22,6 +22,7 @@ ACRCopyResult = namedtuple('ACRCopyResult', field_names=['character', 'states', 
 
 
 def parse_parameters(params, states):
+    logger = logging.getLogger('pastml')
     frequencies, sf = None, None
     if not isinstance(params, str) and not isinstance(params, dict):
         raise ValueError('Parameters must be specified either as a dict or as a path to a csv file, not as {}!'
@@ -33,59 +34,60 @@ def parse_parameters(params, states):
         try:
             param_dict = pd.read_csv(params, header=0, index_col=0)
             if 'value' not in param_dict.columns:
-                logging.info('Could not find the "value" column in the parameter file {}. '
-                             'It should be a csv file with two columns, the first one containing parameter names, '
-                             'and the second, named "value", containing parameter values. '
-                             'Ignoring these parameters.'.format(params))
+                logger.error('Could not find the "value" column in the parameter file {}. '
+                              'It should be a csv file with two columns, the first one containing parameter names, '
+                              'and the second, named "value", containing parameter values. '
+                              'Ignoring these parameters.'.format(params))
                 return frequencies, sf
             param_dict = param_dict.to_dict()['value']
             params = param_dict
         except:
-            logging.info('The specified parameter file {} is malformatted, '
-                         'should be a csv file with two columns, the first one containing parameter names, '
-                         'and the second, named "value", containing parameter values. '
-                         'Ignoring these parameters.'.format(params))
+            logger.error('The specified parameter file {} is malformatted, '
+                          'should be a csv file with two columns, the first one containing parameter names, '
+                          'and the second, named "value", containing parameter values. '
+                          'Ignoring these parameters.'.format(params))
             return frequencies, sf
     frequencies_specified = set(states) & set(params.keys())
     if frequencies_specified:
         if len(frequencies_specified) < len(states):
-            logging.error('Frequency parameters are specified ({}), but not for all of the states ({}), '
+            logger.error('Frequency parameters are specified ({}), but not for all of the states ({}), '
                           'ignoring them.'.format(', '.join(sorted(frequencies_specified)), ', '.join(states)))
         else:
             frequencies = np.array([params[state] for state in states])
             try:
                 frequencies = frequencies.astype(np.float64)
                 if np.round(frequencies.sum() - 1, 3) != 0:
-                    logging.error('Specified frequencies ({}) do not sum up to one,'
+                    logger.error('Specified frequencies ({}) do not sum up to one,'
                                   'ignoring them.'.format(frequencies))
                     frequencies = None
                 elif np.any(frequencies < 0):
-                    logging.error('Some of the specified frequencies ({}) are negative,'
+                    logger.error('Some of the specified frequencies ({}) are negative,'
                                   'ignoring them.'.format(frequencies))
                     frequencies = None
                 frequencies /= frequencies.sum()
             except:
-                logging.error('Specified frequencies ({}) must not be negative, ignoring them.'.format(frequencies))
+                logger.error('Specified frequencies ({}) must not be negative, ignoring them.'.format(frequencies))
                 frequencies = None
     if SCALING_FACTOR in params:
         sf = params[SCALING_FACTOR]
         try:
             sf = np.float64(sf)
             if sf <= 0:
-                logging.error(
+                logger.error(
                     'Scaling factor ({}) cannot be negative, ignoring it.'.format(sf))
                 sf = None
         except:
-            logging.error('Scaling factor ({}) is not float, ignoring it.'.format(sf))
+            logger.error('Scaling factor ({}) is not float, ignoring it.'.format(sf))
             sf = None
     return frequencies, sf
 
 
 def reconstruct_ancestral_states(tree, feature, states, avg_br_len, num_nodes,
                                  prediction_method=MPPA, model=None, params=None):
-    logging.info('ACR settings for {}:\n\tMethod:\t{}{}.\n'.format(feature, prediction_method,
-                                                                   '\n\tModel:\t{}'.format(model)
-                                                                   if model and is_ml(prediction_method) else ''))
+    logging.getLogger('pastml').debug('ACR settings for {}:\n\tMethod:\t{}{}.\n'.format(feature, prediction_method,
+                                                                                        '\n\tModel:\t{}'.format(model)
+                                                                                        if model and is_ml(
+                                                                                            prediction_method) else ''))
     if COPY == prediction_method:
         return {CHARACTER: feature, STATES: states, METHOD: prediction_method}
     if is_ml(prediction_method):
@@ -109,7 +111,7 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None):
 
     avg_br_len, num_nodes = get_tree_stats(tree)
 
-    logging.info('\n=============RECONSTRUCTING ANCESTRAL STATES=============\n')
+    logging.getLogger('pastml').debug('\n=============RECONSTRUCTING ANCESTRAL STATES=============\n')
 
     def _work(args):
         return reconstruct_ancestral_states(*args)
@@ -167,8 +169,7 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
     If the specified folder does not exist, it will be created.
     :return: void
     """
-    logging.basicConfig(level=logging.INFO if verbose else logging.ERROR,
-                        format='%(asctime)s: %(message)s', datefmt="%H:%M:%S", filename=None)
+    logger = set_up_logger(verbose)
 
     if work_dir:
         os.makedirs(work_dir, exist_ok=True)
@@ -204,7 +205,7 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
             except ValueError:
                 raise ValueError("Could not infer the date format for column {}, please check it.".format(date_column))
         min_date, max_date = date_tips(root, df[date_column])
-        logging.info("Dates vary between {} and {}.".format(min_date, max_date))
+        logger.debug("Dates vary between {} and {}.".format(min_date, max_date))
 
     unknown_columns = set(columns) - set(df.columns)
     if unknown_columns:
@@ -286,11 +287,23 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
                 acr_result[MARGINAL_PROBABILITIES].to_csv(out_mp_file, sep='\t')
 
     if html or html_compressed:
-        logging.info('\n=============VISUALIZING=============\n')
-        visualize(root, columns, html=html, html_compressed=html_compressed, min_date=min_date, max_date=max_date,
-                  name_column=col_name2cat(name_column) if name_column else None, tip_size_threshold=tip_size_threshold)
+        logger.debug('\n=============VISUALISATION=============\n')
+        visualize(root, column2states={acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results},
+                  html=html, html_compressed=html_compressed, min_date=min_date, max_date=max_date,
+                  name_column=name_column, tip_size_threshold=tip_size_threshold)
 
     return root
+
+
+def set_up_logger(verbose):
+    logger = logging.getLogger('pastml')
+    logger.setLevel(level=logging.DEBUG if verbose else logging.ERROR)
+    if not logger.hasHandlers():
+        ch = logging.StreamHandler()
+        formatter = logging.Formatter('%(name)s:%(levelname)s:%(asctime)s %(message)s', datefmt="%H:%M:%S")
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)
+    return logger
 
 
 def main():
