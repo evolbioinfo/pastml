@@ -643,6 +643,9 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
             get_bottom_up_likelihood(tree, feature, frequencies, sf, False)
             unalter_zero_tip_joint_states(tree, feature, state2index)
             choose_ancestral_states_joint(tree, feature, states, frequencies)
+        else:
+            result[NUM_UNRESOLVED_NODES] = unresolved_nodes
+            result[NUM_SCENARIOS] = num_scenarios
 
     allowed_states_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
     for node in tree.traverse():

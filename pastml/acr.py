@@ -298,6 +298,7 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
 def set_up_logger(verbose):
     logger = logging.getLogger('pastml')
     logger.setLevel(level=logging.DEBUG if verbose else logging.ERROR)
+    logger.propagate = False
     if not logger.hasHandlers():
         ch = logging.StreamHandler()
         formatter = logging.Formatter('%(name)s:%(levelname)s:%(asctime)s %(message)s', datefmt="%H:%M:%S")
