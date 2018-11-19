@@ -1,6 +1,5 @@
 import logging
 import os
-from collections import namedtuple
 from multiprocessing.pool import ThreadPool
 
 import numpy as np
@@ -18,10 +17,8 @@ from pastml.tree import read_tree, name_tree, collapse_zero_branches, date_tips,
 
 COPY = 'COPY'
 
-ACRCopyResult = namedtuple('ACRCopyResult', field_names=['character', 'states', 'method'])
 
-
-def parse_parameters(params, states):
+def _parse_pastml_parameters(params, states):
     logger = logging.getLogger('pastml')
     frequencies, sf = None, None
     if not isinstance(params, str) and not isinstance(params, dict):
@@ -82,18 +79,53 @@ def parse_parameters(params, states):
     return frequencies, sf
 
 
-def reconstruct_ancestral_states(tree, feature, states, avg_br_len, num_nodes,
-                                 prediction_method=MPPA, model=None, params=None):
+def reconstruct_ancestral_states(tree, feature, states, avg_br_len=None, num_nodes=None,
+                                 prediction_method=MPPA, model=F81, params=None):
+    """
+    Reconstructs ancestral states for the given character on the given tree.
+
+    :param feature: character whose ancestral states are to be reconstructed.
+    :type feature: str
+    :param tree: tree whose ancestral state are to be reconstructed,
+        annotated with the feature specified as `character` containing node states when known.
+    :type tree: ete3.Tree
+    :param states: possible character states.
+    :type states: numpy.array
+    :param avg_br_len: (optional) average non-zero branch length for this tree. If not specified, will be calculated.
+    :type avg_br_len: float
+    :param model: (optional, default is F81) state evolution model to be used by PASTML.
+    :type model: str
+    :param prediction_method: (optional, default is MPPA) ancestral state prediction method to be used by PASTML.
+    :type prediction_method: str
+    :param num_nodes: (optional) total number of nodes in the given tree (including tips).
+        If not specified, will be calculated.
+    :type num_nodes: int
+    :param params: an optional way to fix some parameters,
+        must be in a form {param: value},
+        where param can be a state (then the value should specify its frequency between 0 and 1),
+        or "scaling factor" (then the value should be the scaling factor for three branches,
+        e.g. set to 1 to keep the original branches). Could also be in a form path_to_param_file.
+        Only makes sense for ML methods.
+    :type params: dict or str
+
+    :return: ACR result dictionary whose values depend on the prediction method.
+    :rtype: dict
+    """
+
     logging.getLogger('pastml').debug('ACR settings for {}:\n\tMethod:\t{}{}.\n'.format(feature, prediction_method,
                                                                                         '\n\tModel:\t{}'.format(model)
                                                                                         if model and is_ml(
                                                                                             prediction_method) else ''))
     if COPY == prediction_method:
         return {CHARACTER: feature, STATES: states, METHOD: prediction_method}
+    if num_nodes is None:
+        num_nodes = sum(1 for _ in tree.traverse())
     if is_ml(prediction_method):
+        if avg_br_len is None:
+            avg_br_len = np.mean(n.dist for n in tree.traverse() if n.dist)
         freqs, sf = None, None
         if params is not None:
-            freqs, sf = parse_parameters(params, states)
+            freqs, sf = _parse_pastml_parameters(params, states)
         return ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_nodes, freqs, sf)
     if is_parsimonious(prediction_method):
         return parsimonious_acr(tree, feature, prediction_method, states, num_nodes)
@@ -103,6 +135,34 @@ def reconstruct_ancestral_states(tree, feature, states, avg_br_len, num_nodes,
 
 
 def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None):
+    """
+    Reconstructs ancestral states for the given tree and
+    all the characters specified as columns of the given annotation dataframe.
+
+    :param df: dataframe indexed with tree node names
+        and containing characters for which ACR should be performed as columns.
+    :type df: pandas.DataFrame
+    :param tree: tree whose ancestral state are to be reconstructed.
+    :type tree: ete3.Tree
+    :param model: (optional, default is F81) model(s) to be used by PASTML,
+        can be either one model to be used for all the characters,
+        or a list of different models (in the same order as the annotation dataframe columns)
+    :type model: str or list(str)
+    :param prediction_method: (optional, default is MPPA) ancestral state prediction method(s) to be used by PASTML,
+        can be either one method to be used for all the characters,
+        or a list of different methods (in the same order as the annotation dataframe columns)
+    :type prediction_method: str or list(str)
+    :param column2parameters: an optional way to fix some parameters,
+        must be in a form {column: {param: value}},
+        where param can be a state (then the value should specify its frequency between 0 and 1),
+        or "scaling factor" (then the value should be the scaling factor for three branches,
+        e.g. set to 1 to keep the original branches). Could also be in a form {column: path_to_param_file}.
+    :type column2parameters: dict
+
+    :return: list of ACR result dictionaries, one per character.
+    :rtype: list(dict)
+    """
+
     columns = preannotate_tree(df, tree)
     if column2parameters is not None:
         column2parameters = {col_name2cat(col): params for (col, params) in column2parameters.items()}
@@ -130,7 +190,7 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None):
     return acr_results
 
 
-def quote(str_list):
+def _quote(str_list):
     return ', '.join('"{}"'.format(_) for _ in str_list) if str_list is not None else ''
 
 
@@ -141,35 +201,56 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
     """
     Applies PASTML to the given tree with the specified states and visualizes the result (as html maps).
 
-    :param date_column: str (optional), name of the data table column that contains tip dates.
-    :param out_data: str, path to the output annotation file with the states inferred by PASTML.
-    :param tree: str, path to the input tree in newick format.
-    :param data: str, path to the annotation file in tab/csv format with the first row containing the column names.
-    :param html_compressed: str, path where the output summary map visualisation file (html) will be created.
-    :param html: str (optional), path where the output tree visualisation file (html) will be created.
-    :param data_sep: char (optional, by default '\t'), the column separator for the data table.
-    By default is set to tab, i.e. for tab-delimited file. Set it to ',' if your file is csv.
-    :param id_index: int (optional, by default is 0) the index of the column in the data table
-    that contains the tree tip names, indices start from zero.
-    :param columns: list of str (optional), names of the data table columns that contain states
-    to be analysed with PASTML, if not specified all columns will be considered.
-    :param name_column: str (optional), name of the data table column to be used for node names in the visualisation
-    (must be one of those specified in columns, if columns are specified). If the data table contains only one column,
-    it will be used by default.
-    :param tip_size_threshold: int (optional, by default is 15), remove the tips of size less than threshold-th
-    from the compressed map (set to 1e10 to keep all). The larger it is the less tips will be trimmed.
-    :param model: str (optional, default is F81), model to be used by PASTML.
-    :param prediction_method: str (optional, default is MPPA), ancestral state prediction method to be used by PASTML.
-    :param verbose: bool, print information on the progress of the analysis.
-    :param column2parameters: dict, an optional way to fix some parameters, must be in a form {column: {param: value}},
-    where param can be a state (then the value should specify its frequency between 0 and 1),
-    or "scaling factor" (then the value should be the scaling factor for three branches,
-    e.g. set to 1 to keep the original branches).
-    :param work_dir: str, path to the folder where PASTML should put its files (e.g. estimated parameters, etc.).
-    If the specified folder does not exist, it will be created.
+    :param date_column: (optional) name of the data table column that contains tip dates.
+    :type date_column: str
+    :param out_data: path to the output annotation file with the states inferred by PASTML.
+    :type out_data: str
+    :param tree: path to the input tree in newick format.
+    :type tree: str
+    :param data: path to the annotation file in tab/csv format with the first row containing the column names.
+    :type data: str
+    :param html_compressed: path to the output compressed visualisation file (html).
+    :type html_compressed: str
+    :param html: (optional) path to the output tree visualisation file (html).
+    :type html: str
+    :param data_sep: (optional, by default '\t') column separator for the data table.
+        By default is set to tab, i.e. for tab-delimited file. Set it to ',' if your file is csv.
+    :type data_sep: char
+    :param id_index: (optional, by default is 0) the index of the column in the data table
+        that contains the tree tip names, indices start from zero.
+    :type id_index: int
+    :param columns: (optional) names of the data table columns that contain states
+        to be analysed with PASTML, if not specified all columns will be considered.
+    :type columns: list
+    :param name_column: (optional) name of the data table column to be used for node names in the visualisation
+        (must be one of those specified in columns, if columns are specified).
+        If the data table contains only one column, it will be used by default.
+    :type name_column: str
+    :param tip_size_threshold: (optional, by default is 15) remove the tips of size less than threshold-th
+        from the compressed map (set to 1e10 to keep all). The larger it is the less tips will be trimmed.
+    :type tip_size_threshold: int
+    :param model: (optional, default is F81) model(s) to be used by PASTML,
+        can be either one model to be used for all the characters,
+        or a list of different models (in the same order as the annotation dataframe columns)
+    :type model: str or list(str)
+    :param prediction_method: (optional, default is MPPA) ancestral state prediction method(s) to be used by PASTML,
+        can be either one method to be used for all the characters,
+        or a list of different methods (in the same order as the annotation dataframe columns)
+    :type prediction_method: str or list(str)
+    :param verbose: (optional, default is False) print information on the progress of the analysis.
+    :type verbose: bool
+    :param column2parameters: an optional way to fix some parameters, must be in a form {column: {param: value}},
+        where param can be a state (then the value should specify its frequency between 0 and 1),
+        or "scaling factor" (then the value should be the scaling factor for three branches,
+        e.g. set to 1 to keep the original branches). Could also be in a form {column: path_to_param_file}.
+    :type column2parameters: dict
+    :param work_dir: path to the folder where PASTML should put its files (e.g. estimated parameters, etc.).
+        If the specified folder does not exist, it will be created.
+    :type work_dir: str
+
     :return: void
     """
-    logger = set_up_logger(verbose)
+    logger = _set_up_pastml_logger(verbose)
 
     if work_dir:
         os.makedirs(work_dir, exist_ok=True)
@@ -196,7 +277,7 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
         date_column = col_name2cat(date_column)
         if date_column not in df.columns:
             raise ValueError('The date column {} not found among the annotation columns: {}.'
-                             .format(date_column, quote(df.columns)))
+                             .format(date_column, _quote(df.columns)))
         try:
             df[date_column] = pd.to_datetime(df[date_column], infer_datetime_format=True)
         except ValueError:
@@ -211,15 +292,15 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
     if unknown_columns:
         raise ValueError('{} of the specified columns ({}) {} not found among the annotation columns: {}.'
                          .format('One' if len(unknown_columns) == 1 else 'Some',
-                                 quote(unknown_columns),
+                                 _quote(unknown_columns),
                                  'is' if len(unknown_columns) == 1 else 'are',
-                                 quote(df.columns)))
+                                 _quote(df.columns)))
 
     if name_column:
         name_column = col_name2cat(name_column)
         if name_column not in columns:
             raise ValueError('The name column ({}) should be one of those specified as columns ({}).'
-                             .format(quote([name_column]), quote(columns)))
+                             .format(_quote([name_column]), _quote(columns)))
     elif len(columns) == 1:
         name_column = columns[0]
 
@@ -295,7 +376,7 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
     return root
 
 
-def set_up_logger(verbose):
+def _set_up_pastml_logger(verbose):
     logger = logging.getLogger('pastml')
     logger.setLevel(level=logging.DEBUG if verbose else logging.ERROR)
     logger.propagate = False
@@ -308,6 +389,11 @@ def set_up_logger(verbose):
 
 
 def main():
+    """
+    Entry point, calling :py:func:`pastml.acr.pastml_pipeline` with command-line arguments.
+
+    :return: void
+    """
     import argparse
 
     parser = argparse.ArgumentParser(description="Visualisation of annotated phylogenetic trees (as html maps).")
