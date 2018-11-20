@@ -6,7 +6,7 @@ import pandas as pd
 from scipy.optimize import minimize
 
 from pastml import get_personalized_feature_name, CHARACTER, STATES, METHOD, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
-    NUM_NODES
+    NUM_NODES, NUM_TIPS
 
 MARGINAL_PROBABILITIES = 'marginal_probabilities'
 JOINT_RESTRICTED_LOG_LIKELIHOOD = 'joint_restricted_log_likelihood'
@@ -507,7 +507,7 @@ def get_state2allowed_states(states, by_name=True):
     return all_ones, state2array
 
 
-def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_nodes, freqs=None, sf=None):
+def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_nodes, num_tips, freqs=None, sf=None):
     """
     Calculates ML states on the tree and stores them in the corresponding feature.
 
@@ -535,7 +535,7 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
     observed_frequencies /= observed_frequencies.sum()
     missing_data /= total_count
 
-    logging.getLogger('pastml').debug('Observed frequencies for {}:{}{}.\n'
+    logging.getLogger('pastml').debug('Observed frequencies for {}:{}{}.'
                   .format(feature,
                           ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, observed_frequencies[state2index[state]])
                                   for state in states),
@@ -562,11 +562,11 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
         optimise_sf = True
     likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, True)
     if not optimise_sf and not optimise_frequencies:
-        logging.getLogger('pastml').debug('Both SF and frequencies are fixed for {},{}\n'
+        logging.getLogger('pastml').debug('Both SF and frequencies are fixed for {},{}'
                       .format(feature,
                               '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
     else:
-        logging.getLogger('pastml').debug('Initial values for {} parameter optimisation:{}{}{}.\n'
+        logging.getLogger('pastml').debug('Initial values for {} parameter optimisation:{}{}{}.'
                       .format(feature,
                               ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[state2index[state]])
                                       for state in states),
@@ -577,7 +577,7 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
                                                              optimise_frequencies=False, optimise_sf=optimise_sf,
                                                              avg_br_len=avg_br_len)
             if optimise_frequencies:
-                logging.getLogger('pastml').debug('Pre-optimised SF for {}:{}{}.\n'
+                logging.getLogger('pastml').debug('Pre-optimised SF for {}:{}{}.'
                               .format(feature,
                                       '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'.format(sf, sf * avg_br_len),
                                       '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
@@ -587,7 +587,7 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
                                                                        optimise_sf=optimise_sf,
                                                                        avg_br_len=avg_br_len)
 
-        logging.getLogger('pastml').debug('Optimised {} values:{}{}{}\n'
+        logging.getLogger('pastml').debug('Optimised {} values:{}{}{}'
                       .format(feature,
                               ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[state2index[state]])
                                       for state in states) if optimise_frequencies else '',
@@ -595,11 +595,12 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
                               '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
 
     result = {LOG_LIKELIHOOD: likelihood, CHARACTER: feature, METHOD: prediction_method, MODEL: model,
-              FREQUENCIES: frequencies, SCALING_FACTOR: sf, CHANGES_PER_AVG_BRANCH: sf * avg_br_len, STATES: states}
+              FREQUENCIES: frequencies, SCALING_FACTOR: sf, CHANGES_PER_AVG_BRANCH: sf * avg_br_len, STATES: states,
+              NUM_NODES: num_nodes, NUM_TIPS: num_tips}
 
     # Calculate joint restricted likelihood
     joint_restricted_likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, False)
-    logging.getLogger('pastml').debug('Log likelihood for {} after {} state selection:\t{:.3f}\n'
+    logging.getLogger('pastml').debug('Log likelihood for {} after {} state selection:\t{:.3f}'
                   .format(feature, JOINT, joint_restricted_likelihood))
 
     if JOINT == prediction_method:
@@ -622,18 +623,17 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
         unalter_zero_tip_allowed_states(tree, feature, state2index)
         result[JOINT_RESTRICTED_LOG_LIKELIHOOD] = joint_restricted_likelihood
         result[MARGINAL_PROBABILITIES] = marginal_df
-        logging.getLogger('pastml').debug('Log likelihood for {} after {} state selection:\t{:.3f}\n'
+        logging.getLogger('pastml').debug('Log likelihood for {} after {} state selection:\t{:.3f}'
                       .format(feature, prediction_method, restricted_likelihood))
     result[RESTRICTED_LOG_LIKELIHOOD] = restricted_likelihood
-    result[NUM_NODES] = num_nodes
 
     if MPPA == prediction_method:
-        logging.getLogger('pastml').debug('{} node{} unresolved ({:.2f}%) for {}, leading to {:g} ancestral scenario{}.\n'
+        logging.getLogger('pastml').debug('{} node{} unresolved ({:.2f}%) for {}, leading to {:g} ancestral scenario{}.'
                       .format(unresolved_nodes, 's are' if unresolved_nodes > 1 else ' is',
                               unresolved_nodes * 100 / num_nodes, feature,
                               num_scenarios, 's' if num_scenarios > 1 else ''))
         if not unresolved_nodes:
-            logging.getLogger('pastml').debug('As all the nodes are resolved for {}, switching the prediction to {}.\n'
+            logging.getLogger('pastml').debug('As all the nodes are resolved for {}, switching the prediction to {}.'
                           .format(feature, JOINT))
 
             # remove MPPA state selection

@@ -48,65 +48,53 @@ def date2years(d):
 def date_tips(tree, date_df):
     """
     Adds dates to the tips as 'date' attribute.
+
     :param tree: ete3.Tree
     :param date_df: a pandas.Series with tip ids as indices and dates as values
     :return: void, modifies the initial tree
     """
-
-    id2tip = {n.name: n for n in tree}
-    date_df = date_df[date_df.index.isin(id2tip) & ~pd.isnull(date_df)]
-    dated_fraction = len(date_df) / len(id2tip)
-    if dated_fraction < .5:
-        raise ValueError('Too few dates are provided (only for {}% of tips)!'.format('%g' % (100 * dated_fraction)))
-
-    for id, value in date_df.iteritems():
-        id2tip[id].add_feature(DATE, int(date2years(value)))
-
-    min_date, max_date = int(date2years(date_df.min())), int(date2years(date_df.max()))
-
-    if len(date_df) < len(id2tip):
-        unique_dates = list(date_df.unique())
-        if len(unique_dates) == 1:
-            for id in set(id2tip.keys()) - set(date_df.index):
-                id2tip[id].add_feature(DATE, int(date2years(unique_dates[0])))
+    date_df.index = date_df.index.map(str)
+    dated_tips, undated_tips = [], []
+    min_date, max_date = None, None
+    for tip in tree:
+        if tip.name in date_df.index:
+            date = date2years(date_df.loc[tip.name])
+            if date is not None:
+                date = int(date)
+                tip.add_feature(DATE, date)
+                dated_tips.append(tip)
+                min_date = min(min_date, date) if min_date is not None else date
+                max_date = max(max_date, date) if max_date is not None else date
+            else:
+                undated_tips.append(tip)
         else:
-            rates = []
-            for _ in range(10):
-                date1, date2 = random.sample(unique_dates, 2)
-                id1, date1 = next(date_df[date_df == date1].sample(1).iteritems())
-                id2, date2 = next(date_df[date_df == date2].sample(1).iteritems())
+            undated_tips.append(tip)
 
-                dist1 = get_dist_to_root(id2tip[id1])
-                dist2 = get_dist_to_root(id2tip[id2])
-                rate = (date2years(date2) - date2years(date1)) / (dist2 - dist1)
-                rates.append(rate)
-            rate = np.mean(rates)
+    if len(dated_tips) < len(undated_tips):
+        for tip in dated_tips:
+            tip.del_feature(DATE)
+        raise ValueError('Too few dates are provided (only {:.2f}% of tips are dated)!'
+                         .format(100 * len(dated_tips) / (len(dated_tips) + len(undated_tips))))
 
-            for id in set(id2tip.keys()) - set(date_df.index):
-                id2tip[id].add_feature(DATE,
-                                       min(min_date, max(max_date,
-                                                         int(date2years(date1) + rate * (
-                                                                 get_dist_to_root(id2tip[id]) - dist1)))))
-
-    return min(_.date for _ in id2tip.values()), max(_.date for _ in id2tip.values())
+    return min_date, max_date
 
 
 def name_tree(tree):
     """
-    Names all the tree nodes that are not named, with unique names.
-    :param tree: ete3.Tree, the tree to be named
+    Names all the tree nodes that are not named or have non-unique names, with unique names.
+
+    :param tree: tree to be named
+    :type tree: ete3.Tree
+
     :return: void, modifies the original tree
     """
     existing_names = Counter((_.name for _ in tree.traverse() if _.name))
     i = 0
     for node in tree.traverse('postorder'):
-        if node.is_root():
-            node.name = 'ROOT'
-            existing_names['ROOT'] += 1
         if not node.name or existing_names[node.name] > 1:
-            name = None
+            name = 'ROOT' if node.is_root() else None
             while not name or name in existing_names:
-                name = '{}_{}'.format('tip' if node.is_leaf() else 'node', i)
+                name = '{}_{}'.format('tip' if node.is_leaf() else ('ROOT' if node.is_root() else 'node'), i)
                 i += 1
             node.name = name
 

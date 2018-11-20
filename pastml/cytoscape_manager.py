@@ -354,7 +354,7 @@ def visualize(tree, column2states, name_column=None, html=None, html_compressed=
     for n in tree.traverse('postorder'):
         if n.is_leaf():
             if not hasattr(n, DATE):
-                n.add_feature(DATE, 0)
+                n.add_feature(DATE, max_date)
         else:
             n.add_feature(DATE, min(getattr(_, DATE) for _ in n))
 

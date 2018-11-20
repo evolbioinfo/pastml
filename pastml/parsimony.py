@@ -2,7 +2,7 @@ import logging
 from collections import Counter
 
 from pastml import get_personalized_feature_name, METHOD, STATES, CHARACTER, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
-    NUM_NODES
+    NUM_NODES, NUM_TIPS
 
 STEPS = 'steps'
 
@@ -203,7 +203,7 @@ def deltran(tree, feature):
                 node.add_feature(ps_feature, state_intersection)
 
 
-def parsimonious_acr(tree, feature, prediction_method, states, num_nodes):
+def parsimonious_acr(tree, feature, prediction_method, states, num_nodes, num_tips):
     """
     Calculates parsimonious states on the tree and stores them in the corresponding feature.
 
@@ -222,15 +222,18 @@ def parsimonious_acr(tree, feature, prediction_method, states, num_nodes):
         if DELTRAN == prediction_method:
             deltran(tree, feature)
     num_steps = get_num_parsimonious_steps(tree, feature)
-    logging.getLogger('pastml').debug("Parsimonious reconstruction for {} requires {} state changes.\n".format(feature, num_steps))
+    logger = logging.getLogger('pastml')
+    logger.debug("Parsimonious reconstruction for {} requires {} state changes."
+                 .format(feature, num_steps))
     num_scenarios, unresolved_nodes = choose_parsimonious_states(tree, feature)
-    logging.getLogger('pastml').debug('{} node{} unresolved ({:.2f}%) for {}, leading to {:g} ancestral scenario{}.\n'
-                  .format(unresolved_nodes, 's are' if unresolved_nodes > 1 else ' is',
-                          unresolved_nodes * 100 / num_nodes, feature,
-                          num_scenarios, 's' if num_scenarios > 1 else ''))
+    logger.debug('{} node{} unresolved ({:.2f}%) for {}, leading to {:g} ancestral scenario{}.'
+                 .format(unresolved_nodes, 's are' if unresolved_nodes > 1 else ' is',
+                         unresolved_nodes * 100 / num_nodes, feature,
+                         num_scenarios, 's' if num_scenarios > 1 else ''))
 
     return {STEPS: num_steps, CHARACTER: feature, STATES: states, METHOD: prediction_method,
-            NUM_SCENARIOS: num_scenarios, NUM_UNRESOLVED_NODES: unresolved_nodes, NUM_NODES: num_nodes}
+            NUM_SCENARIOS: num_scenarios, NUM_UNRESOLVED_NODES: unresolved_nodes,
+            NUM_NODES: num_nodes, NUM_TIPS: num_tips}
 
 
 def choose_parsimonious_states(tree, feature):

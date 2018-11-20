@@ -6,6 +6,7 @@ CHARACTER = 'character'
 NUM_SCENARIOS = 'num_scenarios'
 NUM_UNRESOLVED_NODES = 'num_unresolved_nodes'
 NUM_NODES = 'num_nodes'
+NUM_TIPS = 'num_tips'
 
 
 def col_name2cat(column):
