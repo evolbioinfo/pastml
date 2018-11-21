@@ -1,5 +1,7 @@
 import logging
 
+import pandas as pd
+
 
 def get_tree_stats(tree):
     len_sum = 0
@@ -46,5 +48,13 @@ def preannotate_tree(df, tree):
     df.fillna('', inplace=True)
     for _ in tree.traverse():
         if _.name in df.index:
-            _.add_features(**df.loc[_.name, :].to_dict())
+            values = df.loc[_.name, :]
+            if len(values.shape) > 1:
+                for column in df.columns:
+                    unique_values = [_ for _ in values[column].unique() if not pd.isnull(_) and _ != '']
+                    _.add_feature(column, (sorted(unique_values) if len(unique_values) > 1
+                                           else (unique_values[0] if unique_values else None)))
+
+            else:
+                _.add_features(**df.loc[_.name, :].to_dict())
     return df.columns

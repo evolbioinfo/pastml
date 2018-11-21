@@ -43,7 +43,11 @@ def initialise_tip_parsimonious_states(tree, feature, states):
     state2array[''] = all_states
 
     for tip in tree:
-        tip.add_feature(ps_feature, state2array[getattr(tip, feature, '')])
+        state = getattr(tip, feature, '')
+        if isinstance(state, list):
+            tip.add_feature(ps_feature, set(state))
+        else:
+            tip.add_feature(ps_feature, state2array[state])
 
 
 def get_most_common_states(state_iterable):

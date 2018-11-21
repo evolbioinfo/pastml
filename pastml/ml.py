@@ -259,18 +259,31 @@ def calculate_top_down_likelihood(tree, feature, frequencies, sf):
 def initialize_allowed_states(tree, feature, states):
     """
     Initializes the allowed state arrays for tips based on their states given by the feature.
-    :param tree: ete3.Tree, tree for which the tip likelihoods are to be initialized
-    :param feature: str, feature in which the tip states are stored (the value could be None for a missing state)
-    :param states: numpy array of ordered states.
+
+    :param tree: tree for which the tip likelihoods are to be initialized
+    :type tree: ete3.Tree
+    :param feature: feature in which the tip states are stored
+        (the value could be None for a missing state or list if multiple stated are possible)
+    :type feature: str
+    :param states: ordered array of states.
+    :type states: numpy.array
     :return: void, adds the get_personalised_feature_name(feature, ALLOWED_STATES) feature to tree tips.
     """
     allowed_states_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
 
     all_ones, state2array = get_state2allowed_states(states)
+    state2index = dict(zip(states, range(len(states))))
 
     for node in tree.traverse():
         if node.is_leaf():
-            node.add_feature(allowed_states_feature, state2array[getattr(node, feature, '')])
+            node_states = getattr(node, feature, '')
+            if isinstance(node_states, list):
+                allowed_states = np.zeros(len(states), dtype=np.int)
+                for state in node_states:
+                    allowed_states[state2index[state]] = 1
+            else:
+                allowed_states = state2array[node_states]
+            node.add_feature(allowed_states_feature, allowed_states)
         else:
             node.add_feature(allowed_states_feature, all_ones)
 
@@ -296,6 +309,17 @@ def alter_zero_tip_allowed_states(tree, feature):
 
     # adjust zero tips to contain all the zero tip options as states
     for parent, zero_tips in zero_parent2tips.items():
+        # If there is a common state do nothing
+        counts = None
+        for tip in zero_tips:
+            if counts is None:
+                counts = getattr(tip, allowed_state_feature).copy()
+            else:
+                counts += getattr(tip, allowed_state_feature)
+        if counts.max() == len(zero_tips):
+            continue
+
+        # Otherwise set all tip states to state union
         allowed_states = None
         for tip in zero_tips:
             if allowed_states is None:
@@ -323,7 +347,11 @@ def unalter_zero_tip_allowed_states(tree, feature, state2index):
         state = getattr(tip, feature, None)
         if state is not None and state != '':
             allowed_states = np.zeros(len(state2index), np.int)
-            allowed_states[state2index[state]] = 1
+            if isinstance(state, list):
+                for _ in state:
+                    allowed_states[state2index[_]] = 1
+            else:
+                allowed_states[state2index[state]] = 1
             tip.add_feature(allowed_state_feature, allowed_states)
 
 
@@ -546,7 +574,12 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
     for _ in tree:
         state = getattr(_, feature, None)
         if state is not None and state != '':
-            observed_frequencies[state2index[state]] += 1
+            if isinstance(state, list):
+                num_node_states = len(state)
+                for _ in state:
+                    observed_frequencies[state2index[_]] += 1. / num_node_states
+            else:
+                observed_frequencies[state2index[state]] += 1
         else:
             missing_data += 1
     total_count = observed_frequencies.sum() + missing_data
