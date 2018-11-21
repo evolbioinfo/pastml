@@ -275,17 +275,14 @@ def initialize_allowed_states(tree, feature, states):
     state2index = dict(zip(states, range(len(states))))
 
     for node in tree.traverse():
-        if node.is_leaf():
-            node_states = getattr(node, feature, '')
-            if isinstance(node_states, list):
-                allowed_states = np.zeros(len(states), dtype=np.int)
-                for state in node_states:
-                    allowed_states[state2index[state]] = 1
-            else:
-                allowed_states = state2array[node_states]
-            node.add_feature(allowed_states_feature, allowed_states)
+        node_states = getattr(node, feature, '')
+        if isinstance(node_states, list):
+            allowed_states = np.zeros(len(states), dtype=np.int)
+            for state in node_states:
+                allowed_states[state2index[state]] = 1
         else:
-            node.add_feature(allowed_states_feature, all_ones)
+            allowed_states = state2array[node_states]
+        node.add_feature(allowed_states_feature, allowed_states)
 
 
 def alter_zero_tip_allowed_states(tree, feature):

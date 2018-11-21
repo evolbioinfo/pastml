@@ -26,7 +26,7 @@ def is_parsimonious(method):
     return method in {DOWNPASS, ACCTRAN, DELTRAN}
 
 
-def initialise_tip_parsimonious_states(tree, feature, states):
+def initialise_parsimonious_states(tree, feature, states):
     """
     Initializes the bottom-up state arrays for tips based on their states given by the feature.
 
@@ -35,19 +35,21 @@ def initialise_tip_parsimonious_states(tree, feature, states):
     :param states: numpy array, possible states.
     :return: void, adds the get_personalised_feature_name(feature, BU_PARS) feature to tree tips.
     """
-    ps_feature = get_personalized_feature_name(feature, BU_PARS_STATES)
+    ps_feature_down = get_personalized_feature_name(feature, BU_PARS_STATES)
+    ps_feature = get_personalized_feature_name(feature, PARS_STATES)
     all_states = set(states)
 
     state2array = {state: {state} for state in states}
     state2array[None] = all_states
     state2array[''] = all_states
 
-    for tip in tree:
-        state = getattr(tip, feature, '')
+    for node in tree.traverse():
+        state = getattr(node, feature, '')
         if isinstance(state, list):
-            tip.add_feature(ps_feature, set(state))
+            node.add_feature(ps_feature_down, set(state))
         else:
-            tip.add_feature(ps_feature, state2array[state])
+            node.add_feature(ps_feature_down, state2array[state])
+        node.add_feature(ps_feature, getattr(node, ps_feature_down))
 
 
 def get_most_common_states(state_iterable):
@@ -88,7 +90,10 @@ def uppass(tree, feature):
 
     for node in tree.traverse('postorder'):
         if not node.is_leaf():
-            node.add_feature(ps_feature, get_most_common_states(getattr(child, ps_feature) for child in node.children))
+            children_states = get_most_common_states(getattr(child, ps_feature) for child in node.children)
+            node_states = getattr(node, ps_feature)
+            state_intersection = node_states & children_states
+            node.add_feature(ps_feature, state_intersection if state_intersection else node_states)
 
 
 def acctran(tree, feature):
@@ -161,16 +166,12 @@ def downpass(tree, feature, states):
                              get_most_common_states([getattr(node.up, ps_feature_up)]
                                                     + [getattr(sibling, ps_feature_down) for sibling in node.up.children
                                                        if sibling != node]))
-        if not node.is_leaf():
-            node.add_feature(ps_feature,
-                             get_most_common_states([getattr(node, ps_feature_up)]
-                                                    + [getattr(child, ps_feature_down) for child in node.children]))
-        # try to resolve unresolved tips using the up information if possible
-        elif len(getattr(node, ps_feature_down)) > 1:
-            node.add_feature(ps_feature,
-                             get_most_common_states([getattr(node, ps_feature_up), getattr(node, ps_feature_down)]))
-        else:
-            node.add_feature(ps_feature, getattr(node, ps_feature_down))
+        down_up_states = get_most_common_states([getattr(node, ps_feature_up)]
+                                                + [getattr(child, ps_feature_down) for child in node.children]) \
+            if not node.is_leaf() else getattr(node, ps_feature_up)
+        preset_states = getattr(node, ps_feature)
+        state_intersection = down_up_states & preset_states
+        node.add_feature(ps_feature, state_intersection if state_intersection else preset_states)
 
     for node in tree.traverse():
         node.del_feature(ps_feature_down)
@@ -217,7 +218,7 @@ def parsimonious_acr(tree, feature, prediction_method, states, num_nodes, num_ti
     :param feature: str, character for which the parsimonious states are reconstructed
     :return: dict, mapping between reconstruction parameters and values
     """
-    initialise_tip_parsimonious_states(tree, feature, states)
+    initialise_parsimonious_states(tree, feature, states)
     uppass(tree, feature)
     if ACCTRAN == prediction_method:
         acctran(tree, feature)
