@@ -232,7 +232,7 @@ def parsimonious_acr(tree, feature, prediction_method, states, num_nodes, num_ti
                  .format(feature, num_steps))
     num_scenarios, unresolved_nodes = choose_parsimonious_states(tree, feature)
     logger.debug('{} node{} unresolved ({:.2f}%) for {}, leading to {:g} ancestral scenario{}.'
-                 .format(unresolved_nodes, 's are' if unresolved_nodes > 1 else ' is',
+                 .format(unresolved_nodes, 's are' if unresolved_nodes != 1 else ' is',
                          unresolved_nodes * 100 / num_nodes, feature,
                          num_scenarios, 's' if num_scenarios > 1 else ''))
 

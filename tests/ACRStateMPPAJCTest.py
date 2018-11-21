@@ -14,7 +14,7 @@ TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')
 STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')
 
 
-class ACRStateMPPAF81Test(unittest.TestCase):
+class ACRStateMPPAJCTest(unittest.TestCase):
 
     def setUp(self):
         self.feature = 'Country'
@@ -47,7 +47,8 @@ class ACRStateMPPAF81Test(unittest.TestCase):
                 state2num['unresolved'] += 1
             else:
                 state2num[state] += 1
-        expected_state2num = {'unresolved': 8, 'Africa': 110, 'Albania': 50, 'Greece': 65, 'WestEurope': 28, 'EastEurope': 16}
+        expected_state2num = {'unresolved': 9, 'Africa': 110, 'Albania': 50, 'Greece': 65, 'WestEurope': 27,
+                              'EastEurope': 16}
         self.assertDictEqual(expected_state2num, state2num, msg='Was supposed to have {} as states counts, got {}.'
                              .format(expected_state2num, state2num))
 
@@ -67,12 +68,12 @@ class ACRStateMPPAF81Test(unittest.TestCase):
                 break
 
     def test_state_node_32(self):
-        expected_state = 'WestEurope'
+        expected_state = {'WestEurope', 'Greece'}
         for node in self.tree.traverse():
             if 'node_32' == node.name:
-                state = getattr(node, self.feature)
-                self.assertEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
-                                 .format(node.name, expected_state, state))
+                state = set(getattr(node, self.feature))
+                self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
+                                    .format(node.name, expected_state, state))
                 break
 
     def test_state_resolved_internal_node(self):

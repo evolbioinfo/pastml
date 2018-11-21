@@ -36,6 +36,7 @@ BU_LH_SF = 'BOTTOM_UP_LIKELIHOOD_SF'
 BU_LH_JOINT_STATES = 'BOTTOM_UP_LIKELIHOOD_JOINT_STATES'
 TD_LH_SF = 'TOP_DOWM_LIKELIHOOD_SF'
 ALLOWED_STATES = 'ALLOWED_STATES'
+JOINT_STATE = 'JOINT_STATE'
 
 
 def is_marginal(method):
@@ -453,6 +454,7 @@ def choose_ancestral_states_mppa(tree, feature, states):
     """
     lh_feature = get_personalized_feature_name(feature, LH)
     allowed_state_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
+    joint_state_feature = get_personalized_feature_name(feature, JOINT_STATE)
 
     n = len(states)
     _, state2array = get_state2allowed_states(states, False)
@@ -460,20 +462,28 @@ def choose_ancestral_states_mppa(tree, feature, states):
     num_scenarios = 1
     unresolved_nodes = 0
 
+    # We make sure that the joint state is always chosen,
+    # for this we sort the marginal probabilities array as [lowest_non_joint_mp, ..., highest_non_joint_mp, joint_mp]
+    # select k in 1:n such as the correction between choosing 0, 0, ..., 1/k, ..., 1/k and our sorted array is min
+    # and return the corresponding states
     for node in tree.traverse():
         marginal_likelihoods = getattr(node, lh_feature)
-        sorted_marginal_probs = np.sort(marginal_likelihoods / marginal_likelihoods.sum())
+        marginal_probs = marginal_likelihoods / marginal_likelihoods.sum()
+        joint_index = getattr(node, joint_state_feature)
+        joint_prob = marginal_probs[joint_index]
+        marginal_probs = np.hstack((np.sort(np.delete(marginal_probs, joint_index)), [joint_prob]))
         best_k = n
         best_correstion = np.inf
-        for k in range(1, n):
-            correction = np.hstack((np.zeros(n - k), np.ones(k) / k)) - sorted_marginal_probs
+        for k in range(1, n + 1):
+            correction = np.hstack((np.zeros(n - k), np.ones(k) / k)) - marginal_probs
             correction = correction.dot(correction)
             if correction < best_correstion:
                 best_correstion = correction
                 best_k = k
 
         num_scenarios *= best_k
-        indices_selected = sorted(range(n), key=lambda _: -marginal_likelihoods[_])[:best_k]
+        indices_selected = sorted(range(n),
+                                  key=lambda _: (1 if n == joint_index else 1, -marginal_likelihoods[_]))[:best_k]
         if best_k == 1:
             allowed_states = state2array[indices_selected[0]]
         else:
@@ -523,9 +533,11 @@ def choose_ancestral_states_joint(tree, feature, states, frequencies):
     lh_feature = get_personalized_feature_name(feature, BU_LH)
     lh_state_feature = get_personalized_feature_name(feature, BU_LH_JOINT_STATES)
     allowed_state_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
+    joint_state_feature = get_personalized_feature_name(feature, JOINT_STATE)
     _, state2array = get_state2allowed_states(states, False)
 
     def chose_consistent_state(node, state_index):
+        node.add_feature(joint_state_feature, state_index)
         node.add_feature(allowed_state_feature, state2array[state_index])
 
         for child in node.children:
@@ -657,13 +669,15 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
     joint_restricted_likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, False)
     logging.getLogger('pastml').debug('Log likelihood for {} after {} state selection:\t{:.3f}'
                                       .format(feature, JOINT, joint_restricted_likelihood))
+    unalter_zero_tip_joint_states(tree, feature, state2index)
+    choose_ancestral_states_joint(tree, feature, states, frequencies)
 
     if JOINT == prediction_method:
         restricted_likelihood = joint_restricted_likelihood
-        unalter_zero_tip_joint_states(tree, feature, state2index)
-        num_scenarios, unresolved_nodes = choose_ancestral_states_joint(tree, feature, states, frequencies)
     else:
         # remove joint state selection
+        initialize_allowed_states(tree, feature, states)
+        alter_zero_tip_allowed_states(tree, feature)
         get_bottom_up_likelihood(tree, feature, frequencies, sf, True)
         calculate_top_down_likelihood(tree, feature, frequencies, sf)
         unalter_zero_tip_allowed_states(tree, feature, state2index)
@@ -672,8 +686,15 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
         marginal_df = convert_likelihoods_to_probabilities(tree, feature, states)
         if MPPA == prediction_method:
             num_scenarios, unresolved_nodes = choose_ancestral_states_mppa(tree, feature, states)
+            result[NUM_UNRESOLVED_NODES] = unresolved_nodes
+            result[NUM_SCENARIOS] = num_scenarios
+            logging.getLogger('pastml').debug('{} node{} unresolved ({:.2f}%) for {}, '
+                                              'leading to {:g} ancestral scenario{}.'
+                                              .format(unresolved_nodes, 's are' if unresolved_nodes != 1 else ' is',
+                                                      unresolved_nodes * 100 / num_nodes, feature,
+                                                      num_scenarios, 's' if num_scenarios > 1 else ''))
         elif MAP == prediction_method:
-            num_scenarios, unresolved_nodes = choose_ancestral_states_map(tree, feature, states)
+            choose_ancestral_states_map(tree, feature, states)
         alter_zero_tip_allowed_states(tree, feature)
         restricted_likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, True)
         unalter_zero_tip_allowed_states(tree, feature, state2index)
@@ -682,26 +703,6 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
         logging.getLogger('pastml').debug('Log likelihood for {} after {} state selection:\t{:.3f}'
                                           .format(feature, prediction_method, restricted_likelihood))
     result[RESTRICTED_LOG_LIKELIHOOD] = restricted_likelihood
-
-    if MPPA == prediction_method:
-        logging.getLogger('pastml').debug('{} node{} unresolved ({:.2f}%) for {}, leading to {:g} ancestral scenario{}.'
-                                          .format(unresolved_nodes, 's are' if unresolved_nodes > 1 else ' is',
-                                                  unresolved_nodes * 100 / num_nodes, feature,
-                                                  num_scenarios, 's' if num_scenarios > 1 else ''))
-        if not unresolved_nodes:
-            logging.getLogger('pastml').debug('As all the nodes are resolved for {}, switching the prediction to {}.'
-                                              .format(feature, JOINT))
-
-            # remove MPPA state selection
-            initialize_allowed_states(tree, feature, states)
-            alter_zero_tip_allowed_states(tree, feature)
-            # reconstruct joint states
-            get_bottom_up_likelihood(tree, feature, frequencies, sf, False)
-            unalter_zero_tip_joint_states(tree, feature, state2index)
-            choose_ancestral_states_joint(tree, feature, states, frequencies)
-        else:
-            result[NUM_UNRESOLVED_NODES] = unresolved_nodes
-            result[NUM_SCENARIOS] = num_scenarios
 
     allowed_states_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
     for node in tree.traverse():
