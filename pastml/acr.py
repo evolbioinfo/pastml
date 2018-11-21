@@ -32,34 +32,34 @@ def _parse_pastml_parameters(params, states):
             param_dict = pd.read_csv(params, header=0, index_col=0)
             if 'value' not in param_dict.columns:
                 logger.error('Could not find the "value" column in the parameter file {}. '
-                              'It should be a csv file with two columns, the first one containing parameter names, '
-                              'and the second, named "value", containing parameter values. '
-                              'Ignoring these parameters.'.format(params))
+                             'It should be a csv file with two columns, the first one containing parameter names, '
+                             'and the second, named "value", containing parameter values. '
+                             'Ignoring these parameters.'.format(params))
                 return frequencies, sf
             param_dict = param_dict.to_dict()['value']
             params = param_dict
         except:
             logger.error('The specified parameter file {} is malformatted, '
-                          'should be a csv file with two columns, the first one containing parameter names, '
-                          'and the second, named "value", containing parameter values. '
-                          'Ignoring these parameters.'.format(params))
+                         'should be a csv file with two columns, the first one containing parameter names, '
+                         'and the second, named "value", containing parameter values. '
+                         'Ignoring these parameters.'.format(params))
             return frequencies, sf
     frequencies_specified = set(states) & set(params.keys())
     if frequencies_specified:
         if len(frequencies_specified) < len(states):
             logger.error('Frequency parameters are specified ({}), but not for all of the states ({}), '
-                          'ignoring them.'.format(', '.join(sorted(frequencies_specified)), ', '.join(states)))
+                         'ignoring them.'.format(', '.join(sorted(frequencies_specified)), ', '.join(states)))
         else:
             frequencies = np.array([params[state] for state in states])
             try:
                 frequencies = frequencies.astype(np.float64)
                 if np.round(frequencies.sum() - 1, 3) != 0:
                     logger.error('Specified frequencies ({}) do not sum up to one,'
-                                  'ignoring them.'.format(frequencies))
+                                 'ignoring them.'.format(frequencies))
                     frequencies = None
                 elif np.any(frequencies < 0):
                     logger.error('Some of the specified frequencies ({}) are negative,'
-                                  'ignoring them.'.format(frequencies))
+                                 'ignoring them.'.format(frequencies))
                     frequencies = None
                 frequencies /= frequencies.sum()
             except:
@@ -145,10 +145,10 @@ def reconstruct_ancestral_states(tree, feature, states, avg_br_len=None, num_nod
     :rtype: dict
     """
 
-    logging.getLogger('pastml').debug('ACR settings for {}:\n\tMethod:\t{}{}.'.format(feature, prediction_method,
-                                                                                        '\n\tModel:\t{}'.format(model)
-                                                                                        if model and is_ml(
-                                                                                            prediction_method) else ''))
+    logging.getLogger('pastml').debug('ACR settings for {}:\n\tMethod:\t{}{}.'
+                                      .format(feature, prediction_method,
+                                              '\n\tModel:\t{}'.format(model)
+                                              if model and is_ml(prediction_method) else ''))
     if COPY == prediction_method:
         return {CHARACTER: feature, STATES: states, METHOD: prediction_method}
     if not num_nodes:
@@ -306,7 +306,7 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
     if work_dir:
         pool = ThreadPool()
         new_tree = os.path.join(work_dir, get_named_tree_file(tree))
-        root.write(outfile=new_tree, format_root_node=True)
+        root.write(outfile=new_tree, format_root_node=True, format=3)
         async_result = pool.map_async(func=_serialize_acr, iterable=((acr_res, work_dir) for acr_res in acr_results))
 
     if html or html_compressed:
