@@ -376,6 +376,24 @@ def calculate_marginal_likelihoods(tree, feature, frequencies):
         node.del_feature(td_lh_sf_feature)
 
 
+def check_marginal_likelihoods(tree, feature):
+    """
+    Sanity check: combined bottom-up and top-down likelihood of each node of the tree must be the same.
+
+    :param tree: ete3.Tree, the tree of interest
+    :param feature: str, character for which the likelihood is calculated
+    :return: void, stores the node marginal likelihoods in the get_personalised_feature_name(feature, LH) feature.
+    """
+    lh_feature = get_personalized_feature_name(feature, LH)
+    lh_sf_feature = get_personalized_feature_name(feature, LH_SF)
+
+    for node in tree.traverse():
+        if not node.is_root() and not (node.is_leaf() and node.dist == 0):
+            node_loglh = np.log10(getattr(node, lh_feature).sum()) - getattr(node, lh_sf_feature)
+            parent_loglh = np.log10(getattr(node.up, lh_feature).sum()) - getattr(node.up, lh_sf_feature)
+            assert (round(node_loglh, 2) == round(parent_loglh, 2))
+
+
 def convert_likelihoods_to_probabilities(tree, feature, states):
     """
     Normalizes each node marginal likelihoods to convert them to marginal probabilities.
@@ -536,10 +554,12 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
     missing_data /= total_count
 
     logging.getLogger('pastml').debug('Observed frequencies for {}:{}{}.'
-                  .format(feature,
-                          ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, observed_frequencies[state2index[state]])
-                                  for state in states),
-                          '\n\tfraction of missing data:\t{:.3f}'.format(missing_data) if missing_data else ''))
+                                      .format(feature,
+                                              ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, observed_frequencies[
+                                                  state2index[state]])
+                                                      for state in states),
+                                              '\n\tfraction of missing data:\t{:.3f}'.format(
+                                                  missing_data) if missing_data else ''))
 
     if freqs is not None and F81 != model:
         logging.warning('Some frequencies were specified in the parameter file, '
@@ -563,24 +583,27 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
     likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, True)
     if not optimise_sf and not optimise_frequencies:
         logging.getLogger('pastml').debug('Both SF and frequencies are fixed for {},{}'
-                      .format(feature,
-                              '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
+                                          .format(feature,
+                                                  '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
     else:
         logging.getLogger('pastml').debug('Initial values for {} parameter optimisation:{}{}{}.'
-                      .format(feature,
-                              ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[state2index[state]])
-                                      for state in states),
-                              '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'.format(sf, sf * avg_br_len),
-                              '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
+                                          .format(feature,
+                                                  ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[
+                                                      state2index[state]])
+                                                          for state in states),
+                                                  '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'.format(sf,
+                                                                                                               sf * avg_br_len),
+                                                  '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
         if optimise_sf:
             (_, sf), likelihood = optimize_likelihood_params(tree, feature, frequencies, sf,
                                                              optimise_frequencies=False, optimise_sf=optimise_sf,
                                                              avg_br_len=avg_br_len)
             if optimise_frequencies:
                 logging.getLogger('pastml').debug('Pre-optimised SF for {}:{}{}.'
-                              .format(feature,
-                                      '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'.format(sf, sf * avg_br_len),
-                                      '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
+                                                  .format(feature,
+                                                          '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'.format(
+                                                              sf, sf * avg_br_len),
+                                                          '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
         if optimise_frequencies:
             (frequencies, sf), likelihood = optimize_likelihood_params(tree, feature, frequencies, sf,
                                                                        optimise_frequencies=optimise_frequencies,
@@ -588,11 +611,13 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
                                                                        avg_br_len=avg_br_len)
 
         logging.getLogger('pastml').debug('Optimised {} values:{}{}{}'
-                      .format(feature,
-                              ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[state2index[state]])
-                                      for state in states) if optimise_frequencies else '',
-                              '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'.format(sf, sf * avg_br_len),
-                              '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
+                                          .format(feature,
+                                                  ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[
+                                                      state2index[state]])
+                                                          for state in states) if optimise_frequencies else '',
+                                                  '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'.format(sf,
+                                                                                                               sf * avg_br_len),
+                                                  '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
 
     result = {LOG_LIKELIHOOD: likelihood, CHARACTER: feature, METHOD: prediction_method, MODEL: model,
               FREQUENCIES: frequencies, SCALING_FACTOR: sf, CHANGES_PER_AVG_BRANCH: sf * avg_br_len, STATES: states,
@@ -601,7 +626,7 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
     # Calculate joint restricted likelihood
     joint_restricted_likelihood = get_bottom_up_likelihood(tree, feature, frequencies, sf, False)
     logging.getLogger('pastml').debug('Log likelihood for {} after {} state selection:\t{:.3f}'
-                  .format(feature, JOINT, joint_restricted_likelihood))
+                                      .format(feature, JOINT, joint_restricted_likelihood))
 
     if JOINT == prediction_method:
         restricted_likelihood = joint_restricted_likelihood
@@ -613,6 +638,7 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
         calculate_top_down_likelihood(tree, feature, frequencies, sf)
         unalter_zero_tip_allowed_states(tree, feature, state2index)
         calculate_marginal_likelihoods(tree, feature, frequencies)
+        # check_marginal_likelihoods(tree, feature)
         marginal_df = convert_likelihoods_to_probabilities(tree, feature, states)
         if MPPA == prediction_method:
             num_scenarios, unresolved_nodes = choose_ancestral_states_mppa(tree, feature, states)
@@ -624,17 +650,17 @@ def ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_node
         result[JOINT_RESTRICTED_LOG_LIKELIHOOD] = joint_restricted_likelihood
         result[MARGINAL_PROBABILITIES] = marginal_df
         logging.getLogger('pastml').debug('Log likelihood for {} after {} state selection:\t{:.3f}'
-                      .format(feature, prediction_method, restricted_likelihood))
+                                          .format(feature, prediction_method, restricted_likelihood))
     result[RESTRICTED_LOG_LIKELIHOOD] = restricted_likelihood
 
     if MPPA == prediction_method:
         logging.getLogger('pastml').debug('{} node{} unresolved ({:.2f}%) for {}, leading to {:g} ancestral scenario{}.'
-                      .format(unresolved_nodes, 's are' if unresolved_nodes > 1 else ' is',
-                              unresolved_nodes * 100 / num_nodes, feature,
-                              num_scenarios, 's' if num_scenarios > 1 else ''))
+                                          .format(unresolved_nodes, 's are' if unresolved_nodes > 1 else ' is',
+                                                  unresolved_nodes * 100 / num_nodes, feature,
+                                                  num_scenarios, 's' if num_scenarios > 1 else ''))
         if not unresolved_nodes:
             logging.getLogger('pastml').debug('As all the nodes are resolved for {}, switching the prediction to {}.'
-                          .format(feature, JOINT))
+                                              .format(feature, JOINT))
 
             # remove MPPA state selection
             initialize_allowed_states(tree, feature, states)

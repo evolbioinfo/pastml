@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from pastml.tree import read_tree
-from pastml import get_personalized_feature_name
+from pastml import get_personalized_feature_name, STATES
 from pastml.acr import acr
 from pastml.ml import LH, LH_SF, MPPA, JC, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD, CHANGES_PER_AVG_BRANCH, \
     SCALING_FACTOR, FREQUENCIES, MARGINAL_PROBABILITIES
@@ -15,13 +15,58 @@ TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')
 STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')
 
 
+def reroot_tree_randomly():
+    rerooted_tree = read_tree(TREE_NWK)
+    new_root = np.random.choice([_ for _ in rerooted_tree.traverse()
+                                 if not _.is_root() and not _.up.is_root() and _.dist])
+    old_root_child = rerooted_tree.children[0]
+    old_root_child_dist = old_root_child.dist
+    other_children = list(rerooted_tree.children[1:])
+    old_root_child.up = None
+    for child in other_children:
+        old_root_child.add_child(child, dist=old_root_child_dist + child.dist)
+    old_root_child.set_outgroup(new_root)
+    print('Rerooted tree on the branch of {}'.format(new_root.name))
+    new_root = new_root.up
+    return new_root
+
+
 class ACRParameterOptimisationMPPAJCTest(unittest.TestCase):
 
     def setUp(self):
         self.feature = 'Country'
-        df = pd.read_csv(STATES_INPUT, index_col=0, header=0)[[self.feature]]
+        self.df = pd.read_csv(STATES_INPUT, index_col=0, header=0)[[self.feature]]
         self.tree = read_tree(TREE_NWK)
-        self.acr_result = acr(self.tree, df, prediction_method=MPPA, model=JC)[0]
+        self.acr_result = acr(self.tree, self.df, prediction_method=MPPA, model=JC)[0]
+
+    def test_rerooted_values_are_the_same(self):
+        for _ in range(5):
+            rerooted_tree = reroot_tree_randomly()
+            rerooted_acr_result = acr(rerooted_tree, self.df, prediction_method=MPPA, model=JC)[0]
+            for (state, freq, refreq) in zip(self.acr_result[STATES], self.acr_result[FREQUENCIES],
+                                             rerooted_acr_result[FREQUENCIES]):
+                self.assertAlmostEqual(freq, refreq, places=2,
+                                       msg='Frequency of {} for the original tree and rerooted tree '
+                                           'were supposed to be the same, '
+                                           'got {:.3f} vs {:3f}'
+                                       .format(state, freq, refreq))
+            for label in (LOG_LIKELIHOOD, CHANGES_PER_AVG_BRANCH, SCALING_FACTOR):
+                value = self.acr_result[label]
+                rerooted_value = rerooted_acr_result[label]
+                self.assertAlmostEqual(value, rerooted_value, places=2,
+                                       msg='{} for the original tree and rerooted tree were supposed to be the same, '
+                                           'got {:.3f} vs {:3f}'
+                                       .format(label, value, rerooted_value))
+            mps = self.acr_result[MARGINAL_PROBABILITIES]
+            remps = rerooted_acr_result[MARGINAL_PROBABILITIES]
+            for node_name in ('node_4', '02ALAY1660'):
+                for loc in self.acr_result[STATES]:
+                    value = mps.loc[node_name, loc]
+                    revalue = remps.loc[node_name, loc]
+                    self.assertAlmostEqual(value, revalue, places=2,
+                                           msg='{}: Marginal probability of {} for the original tree and rerooted tree '
+                                               'were supposed to be the same, got {:.3f} vs {:3f}'
+                                           .format(node_name, loc, value, revalue))
 
     def test_likelihood(self):
         self.assertAlmostEqual(-121.873, self.acr_result[LOG_LIKELIHOOD], places=3,
