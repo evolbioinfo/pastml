@@ -1,6 +1,6 @@
 # pastml
 
-__PastML__ is a python3 module that provides fast methods for Ancestor Character Reconstruction (ACR) and visualisation
+__PastML__ is a python3 module that provides fast methods for Ancestral Character Reconstruction (ACR) and visualisation
 on rooted phylogenetic trees.
 
 Given a tree and its node annotations, it can either visualise them as-is, 
