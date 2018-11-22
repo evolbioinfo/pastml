@@ -80,7 +80,7 @@ pip3 install pastml
 
 ### All other platforms
 
-We strongly recommend installing __pastml__ for python via [conda](https://conda.io/docs/), following the procedure described below:
+You can install __pastml__ for python with or without [conda](https://conda.io/docs/), following the procedures described below:
 
 #### Installing with conda
 
