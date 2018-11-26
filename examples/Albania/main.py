@@ -29,7 +29,8 @@ if '__main__' == __name__:
                                                          'Albanian_map_{}_{}.html'.format(method, model)),
                             html=os.path.join(DATA_DIR, 'trees', 'Albanian_tree_{}_{}.html'.format(method, model)),
                             data_sep=',', model=model, verbose=True, prediction_method=method,
-                            work_dir=os.path.join(DATA_DIR, 'pastml', method, model))
+                            work_dir=os.path.join(DATA_DIR, 'pastml', method, model),
+                            output_parsimonious_restricted_loglh=True)
     # ACR with parsimony
     for method in (DOWNPASS, ACCTRAN, DELTRAN):
         pastml_pipeline(data=STATES_INPUT, tree=TREE_NWK,

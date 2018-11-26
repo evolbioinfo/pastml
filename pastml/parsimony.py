@@ -10,6 +10,8 @@ DOWNPASS = 'DOWNPASS'
 ACCTRAN = 'ACCTRAN'
 DELTRAN = 'DELTRAN'
 
+MP_METHODS = {DOWNPASS, ACCTRAN, DELTRAN}
+
 BU_PARS_STATES = 'BOTTOM_UP_PARSIMONY'
 TD_PARS_STATES = 'TOP_DOWN_PARSIMONY'
 PARS_STATES = 'PARSIMONY'
@@ -23,7 +25,7 @@ def is_parsimonious(method):
     :param method: str, the ancestral state prediction method used by PASTML.
     :return: bool
     """
-    return method in {DOWNPASS, ACCTRAN, DELTRAN}
+    return method in MP_METHODS
 
 
 def initialise_parsimonious_states(tree, feature, states):
@@ -218,14 +220,7 @@ def parsimonious_acr(tree, feature, prediction_method, states, num_nodes, num_ti
     :param feature: str, character for which the parsimonious states are reconstructed
     :return: dict, mapping between reconstruction parameters and values
     """
-    initialise_parsimonious_states(tree, feature, states)
-    uppass(tree, feature)
-    if ACCTRAN == prediction_method:
-        acctran(tree, feature)
-    else:
-        downpass(tree, feature, states)
-        if DELTRAN == prediction_method:
-            deltran(tree, feature)
+    run_parsimony(feature, prediction_method, states, tree)
     num_steps = get_num_parsimonious_steps(tree, feature)
     logger = logging.getLogger('pastml')
     logger.debug("Parsimonious reconstruction for {} requires {} state changes."
@@ -239,6 +234,27 @@ def parsimonious_acr(tree, feature, prediction_method, states, num_nodes, num_ti
     return {STEPS: num_steps, CHARACTER: feature, STATES: states, METHOD: prediction_method,
             NUM_SCENARIOS: num_scenarios, NUM_UNRESOLVED_NODES: unresolved_nodes,
             NUM_NODES: num_nodes, NUM_TIPS: num_tips}
+
+
+def run_parsimony(feature, prediction_method, states, tree):
+    """
+    Calculates parsimonious states on the tree
+    and stores them in the get_personalized_feature_name(feature, PARS_STATES) feature.
+
+    :param states: numpy array of possible states
+    :param prediction_method: str, ACCTRAN (accelerated transformation), DELTRAN (delayed transformation) or DOWNPASS
+    :param tree: ete3.Tree, the tree of interest
+    :param feature: str, character for which the parsimonious states are reconstructed
+    :return: void, adds get_personalized_feature_name(feature, PARS_STATES) feature to each node.
+    """
+    initialise_parsimonious_states(tree, feature, states)
+    uppass(tree, feature)
+    if ACCTRAN == prediction_method:
+        acctran(tree, feature)
+    else:
+        downpass(tree, feature, states)
+        if DELTRAN == prediction_method:
+            deltran(tree, feature)
 
 
 def choose_parsimonious_states(tree, feature):

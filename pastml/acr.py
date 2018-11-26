@@ -11,9 +11,9 @@ from pastml.cytoscape_manager import visualize
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file
 from pastml.ml import is_ml, ml_acr, MPPA, MAP, JOINT, F81, is_marginal, JC, EFT, FREQUENCIES, MARGINAL_PROBABILITIES, \
-    SCALING_FACTOR, MODEL
-from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS
-from pastml.tree import read_tree, name_tree, date_tips, REASONABLE_NUMBER_OF_TIPS
+    SCALING_FACTOR, MODEL, ML_METHODS, MARGINAL_ML_METHODS
+from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS
+from pastml.tree import read_tree, name_tree, date_tips, REASONABLE_NUMBER_OF_TIPS, collapse_zero_branches
 
 COPY = 'COPY'
 
@@ -26,24 +26,22 @@ def _parse_pastml_parameters(params, states):
                          .format(type(params)))
     if isinstance(params, str):
         if not os.path.exists(params):
-            raise ValueError('You have specified some parameters ({}) but such a file does not exist!'
+            raise ValueError('The specified parameter file ({}) does not exist.'
                              .format(params))
         try:
-            param_dict = pd.read_csv(params, header=0, index_col=0)
+            param_dict = pd.read_table(params, header=0, index_col=0)
             if 'value' not in param_dict.columns:
-                logger.error('Could not find the "value" column in the parameter file {}. '
-                             'It should be a csv file with two columns, the first one containing parameter names, '
-                             'and the second, named "value", containing parameter values. '
-                             'Ignoring these parameters.'.format(params))
-                return frequencies, sf
+                raise ValueError('Could not find the "value" column in the parameter file {}. '
+                                 'It should be a tab-delimited file with two columns, '
+                                 'the first one containing parameter names, '
+                                 'and the second, named "value", containing parameter values.')
             param_dict = param_dict.to_dict()['value']
             params = param_dict
         except:
-            logger.error('The specified parameter file {} is malformatted, '
-                         'should be a csv file with two columns, the first one containing parameter names, '
-                         'and the second, named "value", containing parameter values. '
-                         'Ignoring these parameters.'.format(params))
-            return frequencies, sf
+            raise ValueError('The specified parameter file {} is malformatted, '
+                             'should be a tab-delimited file with two columns, '
+                             'the first one containing parameter names, '
+                             'and the second, named "value", containing parameter values.'.format(params))
     frequencies_specified = set(states) & set(params.keys())
     if frequencies_specified:
         if len(frequencies_specified) < len(states):
@@ -89,14 +87,14 @@ def _serialize_acr(args):
 
     # Not using DataFrames to speed up document writing
     with open(out_param_file, 'w+') as f:
-        f.write('parameter,value\n')
+        f.write('parameter\tvalue\n')
         for name, value in acr_result.items():
             if name not in [FREQUENCIES, STATES, MARGINAL_PROBABILITIES]:
-                f.write('{},{}\n'.format(name, value))
+                f.write('{}\t{}\n'.format(name, value))
         if is_ml(acr_result[METHOD]):
             for state, freq in zip(acr_result[STATES], acr_result[FREQUENCIES]):
-                f.write('{},{}\n'.format(state, freq))
-    logging.getLogger('pastml').debug('Serialized ACR results for {} to {}.'
+                f.write('{}\t{}\n'.format(state, freq))
+    logging.getLogger('pastml').debug('Serialized ACR parameters and statistics for {} to {}.'
                                       .format(acr_result[CHARACTER], out_param_file))
 
     if is_marginal(acr_result[METHOD]):
@@ -109,8 +107,9 @@ def _serialize_acr(args):
                                           .format(acr_result[CHARACTER], out_mp_file))
 
 
-def reconstruct_ancestral_states(tree, feature, states, avg_br_len=None, num_nodes=None, num_tips=None,
-                                 prediction_method=MPPA, model=F81, params=None):
+def reconstruct_ancestral_states(tree, feature, states, prediction_method=MPPA, model=F81,
+                                 params=None, avg_br_len=None, num_nodes=None, num_tips=None,
+                                 force_joint=True, output_parsimonious_restricted_loglh=False):
     """
     Reconstructs ancestral states for the given character on the given tree.
 
@@ -161,7 +160,9 @@ def reconstruct_ancestral_states(tree, feature, states, avg_br_len=None, num_nod
         freqs, sf = None, None
         if params is not None:
             freqs, sf = _parse_pastml_parameters(params, states)
-        return ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_nodes, num_tips, freqs, sf)
+        return ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_nodes, num_tips, freqs, sf,
+                      force_joint=force_joint,
+                      output_parsimonious_restricted_loglh=output_parsimonious_restricted_loglh)
     if is_parsimonious(prediction_method):
         return parsimonious_acr(tree, feature, prediction_method, states, num_nodes, num_tips)
 
@@ -169,7 +170,8 @@ def reconstruct_ancestral_states(tree, feature, states, avg_br_len=None, num_nod
                      .format(prediction_method, MPPA, MAP, JOINT, ACCTRAN, DELTRAN, DOWNPASS, COPY))
 
 
-def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None):
+def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None,
+        force_joint=True, output_parsimonious_restricted_loglh=False):
     """
     Reconstructs ancestral states for the given tree and
     all the characters specified as columns of the given annotation dataframe.
@@ -189,8 +191,8 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None):
     :type prediction_method: str or list(str)
     :param column2parameters: an optional way to fix some parameters,
         must be in a form {column: {param: value}},
-        where param can be a state (then the value should specify its frequency between 0 and 1),
-        or "scaling factor" (then the value should be the scaling factor for three branches,
+        where param can be a character state (then the value should specify its frequency between 0 and 1),
+        or pastml.ml.SCALING_FACTOR (then the value should be the scaling factor for three branches,
         e.g. set to 1 to keep the original branches). Could also be in a form {column: path_to_param_file}.
     :type column2parameters: dict
 
@@ -199,6 +201,7 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None):
     """
     columns = preannotate_tree(df, tree)
     name_tree(tree)
+    collapse_zero_branches(tree)
 
     avg_br_len, num_nodes, num_tips = get_tree_stats(tree)
 
@@ -207,16 +210,18 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None):
     column2parameters = column2parameters if column2parameters else {}
 
     def _work(args):
-        return reconstruct_ancestral_states(*args)
+        return reconstruct_ancestral_states(*args, avg_br_len=avg_br_len, num_nodes=num_nodes, num_tips=num_tips,
+                                            force_joint=force_joint,
+                                            output_parsimonious_restricted_loglh=output_parsimonious_restricted_loglh)
 
     prediction_methods = value2list(len(columns), prediction_method, MPPA)
     models = value2list(len(columns), model, F81)
 
     with ThreadPool() as pool:
         acr_results = \
-            pool.map(func=_work, iterable=((tree, column, np.sort([_ for _ in df[column].unique()
-                                                                   if pd.notnull(_) and _ != '']),
-                                            avg_br_len, num_nodes, num_tips, method, model,
+            pool.map(func=_work, iterable=((tree, column,
+                                            np.sort([_ for _ in df[column].unique() if pd.notnull(_) and _ != '']),
+                                            method, model,
                                             column2parameters[column] if column in column2parameters else None)
                                            for (column, method, model) in zip(columns, prediction_methods, models)))
 
@@ -227,59 +232,84 @@ def _quote(str_list):
     return ', '.join('"{}"'.format(_) for _ in str_list) if str_list is not None else ''
 
 
-def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, data_sep='\t', id_index=0, columns=None,
-                    name_column=None, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS,
-                    model=F81, prediction_method=MPPA, verbose=False, date_column=None, column2parameters=None,
-                    work_dir=None):
+def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
+                    columns=None, prediction_method=MPPA, model=F81, parameters=None,
+                    name_column=None, date_column=None, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS,
+                    out_data=None, html_compressed=None, html=None, work_dir=None,
+                    verbose=False, no_forced_joint=False, output_parsimonious_restricted_loglh=False):
     """
     Applies PASTML to the given tree with the specified states and visualizes the result (as html maps).
 
-    :param date_column: (optional) name of the data table column that contains tip dates.
-    :type date_column: str
-    :param out_data: path to the output annotation file with the states inferred by PASTML.
-    :type out_data: str
-    :param tree: path to the input tree in newick format.
+    :param tree: path to the input tree in newick format (must be rooted).
     :type tree: str
+
     :param data: path to the annotation file in tab/csv format with the first row containing the column names.
     :type data: str
+    :param data_sep: (optional, by default '\t') column separator for the annotation table.
+        By default is set to tab, i.e. for tab-delimited file. Set it to ',' if your file is csv.
+    :type data_sep: char
+    :param id_index: (optional, by default is 0) index of the column in the annotation table
+        that contains the tree tip names, indices start from zero.
+    :type id_index: int
+
+    :param columns: (optional) name(s) of the annotation table column(s) that contain character(s)
+        to be analysed. If not specified all annotation table columns will be considered.
+    :type columns: str or list(str)
+    :param prediction_method: (optional, default is pastml.ml.MPPA) ancestral character reconstruction method(s),
+        can be one of the max likelihood (ML) methods: pastml.ml.MPPA, pastml.ml.MAP, pastml.ml.JOINT,
+        one of the max parsimony (MP) methods: pastml.parsimony.ACCTRAN, pastml.parsimony.DELTRAN,
+        pastml.parsimony.DOWNPASS; or pastml.acr.COPY to keep the annotated character states as-is without inference.
+        When multiple ancestral characters are specified (with ``columns`` argument),
+        the same method can be used for all of them (if only one method is specified),
+        or different methods can be used (specified in the same order as ``columns``).
+        If multiple methods are given, but not for all the characters,
+        for the rest of them the default method (pastml.ml.MPPA) is chosen.'
+    :type prediction_method: str or list(str)
+    :param model: (optional, default is pastml.ml.F81) evolutionary model(s) for ML methods (ignored by MP methods).
+        When multiple ancestral characters are specified (with ``columns`` argument),
+        the same model can be used for all of them (if only one model is specified),
+        or different models can be used (specified in the same order as ``columns``).
+        If multiple models are given, but not for all the characters,
+        for the rest of them the default model (pastml.ml.F81) is chosen.
+    :type model: str or list(str)
+    :param parameters: optional way to fix some of the ML-method parameters.
+        Could be specified as a dict {column: {param: value}},
+        where column corresponds to the character for which these parameters should be used.
+        Could also be in a form {column: path_to_param_file},
+        or a list of paths to parameter files (in the same order as ``columns`` argument that specifies characters)
+        possibly given only for the first few characters.
+        Each file should be tab-delimited, with two columns: the first one containing parameter names,
+        and the second, named "value", containing parameter values.
+        Parameters can include character state frequencies (parameter name should be the corresponding state,
+        and parameter value - the float frequency value, between 0 and 1),
+        and tree branch scaling factor (parameter name pastml.ml.SCALING_FACTOR).
+    :type parameters: list(str) or dict
+
+    :param name_column: (optional) name of the annotation table column to be used for node names
+        in the compressed map visualisation
+        (must be one of those specified in ``columns``, if ``columns`` are specified).
+        If the annotation table contains only one column, it will be used by default.
+    :type name_column: str
+    :param date_column: (optional) name of the annotation table column that contains tip dates,
+        if specified it is used to add a time slider to the visualisation.
+    :type date_column: str
+    :param tip_size_threshold: (optional, by default is 15) remove the tips of size less than threshold-th
+        from the compressed map (set to 1e10 to keep all). The larger it is the less tips will be trimmed.
+    :type tip_size_threshold: int
+
+    :param out_data: path to the output annotation file with the reconstructed ancestral character states.
+    :type out_data: str
     :param html_compressed: path to the output compressed visualisation file (html).
     :type html_compressed: str
     :param html: (optional) path to the output tree visualisation file (html).
     :type html: str
-    :param data_sep: (optional, by default '\t') column separator for the data table.
-        By default is set to tab, i.e. for tab-delimited file. Set it to ',' if your file is csv.
-    :type data_sep: char
-    :param id_index: (optional, by default is 0) the index of the column in the data table
-        that contains the tree tip names, indices start from zero.
-    :type id_index: int
-    :param columns: (optional) names of the data table columns that contain states
-        to be analysed with PASTML, if not specified all columns will be considered.
-    :type columns: list
-    :param name_column: (optional) name of the data table column to be used for node names in the visualisation
-        (must be one of those specified in columns, if columns are specified).
-        If the data table contains only one column, it will be used by default.
-    :type name_column: str
-    :param tip_size_threshold: (optional, by default is 15) remove the tips of size less than threshold-th
-        from the compressed map (set to 1e10 to keep all). The larger it is the less tips will be trimmed.
-    :type tip_size_threshold: int
-    :param model: (optional, default is F81) model(s) to be used by PASTML,
-        can be either one model to be used for all the characters,
-        or a list of different models (in the same order as the annotation dataframe columns)
-    :type model: str or list(str)
-    :param prediction_method: (optional, default is MPPA) ancestral state prediction method(s) to be used by PASTML,
-        can be either one method to be used for all the characters,
-        or a list of different methods (in the same order as the annotation dataframe columns)
-    :type prediction_method: str or list(str)
-    :param verbose: (optional, default is False) print information on the progress of the analysis.
-    :type verbose: bool
-    :param column2parameters: an optional way to fix some parameters, must be in a form {column: {param: value}},
-        where param can be a state (then the value should specify its frequency between 0 and 1),
-        or "scaling factor" (then the value should be the scaling factor for three branches,
-        e.g. set to 1 to keep the original branches). Could also be in a form {column: path_to_param_file}.
-    :type column2parameters: dict
-    :param work_dir: path to the folder where PASTML should put its files (e.g. estimated parameters, etc.).
+    :param work_dir: (optional) path to the folder where pastml parameter, named tree
+        and marginal probability (for marginal ML methods (pastml.ml.MPPA, pastml.ml.MAP) only) files are to be stored.
         If the specified folder does not exist, it will be created.
     :type work_dir: str
+
+    :param verbose: (optional, default is False) print information on the progress of the analysis.
+    :type verbose: bool
 
     :return: void
     """
@@ -290,11 +320,19 @@ def pastml_pipeline(tree, data, out_data=None, html_compressed=None, html=None, 
 
     root, df, max_date, min_date, name_column = _validate_input(columns, data, data_sep, date_column,
                                                                 html, html_compressed, id_index, name_column, tree)
+    if parameters:
+        if isinstance(parameters, list):
+            parameters = dict(zip(df.columns, parameters))
+        elif isinstance(parameters, dict):
+            parameters = {col_name2cat(col): params for (col, params) in parameters.items()}
+        else:
+            raise ValueError('Parameters should be either a list or a dict, got {}.'.format(type(parameters)))
+    else:
+        parameters = {}
 
-    column2parameters = {col_name2cat(col): params for (col, params) in column2parameters.items()} \
-        if column2parameters else {}
-
-    acr_results = acr(root, df, prediction_method=prediction_method, model=model, column2parameters=column2parameters)
+    acr_results = acr(root, df, prediction_method=prediction_method, model=model, column2parameters=parameters,
+                      force_joint=not no_forced_joint,
+                      output_parsimonious_restricted_loglh=output_parsimonious_restricted_loglh)
 
     if work_dir and not out_data:
         out_data = os.path.join(work_dir, get_combined_ancestral_state_file(columns=df.columns))
@@ -348,6 +386,8 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
         logger.debug("Extracted tip dates: they vary between {} and {}.".format(min_date, max_date))
 
     if columns:
+        if isinstance(columns, str):
+            columns = [columns]
         unknown_columns = set(columns) - set(df.columns)
         if unknown_columns:
             raise ValueError('{} of the specified columns ({}) {} not found among the annotation columns: {}.'
@@ -434,67 +474,103 @@ def main():
     """
     import argparse
 
-    parser = argparse.ArgumentParser(description="Visualisation of annotated phylogenetic trees (as html maps).")
-
-    annotation_group = parser.add_argument_group('annotation-related arguments')
-    annotation_group.add_argument('-d', '--data', required=True, type=str,
-                                  help="the annotation file in tab/csv format with the first row "
-                                       "containing the column names.")
-    annotation_group.add_argument('-s', '--data_sep', required=False, type=str, default='\t',
-                                  help="the column separator for the data table. "
-                                       "By default is set to tab, i.e. for tab file. "
-                                       "Set it to ',' if your file is csv.")
-    annotation_group.add_argument('-i', '--id_index', required=False, type=int, default=0,
-                                  help="the index of the column in the data table that contains the tree tip names, "
-                                       "indices start from zero (by default is set to 0).")
-    annotation_group.add_argument('-c', '--columns', nargs='*',
-                                  help="names of the data table columns that contain states "
-                                       "to be analysed with PASTML, or to be copied."
-                                       "If not specified, all columns will be considered.",
-                                  type=str)
-    annotation_group.add_argument('--date_column', required=False, default=None,
-                                  help="name of the data table column that contains tip dates.",
-                                  type=str)
+    parser = argparse.ArgumentParser(description="Ancestral character reconstruction and visualisation "
+                                                 "for rooted phylogenetic trees.", prog='pastml')
 
     tree_group = parser.add_argument_group('tree-related arguments')
-    tree_group.add_argument('-t', '--tree', help="the input tree in newick format.", type=str, required=True)
+    tree_group.add_argument('-t', '--tree', help="input tree in newick format (must be rooted).",
+                            type=str, required=True)
 
-    pastml_group = parser.add_argument_group('ancestral-state inference-related arguments')
-    pastml_group.add_argument('-m', '--model', required=False, default=F81, choices=[JC, F81, EFT], type=str,
-                              help='the evolutionary model to be used by PASTML, by default {}.'.format(F81))
-    pastml_group.add_argument('--prediction_method', required=False, default=MPPA,
-                              choices=[MPPA, MAP, JOINT, DOWNPASS, ACCTRAN, DELTRAN, COPY], type=str,
-                              help='the ancestral state prediction method to be used by PASTML, '
-                                   'by default {}.'.format(MPPA))
-    pastml_group.add_argument('--column2parameters', required=False, default=None, type=dict,
-                              help='optional way to fix some parameters, must be in a form {column: {param: value}}, '
-                                   'where param can be a state (then the value should specify its frequency between 0 and 1),'
-                                   'or "scaling factor" (then the value should be the scaling factor for tree branches, '
-                                   'e.g. set to 1 to keep the original branches).')
+    annotation_group = parser.add_argument_group('annotation-file-related arguments')
+    annotation_group.add_argument('-d', '--data', required=True, type=str,
+                                  help="annotation file in tab/csv format with the first row "
+                                       "containing the column names.")
+    annotation_group.add_argument('-s', '--data_sep', required=False, type=str, default='\t',
+                                  help="column separator for the annotation table. "
+                                       "By default is set to tab, i.e. for a tab-delimited file. "
+                                       "Set it to ',' if your file is csv.")
+    annotation_group.add_argument('-i', '--id_index', required=False, type=int, default=0,
+                                  help="index of the annotation table column containing tree tip names, "
+                                       "indices start from zero (by default is set to 0).")
+
+    acr_group = parser.add_argument_group('ancestral-character-reconstruction-related arguments')
+    acr_group.add_argument('-c', '--columns', nargs='*',
+                           help="names of the annotation table columns that contain characters "
+                                "to be analysed. "
+                                "If not specified, all columns are considered.",
+                           type=str)
+    acr_group.add_argument('--prediction_method',
+                           choices=[MPPA, MAP, JOINT, DOWNPASS, ACCTRAN, DELTRAN, COPY],
+                           type=str, nargs='*', default=MPPA,
+                           help='ancestral character reconstruction method, '
+                                'can be one of the max likelihood (ML) methods: {ml}, '
+                                'one of the max parsimony (MP) methods: {mp}; '
+                                'or {copy} to keep the annotated character states as-is without inference. '
+                                'When multiple ancestral characters are specified (see -c, --columns), '
+                                'the same method can be used for all of them (if only one method is specified), '
+                                'or different methods can be used (specified in the same order as -c, --columns). '
+                                'If multiple methods are given, but not for all the characters, '
+                                'for the rest of them the default method ({default}) is chosen.'
+                           .format(ml=', '.join(ML_METHODS), mp=', '.join(MP_METHODS), copy=COPY, default=MPPA))
+    acr_group.add_argument('-m', '--model', default=F81,
+                           choices=[JC, F81, EFT],
+                           type=str, nargs='*',
+                           help='evolutionary model for ML methods (ignored by MP methods). '
+                                'When multiple ancestral characters are specified (see -c, --columns), '
+                                'the same model can be used for all of them (if only one model is specified), '
+                                'or different models can be used (specified in the same order as -c, --columns). '
+                                'If multiple models are given, but not for all the characters, '
+                                'for the rest of them the default model ({}) is chosen.'.format(F81))
+    acr_group.add_argument('--parameters', type=str, nargs='*',
+                           help='optional way to fix some of the ML-method parameters '
+                                'by specifying files that contain them. '
+                                'Should be in the same order '
+                                'as the ancestral characters (see -c, --columns) '
+                                'for which the reconstruction is to be preformed. '
+                                'Could be given only for the first few characters. '
+                                'Each file should be tab-delimited, with two columns: '
+                                'the first one containing parameter names, '
+                                'and the second, named "value", containing parameter values. '
+                                'Parameters can include character state frequencies '
+                                '(parameter name should be the corresponding state, '
+                                'and parameter value - the float frequency value, between 0 and 1),'
+                                'and tree branch scaling factor (parameter name {}).'.format(SCALING_FACTOR))
 
     vis_group = parser.add_argument_group('visualisation-related arguments')
     vis_group.add_argument('-n', '--name_column', type=str, default=None,
-                           help="name of the data table column to be used for node names "
-                                "in the compressed map visualisation (must be one of those specified in columns)."
-                                "If the data table contains only one column it will be used by default.")
+                           help="name of the character to be used for node names "
+                                "in the compressed map visualisation "
+                                "(must be one of those specified via -c, --columns). "
+                                "If the annotation table contains only one column it will be used by default.")
+    vis_group.add_argument('--date_column', required=False, default=None,
+                           help="name of the annotation table column that contains tip dates, "
+                                "if specified it is used to add a time slider to the visualisation.",
+                           type=str)
     vis_group.add_argument('--tip_size_threshold', type=int, default=REASONABLE_NUMBER_OF_TIPS,
-                           help="Remove the tips of size less than the threshold-th from the compressed map "
-                                "(set to 1e10 to keep all tips). The larger it is the less tips will be trimmed.")
+                           help="recursively remove the tips of size less than the threshold-th "
+                                "from the compressed map (set to 1e10 to keep all tips). "
+                                "The larger it is the less tips will be trimmed.")
 
     out_group = parser.add_argument_group('output-related arguments')
     out_group.add_argument('-o', '--out_data', required=False, type=str,
-                           help="the output annotation file with the states inferred by PASTML.")
-    pastml_group.add_argument('--work_dir', required=False, default=None, type=str,
-                              help="(optional) str: path to the folder where pastml should put its files "
-                                   "(e.g. estimated parameters, etc.). "
-                                   "If the specified folder does not exist, it will be created.")
+                           help="path to the output annotation file with the reconstructed ancestral character states.")
+    out_group.add_argument('--work_dir', required=False, default=None, type=str,
+                           help="path to the folder where pastml parameter, named tree "
+                                "and marginal probability (for marginal ML methods ({}) only) files are to be stored. "
+                                "If the specified folder does not exist, it will be created."
+                           .format(', '.join(MARGINAL_ML_METHODS)))
     out_group.add_argument('-p', '--html_compressed', required=False, default=None, type=str,
-                           help="the output summary map visualisation file (html).")
+                           help="path to the output compressed map visualisation file (html).")
     out_group.add_argument('-l', '--html', required=False, default=None, type=str,
-                           help="the output tree visualisation file (html).")
+                           help="path to the output full tree visualisation file (html).")
 
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="print information on the progress of the analysis")
+    parser.add_argument('--version', action='version', version='%(prog)s 1.7')
+
+    parser.add_argument('--no_forced_joint', help=argparse.SUPPRESS, action='store_true')
+    parser.add_argument('--output_parsimonious_restricted_loglh', help=argparse.SUPPRESS, action='store_true')
+
     params = parser.parse_args()
 
     pastml_pipeline(**vars(params))

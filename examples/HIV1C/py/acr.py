@@ -34,7 +34,7 @@ if '__main__' == __name__:
                         name_column=params.col[0],
                         prediction_method=params.prediction_method, date_column=params.date_col,
                         tip_size_threshold=params.threshold,
-                        column2parameters=dict(zip(params.col, params.in_pars)) if params.in_pars else None,
+                        parameters=dict(zip(params.col, params.in_pars)) if params.in_pars else None,
                         out_data=params.out_data, work_dir=work_dir, verbose=params.verbose)
         if params.out_pars:
             for column, out_pars in zip(params.col, params.out_pars):

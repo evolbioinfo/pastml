@@ -7,7 +7,7 @@ import pandas as pd
 from pastml.tree import read_tree
 from pastml import get_personalized_feature_name, STATES
 from pastml.acr import acr
-from pastml.ml import LH, LH_SF, MPPA, JC, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD, CHANGES_PER_AVG_BRANCH, \
+from pastml.ml import LH, LH_SF, MPPA, JC, LOG_LIKELIHOOD, MPPA_RESTRICTED_LOG_LIKELIHOOD, CHANGES_PER_AVG_BRANCH, \
     SCALING_FACTOR, FREQUENCIES, MARGINAL_PROBABILITIES
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
@@ -74,9 +74,9 @@ class ACRParameterOptimisationMPPAJCTest(unittest.TestCase):
                                .format(-121.873, self.acr_result[LOG_LIKELIHOOD]))
 
     def test_restricted_likelihood(self):
-        self.assertAlmostEqual(-123.421, self.acr_result[RESTRICTED_LOG_LIKELIHOOD], places=3,
+        self.assertAlmostEqual(-123.421, self.acr_result[MPPA_RESTRICTED_LOG_LIKELIHOOD], places=3,
                                msg='Restricted likelihood was supposed to be the {:.3f}, got {:3f}'
-                               .format(-123.421, self.acr_result[RESTRICTED_LOG_LIKELIHOOD]))
+                               .format(-123.421, self.acr_result[MPPA_RESTRICTED_LOG_LIKELIHOOD]))
 
     def test_changes_per_avg_branch(self):
         self.assertAlmostEqual(0.138, self.acr_result[CHANGES_PER_AVG_BRANCH], places=3,

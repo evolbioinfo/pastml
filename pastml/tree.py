@@ -175,8 +175,11 @@ def compress_tree(tree, column2states, can_merge_diff_sizes=True, tip_size_thres
             return tuple(value)
     else:
         def get_states(n):
-            return tuple(((column, getattr(n, column))
-                          for column in column2states.keys() if not isinstance(getattr(n, column, []), list)))
+            return tuple(((column, (getattr(n, column) if not isinstance(getattr(n, column, []), list)
+                                    else ' or '.join(getattr(n, column, []))))
+                          for column in column2states.keys()))
+            # return tuple(((column, getattr(n, column))
+            #               for column in column2states.keys() if not isinstance(getattr(n, column, []), list)))
 
     collapse_vertically(tree, get_states)
     remove_mediators(tree, get_states)

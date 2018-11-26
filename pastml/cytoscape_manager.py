@@ -359,9 +359,9 @@ def visualize(tree, column2states, name_column=None, html=None, html_compressed=
             n.add_feature(DATE, min(getattr(_, DATE) for _ in n))
 
     def get_category_str(n):
-        if one_column:
-            return '{}: {}'.format(one_column, get_column_value_str(n, one_column, format_list=True))
-        return '<br>'.join('{}: {}'.format(column, get_column_value_str(n, column, format_list=False))
+        # if one_column:
+        #     return '{}: {}'.format(one_column, get_column_value_str(n, one_column, format_list=True))
+        return '<br>'.join('{}: {}'.format(column, get_column_value_str(n, column, format_list=True))
                            for column in column2states.keys())
 
     if html:

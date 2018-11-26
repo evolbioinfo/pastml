@@ -57,7 +57,7 @@ class ACRStateMAPJCTest(unittest.TestCase):
         self.assertEqual(expected_state, state,
                          msg='Root state was supposed to be {}, got {}.'.format(expected_state, state))
 
-    def test_state_resolved_internal_node_1(self):
+    def test_state_node_79(self):
         expected_state = 'Africa'
         for node in self.tree.traverse():
             if 'node_79' == node.name:
@@ -66,7 +66,16 @@ class ACRStateMAPJCTest(unittest.TestCase):
                                  .format(node.name, expected_state, state))
                 break
 
-    def test_state_resolved_internal_node_2(self):
+    def test_state_node_32(self):
+        expected_state = 'WestEurope'
+        for node in self.tree.traverse():
+            if 'node_32' == node.name:
+                state = getattr(node, self.feature)
+                self.assertEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
+                                 .format(node.name, expected_state, state))
+                break
+
+    def test_state_node_80(self):
         expected_state = 'Greece'
         for node in self.tree.traverse():
             if 'node_80' == node.name:
@@ -75,7 +84,7 @@ class ACRStateMAPJCTest(unittest.TestCase):
                                  .format(node.name, expected_state, state))
                 break
 
-    def test_state_resolved_internal_node_3(self):
+    def test_state_node_25(self):
         expected_state = 'WestEurope'
         for node in self.tree.traverse():
             if 'node_25' == node.name:
@@ -84,7 +93,7 @@ class ACRStateMAPJCTest(unittest.TestCase):
                                  .format(node.name, expected_state, state))
                 break
 
-    def test_state_resolved_internal_node_4(self):
+    def test_state_node_48(self):
         expected_state = 'Greece'
         for node in self.tree.traverse():
             if 'node_48' == node.name:

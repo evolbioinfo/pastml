@@ -6,8 +6,8 @@ from pastml.ml import is_ml, is_marginal
 COMBINED_ANCESTRAL_STATE_TAB = 'combined_ancestral_states.characters_{states}.tab'
 NAMED_TREE_NWK = 'named.tree_{tree}'
 
-PASTML_ML_PARAMS_CSV = 'params.character_{state}.method_{method}.model_{model}.csv'
-PASTML_MP_PARAMS_CSV = 'params.character_{state}.method_{method}.csv'
+PASTML_ML_PARAMS_TAB = 'params.character_{state}.method_{method}.model_{model}.tab'
+PASTML_MP_PARAMS_TAB = 'params.character_{state}.method_{method}.tab'
 PASTML_MARGINAL_PROBS_TAB = 'marginal_probabilities.character_{state}.model_{model}.tab'
 
 
@@ -23,7 +23,7 @@ def get_pastml_parameter_file(method, model, column):
     :return: str, filename or None for non-ML methods
     """
     ml = is_ml(method)
-    template = PASTML_ML_PARAMS_CSV if ml else PASTML_MP_PARAMS_CSV
+    template = PASTML_ML_PARAMS_TAB if ml else PASTML_MP_PARAMS_TAB
     return template.format(state=col_name2cat(column), method=method, model=model)
 
 
