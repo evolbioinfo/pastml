@@ -124,7 +124,8 @@ def collapse_zero_branches(tree, features_to_be_merged=None):
             for grandchild in child.children:
                 n.add_child(grandchild)
         num_collapsed += len(zero_children)
-    logging.getLogger('pastml').debug('Collapsed {} zero branches.'.format(num_collapsed))
+    if num_collapsed:
+        logging.getLogger('pastml').debug('Collapsed {} internal zero branches.'.format(num_collapsed))
 
 
 def remove_certain_leaves(tr, to_remove=lambda node: False):

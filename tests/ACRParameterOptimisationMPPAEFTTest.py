@@ -6,7 +6,7 @@ import pandas as pd
 
 from pastml import get_personalized_feature_name, STATES
 from pastml.acr import acr
-from pastml.ml import LH, LH_SF, MPPA, EFT, LOG_LIKELIHOOD, MPPA_RESTRICTED_LOG_LIKELIHOOD, CHANGES_PER_AVG_BRANCH, \
+from pastml.ml import LH, LH_SF, MPPA, EFT, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, CHANGES_PER_AVG_BRANCH, \
     SCALING_FACTOR, FREQUENCIES, MARGINAL_PROBABILITIES
 from pastml.tree import read_tree
 
@@ -74,9 +74,9 @@ class ACRParameterOptimisationMPPAEFTTest(unittest.TestCase):
                                .format(-123.173, self.acr_result[LOG_LIKELIHOOD]))
 
     def test_restricted_likelihood(self):
-        self.assertAlmostEqual(-125.359, self.acr_result[MPPA_RESTRICTED_LOG_LIKELIHOOD], places=3,
+        self.assertAlmostEqual(-125.359, self.acr_result[RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR.format(MPPA)], places=3,
                                msg='Restricted likelihood was supposed to be the {:.3f}, got {:3f}'
-                               .format(-125.359, self.acr_result[MPPA_RESTRICTED_LOG_LIKELIHOOD]))
+                               .format(-125.359, self.acr_result[RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR.format(MPPA)]))
 
     def test_changes_per_avg_branch(self):
         self.assertAlmostEqual(0.149, self.acr_result[CHANGES_PER_AVG_BRANCH], places=3,

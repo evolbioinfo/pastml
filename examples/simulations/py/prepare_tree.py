@@ -1,4 +1,5 @@
 from ete3 import Tree
+import numpy as np
 
 if '__main__' == __name__:
     import argparse
@@ -10,5 +11,8 @@ if '__main__' == __name__:
     params = parser.parse_args()
 
     tree = Tree(params.input, format=3)
+    avg_nonzero_br_len = np.mean([_.dist for _ in tree.traverse() if _.dist])
+    for _ in tree.traverse():
+        _.dist /= avg_nonzero_br_len
     tree.resolve_polytomy()
     tree.write(outfile=params.output, format=5)

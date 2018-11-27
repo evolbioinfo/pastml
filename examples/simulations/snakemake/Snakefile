@@ -11,15 +11,16 @@ py_config = config['py_config']
 
 folder = os.path.abspath(config["folder"])
 data_dir = os.path.join(folder, config['data_dir'])
-#tree = os.path.join(data_dir, config['tree_small'])
-tree = os.path.join(data_dir, 'tree.152taxa.nwk')
 
-model='F81'
+a, c, g, t = .6, .15, .2, .05
 
 
 rule all:
     input:
-        os.path.join(data_dir, 'tree.152taxa.nwk.seqgen.html')
+        expand(os.path.join(folder, 'html', '{tree}.sf_{SF}.A_{A}.C_{C}.G_{G}.T_{T}.tree.html'), SF=[0.01, 0.05, .1, 0.5, 1, 5, 10],
+         A=a, C=c, G=g, T=t, tree=['tree.152taxa', 'tree']),
+        expand(os.path.join(folder, 'html', '{tree}.sf_{SF}.A_{A}.C_{C}.G_{G}.T_{T}.tree.html'), SF=[0.01, 0.05, .1, 0.5, 1, 5, 10],
+         A=.25, C=.25, G=.25, T=.25, tree=['tree.152taxa', 'tree'])
 
 
 rule convert_tree:
@@ -27,7 +28,7 @@ rule convert_tree:
     Convert a tree to another format.
     '''
     input:
-        tree = '{tree}'
+        tree = '{tree}.nwk'
     output:
         tree = '{tree}.seqgen.nwk',
     params:
@@ -47,61 +48,36 @@ rule generate_seq:
     Generates sequences.
     '''
     input:
-        tree = '{tree}.seqgen.nwk'
+        tree = os.path.join(data_dir, '{tree}.seqgen.nwk')
     output:
-        log = '{tree}.tab'
+        log = temp(os.path.join(folder, 'pastml', '{tree}.sf_{SF}.A_{A}.C_{C}.G_{G}.T_{T}.tab')),
+        tab = os.path.join(folder, 'pastml', '{tree}.sf_{SF}.A_{A}.C_{C}.G_{G}.T_{T}.pastml.tab'),
+        tree = os.path.join(folder, 'pastml', '{tree}.sf_{SF}.A_{A}.C_{C}.G_{G}.T_{T}.nwk'),
+        html = os.path.join(folder, 'html', '{tree}.sf_{SF}.A_{A}.C_{C}.G_{G}.T_{T}.tree.html'),
+        map = os.path.join(folder, 'html', '{tree}.sf_{SF}.A_{A}.C_{C}.G_{G}.T_{T}.map.html'),
     params:
         mem = 1000,
         name = 'seqgen',
-        seqgen = config['seq-gen']
-    threads: 1
-    run:
-        shell("""
-            {src_command}
-            {params.seqgen} -m F84 -l 1 -s 20 -f .6 .15 .2 .05 -z 239 -wa -op {input.tree} > {output.log}
-        """)
-
-rule prepare_annotation:
-    '''
-    Generates sequences.
-    '''
-    input:
-        log = '{tree}.tab',
-        tree = '{tree}.seqgen.nwk'
-    output:
-        tab = '{tree}.pastml.tab',
-        tree = '{tree}.seqgen.named.nwk'
-    params:
-        mem = 1000,
-        name = 'annotation'
-    threads: 1
+        seqgen = config['seq-gen'],
+        sf = '{SF}',
+        a = '{A}',
+        c = '{C}',
+        g = '{G}',
+        t = '{T}',
+        wd = os.path.join(folder, 'pastml', '{tree}', 'sf_{SF}.A_{A}.C_{C}.G_{G}.T_{T}')
+    threads: 4
     run:
         shell("""
             {src_command}
             {py_config}
 
-            python3 {folder}/py/prepare_annotation.py --output_tab {output.tab} --output_tree {output.tree} --input_tree {input.tree} --input_log {input.log}
-        """)
+            {params.seqgen} -m F84 -l 1 -s {params.sf} -f {params.a} {params.c} {params.g} {params.t} \
+            -z 239 -wa -op {input.tree} > {output.log}
 
-rule pastml:
-    '''
-    Generates sequences.
-    '''
-    input:
-        tab = '{tree}.pastml.tab',
-        tree_named = '{tree}.seqgen.named.nwk'
-    output:
-        html = '{tree}.seqgen.html',
-        map = '{tree}.seqgen.map.html',
-    params:
-        mem = 1000,
-        name = 'pastml',
-        wd = os.path.join(folder, 'pastml')
-    threads: 1
-    run:
-        shell("""
-            {src_command}
-            {py_config}
 
-            pastml -t {input.tree_named} -d {input.tab} --html {output.html} -p {output.map} --work_dir {params.wd} -v --prediction_method COPY MPPA JOINT MAP
+            python3 {folder}/py/prepare_annotation.py --output_tab {output.tab} --output_tree {output.tree} \
+            --input_tree {input.tree} --input_log {output.log}
+
+            pastml -t {output.tree} -d {output.tab} --html {output.html} -p {output.map} --work_dir {params.wd} -v \
+            --prediction_method COPY ML --no_forced_joint
         """)

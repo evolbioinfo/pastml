@@ -2,7 +2,7 @@ import logging
 from collections import Counter
 
 from pastml import get_personalized_feature_name, METHOD, STATES, CHARACTER, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
-    NUM_NODES, NUM_TIPS
+    NUM_NODES, NUM_TIPS, NUM_STATES_PER_NODE
 
 STEPS = 'steps'
 
@@ -223,22 +223,28 @@ def parsimonious_acr(tree, character, prediction_method, states, num_nodes, num_
 
     logger = logging.getLogger('pastml')
 
+    def process_result(method, feature):
+        out_feature = get_personalized_feature_name(character, method) if prediction_method != method else character
+        res = result.copy()
+        res[NUM_SCENARIOS], res[NUM_UNRESOLVED_NODES], res[NUM_STATES_PER_NODE] \
+            = choose_parsimonious_states(tree, feature, out_feature)
+        res[NUM_STATES_PER_NODE] /= num_nodes
+        logger.debug('{} node{} unresolved ({:.2f}%) for {} by {}, '
+                     'i.e. {:.4f} state{} per node in average.'
+                     .format(res[NUM_UNRESOLVED_NODES], 's are' if res[NUM_UNRESOLVED_NODES] != 1 else ' is',
+                             res[NUM_UNRESOLVED_NODES] * 100 / num_nodes, character, method,
+                             res[NUM_STATES_PER_NODE], 's' if res[NUM_STATES_PER_NODE] > 1 else ''))
+        res[CHARACTER] = out_feature
+        res[METHOD] = method
+        results.append(res)
+
     if prediction_method in {ACCTRAN, MP}:
         feature = get_personalized_feature_name(character, PARS_STATES)
         if prediction_method == MP:
             feature = get_personalized_feature_name(feature, ACCTRAN)
         acctran(tree, character, feature)
         result[STEPS] = get_num_parsimonious_steps(tree, feature)
-        out_feature = get_personalized_feature_name(character, ACCTRAN) if prediction_method == MP else character
-        res = result.copy()
-        res[NUM_SCENARIOS], res[NUM_UNRESOLVED_NODES] = choose_parsimonious_states(tree, feature, out_feature)
-        logger.debug('{} node{} unresolved ({:.2f}%) for {} by {}, leading to {:g} ancestral scenario{}.'
-                     .format(res[NUM_UNRESOLVED_NODES], 's are' if res[NUM_UNRESOLVED_NODES] != 1 else ' is',
-                             res[NUM_UNRESOLVED_NODES] * 100 / num_nodes, character, ACCTRAN,
-                             res[NUM_SCENARIOS], 's' if res[NUM_SCENARIOS] > 1 else ''))
-        res[CHARACTER] = out_feature
-        res[METHOD] = ACCTRAN
-        results.append(res)
+        process_result(ACCTRAN, feature)
 
         bu_feature = get_personalized_feature_name(character, BU_PARS_STATES)
         for node in tree.traverse():
@@ -246,38 +252,18 @@ def parsimonious_acr(tree, character, prediction_method, states, num_nodes, num_
                 node.del_feature(bu_feature)
             node.del_feature(feature)
 
-    if prediction_method in {DOWNPASS, DELTRAN, MP}:
+    if prediction_method != ACCTRAN:
         downpass(tree, character, states)
         feature = get_personalized_feature_name(character, PARS_STATES)
         if prediction_method == DOWNPASS:
             result[STEPS] = get_num_parsimonious_steps(tree, feature)
         if prediction_method in {DOWNPASS, MP}:
-            out_feature = get_personalized_feature_name(character, DOWNPASS) if prediction_method == MP else character
-            res = result.copy()
-            res[NUM_SCENARIOS], res[NUM_UNRESOLVED_NODES] = choose_parsimonious_states(tree, feature, out_feature)
-            logger.debug('{} node{} unresolved ({:.2f}%) for {} by {}, leading to {:g} ancestral scenario{}.'
-                         .format(res[NUM_UNRESOLVED_NODES], 's are' if res[NUM_UNRESOLVED_NODES] != 1 else ' is',
-                                 res[NUM_UNRESOLVED_NODES] * 100 / num_nodes, character, DOWNPASS,
-                                 res[NUM_SCENARIOS], 's' if res[NUM_SCENARIOS] > 1 else ''))
-            res[CHARACTER] = out_feature
-            res[METHOD] = DOWNPASS
-            results.append(res)
+            process_result(DOWNPASS, feature)
         if prediction_method in {DELTRAN, MP}:
             deltran(tree, character)
             if prediction_method == DELTRAN:
                 result[STEPS] = get_num_parsimonious_steps(tree, feature)
-            out_feature = get_personalized_feature_name(character, DELTRAN) if prediction_method == MP else character
-            res = result.copy()
-            res[NUM_SCENARIOS], res[NUM_UNRESOLVED_NODES] = choose_parsimonious_states(tree, feature,
-                                                                                       out_feature)
-
-            logger.debug('{} node{} unresolved ({:.2f}%) for {} by {}, leading to {:g} ancestral scenario{}.'
-                         .format(res[NUM_UNRESOLVED_NODES], 's are' if res[NUM_UNRESOLVED_NODES] != 1 else ' is',
-                                 res[NUM_UNRESOLVED_NODES] * 100 / num_nodes, character, DELTRAN,
-                                 res[NUM_SCENARIOS], 's' if res[NUM_SCENARIOS] > 1 else ''))
-            res[CHARACTER] = out_feature
-            res[METHOD] = DELTRAN
-            results.append(res)
+            process_result(DELTRAN, feature)
         for node in tree.traverse():
             node.del_feature(feature)
 
@@ -300,12 +286,15 @@ def choose_parsimonious_states(tree, ps_feature, out_feature):
     """
     num_scenarios = 1
     unresolved_nodes = 0
+    num_states = 0
     for node in tree.traverse():
         states = getattr(node, ps_feature)
         node.add_feature(out_feature, states)
-        num_scenarios *= len(states)
-        unresolved_nodes += 1 if len(states) > 1 else 0
-    return num_scenarios, unresolved_nodes
+        n = len(states)
+        num_scenarios *= n
+        unresolved_nodes += 1 if n > 1 else 0
+        num_states += n
+    return num_scenarios, unresolved_nodes, num_states
 
 
 def get_num_parsimonious_steps(tree, feature):

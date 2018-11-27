@@ -7,9 +7,14 @@ from scipy.optimize import minimize
 
 from pastml.parsimony import parsimonious_acr, MP
 from pastml import get_personalized_feature_name, CHARACTER, STATES, METHOD, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
-    NUM_NODES, NUM_TIPS
+    NUM_NODES, NUM_TIPS, NUM_STATES_PER_NODE
 
-RESTRICTED_LIKELIHOOD_FORMAT_STR = '{}_restricted_log_likelihood'
+
+CHANGES_PER_AVG_BRANCH = 'state_changes_per_avg_branch'
+SCALING_FACTOR = 'scaling_factor'
+FREQUENCIES = 'frequencies'
+LOG_LIKELIHOOD = 'log_likelihood'
+RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR = '{}_restricted_{{}}'.format(LOG_LIKELIHOOD)
 
 JOINT = 'JOINT'
 MPPA = 'MPPA'
@@ -19,16 +24,7 @@ ML = 'ML'
 
 MARGINAL_PROBABILITIES = 'marginal_probabilities'
 
-JOINT_RESTRICTED_LOG_LIKELIHOOD = RESTRICTED_LIKELIHOOD_FORMAT_STR.format(JOINT)
-MAP_RESTRICTED_LOG_LIKELIHOOD = RESTRICTED_LIKELIHOOD_FORMAT_STR.format(MAP)
-MPPA_RESTRICTED_LOG_LIKELIHOOD = RESTRICTED_LIKELIHOOD_FORMAT_STR.format(MPPA)
-
 MODEL = 'model'
-
-CHANGES_PER_AVG_BRANCH = 'changes_per_avg_branch'
-SCALING_FACTOR = 'scaling_factor'
-FREQUENCIES = 'frequencies'
-LOG_LIKELIHOOD = 'log_likelihood'
 
 MIN_VALUE = np.log10(np.finfo(np.float64).eps)
 MAX_VALUE = np.log10(np.finfo(np.float64).max)
@@ -498,6 +494,7 @@ def choose_ancestral_states_mppa(tree, feature, states, force_joint=True):
 
     num_scenarios = 1
     unresolved_nodes = 0
+    num_states = 0
 
     # If force_joint == True,
     # we make sure that the joint state is always chosen,
@@ -523,6 +520,7 @@ def choose_ancestral_states_mppa(tree, feature, states, force_joint=True):
                 best_k = k
 
         num_scenarios *= best_k
+        num_states += best_k
         if force_joint:
             indices_selected = sorted(range(n),
                                       key=lambda _: (0 if n == joint_index else 1, -marginal_likelihoods[_]))[:best_k]
@@ -536,7 +534,7 @@ def choose_ancestral_states_mppa(tree, feature, states, force_joint=True):
             unresolved_nodes += 1
         node.add_feature(allowed_state_feature, allowed_states)
 
-    return num_scenarios, unresolved_nodes
+    return num_scenarios, unresolved_nodes, num_states
 
 
 def choose_ancestral_states_map(tree, feature, states):
@@ -631,13 +629,14 @@ def ml_acr(tree, character, prediction_method, model, states, avg_br_len, num_no
     observed_frequencies /= observed_frequencies.sum()
     missing_data /= total_count
 
-    logging.getLogger('pastml').debug('Observed frequencies for {}:{}{}.'
-                                      .format(character,
-                                              ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, observed_frequencies[
-                                                  state2index[state]])
-                                                      for state in states),
-                                              '\n\tfraction of missing data:\t{:.3f}'.format(
-                                                  missing_data) if missing_data else ''))
+    logger = logging.getLogger('pastml')
+    logger.debug('Observed frequencies for {}:{}{}.'
+                 .format(character,
+                         ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, observed_frequencies[
+                             state2index[state]])
+                                 for state in states),
+                         '\n\tfraction of missing data:\t{:.3f}'.format(
+                             missing_data) if missing_data else ''))
 
     if freqs is not None and F81 != model:
         logging.warning('Some frequencies were specified in the parameter file, '
@@ -660,47 +659,47 @@ def ml_acr(tree, character, prediction_method, model, states, avg_br_len, num_no
         optimise_sf = True
     likelihood = get_bottom_up_likelihood(tree, character, frequencies, sf, True)
     if not optimise_sf and not optimise_frequencies:
-        logging.getLogger('pastml').debug('Both scaling factor and frequencies are fixed for {}:{}{}{}.'
-                                          .format(character,
-                                                  ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[
-                                                      state2index[state]])
-                                                          for state in states),
-                                                  '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'
-                                                  .format(sf, sf * avg_br_len),
-                                                  '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
+        logger.debug('Both scaling factor and frequencies are fixed for {}:{}{}{}.'
+                     .format(character,
+                             ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[
+                                 state2index[state]])
+                                     for state in states),
+                             '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'
+                             .format(sf, sf * avg_br_len),
+                             '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
     else:
-        logging.getLogger('pastml').debug('Initial values for {} parameter optimisation:{}{}{}.'
-                                          .format(character,
-                                                  ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[
-                                                      state2index[state]])
-                                                          for state in states),
-                                                  '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'
-                                                  .format(sf, sf * avg_br_len),
-                                                  '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
+        logger.debug('Initial values for {} parameter optimisation:{}{}{}.'
+                     .format(character,
+                             ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[
+                                 state2index[state]])
+                                     for state in states),
+                             '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'
+                             .format(sf, sf * avg_br_len),
+                             '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
         if optimise_sf:
             (_, sf), likelihood = optimize_likelihood_params(tree, character, frequencies, sf,
                                                              optimise_frequencies=False, optimise_sf=optimise_sf,
                                                              avg_br_len=avg_br_len)
             if optimise_frequencies:
-                logging.getLogger('pastml').debug('Pre-optimised SF for {}:{}{}.'
-                                                  .format(character,
-                                                          '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'
-                                                          .format(sf, sf * avg_br_len),
-                                                          '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
+                logger.debug('Pre-optimised SF for {}:{}{}.'
+                             .format(character,
+                                     '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'
+                                     .format(sf, sf * avg_br_len),
+                                     '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
         if optimise_frequencies:
             (frequencies, sf), likelihood = optimize_likelihood_params(tree, character, frequencies, sf,
                                                                        optimise_frequencies=optimise_frequencies,
                                                                        optimise_sf=optimise_sf,
                                                                        avg_br_len=avg_br_len)
 
-        logging.getLogger('pastml').debug('Optimised {} values:{}{}{}'
-                                          .format(character,
-                                                  ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[
-                                                      state2index[state]])
-                                                          for state in states) if optimise_frequencies else '',
-                                                  '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'
-                                                  .format(sf, sf * avg_br_len),
-                                                  '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
+        logger.debug('Optimised {} values:{}{}{}'
+                     .format(character,
+                             ''.join('\n\tfrequency of {}:\t{:.3f}'.format(state, frequencies[
+                                 state2index[state]])
+                                     for state in states) if optimise_frequencies else '',
+                             '\n\tSF:\t{:.3f}, i.e. {:.3f} changes per avg branch'
+                             .format(sf, sf * avg_br_len),
+                             '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
 
     result = {LOG_LIKELIHOOD: likelihood, CHARACTER: character, METHOD: prediction_method, MODEL: model,
               FREQUENCIES: frequencies, SCALING_FACTOR: sf, CHANGES_PER_AVG_BRANCH: sf * avg_br_len, STATES: states,
@@ -708,22 +707,35 @@ def ml_acr(tree, character, prediction_method, model, states, avg_br_len, num_no
 
     results = []
 
+    def process_reconstructed_states(method):
+        if method == prediction_method or is_meta_ml(prediction_method):
+            method_character = get_personalized_feature_name(character, method) \
+                if prediction_method != method else character
+            convert_allowed_states2feature(tree, character, states, method_character)
+            res = result.copy()
+            res[CHARACTER] = method_character
+            res[METHOD] = method
+            results.append(res)
+
+    def process_restricted_likelihood_and_states(method):
+        alter_zero_tip_allowed_states(tree, character)
+        restricted_likelihood = get_bottom_up_likelihood(tree, character, frequencies, sf, True)
+        unalter_zero_tip_allowed_states(tree, character, state2index)
+        note_restricted_likelihood(method, restricted_likelihood)
+        process_reconstructed_states(method)
+
+    def note_restricted_likelihood(method, restricted_likelihood):
+        logger.debug('Log likelihood for {} after {} state selection:\t{:.3f}'
+                     .format(character, method, restricted_likelihood))
+        result[RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR.format(method)] = restricted_likelihood
+
     if prediction_method != MAP:
         # Calculate joint restricted likelihood
-        restricted_joint_likelihood = get_bottom_up_likelihood(tree, character, frequencies, sf, False)
-        logging.getLogger('pastml').debug('Log likelihood for {} after {} state selection:\t{:.3f}'
-                                          .format(character, JOINT, restricted_joint_likelihood))
-        result[JOINT_RESTRICTED_LOG_LIKELIHOOD] = restricted_joint_likelihood
+        restricted_likelihood = get_bottom_up_likelihood(tree, character, frequencies, sf, False)
+        note_restricted_likelihood(JOINT, restricted_likelihood)
         unalter_zero_tip_joint_states(tree, character, state2index)
         choose_ancestral_states_joint(tree, character, states, frequencies)
-        if JOINT == prediction_method or is_meta_ml(prediction_method):
-            joint_character = get_personalized_feature_name(character, JOINT) \
-                if prediction_method != JOINT else character
-            convert_allowed_states2feature(tree, character, states, joint_character)
-            res = result.copy()
-            res[CHARACTER] = joint_character
-            res[METHOD] = JOINT
-            results.append(res)
+        process_reconstructed_states(JOINT)
 
     if is_marginal(prediction_method):
         initialize_allowed_states(tree, character, states)
@@ -736,19 +748,7 @@ def ml_acr(tree, character, prediction_method, model, states, avg_br_len, num_no
         result[MARGINAL_PROBABILITIES] = convert_likelihoods_to_probabilities(tree, character, states)
 
         choose_ancestral_states_map(tree, character, states)
-        alter_zero_tip_allowed_states(tree, character)
-        restricted_map_likelihood = get_bottom_up_likelihood(tree, character, frequencies, sf, True)
-        unalter_zero_tip_allowed_states(tree, character, state2index)
-        logging.getLogger('pastml').debug('Log likelihood for {} after {} state selection:\t{:.3f}'
-                                          .format(character, MAP, restricted_map_likelihood))
-        result[MAP_RESTRICTED_LOG_LIKELIHOOD] = restricted_map_likelihood
-        if MAP == prediction_method or is_meta_ml(prediction_method):
-            map_character = get_personalized_feature_name(character, MAP) if prediction_method != MAP else character
-            convert_allowed_states2feature(tree, character, states, map_character)
-            res = result.copy()
-            res[CHARACTER] = map_character
-            res[METHOD] = MAP
-            results.append(res)
+        process_restricted_likelihood_and_states(MAP)
 
         if MPPA == prediction_method or is_meta_ml(prediction_method):
 
@@ -758,33 +758,18 @@ def ml_acr(tree, character, prediction_method, model, states, avg_br_len, num_no
                 for pars_acr_res in pars_acr_results:
                     _parsimonious_states2allowed_states(tree, pars_acr_res[CHARACTER], character, state2index)
                     alter_zero_tip_allowed_states(tree, character)
-                    restricted_pars_likelihood = get_bottom_up_likelihood(tree, character, frequencies, sf, True)
-                    logging.getLogger('pastml').debug('Log likelihood for {} after {} state selection:\t{:.3f}'
-                                                      .format(character, pars_acr_res[METHOD],
-                                                              restricted_pars_likelihood))
-                    result[RESTRICTED_LIKELIHOOD_FORMAT_STR.format(pars_acr_res[METHOD])] = restricted_pars_likelihood
+                    restricted_likelihood = get_bottom_up_likelihood(tree, character, frequencies, sf, True)
+                    note_restricted_likelihood(pars_acr_res[METHOD], restricted_likelihood)
 
-            num_scenarios, unresolved_nodes = \
+            result[NUM_SCENARIOS], result[NUM_UNRESOLVED_NODES], result[NUM_STATES_PER_NODE] = \
                 choose_ancestral_states_mppa(tree, character, states, force_joint=force_joint)
-
-            alter_zero_tip_allowed_states(tree, character)
-            restricted_likelihood = get_bottom_up_likelihood(tree, character, frequencies, sf, True)
-            unalter_zero_tip_allowed_states(tree, character, state2index)
-            logging.getLogger('pastml').debug('Log likelihood for {} after {} state selection:\t{:.3f}'
-                                              .format(character, MPPA, restricted_likelihood))
-            result[MPPA_RESTRICTED_LOG_LIKELIHOOD] = restricted_likelihood
-            logging.getLogger('pastml').debug('{} node{} unresolved ({:.2f}%) for {} by {}, '
-                                              'leading to {:g} ancestral scenario{}.'
-                                              .format(unresolved_nodes, 's are' if unresolved_nodes != 1 else ' is',
-                                                      unresolved_nodes * 100 / num_nodes, character, MPPA,
-                                                      num_scenarios, 's' if num_scenarios > 1 else ''))
-            result[NUM_UNRESOLVED_NODES] = unresolved_nodes
-            result[NUM_SCENARIOS] = num_scenarios
-            mppa_character = get_personalized_feature_name(character, MPPA) if prediction_method != MPPA else character
-            convert_allowed_states2feature(tree, character, states, mppa_character)
-            result[CHARACTER] = mppa_character
-            result[METHOD] = MPPA
-            results.append(result)
+            result[NUM_STATES_PER_NODE] /= num_nodes
+            logger.debug('{} node{} unresolved ({:.2f}%) for {} by {}, '
+                         'i.e. {:.4f} state{} per node in average.'
+                         .format(result[NUM_UNRESOLVED_NODES], 's are' if result[NUM_UNRESOLVED_NODES] != 1 else ' is',
+                                 result[NUM_UNRESOLVED_NODES] * 100 / num_nodes, character, MPPA,
+                                 result[NUM_STATES_PER_NODE], 's' if result[NUM_STATES_PER_NODE] > 1 else ''))
+            process_restricted_likelihood_and_states(MPPA)
 
     return results
 

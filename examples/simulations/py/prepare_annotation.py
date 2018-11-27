@@ -41,12 +41,8 @@ if '__main__' == __name__:
     df.index = [_.name for _ in tree.traverse('preorder')]
     df.columns = ['Real']
 
-    for col in ('MPPA', 'JOINT', 'MAP'):
-        df[col] = df['Real']
-        df.loc[[_.name for _ in tree.traverse() if not _.is_leaf()], col] = None
-
-    # df = df.join(df['Seq'].apply(lambda _: ' '.join(list(_))).str.split(' ', expand=True))
-    # df.drop(axis=1, labels=['Seq'], inplace=True)
+    df['ACR'] = df['Real']
+    df.loc[[_.name for _ in tree.traverse() if not _.is_leaf()], 'ACR'] = None
 
     df.to_csv(params.output_tab, sep='\t')
     tree.write(outfile=params.output_tree, format=3, format_root_node=True)

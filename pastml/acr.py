@@ -88,9 +88,9 @@ def _serialize_acr(args):
     # Not using DataFrames to speed up document writing
     with open(out_param_file, 'w+') as f:
         f.write('parameter\tvalue\n')
-        for name, value in acr_result.items():
+        for name in sorted(acr_result.keys()):
             if name not in [FREQUENCIES, STATES, MARGINAL_PROBABILITIES]:
-                f.write('{}\t{}\n'.format(name, value))
+                f.write('{}\t{}\n'.format(name, acr_result[name]))
         if is_ml(acr_result[METHOD]):
             for state, freq in zip(acr_result[STATES], acr_result[FREQUENCIES]):
                 f.write('{}\t{}\n'.format(state, freq))
@@ -274,6 +274,9 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         If multiple methods are given, but not for all the characters,
         for the rest of them the default method (pastml.ml.MPPA) is chosen.'
     :type prediction_method: str or list(str)
+    :param no_forced_joint: (optional, default is False) do not add JOINT state to the MPPA state selection
+        when it is not selected by Brier score.
+    :type no_forced_joint: bool
     :param model: (optional, default is pastml.ml.F81) evolutionary model(s) for ML methods (ignored by MP methods).
         When multiple ancestral characters are specified (with ``columns`` argument),
         the same model can be used for all of them (if only one model is specified),
@@ -533,6 +536,9 @@ def main():
                                 'for the rest of them the default method ({default}) is chosen.'
                            .format(ml=', '.join(ML_METHODS), mp=', '.join(MP_METHODS), copy=COPY, default=MPPA,
                                    meta=', '.join(META_ML_METHODS | {MP}), meta_ml=ML, meta_mp=MP, meta_all=ALL))
+    acr_group.add_argument('--no_forced_joint', action='store_true',
+                           help='do not add {joint} state to the {mppa} state selection '
+                                'when it is not selected by Brier score.'.format(joint=JOINT, mppa=MPPA))
     acr_group.add_argument('-m', '--model', default=F81,
                            choices=[JC, F81, EFT],
                            type=str, nargs='*',
@@ -588,8 +594,6 @@ def main():
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="print information on the progress of the analysis")
     parser.add_argument('--version', action='version', version='%(prog)s 1.7')
-
-    parser.add_argument('--no_forced_joint', help=argparse.SUPPRESS, action='store_true')
 
     params = parser.parse_args()
 
