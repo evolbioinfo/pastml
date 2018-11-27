@@ -1,8 +1,8 @@
 import os
 
 from pastml.acr import pastml_pipeline, COPY
-from pastml.ml import F81, JC, EFT, MPPA, MAP, JOINT
-from pastml.parsimony import ACCTRAN, DELTRAN, DOWNPASS
+from pastml.ml import F81, JC, EFT, MPPA, MAP, JOINT, ALL, ML
+from pastml.parsimony import ACCTRAN, DELTRAN, DOWNPASS, MP
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')
@@ -29,8 +29,7 @@ if '__main__' == __name__:
                                                          'Albanian_map_{}_{}.html'.format(method, model)),
                             html=os.path.join(DATA_DIR, 'trees', 'Albanian_tree_{}_{}.html'.format(method, model)),
                             data_sep=',', model=model, verbose=True, prediction_method=method,
-                            work_dir=os.path.join(DATA_DIR, 'pastml', method, model),
-                            output_parsimonious_restricted_loglh=True)
+                            work_dir=os.path.join(DATA_DIR, 'pastml', method, model))
     # ACR with parsimony
     for method in (DOWNPASS, ACCTRAN, DELTRAN):
         pastml_pipeline(data=STATES_INPUT, tree=TREE_NWK,
@@ -38,3 +37,13 @@ if '__main__' == __name__:
                         html=os.path.join(DATA_DIR, 'trees', 'Albanian_tree_{}.html'.format(method)),
                         data_sep=',', verbose=True, prediction_method=method,
                         work_dir=os.path.join(DATA_DIR, 'pastml', method))
+
+    # ACR with meta-methods
+    for model in (F81, JC, EFT):
+        for method in (ALL, ML, MP):
+            pastml_pipeline(data=STATES_INPUT, tree=TREE_NWK,
+                            html_compressed=os.path.join(DATA_DIR, 'maps',
+                                                         'Albanian_map_{}_{}.html'.format(method, model)),
+                            html=os.path.join(DATA_DIR, 'trees', 'Albanian_tree_{}_{}.html'.format(method, model)),
+                            data_sep=',', model=model, verbose=True, prediction_method=method,
+                            work_dir=os.path.join(DATA_DIR, 'pastml', method, model))

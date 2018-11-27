@@ -9,6 +9,7 @@ STEPS = 'steps'
 DOWNPASS = 'DOWNPASS'
 ACCTRAN = 'ACCTRAN'
 DELTRAN = 'DELTRAN'
+MP = 'MP'
 
 MP_METHODS = {DOWNPASS, ACCTRAN, DELTRAN}
 
@@ -25,7 +26,7 @@ def is_parsimonious(method):
     :param method: str, the ancestral state prediction method used by PASTML.
     :return: bool
     """
-    return method in MP_METHODS
+    return method in MP_METHODS | {MP}
 
 
 def initialise_parsimonious_states(tree, feature, states):
@@ -41,16 +42,12 @@ def initialise_parsimonious_states(tree, feature, states):
     ps_feature = get_personalized_feature_name(feature, PARS_STATES)
     all_states = set(states)
 
-    state2array = {state: {state} for state in states}
-    state2array[None] = all_states
-    state2array[''] = all_states
-
     for node in tree.traverse():
-        state = getattr(node, feature, '')
-        if isinstance(state, list):
-            node.add_feature(ps_feature_down, set(state))
+        state = getattr(node, feature, set())
+        if not state:
+            node.add_feature(ps_feature_down, all_states)
         else:
-            node.add_feature(ps_feature_down, state2array[state])
+            node.add_feature(ps_feature_down, state)
         node.add_feature(ps_feature, getattr(node, ps_feature_down))
 
 
@@ -98,7 +95,7 @@ def uppass(tree, feature):
             node.add_feature(ps_feature, state_intersection if state_intersection else node_states)
 
 
-def acctran(tree, feature):
+def acctran(tree, character, feature=PARS_STATES):
     """
     ACCTRAN (accelerated transformation) (Farris, 1970) aims at reducing the number of ambiguities
     in the parsimonious result. ACCTRAN forces the state changes to be performed as close to the root as possible,
@@ -114,22 +111,20 @@ def acctran(tree, feature):
         ACCTRAN(R)
 
     :param tree: ete3.Tree, the tree of interest
-    :param feature: str, character for which the parsimonious states are reconstructed
+    :param character: str, character for which the parsimonious states are reconstructed
     :return: void, adds get_personalized_feature_name(feature, PARS_STATES) feature to the tree nodes
     """
 
-    ps_feature_down = get_personalized_feature_name(feature, BU_PARS_STATES)
-    ps_feature = get_personalized_feature_name(feature, PARS_STATES)
+    ps_feature_down = get_personalized_feature_name(character, BU_PARS_STATES)
 
     for node in tree.traverse('preorder'):
         if node.is_root():
-            node.add_feature(ps_feature, getattr(node, ps_feature_down))
-        node_states = getattr(node, ps_feature)
+            node.add_feature(feature, getattr(node, ps_feature_down))
+        node_states = getattr(node, feature)
         for child in node.children:
             child_states = getattr(child, ps_feature_down)
             state_intersection = node_states & child_states
-            child.add_feature(ps_feature, state_intersection if state_intersection else child_states)
-        node.del_feature(ps_feature_down)
+            child.add_feature(feature, state_intersection if state_intersection else child_states)
 
 
 def downpass(tree, feature, states):
@@ -210,54 +205,88 @@ def deltran(tree, feature):
                 node.add_feature(ps_feature, state_intersection)
 
 
-def parsimonious_acr(tree, feature, prediction_method, states, num_nodes, num_tips):
+def parsimonious_acr(tree, character, prediction_method, states, num_nodes, num_tips):
     """
     Calculates parsimonious states on the tree and stores them in the corresponding feature.
 
     :param states: numpy array of possible states
     :param prediction_method: str, ACCTRAN (accelerated transformation), DELTRAN (delayed transformation) or DOWNPASS
     :param tree: ete3.Tree, the tree of interest
-    :param feature: str, character for which the parsimonious states are reconstructed
+    :param character: str, character for which the parsimonious states are reconstructed
     :return: dict, mapping between reconstruction parameters and values
     """
-    run_parsimony(feature, prediction_method, states, tree)
-    num_steps = get_num_parsimonious_steps(tree, feature)
+    initialise_parsimonious_states(tree, character, states)
+    uppass(tree, character)
+
+    results = []
+    result = {STATES: states, NUM_NODES: num_nodes, NUM_TIPS: num_tips}
+
     logger = logging.getLogger('pastml')
+
+    if prediction_method in {ACCTRAN, MP}:
+        feature = get_personalized_feature_name(character, PARS_STATES)
+        if prediction_method == MP:
+            feature = get_personalized_feature_name(feature, ACCTRAN)
+        acctran(tree, character, feature)
+        result[STEPS] = get_num_parsimonious_steps(tree, feature)
+        out_feature = get_personalized_feature_name(character, ACCTRAN) if prediction_method == MP else character
+        res = result.copy()
+        res[NUM_SCENARIOS], res[NUM_UNRESOLVED_NODES] = choose_parsimonious_states(tree, feature, out_feature)
+        logger.debug('{} node{} unresolved ({:.2f}%) for {} by {}, leading to {:g} ancestral scenario{}.'
+                     .format(res[NUM_UNRESOLVED_NODES], 's are' if res[NUM_UNRESOLVED_NODES] != 1 else ' is',
+                             res[NUM_UNRESOLVED_NODES] * 100 / num_nodes, character, ACCTRAN,
+                             res[NUM_SCENARIOS], 's' if res[NUM_SCENARIOS] > 1 else ''))
+        res[CHARACTER] = out_feature
+        res[METHOD] = ACCTRAN
+        results.append(res)
+
+        bu_feature = get_personalized_feature_name(character, BU_PARS_STATES)
+        for node in tree.traverse():
+            if prediction_method == ACCTRAN:
+                node.del_feature(bu_feature)
+            node.del_feature(feature)
+
+    if prediction_method in {DOWNPASS, DELTRAN, MP}:
+        downpass(tree, character, states)
+        feature = get_personalized_feature_name(character, PARS_STATES)
+        if prediction_method == DOWNPASS:
+            result[STEPS] = get_num_parsimonious_steps(tree, feature)
+        if prediction_method in {DOWNPASS, MP}:
+            out_feature = get_personalized_feature_name(character, DOWNPASS) if prediction_method == MP else character
+            res = result.copy()
+            res[NUM_SCENARIOS], res[NUM_UNRESOLVED_NODES] = choose_parsimonious_states(tree, feature, out_feature)
+            logger.debug('{} node{} unresolved ({:.2f}%) for {} by {}, leading to {:g} ancestral scenario{}.'
+                         .format(res[NUM_UNRESOLVED_NODES], 's are' if res[NUM_UNRESOLVED_NODES] != 1 else ' is',
+                                 res[NUM_UNRESOLVED_NODES] * 100 / num_nodes, character, DOWNPASS,
+                                 res[NUM_SCENARIOS], 's' if res[NUM_SCENARIOS] > 1 else ''))
+            res[CHARACTER] = out_feature
+            res[METHOD] = DOWNPASS
+            results.append(res)
+        if prediction_method in {DELTRAN, MP}:
+            deltran(tree, character)
+            if prediction_method == DELTRAN:
+                result[STEPS] = get_num_parsimonious_steps(tree, feature)
+            out_feature = get_personalized_feature_name(character, DELTRAN) if prediction_method == MP else character
+            res = result.copy()
+            res[NUM_SCENARIOS], res[NUM_UNRESOLVED_NODES] = choose_parsimonious_states(tree, feature,
+                                                                                       out_feature)
+
+            logger.debug('{} node{} unresolved ({:.2f}%) for {} by {}, leading to {:g} ancestral scenario{}.'
+                         .format(res[NUM_UNRESOLVED_NODES], 's are' if res[NUM_UNRESOLVED_NODES] != 1 else ' is',
+                                 res[NUM_UNRESOLVED_NODES] * 100 / num_nodes, character, DELTRAN,
+                                 res[NUM_SCENARIOS], 's' if res[NUM_SCENARIOS] > 1 else ''))
+            res[CHARACTER] = out_feature
+            res[METHOD] = DELTRAN
+            results.append(res)
+        for node in tree.traverse():
+            node.del_feature(feature)
+
     logger.debug("Parsimonious reconstruction for {} requires {} state changes."
-                 .format(feature, num_steps))
-    num_scenarios, unresolved_nodes = choose_parsimonious_states(tree, feature)
-    logger.debug('{} node{} unresolved ({:.2f}%) for {}, leading to {:g} ancestral scenario{}.'
-                 .format(unresolved_nodes, 's are' if unresolved_nodes != 1 else ' is',
-                         unresolved_nodes * 100 / num_nodes, feature,
-                         num_scenarios, 's' if num_scenarios > 1 else ''))
-
-    return {STEPS: num_steps, CHARACTER: feature, STATES: states, METHOD: prediction_method,
-            NUM_SCENARIOS: num_scenarios, NUM_UNRESOLVED_NODES: unresolved_nodes,
-            NUM_NODES: num_nodes, NUM_TIPS: num_tips}
+                 .format(character, result[STEPS]))
+    return results
 
 
-def run_parsimony(feature, prediction_method, states, tree):
-    """
-    Calculates parsimonious states on the tree
-    and stores them in the get_personalized_feature_name(feature, PARS_STATES) feature.
-
-    :param states: numpy array of possible states
-    :param prediction_method: str, ACCTRAN (accelerated transformation), DELTRAN (delayed transformation) or DOWNPASS
-    :param tree: ete3.Tree, the tree of interest
-    :param feature: str, character for which the parsimonious states are reconstructed
-    :return: void, adds get_personalized_feature_name(feature, PARS_STATES) feature to each node.
-    """
-    initialise_parsimonious_states(tree, feature, states)
-    uppass(tree, feature)
-    if ACCTRAN == prediction_method:
-        acctran(tree, feature)
-    else:
-        downpass(tree, feature, states)
-        if DELTRAN == prediction_method:
-            deltran(tree, feature)
-
-
-def choose_parsimonious_states(tree, feature):
+def choose_parsimonious_states(tree, ps_feature, out_feature):
     """
     Converts the content of the get_personalized_feature_name(feature, PARS_STATES) node feature to the predicted states
     and stores them in the `feature` feature to each node.
@@ -271,26 +300,23 @@ def choose_parsimonious_states(tree, feature):
     """
     num_scenarios = 1
     unresolved_nodes = 0
-    ps_feature = get_personalized_feature_name(feature, PARS_STATES)
     for node in tree.traverse():
         states = getattr(node, ps_feature)
-        node.add_feature(feature, next(iter(states)) if len(states) == 1 else list(states))
+        node.add_feature(out_feature, states)
         num_scenarios *= len(states)
         unresolved_nodes += 1 if len(states) > 1 else 0
-        node.del_feature(ps_feature)
     return num_scenarios, unresolved_nodes
 
 
 def get_num_parsimonious_steps(tree, feature):
-    ps_feature = get_personalized_feature_name(feature, PARS_STATES)
     ps_feature_num = get_personalized_feature_name(feature, PARS_STATE2NUM)
 
     for node in tree.traverse('postorder'):
         if node.is_leaf():
-            node.add_feature(ps_feature_num, {state: 0 for state in getattr(node, ps_feature)})
+            node.add_feature(ps_feature_num, {state: 0 for state in getattr(node, feature)})
         else:
             state2num = {}
-            for state in getattr(node, ps_feature):
+            for state in getattr(node, feature):
                 num = 0
                 for child in node.children:
                     child_state2num = getattr(child, ps_feature_num)

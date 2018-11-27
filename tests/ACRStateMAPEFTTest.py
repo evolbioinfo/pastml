@@ -43,70 +43,70 @@ class ACRStateMAPEFTTest(unittest.TestCase):
         state2num = Counter()
         for node in self.tree.traverse():
             state = getattr(node, self.feature)
-            if isinstance(state, list):
+            if len(state) > 1:
                 state2num['unresolved'] += 1
             else:
-                state2num[state] += 1
+                state2num[next(iter(state))] += 1
         expected_state2num = {'Africa': 111, 'Albania': 50, 'Greece': 67, 'WestEurope': 33, 'EastEurope': 16}
         self.assertDictEqual(expected_state2num, state2num, msg='Was supposed to have {} as states counts, got {}.'
                              .format(expected_state2num, state2num))
 
     def test_state_root(self):
-        expected_state = 'Africa'
+        expected_state = {'Africa'}
         state = getattr(self.tree, self.feature)
-        self.assertEqual(expected_state, state,
+        self.assertSetEqual(expected_state, state,
                          msg='Root state was supposed to be {}, got {}.'.format(expected_state, state))
 
     def test_state_resolved_internal_node_1(self):
-        expected_state = 'Africa'
+        expected_state = {'Africa'}
         for node in self.tree.traverse():
             if 'node_79' == node.name:
                 state = getattr(node, self.feature)
-                self.assertEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
+                self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
                                     .format(node.name, expected_state, state))
                 break
 
     def test_state_resolved_internal_node_2(self):
-        expected_state = 'Greece'
+        expected_state = {'Greece'}
         for node in self.tree.traverse():
             if 'node_80' == node.name:
                 state = getattr(node, self.feature)
-                self.assertEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
+                self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
                                  .format(node.name, expected_state, state))
                 break
 
     def test_state_resolved_internal_node_3(self):
-        expected_state = 'WestEurope'
+        expected_state = {'WestEurope'}
         for node in self.tree.traverse():
             if 'node_25' == node.name:
                 state = getattr(node, self.feature)
-                self.assertEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
+                self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
                                  .format(node.name, expected_state, state))
                 break
 
     def test_state_resolved_internal_node_4(self):
-        expected_state = 'Greece'
+        expected_state = {'Greece'}
         for node in self.tree.traverse():
             if 'node_48' == node.name:
                 state = getattr(node, self.feature)
-                self.assertEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
+                self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
                                  .format(node.name, expected_state, state))
                 break
 
     def test_state_zero_tip(self):
-        expected_state = 'Albania'
+        expected_state = {'Albania'}
         for node in self.tree.traverse():
             if '01ALAY1715' == node.name:
                 state = getattr(node, self.feature)
-                self.assertEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
+                self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
                                  .format(node.name, expected_state, state))
                 break
 
     def test_state_tip(self):
-        expected_state = 'WestEurope'
+        expected_state = {'WestEurope'}
         for node in self.tree:
             if '94SEAF9671' == node.name:
                 state = getattr(node, self.feature)
-                self.assertEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
+                self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
                                  .format(node.name, expected_state, state))
                 break

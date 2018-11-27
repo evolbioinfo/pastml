@@ -11,8 +11,8 @@ from pastml.cytoscape_manager import visualize
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file
 from pastml.ml import is_ml, ml_acr, MPPA, MAP, JOINT, F81, is_marginal, JC, EFT, FREQUENCIES, MARGINAL_PROBABILITIES, \
-    SCALING_FACTOR, MODEL, ML_METHODS, MARGINAL_ML_METHODS
-from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS
+    SCALING_FACTOR, MODEL, ML_METHODS, MARGINAL_ML_METHODS, ALL, ML, META_ML_METHODS
+from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP
 from pastml.tree import read_tree, name_tree, date_tips, REASONABLE_NUMBER_OF_TIPS, collapse_zero_branches
 
 COPY = 'COPY'
@@ -109,7 +109,7 @@ def _serialize_acr(args):
 
 def reconstruct_ancestral_states(tree, feature, states, prediction_method=MPPA, model=F81,
                                  params=None, avg_br_len=None, num_nodes=None, num_tips=None,
-                                 force_joint=True, output_parsimonious_restricted_loglh=False):
+                                 force_joint=True):
     """
     Reconstructs ancestral states for the given character on the given tree.
 
@@ -161,17 +161,16 @@ def reconstruct_ancestral_states(tree, feature, states, prediction_method=MPPA, 
         if params is not None:
             freqs, sf = _parse_pastml_parameters(params, states)
         return ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_nodes, num_tips, freqs, sf,
-                      force_joint=force_joint,
-                      output_parsimonious_restricted_loglh=output_parsimonious_restricted_loglh)
+                      force_joint=force_joint)
     if is_parsimonious(prediction_method):
         return parsimonious_acr(tree, feature, prediction_method, states, num_nodes, num_tips)
 
-    raise ValueError('Method {} is unknown, should be one of ML ({}, {}, {}), one of MP ({}, {}, {}) or {}'
-                     .format(prediction_method, MPPA, MAP, JOINT, ACCTRAN, DELTRAN, DOWNPASS, COPY))
+    raise ValueError('Method {} is unknown, should be one of ML ({}), one of MP ({}) or {}'
+                     .format(prediction_method, ', '.join(ML_METHODS), ', '.join(MP_METHODS), COPY))
 
 
 def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None,
-        force_joint=True, output_parsimonious_restricted_loglh=False):
+        force_joint=True):
     """
     Reconstructs ancestral states for the given tree and
     all the characters specified as columns of the given annotation dataframe.
@@ -201,7 +200,7 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None,
     """
     columns = preannotate_tree(df, tree)
     name_tree(tree)
-    collapse_zero_branches(tree)
+    collapse_zero_branches(tree, features_to_be_merged=df.columns)
 
     avg_br_len, num_nodes, num_tips = get_tree_stats(tree)
 
@@ -211,8 +210,7 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None,
 
     def _work(args):
         return reconstruct_ancestral_states(*args, avg_br_len=avg_br_len, num_nodes=num_nodes, num_tips=num_tips,
-                                            force_joint=force_joint,
-                                            output_parsimonious_restricted_loglh=output_parsimonious_restricted_loglh)
+                                            force_joint=force_joint)
 
     prediction_methods = value2list(len(columns), prediction_method, MPPA)
     models = value2list(len(columns), model, F81)
@@ -225,7 +223,14 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None,
                                             column2parameters[column] if column in column2parameters else None)
                                            for (column, method, model) in zip(columns, prediction_methods, models)))
 
-    return acr_results
+    result = []
+    for acr_res in acr_results:
+        if isinstance(acr_res, list):
+            result.extend(acr_res)
+        else:
+            result.append(acr_res)
+
+    return result
 
 
 def _quote(str_list):
@@ -236,7 +241,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                     columns=None, prediction_method=MPPA, model=F81, parameters=None,
                     name_column=None, date_column=None, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS,
                     out_data=None, html_compressed=None, html=None, work_dir=None,
-                    verbose=False, no_forced_joint=False, output_parsimonious_restricted_loglh=False):
+                    verbose=False, no_forced_joint=False):
     """
     Applies PASTML to the given tree with the specified states and visualizes the result (as html maps).
 
@@ -259,6 +264,10 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         can be one of the max likelihood (ML) methods: pastml.ml.MPPA, pastml.ml.MAP, pastml.ml.JOINT,
         one of the max parsimony (MP) methods: pastml.parsimony.ACCTRAN, pastml.parsimony.DELTRAN,
         pastml.parsimony.DOWNPASS; or pastml.acr.COPY to keep the annotated character states as-is without inference.
+        One can also specify one of the meta-methods: pastml.ml.ALL, pastml.ml.ML, pastml.parsimony.MP,
+        that would perform ACR with multiple methods (all of them for pastml.ml.ALL,
+        all the ML methods for pastml.ml.ML, or all the MP methods for pastml.parsimony.MP)
+        and save/visualise the results as multiple characters suffixed with the corresponding method.
         When multiple ancestral characters are specified (with ``columns`` argument),
         the same method can be used for all of them (if only one method is specified),
         or different methods can be used (specified in the same order as ``columns``).
@@ -273,17 +282,20 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         for the rest of them the default model (pastml.ml.F81) is chosen.
     :type model: str or list(str)
     :param parameters: optional way to fix some of the ML-method parameters.
-        Could be specified as a dict {column: {param: value}},
-        where column corresponds to the character for which these parameters should be used.
-        Could also be in a form {column: path_to_param_file},
-        or a list of paths to parameter files (in the same order as ``columns`` argument that specifies characters)
-        possibly given only for the first few characters.
+        Could be specified as
+        (1a) a dict {column: {param: value}},
+        where column corresponds to the character for which these parameters should be used,
+        or (1b) in a form {column: path_to_param_file};
+        or (2) as a list of paths to parameter files
+        (in the same order as ``columns`` argument that specifies characters)
+        possibly given only for the first few characters;
+        or (3) as a path to parameter file (only for the first character).
         Each file should be tab-delimited, with two columns: the first one containing parameter names,
         and the second, named "value", containing parameter values.
         Parameters can include character state frequencies (parameter name should be the corresponding state,
         and parameter value - the float frequency value, between 0 and 1),
         and tree branch scaling factor (parameter name pastml.ml.SCALING_FACTOR).
-    :type parameters: list(str) or dict
+    :type parameters: str or list(str) or dict
 
     :param name_column: (optional) name of the annotation table column to be used for node names
         in the compressed map visualisation
@@ -293,7 +305,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     :param date_column: (optional) name of the annotation table column that contains tip dates,
         if specified it is used to add a time slider to the visualisation.
     :type date_column: str
-    :param tip_size_threshold: (optional, by default is 15) remove the tips of size less than threshold-th
+    :param tip_size_threshold: (optional, by default is 15) remove the tips of size less than threshold-th largest tip
         from the compressed map (set to 1e10 to keep all). The larger it is the less tips will be trimmed.
     :type tip_size_threshold: int
 
@@ -321,6 +333,8 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     root, df, max_date, min_date, name_column = _validate_input(columns, data, data_sep, date_column,
                                                                 html, html_compressed, id_index, name_column, tree)
     if parameters:
+        if isinstance(parameters, str):
+            parameters = [parameters]
         if isinstance(parameters, list):
             parameters = dict(zip(df.columns, parameters))
         elif isinstance(parameters, dict):
@@ -331,13 +345,14 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         parameters = {}
 
     acr_results = acr(root, df, prediction_method=prediction_method, model=model, column2parameters=parameters,
-                      force_joint=not no_forced_joint,
-                      output_parsimonious_restricted_loglh=output_parsimonious_restricted_loglh)
+                      force_joint=not no_forced_joint)
+    column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
 
+    columns = sorted(column2states.keys())
     if work_dir and not out_data:
-        out_data = os.path.join(work_dir, get_combined_ancestral_state_file(columns=df.columns))
+        out_data = os.path.join(work_dir, get_combined_ancestral_state_file(columns=columns))
     if out_data:
-        _serialize_predicted_states(df.columns, out_data, root)
+        _serialize_predicted_states(columns, out_data, root)
 
     async_result = None
     pool = None
@@ -349,7 +364,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
 
     if html or html_compressed:
         logger.debug('\n=============VISUALISATION=====================')
-        visualize(root, column2states={acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results},
+        visualize(root, column2states=column2states,
                   html=html, html_compressed=html_compressed, min_date=min_date, max_date=max_date,
                   name_column=name_column, tip_size_threshold=tip_size_threshold)
 
@@ -448,8 +463,8 @@ def _serialize_predicted_states(columns, out_data, root):
         for node in root.traverse():
             f.write('{}'.format(node.name))
             for column in columns:
-                value = getattr(node, column, None)
-                f.write('\t{}'.format(' or '.join(value) if isinstance(value, list) else value))
+                value = getattr(node, column, set())
+                f.write('\t{}'.format(' or '.join(sorted(value))))
             f.write('\n')
     logging.getLogger('pastml').debug('Serialized reconstructed states to {}.'.format(out_data))
 
@@ -500,18 +515,24 @@ def main():
                                 "If not specified, all columns are considered.",
                            type=str)
     acr_group.add_argument('--prediction_method',
-                           choices=[MPPA, MAP, JOINT, DOWNPASS, ACCTRAN, DELTRAN, COPY],
+                           choices=[MPPA, MAP, JOINT, DOWNPASS, ACCTRAN, DELTRAN, COPY, ALL, ML, MP],
                            type=str, nargs='*', default=MPPA,
-                           help='ancestral character reconstruction method, '
+                           help='ancestral character reconstruction (ACR) method, '
                                 'can be one of the max likelihood (ML) methods: {ml}, '
                                 'one of the max parsimony (MP) methods: {mp}; '
                                 'or {copy} to keep the annotated character states as-is without inference. '
+                                'One can also specify one of the meta-methods {meta} that would perform ACR '
+                                'with multiple methods (all of them for {meta_all}, '
+                                'all the ML methods for {meta_ml}, or all the MP methods for {meta_mp}) '
+                                'and save/visualise the results as multiple characters '
+                                'suffixed with the corresponding method.'
                                 'When multiple ancestral characters are specified (see -c, --columns), '
                                 'the same method can be used for all of them (if only one method is specified), '
                                 'or different methods can be used (specified in the same order as -c, --columns). '
                                 'If multiple methods are given, but not for all the characters, '
                                 'for the rest of them the default method ({default}) is chosen.'
-                           .format(ml=', '.join(ML_METHODS), mp=', '.join(MP_METHODS), copy=COPY, default=MPPA))
+                           .format(ml=', '.join(ML_METHODS), mp=', '.join(MP_METHODS), copy=COPY, default=MPPA,
+                                   meta=', '.join(META_ML_METHODS | {MP}), meta_ml=ML, meta_mp=MP, meta_all=ALL))
     acr_group.add_argument('-m', '--model', default=F81,
                            choices=[JC, F81, EFT],
                            type=str, nargs='*',
@@ -547,7 +568,7 @@ def main():
                                 "if specified it is used to add a time slider to the visualisation.",
                            type=str)
     vis_group.add_argument('--tip_size_threshold', type=int, default=REASONABLE_NUMBER_OF_TIPS,
-                           help="recursively remove the tips of size less than the threshold-th "
+                           help="remove the tips of size less than threshold-th largest tip"
                                 "from the compressed map (set to 1e10 to keep all tips). "
                                 "The larger it is the less tips will be trimmed.")
 
@@ -569,7 +590,6 @@ def main():
     parser.add_argument('--version', action='version', version='%(prog)s 1.7')
 
     parser.add_argument('--no_forced_joint', help=argparse.SUPPRESS, action='store_true')
-    parser.add_argument('--output_parsimonious_restricted_loglh', help=argparse.SUPPRESS, action='store_true')
 
     params = parser.parse_args()
 

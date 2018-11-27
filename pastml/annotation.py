@@ -46,15 +46,11 @@ def get_tree_stats(tree):
 
 def preannotate_tree(df, tree):
     df.fillna('', inplace=True)
-    for _ in tree.traverse():
-        if _.name in df.index:
-            values = df.loc[_.name, :]
-            if len(values.shape) > 1:
-                for column in df.columns:
-                    unique_values = [_ for _ in values[column].unique() if not pd.isnull(_) and _ != '']
-                    _.add_feature(column, (sorted(unique_values) if len(unique_values) > 1
-                                           else (unique_values[0] if unique_values else None)))
-
-            else:
-                _.add_features(**df.loc[_.name, :].to_dict())
+    gb = df.groupby(df.index)
+    gdf = pd.DataFrame(columns=df.columns)
+    for c in df.columns:
+        gdf[c] = gb[c].apply(lambda vs: {v for v in vs if not pd.isnull(v) and v != ''})
+    for node in tree.traverse('postorder'):
+        if node.name in gdf.index:
+            node.add_features(**gdf.loc[node.name, :].to_dict())
     return df.columns

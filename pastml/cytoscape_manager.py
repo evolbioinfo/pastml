@@ -180,9 +180,6 @@ def _tree2json(tree, column2states, name_feature, node2tooltip, min_date=0, max_
     node2id = {tree: 0}
     i = 1
 
-    # sort_key = lambda n: (*('{}:{}'.format(_, getattr(n, _, 'false') if getattr(n, _, '') else 'false')
-    #                         for _ in categories), -getattr(n, NODE_SIZE, 0),
-    #                       str(getattr(n, name_feature, '.')) if name_feature else '', n.name)
     n2sort_name = {}
     for node in tree.traverse('preorder'):
         if node.is_root():
@@ -206,11 +203,11 @@ def _tree2json(tree, column2states, name_feature, node2tooltip, min_date=0, max_
             nodes.append(get_fake_node(n, fake_id))
             edges.append(get_edge(n, fake_id, n_id, minLen=int(n.dist / dist_step)))
         if one_column:
-            values = getattr(n, one_column, [])
-            clazz = tuple('{}_{}'.format(value, True) for value in (values if isinstance(values, list) else [values]))
+            values = getattr(n, one_column, set())
+            clazz = tuple(sorted(values))
         else:
             clazz = tuple('{}_{}'.format(column, get_column_value_str(n, column, format_list=False, list_value=''))
-                          for column in column2states.keys())
+                          for column in sorted(column2states.keys()))
         if clazz:
             clazzes.add(clazz)
         nodes.append(get_node(n, n_id, tooltip=node2tooltip[n], clazz=clazz))
@@ -331,8 +328,8 @@ def _get_edge(**data):
 
 
 def get_column_value_str(n, column, format_list=True, list_value='<unresolved>'):
-    values = getattr(n, column, [])
-    return (' or '.join(values) if format_list else list_value) if isinstance(values, list) else values
+    values = getattr(n, column, set())
+    return ' or '.join(sorted(values)) if format_list or len(values) == 1 else list_value
 
 
 def visualize(tree, column2states, name_column=None, html=None, html_compressed=None,
@@ -344,8 +341,9 @@ def visualize(tree, column2states, name_column=None, html=None, html_compressed=
         num_unique_values = len(states)
         colours = get_enough_colours(num_unique_values)
         for value, col in zip(states, colours):
-            name2colour['{}_{}'.format(value, True) if one_column else '{}_{}'.format(column, value)] = col
-        logging.getLogger('pastml').debug('Mapped states to colours for {} as following: {} -> {}.'.format(column, states, colours))
+            name2colour[value if one_column else '{}_{}'.format(column, value)] = col
+        logging.getLogger('pastml').debug('Mapped states to colours for {} as following: {} -> {}.'
+                                          .format(column, states, colours))
         # let ambiguous values be white
         if one_column is None:
             name2colour['{}_'.format(column)] = WHITE
@@ -359,10 +357,8 @@ def visualize(tree, column2states, name_column=None, html=None, html_compressed=
             n.add_feature(DATE, min(getattr(_, DATE) for _ in n))
 
     def get_category_str(n):
-        # if one_column:
-        #     return '{}: {}'.format(one_column, get_column_value_str(n, one_column, format_list=True))
         return '<br>'.join('{}: {}'.format(column, get_column_value_str(n, column, format_list=True))
-                           for column in column2states.keys())
+                           for column in sorted(column2states.keys()))
 
     if html:
         save_as_cytoscape_html(tree, html, column2states=column2states,
@@ -371,7 +367,7 @@ def visualize(tree, column2states, name_column=None, html=None, html_compressed=
                                name_feature='name', min_date=min_date, max_date=max_date, is_compressed=False)
 
     if html_compressed:
-        tree = compress_tree(tree, column2states=column2states, tip_size_threshold=tip_size_threshold)
+        tree = compress_tree(tree, columns=column2states.keys(), tip_size_threshold=tip_size_threshold)
         save_as_cytoscape_html(tree, html_compressed, column2states=column2states,
                                name2colour=name2colour, n2tooltip={n: get_category_str(n) for n in tree.traverse()},
                                min_date=min_date, max_date=max_date, name_feature=name_column, is_compressed=True)

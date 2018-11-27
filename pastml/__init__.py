@@ -11,11 +11,14 @@ NUM_TIPS = 'num_tips'
 
 def col_name2cat(column):
     """
-    Reformats the column string to make sure it contains only numerical or letter characters.
-    :param column: str, column name to be reformatted
-    :return: str, the column name with illegal characters removed
+    Reformats the column string to make sure it contains only numerical, letter characters or underscore.
+
+    :param column: column name to be reformatted
+    :type column: str
+    :return: column name with illegal characters removed
+    :rtype: str
     """
-    column_string = ''.join(s for s in column if s.isalnum())
+    column_string = ''.join(s for s in column.replace(' ', '_') if s.isalnum() or '_' == s)
     return column_string
 
 
