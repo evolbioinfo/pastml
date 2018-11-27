@@ -593,7 +593,7 @@ def main():
 
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="print information on the progress of the analysis")
-    parser.add_argument('--version', action='version', version='%(prog)s 1.7')
+    parser.add_argument('--version', action='version', version='%(prog)s 1.8.1')
 
     params = parser.parse_args()
 
