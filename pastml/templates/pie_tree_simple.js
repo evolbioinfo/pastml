@@ -1,9 +1,9 @@
 
 var layoutOptions = {
     name: '{{layout}}',
-    nodesep: 10, // the separation between adjacent nodes in the same rank
-    edgeSep: 10, // the separation between adjacent edges in the same rank
-    rankSep: 80, // the separation between adjacent ranks
+    nodesep: 0, // the separation between adjacent nodes in the same rank
+    edgeSep: 0, // the separation between adjacent edges in the same rank
+    rankSep: 4, // the separation between adjacent ranks
     rankDir: 'TB', // 'TB' for top to bottom flow, 'LR' for left to right,
     ranker: 'longest-path', // Type of algorithm to assign a rank to each node in the input graph. Possible values: 'network-simplex', 'tight-tree' or 'longest-path'
     minLen: function( edge ){ return edge.data('minLen') | 0; }, // number of ranks to keep between the source and target of the edge
@@ -61,19 +61,21 @@ var cy = cytoscape({
     .selector('node[unresolved]')
       .css({
         'shape': 'octagon',
-        'pie-size': '92%',
-        'width': 500,
-        'height': 500,
-        'font-size': 125,
+        'pie-size': '90%',
+        'width': 600,
+        'height': 600,
+        'font-size': 150,
       })
-    .selector('node[node_size]')
+    .selector('node[fake]')
       .css({
-        'width': 'data(node_size)',
-        'height': 'data(node_size)',
-      })
-    .selector('node[node_fontsize]')
-      .css({
-        'font-size': 'data(node_fontsize)',
+        'shape': 'rectangle',
+        'width': 1,
+        'height': 1,
+        'text-opacity': 0,
+        'font-size': 1,
+        'text-background-opacity': 0,
+        'text-background-padding' : 0,
+        'opacity': 0,
       })
     {% for (clazz, css) in clazz2css %}
     .selector(".{{clazz}}")
@@ -83,14 +85,14 @@ var cy = cytoscape({
     {% endfor %}
     .selector('edge')
       .css({
-        'width': 50,
+        'width': 60,
         'font-size': 80,
         'color': 'black',
         'content': '',
         'curve-style': 'bezier',
         'target-arrow-shape': 'triangle',
         'target-arrow-color': '#909090',
-        'opacity': 0.8,
+        'opacity': 1,
         'text-opacity': 1,
         'line-color': '#909090',
         'text-background-color' : '#ffffff',
@@ -99,10 +101,9 @@ var cy = cytoscape({
         'text-background-padding' : 4,
         'min-zoomed-font-size': 10,
       })
-    .selector('edge[edge_meta]')
+    .selector('edge[fake]')
       .css({
-        'line-color': '#383838',
-        'target-arrow-color': '#383838',
+        'target-arrow-shape': 'none',
       })
     .selector('edge[edge_name]')
       .css({
@@ -112,6 +113,13 @@ var cy = cytoscape({
       .css({
         'width': 'data(edge_size)',
         'font-size': 'data(edge_size)',
+      })
+    .selector('edge[edge_color]')
+      .css({
+        'target-arrow-color': 'data(edge_color)',
+        'line-color': 'data(edge_color)',
+        'opacity': .5,
+        'width': 40,
       })
     .selector(':selected')
       .css({
@@ -142,12 +150,7 @@ function addQtips() {
         return ele.isNode() && ele.data('tooltip') !== undefined;
     } ).qtip({
         content: function(){
-                var tooltip = this.data('tooltip');
-                tooltip += '<br>id' + (this.data('node_meta') !== undefined ? 's: ': ': ') + this.data('node_root_id')
-                + (this.data('node_meta') !== undefined ? ', ...': '');
-                tooltip += '<br>tips inside: ' + this.data('node_in_tips');
-                tooltip += '<br>total tips in the subtree: ' + this.data('node_all_tips');
-                return tooltip;
+                return this.data('tooltip') + '<br>id: ' + this.data('node_root_id');
             },
         show: {event: 'mouseover'},
         hide: {event: 'mouseout'},
@@ -176,7 +179,6 @@ function fit() {
 function resetLayout() {
     cy.layout(layoutOptions).run();
 }
-
 var years = {{years}};
 var slider = document.getElementById("myRange");
 if (slider !== null) {
@@ -190,42 +192,6 @@ if (slider !== null) {
         output.innerHTML = years[this.value];
         removed.restore();
         removed = cy.remove("[date>" + this.value + "]");
-        var list = cy.$("");
-        for (var i=0, ele; ele = list[i]; i++) {
-            if (ele.data('node_name_' + this.value) !== undefined) {
-                ele.data('node_name', ele.data('node_name_' + this.value));
-            }
-            if (ele.data('node_fontsize_' + this.value) !== undefined) {
-                ele.data('node_fontsize', ele.data('node_fontsize_' + this.value));
-            }
-            if (ele.data('node_in_tips_' + this.value) !== undefined) {
-                ele.data('node_in_tips', ele.data('node_in_tips_' + this.value));
-            }
-            if (ele.data('node_all_tips_' + this.value) !== undefined) {
-                ele.data('node_all_tips', ele.data('node_all_tips_' + this.value));
-            }
-            if (ele.data('node_size_' + this.value) !== undefined) {
-                ele.data('node_size', ele.data('node_size_' + this.value));
-            }
-            if (ele.data('edge_name_' + this.value) !== undefined) {
-                ele.data('edge_name', ele.data('edge_name_' + this.value));
-            }
-            if (ele.data('edge_size_' + this.value) !== undefined) {
-                ele.data('edge_size', ele.data('edge_size_' + this.value));
-            }
-            if (ele.data('edge_meta_' + this.value) !== undefined) {
-                ele.data('edge_meta', ele.data('edge_meta_' + this.value))
-            } else if (ele.data('edge_meta') !== undefined) {
-                ele.removeData('edge_meta');
-                cy.remove(ele);
-                cy.add(ele);
-            }
-            if (ele.data('node_meta_' + this.value) !== undefined) {
-                ele.data('node_meta', ele.data('node_meta_' + this.value));
-            } else if (ele.data('node_meta') !== undefined) {
-                ele.removeData('node_meta');
-            }
-        }
     }
 }
 

@@ -1,10 +1,13 @@
 import logging
-import random
 from collections import defaultdict, Counter
 
 import numpy as np
 import pandas as pd
 from ete3 import Tree
+
+LEVEL = 'level'
+
+DEPTH = 'depth'
 
 DATE = 'date'
 
@@ -12,17 +15,12 @@ REASONABLE_NUMBER_OF_TIPS = 15
 
 CATEGORIES = 'categories'
 
-NODE_SIZE = 'node_size'
 NUM_TIPS_INSIDE = 'max_size'
-NODE_NAME = 'node_name'
 
 TIPS_INSIDE = 'in_tips'
 TIPS_BELOW = 'all_tips'
 
-EDGE_SIZE = 'edge_size'
-EDGE_NAME = 'edge_name'
 METACHILD = 'metachild'
-FONT_SIZE = 'node_fontsize'
 
 
 def get_dist_to_root(tip):
@@ -45,7 +43,7 @@ def date2years(d):
         return None
 
 
-def date_tips(tree, date_df):
+def date_tips(tree, date_df=None):
     """
     Adds dates to the tips as 'date' attribute.
 
@@ -53,30 +51,41 @@ def date_tips(tree, date_df):
     :param date_df: a pandas.Series with tip ids as indices and dates as values
     :return: void, modifies the initial tree
     """
-    date_df.index = date_df.index.map(str)
-    dated_tips, undated_tips = [], []
     min_date, max_date = None, None
-    for tip in tree:
-        if tip.name in date_df.index:
-            date = date2years(date_df.loc[tip.name])
-            if date is not None:
-                date = int(date)
-                tip.add_feature(DATE, date)
-                dated_tips.append(tip)
-                min_date = min(min_date, date) if min_date is not None else date
-                max_date = max(max_date, date) if max_date is not None else date
+    if date_df is not None:
+        date_df.index = date_df.index.map(str)
+        dated_tips, undated_tips = [], []
+        for tip in tree:
+            if tip.name in date_df.index:
+                date = date2years(date_df.loc[tip.name])
+                if date is not None:
+                    tip.add_feature(DATE, date)
+                    dated_tips.append(tip)
+                    min_date = min(min_date, date) if min_date is not None else date
+                    max_date = max(max_date, date) if max_date is not None else date
+                else:
+                    undated_tips.append(tip)
             else:
                 undated_tips.append(tip)
-        else:
-            undated_tips.append(tip)
 
-    if len(dated_tips) < len(undated_tips):
-        for tip in dated_tips:
-            tip.del_feature(DATE)
-        raise ValueError('Too few dates are provided (only {:.2f}% of tips are dated)!'
-                         .format(100 * len(dated_tips) / (len(dated_tips) + len(undated_tips))))
-
+        if len(dated_tips) < len(undated_tips):
+            for tip in dated_tips:
+                tip.del_feature(DATE)
+            raise ValueError('Too few dates are provided (only {:.2f}% of tips are dated)!'
+                             .format(100 * len(dated_tips) / (len(dated_tips) + len(undated_tips))))
     return min_date, max_date
+
+
+def annotate_depth(tree, depth_feature=DEPTH, level_feature=LEVEL):
+    for node in tree.traverse('preorder'):
+        if node.is_root():
+            node.add_feature(depth_feature, node.dist)
+            node.add_feature(level_feature, 0)
+        depth = getattr(node, depth_feature)
+        level = getattr(node, level_feature)
+        for child in node.children:
+            child.add_feature(depth_feature, depth + child.dist)
+            child.add_feature(level_feature, level + 1)
 
 
 def name_tree(tree):

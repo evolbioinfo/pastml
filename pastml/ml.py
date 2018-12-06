@@ -81,6 +81,10 @@ def is_meta_ml(method):
     return method in META_ML_METHODS
 
 
+def get_default_ml_method():
+    return MPPA
+
+
 def get_mu(frequencies):
     """
     Calculates the mutation rate for F81 (and JC that is a simplification of it),

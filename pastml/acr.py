@@ -5,15 +5,17 @@ from multiprocessing.pool import ThreadPool
 import numpy as np
 import pandas as pd
 
-from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER
+from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name
 from pastml.annotation import preannotate_tree, get_tree_stats
 from pastml.cytoscape_manager import visualize
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file
 from pastml.ml import is_ml, ml_acr, MPPA, MAP, JOINT, F81, is_marginal, JC, EFT, FREQUENCIES, MARGINAL_PROBABILITIES, \
-    SCALING_FACTOR, MODEL, ML_METHODS, MARGINAL_ML_METHODS, ALL, ML, META_ML_METHODS
-from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP
-from pastml.tree import read_tree, name_tree, date_tips, REASONABLE_NUMBER_OF_TIPS, collapse_zero_branches
+    SCALING_FACTOR, MODEL, ML_METHODS, MARGINAL_ML_METHODS, ALL, ML, META_ML_METHODS, get_default_ml_method
+from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
+    get_default_mp_method
+from pastml.tree import read_tree, name_tree, date_tips, REASONABLE_NUMBER_OF_TIPS, collapse_zero_branches, DATE, \
+    annotate_depth, DEPTH
 
 COPY = 'COPY'
 
@@ -333,8 +335,11 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     if work_dir:
         os.makedirs(work_dir, exist_ok=True)
 
-    root, df, max_date, min_date, name_column = _validate_input(columns, data, data_sep, date_column,
-                                                                html, html_compressed, id_index, name_column, tree)
+    root, df, years, name_column = _validate_input(columns, data, data_sep, date_column, html, html_compressed,
+                                                   id_index, name_column, tree,
+                                                   copy_only=COPY == prediction_method
+                                                             or (isinstance(prediction_method, list)
+                                                                 and all(COPY == _ for _ in prediction_method)))
     if parameters:
         if isinstance(parameters, str):
             parameters = [parameters]
@@ -357,6 +362,12 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     if out_data:
         _serialize_predicted_states(columns, out_data, root)
 
+    # a meta-method would have added a suffix to the name feature
+    if html_compressed and name_column and name_column not in column2states:
+        ml_name_column = get_personalized_feature_name(name_column, get_default_ml_method())
+        name_column = ml_name_column if ml_name_column in column2states \
+            else get_personalized_feature_name(name_column, get_default_mp_method())
+
     async_result = None
     pool = None
     if work_dir:
@@ -368,7 +379,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     if html or html_compressed:
         logger.debug('\n=============VISUALISATION=====================')
         visualize(root, column2states=column2states,
-                  html=html, html_compressed=html_compressed, min_date=min_date, max_date=max_date,
+                  html=html, html_compressed=html_compressed, years=years,
                   name_column=name_column, tip_size_threshold=tip_size_threshold)
 
     if async_result:
@@ -377,31 +388,47 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     return root
 
 
-def _validate_input(columns, data, data_sep, date_column, html, html_compressed, id_index, name_column, tree_nwk):
+def _validate_input(columns, data, data_sep, date_column, html, html_compressed, id_index, name_column, tree_nwk,
+                    copy_only):
     logger = logging.getLogger('pastml')
     logger.debug('\n=============INPUT DATA VALIDATION=============')
     root = read_tree(tree_nwk)
-    logger.debug('Read the tree {}.'.format(tree_nwk))
+    logger.debug('Read the tree {}{}.'.format(root.name, tree_nwk))
 
     df = pd.read_table(data, sep=data_sep, index_col=id_index, header=0, dtype=str)
     logger.debug('Read the annotation file {}.'.format(data))
 
     # As the date column is only used for visualisation if there is no visualisation we are not gonna validate it
-    min_date, max_date = 0, 0
-    if (html_compressed or html) and date_column:
-        if date_column not in df.columns:
-            raise ValueError('The date column "{}" not found among the annotation columns: {}.'
-                             .format(date_column, _quote(df.columns)))
-        try:
-            df[date_column] = pd.to_datetime(df[date_column], infer_datetime_format=True)
-        except ValueError:
+    years = []
+    if html_compressed or html:
+        min_date, max_date = None, None
+        if date_column:
+            if date_column not in df.columns:
+                raise ValueError('The date column "{}" not found among the annotation columns: {}.'
+                                 .format(date_column, _quote(df.columns)))
             try:
-                df[date_column] = pd.to_datetime(df[date_column], format='%Y.0')
+                df[date_column] = pd.to_datetime(df[date_column], infer_datetime_format=True)
             except ValueError:
-                raise ValueError('Could not infer the date format for column "{}", please check it.'
-                                 .format(date_column))
-        min_date, max_date = date_tips(root, df[date_column])
-        logger.debug("Extracted tip dates: they vary between {} and {}.".format(min_date, max_date))
+                try:
+                    df[date_column] = pd.to_datetime(df[date_column], format='%Y.0')
+                except ValueError:
+                    raise ValueError('Could not infer the date format for column "{}", please check it.'
+                                     .format(date_column))
+            min_date, max_date = date_tips(root, df[date_column])
+            logger.debug("Extracted tip dates: they vary between {} and {}.".format(min_date, max_date))
+        annotate_depth(root)
+        if not date_column:
+            for tip in root:
+                date = getattr(tip, DEPTH)
+                tip.add_feature(DATE, date)
+                min_date = min(min_date, date) if min_date is not None else date
+                max_date = max(max_date, date) if max_date is not None else date
+
+        step = (max_date - min_date) / 5
+        years = [min_date]
+        while years[-1] < max_date:
+            years.append(min(max_date, years[-1] + step))
+        years = sorted(set(min(max_date, max(min_date, round(_, 4))) for _ in years))
 
     if columns:
         if isinstance(columns, str):
@@ -434,7 +461,7 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
     if columns:
         df = df[columns]
     df.columns = [col_name2cat(column) for column in df.columns]
-    if name_column:
+    if html_compressed and name_column:
         name_column = col_name2cat(name_column)
         if name_column not in df.columns:
             raise ValueError('The name column ("{}") should be one of those specified as columns ({}).'
@@ -444,7 +471,7 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
 
     percentage_unknown = df.isnull().sum(axis=0) / df.shape[0]
     max_unknown_percentage = percentage_unknown.max()
-    if max_unknown_percentage > .9:
+    if max_unknown_percentage >= (.9 if not copy_only else 1):
         raise ValueError('{:.1f}% of tip annotations for column "{}" are unknown, '
                          'not enough data to infer ancestral states. '
                          'Check your annotation file and if its id column corresponds to the tree tip names.'
@@ -456,7 +483,7 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
                          'PASTML cannot infer ancestral states for a tree with too many tip states.'
                          .format(percentage_unique.idxmax(), 100 * max_unique_percentage))
     logger.debug('Finished input validation.')
-    return root, df, max_date, min_date, name_column
+    return root, df, years, name_column
 
 
 def _serialize_predicted_states(columns, out_data, root):
@@ -464,11 +491,23 @@ def _serialize_predicted_states(columns, out_data, root):
     with open(out_data, 'w+') as f:
         f.write('node\t{}\n'.format('\t'.join(columns)))
         for node in root.traverse():
-            f.write('{}'.format(node.name))
+            column2values = {}
             for column in columns:
                 value = getattr(node, column, set())
-                f.write('\t{}'.format(' or '.join(sorted(value))))
-            f.write('\n')
+                if value:
+                    column2values[column] = sorted(value, reverse=True)
+            while column2values:
+                f.write('{}'.format(node.name))
+                for column in columns:
+                    if column in column2values:
+                        values = column2values[column]
+                        value = values.pop()
+                        if not values:
+                            del column2values[column]
+                    else:
+                        value = ''
+                    f.write('\t{}'.format(value))
+                f.write('\n')
     logging.getLogger('pastml').debug('Serialized reconstructed states to {}.'.format(out_data))
 
 
@@ -593,7 +632,7 @@ def main():
 
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="print information on the progress of the analysis")
-    parser.add_argument('--version', action='version', version='%(prog)s 1.8.1')
+    parser.add_argument('--version', action='version', version='%(prog)s 1.9')
 
     params = parser.parse_args()
 

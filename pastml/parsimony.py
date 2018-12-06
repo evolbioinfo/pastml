@@ -12,11 +12,27 @@ DELTRAN = 'DELTRAN'
 MP = 'MP'
 
 MP_METHODS = {DOWNPASS, ACCTRAN, DELTRAN}
+META_MP_METHODS = {MP}
 
 BU_PARS_STATES = 'BOTTOM_UP_PARSIMONY'
 TD_PARS_STATES = 'TOP_DOWN_PARSIMONY'
 PARS_STATES = 'PARSIMONY'
 PARS_STATE2NUM = 'PARSIMONY_STEPS'
+
+
+def is_meta_mp(method):
+    """
+    Checks if the method is a meta max parsimony method, combining several methods, i.e. MP.
+
+    :param method: prediction method
+    :type method: str
+    :return: bool
+    """
+    return method in META_MP_METHODS
+
+
+def get_default_mp_method():
+    return DOWNPASS
 
 
 def is_parsimonious(method):
