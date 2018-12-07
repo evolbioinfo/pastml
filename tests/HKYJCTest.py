@@ -6,9 +6,10 @@ import pandas as pd
 
 from pastml import get_personalized_feature_name, STATES
 from pastml.acr import acr
-from pastml.hky import KAPPA
+from pastml.models.hky import KAPPA, HKY
 from pastml.ml import LH, LH_SF, MPPA, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, \
-    CHANGES_PER_AVG_BRANCH, SCALING_FACTOR, MARGINAL_PROBABILITIES, HKY, JC
+    CHANGES_PER_AVG_BRANCH, SCALING_FACTOR, MARGINAL_PROBABILITIES
+from pastml.models.f81_like import JC
 from pastml.tree import read_tree
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')

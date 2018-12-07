@@ -5,8 +5,9 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
-from pastml.hky import get_hky_pij, KAPPA
-from pastml.jtt import get_jtt_pij, JTT_FREQUENCIES
+from pastml.models.f81_like import is_f81_like, get_f81_pij, get_mu, F81, EFT
+from pastml.models.hky import get_hky_pij, KAPPA, HKY
+from pastml.models.jtt import get_jtt_pij, JTT_FREQUENCIES, JTT
 from pastml.parsimony import parsimonious_acr, MP
 from pastml import get_personalized_feature_name, CHARACTER, STATES, METHOD, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
     NUM_NODES, NUM_TIPS, NUM_STATES_PER_NODE
@@ -34,11 +35,6 @@ MARGINAL_ML_METHODS = {MPPA, MAP}
 ML_METHODS = MARGINAL_ML_METHODS | {JOINT}
 META_ML_METHODS = {ML, ALL}
 
-JC = 'JC'
-F81 = 'F81'
-EFT = 'EFT'
-JTT = 'JTT'
-HKY = 'HKY'
 
 BU_LH = 'BOTTOM_UP_LIKELIHOOD'
 TD_LH = 'TOP_DOWN_LIKELIHOOD'
@@ -73,17 +69,6 @@ def is_ml(method):
     return method in ML_METHODS or method in META_ML_METHODS
 
 
-def is_f81_like(model):
-    """
-    Checks if the evolutionary model is F81 or its simplification, e.g. JC or EFT.
-
-    :param model: evolutionary model
-    :type model: str
-    :rtype: bool
-    """
-    return model in {F81, JC, EFT}
-
-
 def is_meta_ml(method):
     """
     Checks if the method is a meta max likelihood method, combining several methods, i.e. ML or ALL.
@@ -99,65 +84,26 @@ def get_default_ml_method():
     return MPPA
 
 
-def get_mu(frequencies):
+def get_pij_method(model=F81, frequencies=None, kappa=None):
     """
-    Calculates the mutation rate for F81 (and JC that is a simplification of it),
-    as \mu = 1 / (1 - sum_i \pi_i^2). This way the overall rate of mutation -\mu trace(\Pi Q) is 1.
-    See [Gascuel "Mathematics of Evolution and Phylogeny" 2005] for further details.
+    Returns a function for calculation of probability matrix of substitutions i->j over time t.
 
-    :param frequencies: numpy array of state frequencies \pi_i
-    :return: mutation rate \mu = 1 / (1 - sum_i \pi_i^2)
-    """
-    return 1. / (1. - frequencies.dot(frequencies))
-
-
-def get_pij(t, model=F81, frequencies=None, mu=None, kappa=None):
-    """
-    Calculates the probability matrix of substitutions i->j over time t for the given model.
-
-    :param t: time
-    :type t: float
     :param kappa: kappa parameter for HKY model
     :type kappa: float
     :param frequencies: array of state frequencies \pi_i
     :type frequencies: numpy.array
-    :param mu: mutation rate for F81-like models
-    :type mu: float
     :param model: model of character evolution
     :type model: str
     :return: probability matrix
-    :rtype: numpy.ndarray
+    :rtype: function
     """
     if is_f81_like(model):
-        return get_f81_pij(t, frequencies, mu)
+        mu = get_mu(frequencies)
+        return lambda t: get_f81_pij(t, frequencies, mu)
     if JTT == model:
-        return get_jtt_pij(t)
+        return get_jtt_pij
     if HKY == model:
-        return get_hky_pij(t, frequencies, kappa)
-
-
-def get_f81_pij(t, frequencies, mu):
-    """
-    Calculate the probability of substitution i->j over time t, given the mutation rate mu:
-    For F81 (and JC which is a simpler version of it)
-    Pij(t) = \pi_j (1 - exp(-mu t)) + exp(-mu t), if i == j, \pi_j (1 - exp(-mu t)), otherwise
-    [Gascuel "Mathematics of Evolution and Phylogeny" 2005].
-
-    :param frequencies: array of state frequencies \pi_i
-    :type frequencies: numpy.array
-    :param mu: mutation rate: \mu = 1 / (1 - sum_i \pi_i^2)
-    :type mu: float
-    :param t: time t
-    :type t: float
-    :param sf: scaling factor by which t should be multiplied.
-    :type sf: float
-    :return: probability matrix
-    :rtype: numpy.ndarray
-    """
-
-    # if mu == inf (e.g. just one state) and t == 0, we should prioritise mu
-    exp_mu_t = 0. if (mu == np.inf) else np.exp(-mu * t)
-    return (1 - exp_mu_t) * frequencies + np.eye(len(frequencies)) * exp_mu_t
+        return lambda t: get_hky_pij(t, frequencies, kappa)
 
 
 def get_bottom_up_likelihood(tree, character, frequencies, sf, kappa=None, is_marginal=True, model=F81):
@@ -186,13 +132,12 @@ def get_bottom_up_likelihood(tree, character, frequencies, sf, kappa=None, is_ma
     lh_joint_state_feature = get_personalized_feature_name(character, BU_LH_JOINT_STATES)
     allowed_state_feature = get_personalized_feature_name(character, ALLOWED_STATES)
 
-    mu = get_mu(frequencies) if is_f81_like(model) else None
+    get_pij = get_pij_method(model, frequencies, kappa)
     for node in tree.traverse('postorder'):
         likelihood_array = np.ones(len(frequencies), dtype=np.float64) * getattr(node, allowed_state_feature)
         factors = 0
         for child in node.children:
-            child_likelihoods = get_pij(child.dist * sf, model=model, frequencies=frequencies, mu=mu, kappa=kappa) \
-                                * getattr(child, lh_feature)
+            child_likelihoods = get_pij(child.dist * sf) * getattr(child, lh_feature)
             if is_marginal:
                 child_likelihoods = child_likelihoods.sum(axis=1)
             else:
@@ -291,8 +236,6 @@ def optimize_likelihood_params(tree, character, frequencies, sf, kappa, avg_br_l
                                        sf=sf_val, kappa=kappa_val, is_marginal=True, model=model)
         return np.inf if pd.isnull(res) else -res
 
-    # params = None
-    # optimum = None
     for i in range(10):
         if i == 0:
             vs = np.hstack((frequencies[:-1] / frequencies[-1] if optimise_frequencies else [],
@@ -339,7 +282,7 @@ def calculate_top_down_likelihood(tree, character, frequencies, sf, kappa=None, 
     bu_lh_feature = get_personalized_feature_name(character, BU_LH)
     bu_lh_sf_feature = get_personalized_feature_name(character, BU_LH_SF)
 
-    mu = get_mu(frequencies) if is_f81_like(model) else None
+    get_pij = get_pij_method(model, frequencies, kappa)
     for node in tree.traverse('preorder'):
         if node.is_root():
             node.add_feature(lh_feature, np.ones(len(frequencies), np.float64))
@@ -349,7 +292,7 @@ def calculate_top_down_likelihood(tree, character, frequencies, sf, kappa=None, 
         parent = node.up
         parent_bu_likelihood = getattr(parent, bu_lh_feature)
 
-        node_pjis = np.transpose(get_pij(node.dist * sf, model=model, frequencies=frequencies, mu=mu, kappa=kappa))
+        node_pjis = np.transpose(get_pij(node.dist * sf))
         node_contribution = getattr(node, bu_lh_feature).dot(node_pjis)
 
         parent_likelihood = getattr(parent, lh_feature) * parent_bu_likelihood

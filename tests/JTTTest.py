@@ -2,8 +2,8 @@ import unittest
 
 import numpy as np
 
-from pastml.jtt import JTT_RATE_MATRIX, JTT_A_INV, JTT_A, JTT_D_DIAGONAL, JTT_FREQUENCIES
-from pastml.models import get_normalised_generator
+from pastml.models.generator import get_normalised_generator
+from pastml.models.jtt import JTT_RATE_MATRIX, JTT_A_INV, JTT_A, JTT_D_DIAGONAL, JTT_FREQUENCIES
 
 
 class JTTTest(unittest.TestCase):

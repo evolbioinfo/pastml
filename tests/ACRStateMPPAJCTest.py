@@ -7,7 +7,8 @@ import numpy as np
 
 from pastml.tree import read_tree, collapse_zero_branches
 from pastml.acr import acr
-from pastml.ml import MPPA, JC
+from pastml.ml import MPPA
+from pastml.models.f81_like import JC
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')

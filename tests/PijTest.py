@@ -2,9 +2,9 @@ import unittest
 
 import numpy as np
 
-from pastml.hky import A, G, T, C, get_hky_pij
+from models.hky import A, G, T, C, get_hky_pij
 from pastml.ml import get_f81_pij, get_mu
-from pastml.models import get_pij_matrix, get_diagonalisation
+from pastml.models.generator import get_pij_matrix, get_diagonalisation
 
 
 class PijTest(unittest.TestCase):

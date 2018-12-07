@@ -4,10 +4,11 @@ import unittest
 import numpy as np
 import pandas as pd
 
+from pastml.models.f81_like import JC
 from pastml.tree import read_tree
 from pastml import get_personalized_feature_name, STATES
 from pastml.acr import acr
-from pastml.ml import LH, LH_SF, MPPA, JC, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, CHANGES_PER_AVG_BRANCH, \
+from pastml.ml import LH, LH_SF, MPPA, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, CHANGES_PER_AVG_BRANCH, \
     SCALING_FACTOR, FREQUENCIES, MARGINAL_PROBABILITIES
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')

@@ -5,9 +5,10 @@ from queue import Queue
 import numpy as np
 from jinja2 import Environment, PackageLoader
 
-from pastml.colour_generator import get_enough_colours, WHITE
-from pastml.tree import NUM_TIPS_INSIDE, DATE, sum_len_values, TIPS_INSIDE, TIPS_BELOW, \
-    REASONABLE_NUMBER_OF_TIPS, compress_tree, DEPTH, LEVEL
+from pastml.visualisation.colour_generator import get_enough_colours, WHITE
+from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, sum_len_values, TIPS_INSIDE, TIPS_BELOW, \
+    REASONABLE_NUMBER_OF_TIPS, compress_tree
+from pastml.tree import DATE, DEPTH, LEVEL
 
 TIP_LIMIT = 1000
 

@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from jinja2 import Environment, PackageLoader
 
-from pastml.colour_generator import get_enough_colours
+from pastml.visualisation.colour_generator import get_enough_colours
 from pastml.tree import read_tree
 
 ISO_EXISTS = False

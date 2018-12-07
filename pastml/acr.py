@@ -5,19 +5,20 @@ from multiprocessing.pool import ThreadPool
 import numpy as np
 import pandas as pd
 
-from pastml.hky import KAPPA, HKY_STATES
-from pastml.jtt import JTT_STATES
+from pastml.models.f81_like import F81, JC, EFT
+from pastml.ml import SCALING_FACTOR, MODEL, FREQUENCIES, MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
+    ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method
+from pastml.models.hky import KAPPA, HKY_STATES, HKY
+from pastml.models.jtt import JTT_STATES, JTT
 from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name
 from pastml.annotation import preannotate_tree, get_tree_stats
-from pastml.cytoscape_manager import visualize
+from pastml.visualisation.cytoscape_manager import visualize
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file
-from pastml.ml import is_ml, ml_acr, MPPA, MAP, JOINT, F81, is_marginal, JC, EFT, FREQUENCIES, MARGINAL_PROBABILITIES, \
-    SCALING_FACTOR, MODEL, ML_METHODS, MARGINAL_ML_METHODS, ALL, ML, META_ML_METHODS, get_default_ml_method, JTT, HKY
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
     get_default_mp_method
-from pastml.tree import read_tree, name_tree, date_tips, REASONABLE_NUMBER_OF_TIPS, collapse_zero_branches, DATE, \
-    annotate_depth, DEPTH
+from pastml.tree import read_tree, name_tree, date_tips, collapse_zero_branches, DATE, annotate_depth, DEPTH
+from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 
 COPY = 'COPY'
 
@@ -304,12 +305,13 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     :param no_forced_joint: (optional, default is False) do not add JOINT state to the MPPA state selection
         when it is not selected by Brier score.
     :type no_forced_joint: bool
-    :param model: (optional, default is pastml.ml.F81) evolutionary model(s) for ML methods (ignored by MP methods).
+    :param model: (optional, default is pastml.models.f81_like.F81) evolutionary model(s) for ML methods
+        (ignored by MP methods).
         When multiple ancestral characters are specified (with ``columns`` argument),
         the same model can be used for all of them (if only one model is specified),
         or different models can be used (specified in the same order as ``columns``).
         If multiple models are given, but not for all the characters,
-        for the rest of them the default model (pastml.ml.F81) is chosen.
+        for the rest of them the default model (pastml.models.f81_like.F81) is chosen.
     :type model: str or list(str)
     :param parameters: optional way to fix some of the ML-method parameters.
         Could be specified as

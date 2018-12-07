@@ -1,6 +1,6 @@
 import numpy as np
 
-from pastml.models import get_pij_matrix, get_diagonalisation
+from pastml.models.generator import get_pij_matrix, get_diagonalisation
 
 """
 The JTT matrix below is taken from https://www.ebi.ac.uk/goldman-srv/dayhoff/
@@ -8,6 +8,8 @@ The JTT matrix below is taken from https://www.ebi.ac.uk/goldman-srv/dayhoff/
 See the following paper for more details:
 Kosiol,C. and Goldman,N. The Different Versions of the Dayhoff Rate Matrix. 
 """
+
+JTT = 'JTT'
 
 AA_NAMES = ['Alanine', 'Arginine', 'Asparagine', 'Aspartic Acid', 'Cysteine', 'Glutamine', 'Glutamic Acid', 'Glycine',
             'Histidine', 'Isoleucine', 'Leucine', 'Lysine', 'Methionine', 'Phenylalanine', 'Proline', 'Serine',

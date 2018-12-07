@@ -1,5 +1,7 @@
 import numpy as np
 
+HKY = 'HKY'
+
 KAPPA = 'kappa'
 
 HKY_STATES = np.array(['A', 'C', 'G', 'T'])
