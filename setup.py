@@ -1,9 +1,9 @@
 import os
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='pastml',
-    packages=['pastml'],
+    packages=find_packages(),
     include_package_data=True,
     package_data={'pastml': [os.path.join('templates', '*.html'), os.path.join('templates', '*.js'),
                              os.path.join('..', 'README.md')]},
@@ -16,7 +16,7 @@ setup(
         'Topic :: Software Development',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-    version='1.9',
+    version='1.9.1',
     description='Ancestral character reconstruction and visualisation for rooted phylogenetic trees.',
     author='Anna Zhukova',
     author_email='anna.zhukova@pasteur.fr',
