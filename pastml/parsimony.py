@@ -2,7 +2,7 @@ import logging
 from collections import Counter
 
 from pastml import get_personalized_feature_name, METHOD, STATES, CHARACTER, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
-    NUM_NODES, NUM_TIPS, NUM_STATES_PER_NODE
+    NUM_NODES, NUM_TIPS, NUM_STATES_PER_NODE, PERC_UNRESOLVED
 
 STEPS = 'steps'
 
@@ -245,10 +245,11 @@ def parsimonious_acr(tree, character, prediction_method, states, num_nodes, num_
         res[NUM_SCENARIOS], res[NUM_UNRESOLVED_NODES], res[NUM_STATES_PER_NODE] \
             = choose_parsimonious_states(tree, feature, out_feature)
         res[NUM_STATES_PER_NODE] /= num_nodes
+        res[PERC_UNRESOLVED] = res[NUM_UNRESOLVED_NODES] * 100 / num_nodes
         logger.debug('{} node{} unresolved ({:.2f}%) for {} by {}, '
                      'i.e. {:.4f} state{} per node in average.'
                      .format(res[NUM_UNRESOLVED_NODES], 's are' if res[NUM_UNRESOLVED_NODES] != 1 else ' is',
-                             res[NUM_UNRESOLVED_NODES] * 100 / num_nodes, character, method,
+                             res[PERC_UNRESOLVED], character, method,
                              res[NUM_STATES_PER_NODE], 's' if res[NUM_STATES_PER_NODE] > 1 else ''))
         res[CHARACTER] = out_feature
         res[METHOD] = method

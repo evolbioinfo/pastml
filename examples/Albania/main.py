@@ -1,7 +1,8 @@
 import os
 
 from pastml.acr import pastml_pipeline, COPY
-from pastml.ml import F81, JC, EFT, MPPA, MAP, JOINT, ALL, ML
+from pastml.ml import MPPA, MAP, JOINT, ALL, ML
+from pastml.models.f81_like import EFT, F81, JC
 from pastml.parsimony import ACCTRAN, DELTRAN, DOWNPASS, MP
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')

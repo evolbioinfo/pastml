@@ -10,7 +10,7 @@ from pastml.models.hky import get_hky_pij, KAPPA, HKY
 from pastml.models.jtt import get_jtt_pij, JTT_FREQUENCIES, JTT
 from pastml.parsimony import parsimonious_acr, MP
 from pastml import get_personalized_feature_name, CHARACTER, STATES, METHOD, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
-    NUM_NODES, NUM_TIPS, NUM_STATES_PER_NODE
+    NUM_NODES, NUM_TIPS, NUM_STATES_PER_NODE, PERC_UNRESOLVED
 
 CHANGES_PER_AVG_BRANCH = 'state_changes_per_avg_branch'
 SCALING_FACTOR = 'scaling_factor'
@@ -817,10 +817,11 @@ def ml_acr(tree, character, prediction_method, model, states, avg_br_len, num_no
             result[NUM_SCENARIOS], result[NUM_UNRESOLVED_NODES], result[NUM_STATES_PER_NODE] = \
                 choose_ancestral_states_mppa(tree, character, states, force_joint=force_joint)
             result[NUM_STATES_PER_NODE] /= num_nodes
+            result[PERC_UNRESOLVED] = result[NUM_UNRESOLVED_NODES] * 100 / num_nodes
             logger.debug('{} node{} unresolved ({:.2f}%) for {} by {}, '
                          'i.e. {:.4f} state{} per node in average.'
                          .format(result[NUM_UNRESOLVED_NODES], 's are' if result[NUM_UNRESOLVED_NODES] != 1 else ' is',
-                                 result[NUM_UNRESOLVED_NODES] * 100 / num_nodes, character, MPPA,
+                                 result[PERC_UNRESOLVED], character, MPPA,
                                  result[NUM_STATES_PER_NODE], 's' if result[NUM_STATES_PER_NODE] > 1 else ''))
             process_restricted_likelihood_and_states(MPPA)
 

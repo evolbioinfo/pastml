@@ -1,7 +1,8 @@
 import os
 
+from pastml.models.f81_like import F81, JC
 from pastml.acr import pastml_pipeline, get_pastml_parameter_file
-from pastml.ml import MPPA, F81, JC, JOINT, MAP
+from pastml.ml import MPPA, JOINT, MAP
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'Makona_1610_cds_ig.MCC.tree.nwk')
