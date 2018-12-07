@@ -43,7 +43,9 @@ def value2list(n, value, default_value):
     # and propagating the chosen value to all columns
     if not isinstance(value, list):
         value = [value] * n
-    # or making sure that the default value if chosen for the columns for which the value was not specified
+    elif len(value) == 1:
+        value = value * n
+    # or making sure that the default value is chosen for the columns for which the value was not specified
     else:
         value += [default_value] * (n - len(value))
     return value

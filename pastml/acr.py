@@ -5,13 +5,15 @@ from multiprocessing.pool import ThreadPool
 import numpy as np
 import pandas as pd
 
+from pastml.hky import KAPPA, HKY_STATES
+from pastml.jtt import JTT_STATES
 from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name
 from pastml.annotation import preannotate_tree, get_tree_stats
 from pastml.cytoscape_manager import visualize
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file
 from pastml.ml import is_ml, ml_acr, MPPA, MAP, JOINT, F81, is_marginal, JC, EFT, FREQUENCIES, MARGINAL_PROBABILITIES, \
-    SCALING_FACTOR, MODEL, ML_METHODS, MARGINAL_ML_METHODS, ALL, ML, META_ML_METHODS, get_default_ml_method
+    SCALING_FACTOR, MODEL, ML_METHODS, MARGINAL_ML_METHODS, ALL, ML, META_ML_METHODS, get_default_ml_method, JTT, HKY
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
     get_default_mp_method
 from pastml.tree import read_tree, name_tree, date_tips, REASONABLE_NUMBER_OF_TIPS, collapse_zero_branches, DATE, \
@@ -22,7 +24,7 @@ COPY = 'COPY'
 
 def _parse_pastml_parameters(params, states):
     logger = logging.getLogger('pastml')
-    frequencies, sf = None, None
+    frequencies, sf, kappa = None, None, None
     if not isinstance(params, str) and not isinstance(params, dict):
         raise ValueError('Parameters must be specified either as a dict or as a path to a csv file, not as {}!'
                          .format(type(params)))
@@ -76,7 +78,18 @@ def _parse_pastml_parameters(params, states):
         except:
             logger.error('Scaling factor ({}) is not float, ignoring it.'.format(sf))
             sf = None
-    return frequencies, sf
+    if KAPPA in params:
+        kappa = params[KAPPA]
+        try:
+            kappa = np.float64(kappa)
+            if kappa <= 0:
+                logger.error(
+                    'Kappa ({}) cannot be negative, ignoring it.'.format(kappa))
+                kappa = None
+        except:
+            logger.error('Kappa ({}) is not float, ignoring it.'.format(kappa))
+            kappa = None
+    return frequencies, sf, kappa
 
 
 def _serialize_acr(args):
@@ -109,14 +122,14 @@ def _serialize_acr(args):
                                           .format(acr_result[CHARACTER], out_mp_file))
 
 
-def reconstruct_ancestral_states(tree, feature, states, prediction_method=MPPA, model=F81,
+def reconstruct_ancestral_states(tree, character, states, prediction_method=MPPA, model=F81,
                                  params=None, avg_br_len=None, num_nodes=None, num_tips=None,
                                  force_joint=True):
     """
     Reconstructs ancestral states for the given character on the given tree.
 
-    :param feature: character whose ancestral states are to be reconstructed.
-    :type feature: str
+    :param character: character whose ancestral states are to be reconstructed.
+    :type character: str
     :param tree: tree whose ancestral state are to be reconstructed,
         annotated with the feature specified as `character` containing node states when known.
     :type tree: ete3.Tree
@@ -147,11 +160,11 @@ def reconstruct_ancestral_states(tree, feature, states, prediction_method=MPPA, 
     """
 
     logging.getLogger('pastml').debug('ACR settings for {}:\n\tMethod:\t{}{}.'
-                                      .format(feature, prediction_method,
+                                      .format(character, prediction_method,
                                               '\n\tModel:\t{}'.format(model)
                                               if model and is_ml(prediction_method) else ''))
     if COPY == prediction_method:
-        return {CHARACTER: feature, STATES: states, METHOD: prediction_method}
+        return {CHARACTER: character, STATES: states, METHOD: prediction_method}
     if not num_nodes:
         num_nodes = sum(1 for _ in tree.traverse())
     if not num_tips:
@@ -159,13 +172,14 @@ def reconstruct_ancestral_states(tree, feature, states, prediction_method=MPPA, 
     if is_ml(prediction_method):
         if avg_br_len is None:
             avg_br_len = np.mean(n.dist for n in tree.traverse() if n.dist)
-        freqs, sf = None, None
+        freqs, sf, kappa = None, None, None
         if params is not None:
-            freqs, sf = _parse_pastml_parameters(params, states)
-        return ml_acr(tree, feature, prediction_method, model, states, avg_br_len, num_nodes, num_tips, freqs, sf,
+            freqs, sf, kappa = _parse_pastml_parameters(params, states)
+        return ml_acr(tree=tree, character=character, prediction_method=prediction_method, model=model, states=states,
+                      avg_br_len=avg_br_len, num_nodes=num_nodes, num_tips=num_tips, freqs=freqs, sf=sf, kappa=kappa,
                       force_joint=force_joint)
     if is_parsimonious(prediction_method):
-        return parsimonious_acr(tree, feature, prediction_method, states, num_nodes, num_tips)
+        return parsimonious_acr(tree, character, prediction_method, states, num_nodes, num_tips)
 
     raise ValueError('Method {} is unknown, should be one of ML ({}), one of MP ({}) or {}'
                      .format(prediction_method, ', '.join(ML_METHODS), ', '.join(MP_METHODS), COPY))
@@ -217,11 +231,22 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None,
     prediction_methods = value2list(len(columns), prediction_method, MPPA)
     models = value2list(len(columns), model, F81)
 
+    def get_states(method, model, column):
+        df_states = [_ for _ in df[column].unique() if pd.notnull(_) and _ != '']
+        if not is_ml(method) or model not in {HKY, JTT}:
+            return np.sort(df_states)
+        states = HKY_STATES if HKY == model else JTT_STATES
+        if not set(df_states) & set(states):
+            raise ValueError('The allowed states for model {} are {}, '
+                             'but your annotation file specifies {} as states in column {}.'
+                             .format(model, ', '.join(states), ', '.join(df_states), column))
+        state_set = set(states)
+        df[column] = df[column].apply(lambda _: _ if _ in state_set else '')
+        return states
+
     with ThreadPool() as pool:
         acr_results = \
-            pool.map(func=_work, iterable=((tree, column,
-                                            np.sort([_ for _ in df[column].unique() if pd.notnull(_) and _ != '']),
-                                            method, model,
+            pool.map(func=_work, iterable=((tree, column, get_states(method, model, column), method, model,
                                             column2parameters[column] if column in column2parameters else None)
                                            for (column, method, model) in zip(columns, prediction_methods, models)))
 
@@ -579,7 +604,7 @@ def main():
                            help='do not add {joint} state to the {mppa} state selection '
                                 'when it is not selected by Brier score.'.format(joint=JOINT, mppa=MPPA))
     acr_group.add_argument('-m', '--model', default=F81,
-                           choices=[JC, F81, EFT],
+                           choices=[JC, F81, EFT, HKY, JTT],
                            type=str, nargs='*',
                            help='evolutionary model for ML methods (ignored by MP methods). '
                                 'When multiple ancestral characters are specified (see -c, --columns), '
