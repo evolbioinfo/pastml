@@ -35,7 +35,7 @@ if '__main__' == __name__:
             path2 = trees[j]
             tree2 = path2tree[path2]
             path2 = path2[len(prefix):]
-            nrf = tree1.compare(tree2)['norm_rf']
+            nrf = tree1.compare(tree2, unrooted=True)['norm_rf']
             nqt = tri[j, i] / comb(len(tree1), 4)
             results = results.append({'tree1': path1, 'tree2': path2, 'norm_rf': nrf, 'norm_qt': nqt}, ignore_index=True)
     mrf = results['norm_rf'].mean()

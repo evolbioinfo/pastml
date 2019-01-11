@@ -1,7 +1,6 @@
 import logging
 import os
-from Bio.Phylo import NexusIO, write
-
+from Bio.Phylo import write, NewickIO
 
 if '__main__' == __name__:
     import argparse
@@ -16,9 +15,9 @@ if '__main__' == __name__:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
 
     i = 0
-    for tree in NexusIO.parse(params.trees):
+    for tree in NewickIO.parse(params.trees):
         os.makedirs(os.path.dirname(params.pattern % i), exist_ok=True)
         write([tree], params.pattern % i, 'newick', plain=True)
         i += 1
     with open(params.log, 'w+') as f:
-        f.write('Converted %d trees to newick' % i)
+        f.write('Split a multi-tree newick file into %d one-tree files' % i)

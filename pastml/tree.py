@@ -87,13 +87,34 @@ def name_tree(tree):
     """
     existing_names = Counter((_.name for _ in tree.traverse() if _.name))
     i = 0
+    ll_feature = 'left_leaf'
+    rl_feature = 'right_leaf'
     for node in tree.traverse('postorder'):
+        if node.is_leaf():
+            left_leaf = right_leaf = node.name
+        else:
+            children = sorted(node.children, key=lambda _: getattr(_, ll_feature))
+            left_leaf, right_leaf = getattr(children[0], ll_feature), getattr(children[-1], rl_feature)
+            for _ in children:
+                _.del_feature(ll_feature)
+                _.del_feature(rl_feature)
+        if not node.is_root():
+            node.add_feature(ll_feature, left_leaf)
+            node.add_feature(rl_feature, right_leaf)
+
         if not node.name or existing_names[node.name] > 1:
-            name = 'ROOT' if node.is_root() else None
-            while not name or name in existing_names:
-                name = '{}_{}'.format('tip' if node.is_leaf() else ('ROOT' if node.is_root() else 'node'), i)
+            if node.is_leaf():
+                name = 't{}'.format(i)
+                i += 1
+                pattern = 't{}'
+            else:
+                name = '{}_{}'.format(left_leaf, right_leaf)
+                pattern = '{}_{{}}'.format(name)
+            while name in existing_names:
+                name = pattern.format(i)
                 i += 1
             node.name = name
+            existing_names[name] += 1
 
 
 def collapse_zero_branches(tree, features_to_be_merged=None):

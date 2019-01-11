@@ -1,4 +1,4 @@
-from visualisation.generate_geomap import generate_map
+from pastml.visualisation.generate_geomap import generate_map
 
 if '__main__' == __name__:
     import argparse

@@ -17,20 +17,12 @@ if '__main__' == __name__:
 
     # Read and fix DRM metadata
     df = pd.read_table(params.drm_tab, index_col=0, header=0)
-    df['Sierra subtype'] = df['subtypeText'].map(lambda s: s[0])
-    df.drop(['subtypeText'], axis=1, inplace=True)
     df = df.join(pd.read_table(params.input_data, index_col=0, header=0), how='outer')
-
     df = df[df['Subtype'] == df['Sierra subtype']]
     df.drop(['Sierra subtype'], axis=1, inplace=True)
 
     SeqIO.write((_ for _ in SeqIO.parse(params.input_fa, "fasta", alphabet=generic_dna) if _.id in df.index),
                 params.output_fa, "fasta")
-
-    # Prettify mutation states
-    for mutation in (_ for _ in df.columns if _.startswith('RT:') or _.startswith('PR:')):
-        df[mutation] = df[mutation].fillna(False).astype(bool).map(
-            {True: 'resistant', False: 'sensitive', None: 'sensitive'})
 
     # Add Location info
     countries = df['Country Code'].unique()

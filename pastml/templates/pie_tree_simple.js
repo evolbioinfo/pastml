@@ -163,7 +163,7 @@ function addQtips() {
     });
 }
 
-cy.minZoom(.01);
+cy.minZoom(.001);
 cy.maxZoom(20);
 addQtips();
 

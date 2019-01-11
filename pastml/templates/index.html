@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-<!--<link href="style.css" rel="stylesheet" />-->
 <style>
 body {
   font-family: helvetica,serif;
@@ -113,15 +112,15 @@ a.cy-button:link, a.cy-button:visited, a.cy-button:hover {
 <meta charset=utf-8 />
 <meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
 <title>{{title}}</title>
-    <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js/v3.2.3/dist/cytoscape.min.js"></script>
-    <script src="https://cdn.rawgit.com/cpettitt/dagre/v0.7.4/dist/dagre.min.js"></script>
-    <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-dagre/1.5.0/cytoscape-dagre.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/dagre.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape-dagre.js"></script>
 
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.0/jquery.qtip.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.0/jquery.qtip.min.css" rel="stylesheet" type="text/css" />
-    <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-qtip/2.7.0/cytoscape-qtip.js"></script>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"/>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/jquery.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/jquery.qtip.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape-qtip.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://pastml.pasteur.fr/static/css/jquery.qtip.min.css"/>
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"/>
 <meta http-Equiv="Cache-Control" Content="no-cache" />
 <meta http-Equiv="Pragma" Content="no-cache" />
 <meta http-Equiv="Expires" Content="0" />
@@ -130,13 +129,18 @@ a.cy-button:link, a.cy-button:visited, a.cy-button:hover {
 <div id="fullscreenDiv">
 <div id="cy"></div>
 <div class="floating">
-    <a class="cy-button" href="#" id="fit" onclick="fit()"><span class="glyphicon glyphicon-resize-full"></span><span class="buttontext">  Fit screen</span></a>
-    <a class="cy-button" href="#" id="reset" onclick="resetLayout()"><span class="glyphicon glyphicon-picture"></span><span class="buttontext">  Layout</span></a>
+    <a class="cy-button" href="#" id="fit" onclick="fit()">
+        <span class="glyphicon glyphicon-resize-full"></span><span class="buttontext">  Fit screen</span>
+    </a>
+    <a class="cy-button" href="#" id="reset" onclick="resetLayout()">
+        <span class="glyphicon glyphicon-picture"></span><span class="buttontext">  Layout</span>
+    </a>
     <a class="cy-button" href="#" id="downloader" onclick="toImage()" download="{{title}}.jpg">
-        <span class="glyphicon glyphicon-save"></span><span class="buttontext">  Save (jpg)</span></a>
-    <!--<a class="cy-button" href="#" id="downloader-json" onclick="toJson()" download="{{title}}.json">-->
-        <!--<span class="glyphicon glyphicon-save"></span><span class="buttontext">  Save (json)</span></a>-->
-    <a class="cy-button" href="#" id="fullscreen" onclick="toggleFullScreen()"><span id="fsspan" class="glyphicon glyphicon-fullscreen"></span><span id="fstext" class="buttontext">  Full screen</span></a>
+        <span class="glyphicon glyphicon-save"></span><span class="buttontext">  Save (jpg)</span>
+    </a>
+    <a class="cy-button" href="#" id="fullscreen" onclick="toggleFullScreen()">
+        <span id="fsspan" class="glyphicon glyphicon-fullscreen"></span><span id="fstext" class="buttontext">  Full screen</span>
+    </a>
     {{slider}}
 </div></div>
 <!-- Load appplication code at the end to ensure DOM is loaded -->

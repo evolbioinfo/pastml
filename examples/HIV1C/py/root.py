@@ -70,6 +70,7 @@ if '__main__' == __name__:
     parser.add_argument('--output_tree', required=True, type=str)
     parser.add_argument('--ids', nargs='+', required=True, type=str)
     parser.add_argument('--ingroup', action='store_true')
+    parser.add_argument('--keep_outgroup', action='store_true')
     params = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format='%(asctime)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
@@ -83,7 +84,7 @@ if '__main__' == __name__:
             in_ids = ids
         else:
             out_ids = ids
-        tr = root_tree(tr, out_ids=out_ids, in_ids=in_ids)
+        tr = root_tree(tr, out_ids=out_ids, in_ids=in_ids, keep_outgroup=params.keep_outgroup)
 
     nwk = write_newick(tr, format_root_node=True, format=2)
     with open(params.output_tree, 'w+') as f:
