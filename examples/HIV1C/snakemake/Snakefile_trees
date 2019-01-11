@@ -16,7 +16,7 @@ import os
 
 
 configfile: "config.yaml"
-localrules: all
+localrules: all, drm_data
 ruleorder: raxml > phyml > fasttree > best_tree
 
 
@@ -240,12 +240,31 @@ rule fasttree:
         qos = 'normal'
     shell: "FastTree -gamma -nt -gtr -cat 6 -intree {input.tree} -log {output.log} < {input.aln} > {output.tree}"
 
+
+rule convert_alignment:
+    '''
+    Filter and convert a fasta alignment to another format.
+    '''
+    input:
+        fa = os.path.join(data_dir, 'alignment{af}.fa')
+    output:
+        fa = os.path.join(data_dir, 'alignment{af}.{format}')
+    params:
+        mem = 1000,
+        name = 'fa2{format}',
+        format = '{format}',
+        qos = 'fast'
+    threads: 1
+    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    shell: "python3 {folder}/py/convert_aln.py --output_fa {output.fa} --input_fa {input.fa} --format {params.format}"
+
+
 rule phyml:
     '''
     Reconstructs a tree with PhyML.
     '''
     input:
-        aln = os.path.join(data_dir, 'alignment.nodrm.fa'),
+        aln = os.path.join(data_dir, 'alignment.nodrm.phylip'),
         tree = os.path.join(data_dir, '{n}', 'pars_tree.nwk')
     output:
         aln = temp(os.path.join(data_dir, '{n}', 'phyml_alignment.nodrm.fa')),
@@ -259,7 +278,7 @@ rule phyml:
         qos = 'long'
     shell:
         """
-        cp {input.aln} {params.aln}
+        cp {input.aln} {output.aln}
         phyml -i {output.aln} -d nt -m GTR -o tlr -f m -c 6 -a e -s RAND -u {input.tree} --r_seed 239
         mv {output.aln}_phyml_tree* {output.tree}
         mv {output.aln}_phyml_stats* {output.log}
@@ -362,8 +381,7 @@ rule pastml_tree:
         tree=os.path.join(data_dir, '{n}', '{type}_tree.rooted.collapsed_dist_0.nwk'),
     output:
         tree=os.path.join(data_dir, '{n}', 'pastml_{type}_tree.nwk'),
-    threads:
-        1
+    threads: 1
     params:
         mem = 1000,
         name = 'name_{n}',

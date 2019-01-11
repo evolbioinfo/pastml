@@ -1,9 +1,16 @@
 import logging
-
 import pandas as pd
+from ete3 import Tree
 from ete3.parser.newick import write_newick
 
-from pastml.tree import read_tree
+
+def read_tree(tree_path):
+    for f in (3, 2, 5, 1, 0, 3, 4, 6, 7, 8, 9):
+        try:
+            return Tree(tree_path, format=f)
+        except:
+            continue
+    raise ValueError('Could not read the tree {}. Is it a valid newick?'.format(tree_path))
 
 
 def root_tree(tr, out_ids=None, in_ids=None, keep_outgroup=False):

@@ -1,5 +1,5 @@
 import os
-from Bio.Phylo import write, NewickIO
+from Bio.Phylo import write, parse
 
 if '__main__' == __name__:
     import argparse
@@ -11,8 +11,9 @@ if '__main__' == __name__:
     params = parser.parse_args()
 
     i = 0
-    for tree in NewickIO.parse(params.trees):
+    for tree in parse(params.trees, 'newick'):
         os.makedirs(os.path.dirname(params.pattern % i), exist_ok=True)
         write([tree], params.pattern % i, 'newick', plain=True)
         i += 1
 
+    print('Split a multi-tree file into {} one-tree ones.'.format(i))
