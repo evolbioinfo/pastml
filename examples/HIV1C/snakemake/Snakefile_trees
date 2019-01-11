@@ -1,37 +1,37 @@
 import os
 
 # To run locally:
+# source activate snakemake
 # snakemake --snakefile Snakefile_trees --keep-going --cores 4 --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~"
 
-# To visualise the pipeline
+# To run on tars:
+# module load conda && source /local/gensoft2/exe/conda/3.19.0/conda/bin/activate snakemake && module load singularity
+# snakemake --snakefile Snakefile_trees --keep-going --cores 1 --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~" --cluster "sbatch -c {threads} -o logs/{params.name}.log -e logs/{params.name}.log --mem {params.mem} -A bioevo -p bioevo,dedicated,common --qos={params.qos} -J {params.name}" --jobs 300
+# on bioevo:
+# snakemake --snakefile Snakefile_trees --keep-going --cores 1 --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~" --cluster "sbatch -c {threads} -o logs/{params.name}.log -e logs/{params.name}.log --mem {params.mem} -p bioevo --qos=bioevo -A bioevo -J {params.name}" --jobs 300
+
+# To visualise the pipeline:
+# module load graphviz
 # snakemake --snakefile Snakefile_trees --dag | dot -Tsvg > trees_dag.svg
+
 
 configfile: "config.yaml"
 localrules: all
 ruleorder: raxml > phyml > fasttree > best_tree
 
-src_command = config['src']
-py_config = config['py_config']
 
 folder = os.path.abspath(config["folder"])
 data_dir = os.path.join(folder, config['data_dir'])
 fasta_la = os.path.join(data_dir, config['fasta_la'])
-fasta_la_c = os.path.join(data_dir, 'aln.la.c.fa')
 fasta_phy = os.path.join(data_dir, config['fasta_phylotype'])
 data_phy = os.path.join(data_dir, config['data_phylotype'])
-data_la = os.path.join(data_dir, 'data_la.tab')
-data = os.path.join(data_dir, 'data.tab')
 metadata = os.path.join(data_dir, 'metadata.tab')
-fasta_phy_ids = os.path.join(data_dir, 'aln.phy.c.outgroup.fa')
-fasta_la_phy = os.path.join(data_dir, 'aln.la.phy.c.outgroup.fa')
-fa = os.path.join(data_dir, 'aln.fa')
-aln = os.path.join(data_dir, 'alignment.fa')
 
 # Number of different tree topologies to be analysed
 n=5
 
 # choose one or more of the tree types below
-tree_types = ['phyml', 'fast', 'raxml', 'rax']
+tree_types = ['phyml', 'fast', 'raxml']
 
 rule all:
     input:
@@ -43,11 +43,12 @@ rule la_metadata:
     input:
         fa = fasta_la
     output:
-        fa = fasta_la_c,
-        data = data_la
+        fa = temp(os.path.join(data_dir, 'aln.la.c.fa')),
+        data = temp(os.path.join(data_dir, 'data_la.tab'))
     params:
         mem = 2000,
-        name = 'la_filter'
+        name = 'la_filter',
+        qos = 'fast'
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell: "python3 {folder}/py/la_metadata.py --output_data {output.data} --output_fa {output.fa} --input_fa {input.fa}"
@@ -58,10 +59,11 @@ rule rename_phy:
         fa = fasta_phy,
         data = data_phy
     output:
-        fa = fasta_phy_ids,
+        fa = temp(os.path.join(data_dir, 'aln.phy.c.outgroup.fa')),
     params:
         mem = 2000,
-        name = 'phy_renamer'
+        name = 'phy_renamer',
+        qos = 'fast'
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell: "python3 {folder}/py/rename_phy.py --input_data {input.data} --output_fa {output.fa} --input_fa {input.fa}"
@@ -69,14 +71,14 @@ rule rename_phy:
 rule merge_aln:
     '''Merges LA and Phylotype alignments'''
     input:
-        fa_phy = fasta_phy_ids,
-        fa_la = fasta_la_c,
+        fa_phy = os.path.join(data_dir, 'aln.phy.c.outgroup.fa'),
+        fa_la = os.path.join(data_dir, 'aln.la.c.fa'),
     output:
-        fa = fasta_la_phy,
+        fa = temp(os.path.join(data_dir, 'aln.la.phy.c.outgroup.fa')),
     params:
         mem = 2000,
         name = 'aln_merge',
-        mafft = config['mafft']
+        qos = 'fast'
     threads: 8
     singularity: "docker://evolbioinfo/mafft:v7.313"
     shell:
@@ -88,12 +90,13 @@ rule merge_aln:
 rule filter_aln:
     '''Filters out duplicated sequences (in terms of accession) from an alignments'''
     input:
-        fa = fasta_la_phy,
+        fa = os.path.join(data_dir, 'aln.la.phy.c.outgroup.fa'),
     output:
-        fa = fa,
+        fa = temp(os.path.join(data_dir, 'aln.fa')),
     params:
         mem = 2000,
-        name = 'aln_filter'
+        name = 'aln_filter',
+        qos = 'fast'
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell: "python3 {folder}/py/filter_unique_fasta_seq.py --fa_in {input.fa} --fa_out {output.fa}"
@@ -102,12 +105,13 @@ rule merge_md:
     '''Merges LA and Phylotype metadata'''
     input:
         data_phy = data_phy,
-        data_la = data_la
+        data_la = os.path.join(data_dir, 'data_la.tab')
     output:
-        data = data,
+        data = temp(os.path.join(data_dir, 'data_la_phy.tab')),
     params:
         mem = 2000,
         name = 'md_merge',
+        qos = 'fast'
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell: "python3 {folder}/py/merge_md.py --data_phy {input.data_phy} --data_la {input.data_la} --data {output.data}"
@@ -117,12 +121,13 @@ rule drm_data:
     Extracts information about DRMs from Stanford DB (with sierra) and reformat it into a table.
     '''
     input:
-        fasta = fa,
+        fasta = os.path.join(data_dir, 'aln.fa'),
     output:
-        tab = os.path.join(data_dir, 'drm_data.tab')
+        tab = temp(os.path.join(data_dir, 'drm_data.tab'))
     params:
         mem = 2000,
         name = 'sierra',
+        qos = 'fast'
     threads: 1
     singularity: "docker://evolbioinfo/sdrmhunter:v0.2.1.2"
     shell: "sdrmhunter --fasta {input.fasta} --output {output.tab}"
@@ -133,14 +138,15 @@ rule metadata:
     '''
     input:
         drm_tab = os.path.join(data_dir, 'drm_data.tab'),
-        data = data,
-        fa = fa
+        data = os.path.join(data_dir, 'data_la_phy.tab'),
+        fa = os.path.join(data_dir, 'aln.fa')
     output:
         data = metadata,
-        fa = aln
+        fa = os.path.join(data_dir, 'alignment.fa')
     params:
         mem = 2000,
-        name = 'metadata'
+        name = 'metadata',
+        qos = 'fast'
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell:
@@ -164,6 +170,7 @@ rule clean_alignment:
         name = 'clean',
         PR_start_pos = 0,
         RT_start_pos = 99,
+        qos = 'fast'
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell:
@@ -173,42 +180,29 @@ rule clean_alignment:
         --RT_start_pos {params.RT_start_pos}
         """
 
-rule convert_alignment:
-    '''
-    Filter and convert a fasta alignment to another format.
-    '''
-    input:
-        fa = os.path.join(data_dir, 'alignment{af}.fa')
-    output:
-        fa = os.path.join(data_dir, 'alignment{af}.{format}')
-    params:
-        mem = 1000,
-        name = 'aln_{format}',
-        format = '{format}'
-    threads: 1
-    singularity: "docker://evolbioinfo/python-evol:v3.6"
-    shell: "python3 {folder}/py/convert_aln.py --output_fa {output.fa} --input_fa {input.fa} --format {params.format}"
-
 rule pars_trees:
     '''
     Generates n parsimonious starting trees with RAxML-NG.
     '''
     input:
-        aln=os.path.join(data_dir, 'alignment.nodrm.fa')
+        aln = os.path.join(data_dir, 'alignment.nodrm.fa')
     output:
-        trees=os.path.join(data_dir, '{n}_pars_trees.fa'),
+        trees = os.path.join(data_dir, '{n}_pars_trees.nwk'),
     threads: 12
     singularity: "docker://evolbioinfo/raxml-ng:v0.7.0-beta"
     params:
         mem = 8000,
         name = 'rx_pars',
-        n = '{n}'
+        n = '{n}',
+        qos = 'fast'
     shell:
         """
         cd {data_dir}
         raxml-ng --start --tree pars{{{params.n}}} --model GTR+G6 --msa {input.aln} --msa-format FASTA --data-type DNA \
         --seed 239 --threads {threads} --force
         mv {input.aln}.raxml.startTree {output.trees}
+        rm -rf {input.aln}.raxml.log
+        rm -rf {input.aln}.raxml.rba
         """
 
 rule split_nwk:
@@ -216,16 +210,17 @@ rule split_nwk:
     Split multiple-tree newick file into multiple one-tree newick files.
     '''
     input:
-        trees = os.path.join(data_dir, '{n}_pars_trees.nex')
+        trees = os.path.join(data_dir, '%d_pars_trees.nwk' % n)
     output:
         expand(os.path.join(data_dir, '{n}', 'pars_tree.nwk'), n=range(n))
     params:
         mem = 1000,
         tree_pattern = os.path.join(data_dir, '%s', 'pars_tree.nwk'),
-        name = 'split_nwk'
+        name = 'split_nwk',
+        qos = 'fast'
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
-    shell: "python3 {folder}/py/nex2nwk.py --trees {input.trees} --pattern {params.tree_pattern} --log {output.log}"
+    shell: "python3 {folder}/py/split_nwk.py --trees {input.trees} --pattern {params.tree_pattern}"
 
 rule fasttree:
     '''
@@ -241,7 +236,8 @@ rule fasttree:
     singularity: "docker://evolbioinfo/fasttree:v2.1.10"
     params:
         mem = 8000,
-        name='fast_{n}'
+        name='fast_{n}',
+        qos = 'normal'
     shell: "FastTree -gamma -nt -gtr -cat 6 -intree {input.tree} -log {output.log} < {input.aln} > {output.tree}"
 
 rule phyml:
@@ -259,7 +255,8 @@ rule phyml:
     singularity: "docker://evolbioinfo/phyml:v3.3.20180621"
     params:
         mem = 4000,
-        name = 'phyml_{n}'
+        name = 'phyml_{n}',
+        qos = 'long'
     shell:
         """
         cp {input.aln} {params.aln}
@@ -276,16 +273,16 @@ rule raxml:
         aln = os.path.join(data_dir, 'alignment.nodrm.fa'),
         tree = os.path.join(data_dir, '{n}', 'pars_tree.nwk')
     output:
-        aln = temp(os.path.join(data_dir, '{n}', 'rax_alignment.nodrm.fa')),
-        tree = os.path.join(data_dir, '{n}', 'rax_tree.nwk'),
-        log = os.path.join(data_dir, '{n}', 'rax_tree.log'),
+        aln = temp(os.path.join(data_dir, '{n}', 'raxml_alignment.nodrm.fa')),
+        tree = os.path.join(data_dir, '{n}', 'raxml_tree.nwk'),
+        log = os.path.join(data_dir, '{n}', 'raxml_tree.log'),
     threads: 12
     singularity: "docker://evolbioinfo/raxml-ng:v0.7.0-beta"
     params:
         mem = 8000,
         name = 'rx_{n}',
         dir = os.path.join(data_dir, '{n}'),
-        n = '{n}'
+        qos = 'long'
     shell:
         """
         cd {params.dir}
@@ -308,7 +305,8 @@ rule get_seq_ids:
         mem = 500,
         name = 'ids_{subtype}',
         col_value = '{subtype}',
-        col_name = 'Subtype'
+        col_name = 'Subtype',
+        qos = 'fast'
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell:
@@ -329,7 +327,8 @@ rule root:
     threads: 1
     params:
         mem = 500,
-        name='root'
+        name='root',
+        qos = 'fast'
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell:  "python3 {folder}/py/root.py --input_tree {input.tree} --ids {input.ids} --output_tree {output.tree} --ingroup"
 
@@ -346,7 +345,8 @@ rule collapse:
         mem = 500,
         name='collapse_{feature}_{threshold}',
         threshold='{threshold}',
-        feature='{feature}'
+        feature='{feature}',
+        qos = 'fast'
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell:
         """
@@ -366,7 +366,8 @@ rule pastml_tree:
         1
     params:
         mem = 1000,
-        name = 'name_{n}'
+        name = 'name_{n}',
+        qos = 'fast'
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell: "python3 {folder}/py/name_tree.py --input_tree {input.tree} --output_tree {output.tree}"
 
@@ -385,7 +386,8 @@ rule best_tree:
     params:
         mem = 1000,
         name = 'best',
-        type = '{type}'
+        type = '{type}',
+        qos = 'fast'
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell:
         """
@@ -399,14 +401,15 @@ rule compare_trees:
     '''
     input:
         trees = os.path.join(data_dir, '{trees}.nwk'),
-        qt = temp(os.path.join(data_dir, 'distances_{trees}.quartet.tab')),
+        qt = os.path.join(data_dir, 'distances_{trees}.quartet.tab'),
     output:
         log = os.path.join(data_dir, 'distances_{trees}.tab')
     threads:
         1
     params:
         mem = 1000,
-        name = 'dist'
+        name = 'dist',
+        qos = 'fast'
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell: "python3 {folder}/py/compare_trees.py --trees {input.trees} --output {output.log} --qt {input.qt}"
 
@@ -420,7 +423,8 @@ rule merge_nwk_best:
         trees = os.path.join(data_dir, 'best_trees.nwk')
     params:
         mem = 1000,
-        name = 'merge_nwk'
+        name = 'merge_nwk',
+        qos = 'fast'
     threads: 1
     shell: "cat {input.trees} >> {output.trees}"
 
@@ -434,7 +438,8 @@ rule merge_nwk_same_type:
         trees = os.path.join(data_dir, '{type}_trees.nwk')
     params:
         mem = 1000,
-        name = 'merge_nwk'
+        name = 'merge_nwk',
+        qos = 'fast'
     threads: 1
     shell: "cat {input.trees} >> {output.trees}"
 
@@ -450,7 +455,8 @@ rule quartet_dists:
     singularity: "docker://evolbioinfo/tqdist:v1.0.1"
     params:
         mem = 8000,
-        name = 'tqdist'
+        name = 'tqdist',
+        qos = 'fast'
     shell:
         """
         all_pairs_quartet_dist {input} {output}
