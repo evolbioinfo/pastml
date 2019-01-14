@@ -1,0 +1,565 @@
+
+RAxML-NG v. 0.7.0git BETA released on 22.10.2018 by The Exelixis Lab.
+Authors: Alexey Kozlov, Alexandros Stamatakis, Diego Darriba, Tomas Flouri, Benoit Morel.
+Latest version: https://github.com/amkozlov/raxml-ng
+Questions/problems/suggestions? Please visit: https://groups.google.com/forum/#!forum/raxml
+
+WARNING: This is a BETA release, please use at your own risk!
+
+RAxML-NG was called as follows:
+
+raxml-ng --tree /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/pars_tree.nwk --model GTR+G6 --msa /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/raxml_alignment.nodrm.fa --msa-format FASTA --data-type DNA --seed 239 --threads 12 --force
+
+Analysis options:
+  run mode: ML tree search
+  start tree(s): user
+  random seed: 239
+  tip-inner: OFF
+  pattern compression: ON
+  per-rate scalers: OFF
+  site repeats: ON
+  fast spr radius: AUTO
+  spr subtree cutoff: 1.000000
+  branch lengths: linked (ML estimate, algorithm: NR-FAST)
+  SIMD kernels: AVX2
+  parallelization: PTHREADS (12 threads), thread pinning: OFF
+
+WARNING: Running in FORCE mode: all safety checks are disabled!
+
+[00:00:00] Reading alignment from file: /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/raxml_alignment.nodrm.fa
+[00:00:00] Loaded alignment with 3639 taxa and 882 sites
+
+Alignment comprises 1 partitions and 849 patterns
+
+Partition 0: noname
+Model: GTR+FO+G6m
+Alignment sites / patterns: 882 / 849
+Gaps: 0.04 %
+Invariant sites: 2.83 %
+
+
+NOTE: Binary MSA file created: /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/raxml_alignment.nodrm.fa.raxml.rba
+
+[00:00:00] Loading user starting tree(s) from: /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/pars_tree.nwk
+[00:00:00] Data distribution: max. partitions/sites/weight per thread: 1 / 71 / 1704
+
+Starting ML tree search with 1 distinct starting trees
+
+[00:00:00 -399782.088751] Initial branch length optimization
+[00:00:03 -351374.467700] Model parameter optimization (eps = 10.000000)
+[00:01:24 -320251.209284] AUTODETECT spr round 1 (radius: 5)
+[00:04:45 -317539.623196] AUTODETECT spr round 2 (radius: 10)
+[00:08:55 -316564.365128] AUTODETECT spr round 3 (radius: 15)
+
+RAxML-NG v. 0.7.0git BETA released on 22.10.2018 by The Exelixis Lab.
+Authors: Alexey Kozlov, Alexandros Stamatakis, Diego Darriba, Tomas Flouri, Benoit Morel.
+Latest version: https://github.com/amkozlov/raxml-ng
+Questions/problems/suggestions? Please visit: https://groups.google.com/forum/#!forum/raxml
+
+WARNING: This is a BETA release, please use at your own risk!
+
+RAxML-NG was called as follows:
+
+raxml-ng --tree /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/pars_tree.nwk --model GTR+G6 --msa /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/raxml_alignment.nodrm.fa --msa-format FASTA --data-type DNA --seed 239 --threads 12 --force
+
+Analysis options:
+  run mode: ML tree search
+  start tree(s): user
+  random seed: 239
+  tip-inner: OFF
+  pattern compression: ON
+  per-rate scalers: OFF
+  site repeats: ON
+  fast spr radius: AUTO
+  spr subtree cutoff: 1.000000
+  branch lengths: linked (ML estimate, algorithm: NR-FAST)
+  SIMD kernels: AVX2
+  parallelization: PTHREADS (12 threads), thread pinning: OFF
+
+WARNING: Running in FORCE mode: all safety checks are disabled!
+
+WARNING: The model you specified on the command line (GTR+G6) will be ignored 
+         since the binary MSA file already contains a model definition.
+         If you want to change the model, please re-run RAxML-NG 
+         with the original PHYLIP/FASTA alignment and --redo option.
+
+[00:00:00] Loading binary alignment from file: /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/raxml_alignment.nodrm.fa.raxml.rba
+[00:00:00] Alignment comprises 3639 taxa, 1 partitions and 849 patterns
+
+Partition 0: noname
+Model: GTR+FO+G6m
+Alignment sites / patterns: 882 / 849
+Gaps: 0.04 %
+Invariant sites: 2.83 %
+
+
+[00:00:00] NOTE: Resuming execution from checkpoint (logLH: -316564.37, ML trees: 0, bootstraps: 0)
+[00:00:00] Data distribution: max. partitions/sites/weight per thread: 1 / 71 / 1704
+
+Starting ML tree search with 1 distinct starting trees
+
+[00:00:00 -316564.365128] AUTODETECT spr round 3 (radius: 15)
+[00:05:33 -315792.890162] AUTODETECT spr round 4 (radius: 20)
+[00:12:44 -315191.836148] AUTODETECT spr round 5 (radius: 25)
+[00:21:16 -314808.122464] SPR radius for FAST iterations: 25 (autodetect)
+[00:21:16 -314808.122464] Model parameter optimization (eps = 3.000000)
+[00:21:36 -314763.187367] FAST spr round 1 (radius: 25)
+[00:37:49 -313023.168770] FAST spr round 2 (radius: 25)
+[00:52:37 -312449.851513] FAST spr round 3 (radius: 25)
+[01:03:44 -312226.995847] FAST spr round 4 (radius: 25)
+[01:13:05 -312118.738446] FAST spr round 5 (radius: 25)
+[01:21:28 -312048.835988] FAST spr round 6 (radius: 25)
+[01:29:22 -312010.979700] FAST spr round 7 (radius: 25)
+[01:36:48 -311986.464611] FAST spr round 8 (radius: 25)
+[01:43:59 -311974.968725] FAST spr round 9 (radius: 25)
+[01:50:38 -311968.847772] FAST spr round 10 (radius: 25)
+[01:57:03 -311967.817059] FAST spr round 11 (radius: 25)
+[02:03:14 -311967.817057] Model parameter optimization (eps = 1.000000)
+[02:03:35 -311951.862699] SLOW spr round 1 (radius: 5)
+[02:11:24 -311813.111541] SLOW spr round 2 (radius: 5)
+[02:18:24 -311784.806676] SLOW spr round 3 (radius: 5)
+[02:25:04 -311770.896191] SLOW spr round 4 (radius: 5)
+[02:31:36 -311761.576857] SLOW spr round 5 (radius: 5)
+[02:37:58 -311761.558074] SLOW spr round 6 (radius: 10)
+[02:44:48 -311722.477900] SLOW spr round 7 (radius: 5)
+[02:52:31 -311696.051557] SLOW spr round 8 (radius: 5)
+[02:59:31 -311692.007365] SLOW spr round 9 (radius: 5)
+[03:06:10 -311689.709642] SLOW spr round 10 (radius: 5)
+[03:12:54 -311688.290152] SLOW spr round 11 (radius: 5)
+[03:19:37 -311687.533863] SLOW spr round 12 (radius: 5)
+[03:26:15 -311687.533804] SLOW spr round 13 (radius: 10)
+[03:33:23 -311673.134927] SLOW spr round 14 (radius: 5)
+[03:41:30 -311669.663555] SLOW spr round 15 (radius: 5)
+[03:48:44 -311669.663097] SLOW spr round 16 (radius: 10)
+[03:56:05 -311664.037879] SLOW spr round 17 (radius: 5)
+[04:04:15 -311658.136362] SLOW spr round 18 (radius: 5)
+[04:11:44 -311656.622263] SLOW spr round 19 (radius: 5)
+[04:18:45 -311656.069869] SLOW spr round 20 (radius: 5)
+[04:25:33 -311656.069867] SLOW spr round 21 (radius: 10)
+[04:32:33 -311653.432260] SLOW spr round 22 (radius: 5)
+[04:40:33 -311652.580236] SLOW spr round 23 (radius: 5)
+[04:47:51 -311652.580225] SLOW spr round 24 (radius: 10)
+[04:55:12 -311650.877596] SLOW spr round 25 (radius: 5)
+[05:03:15 -311650.859919] SLOW spr round 26 (radius: 10)
+[05:11:15 -311649.125585] SLOW spr round 27 (radius: 5)
+[05:19:19 -311645.130137] SLOW spr round 28 (radius: 5)
+[05:26:36 -311644.869593] SLOW spr round 29 (radius: 5)
+[05:33:33 -311644.869593] SLOW spr round 30 (radius: 10)
+[05:40:40 -311635.759219] SLOW spr round 31 (radius: 5)
+[05:48:51 -311634.726454] SLOW spr round 32 (radius: 5)
+[05:56:10 -311634.726338] SLOW spr round 33 (radius: 10)
+[06:03:20 -311633.538477] SLOW spr round 34 (radius: 5)
+[06:11:07 -311633.460368] SLOW spr round 35 (radius: 10)
+[06:18:56 -311632.562634] SLOW spr round 36 (radius: 5)
+[06:26:56 -311630.798113] SLOW spr round 37 (radius: 5)
+[06:34:21 -311629.628760] SLOW spr round 38 (radius: 5)
+[06:41:21 -311629.628339] SLOW spr round 39 (radius: 10)
+[06:48:25 -311629.307198] SLOW spr round 40 (radius: 5)
+[06:56:23 -311628.722093] SLOW spr round 41 (radius: 5)
+[07:03:35 -311628.722081] SLOW spr round 42 (radius: 10)
+[07:10:59 -311623.495773] SLOW spr round 43 (radius: 5)
+[07:19:02 -311622.135928] SLOW spr round 44 (radius: 5)
+[07:26:20 -311622.135910] SLOW spr round 45 (radius: 10)
+[07:33:40 -311621.832636] SLOW spr round 46 (radius: 5)
+[07:41:39 -311621.832636] SLOW spr round 47 (radius: 10)
+[07:49:39 -311621.561937] SLOW spr round 48 (radius: 5)
+[07:57:40 -311620.782178] SLOW spr round 49 (radius: 5)
+[08:05:00 -311620.782038] SLOW spr round 50 (radius: 10)
+[08:12:20 -311619.835810] SLOW spr round 51 (radius: 5)
+[08:20:18 -311616.969613] SLOW spr round 52 (radius: 5)
+[08:27:32 -311616.969557] SLOW spr round 53 (radius: 10)
+[08:34:45 -311616.298670] SLOW spr round 54 (radius: 5)
+[08:42:41 -311616.298464] SLOW spr round 55 (radius: 10)
+[08:50:32 -311615.596170] SLOW spr round 56 (radius: 5)
+[08:58:13 -311615.596170] SLOW spr round 57 (radius: 10)
+[09:06:00 -311615.444836] SLOW spr round 58 (radius: 5)
+[09:13:58 -311613.232811] SLOW spr round 59 (radius: 5)
+[09:21:18 -311613.232803] SLOW spr round 60 (radius: 10)
+[09:28:47 -311613.076756] SLOW spr round 61 (radius: 5)
+[09:36:58 -311613.076696] SLOW spr round 62 (radius: 10)
+[09:45:10 -311612.781939] SLOW spr round 63 (radius: 5)
+[09:53:29 -311612.121993] SLOW spr round 64 (radius: 5)
+[10:01:04 -311612.120660] SLOW spr round 65 (radius: 10)
+[10:08:34 -311611.851783] SLOW spr round 66 (radius: 5)
+[10:17:00 -311610.180696] SLOW spr round 67 (radius: 5)
+[10:24:31 -311610.179809] SLOW spr round 68 (radius: 10)
+[10:31:51 -311608.284167] SLOW spr round 69 (radius: 5)
+[10:39:55 -311608.284163] SLOW spr round 70 (radius: 10)
+[10:48:07 -311606.843610] SLOW spr round 71 (radius: 5)
+[10:56:14 -311605.391955] SLOW spr round 72 (radius: 5)
+[11:03:29 -311604.680597] SLOW spr round 73 (radius: 5)
+[11:10:23 -311604.680597] SLOW spr round 74 (radius: 10)
+[11:17:39 -311604.357332] SLOW spr round 75 (radius: 5)
+[11:25:54 -311602.437271] SLOW spr round 76 (radius: 5)
+[11:35:43 -311602.437218] SLOW spr round 77 (radius: 10)
+[11:45:37 -311599.915819] SLOW spr round 78 (radius: 5)
+[11:56:14 -311597.657704] SLOW spr round 79 (radius: 5)
+[12:06:10 -311597.657599] SLOW spr round 80 (radius: 10)
+[12:15:13 -311594.320642] SLOW spr round 81 (radius: 5)
+[12:24:33 -311593.730949] SLOW spr round 82 (radius: 5)
+[12:33:09 -311593.730949] SLOW spr round 83 (radius: 10)
+[12:41:45 -311593.730949] SLOW spr round 84 (radius: 15)
+[12:57:05 -311561.927038] SLOW spr round 85 (radius: 5)
+[13:06:48 -311546.841230] SLOW spr round 86 (radius: 5)
+[13:15:37 -311546.840267] SLOW spr round 87 (radius: 10)
+[13:24:25 -311541.368423] SLOW spr round 88 (radius: 5)
+[13:33:53 -311538.536674] SLOW spr round 89 (radius: 5)
+[13:42:29 -311538.536662] SLOW spr round 90 (radius: 10)
+[13:51:09 -311535.643157] SLOW spr round 91 (radius: 5)
+[14:00:30 -311534.453115] SLOW spr round 92 (radius: 5)
+[14:09:08 -311534.453100] SLOW spr round 93 (radius: 10)
+[14:17:47 -311534.453100] SLOW spr round 94 (radius: 15)
+[14:32:58 -311517.932539] SLOW spr round 95 (radius: 5)
+[14:42:48 -311515.097704] SLOW spr round 96 (radius: 5)
+[14:51:50 -311511.503282] SLOW spr round 97 (radius: 5)
+[15:00:13 -311511.503187] SLOW spr round 98 (radius: 10)
+[15:08:40 -311511.363638] SLOW spr round 99 (radius: 5)
+[15:18:12 -311511.152415] SLOW spr round 100 (radius: 5)
+[15:26:59 -311511.152413] SLOW spr round 101 (radius: 10)
+[15:35:44 -311511.152413] SLOW spr round 102 (radius: 15)
+[15:50:55 -311509.188419] SLOW spr round 103 (radius: 5)
+[16:00:41 -311506.863279] SLOW spr round 104 (radius: 5)
+[16:09:28 -311506.863279] SLOW spr round 105 (radius: 10)
+[16:18:20 -311506.863279] SLOW spr round 106 (radius: 15)
+[16:33:32 -311505.642912] SLOW spr round 107 (radius: 5)
+[16:43:14 -311505.642912] SLOW spr round 108 (radius: 10)
+[16:53:08 -311505.642912] SLOW spr round 109 (radius: 15)
+[17:07:41 -311505.389876] SLOW spr round 110 (radius: 5)
+[17:17:23 -311502.175134] SLOW spr round 111 (radius: 5)
+[17:26:14 -311498.858537] SLOW spr round 112 (radius: 5)
+[17:34:39 -311498.215472] SLOW spr round 113 (radius: 5)
+[17:42:52 -311498.215360] SLOW spr round 114 (radius: 10)
+[17:51:24 -311495.305930] SLOW spr round 115 (radius: 5)
+[18:00:51 -311494.219408] SLOW spr round 116 (radius: 5)
+[18:09:36 -311494.219407] SLOW spr round 117 (radius: 10)
+[18:18:20 -311494.219407] SLOW spr round 118 (radius: 15)
+[18:33:35 -311493.740503] SLOW spr round 119 (radius: 5)
+[18:43:45 -311493.740495] SLOW spr round 120 (radius: 10)
+[18:54:10 -311493.740495] SLOW spr round 121 (radius: 15)
+
+RAxML-NG v. 0.7.0git BETA released on 22.10.2018 by The Exelixis Lab.
+Authors: Alexey Kozlov, Alexandros Stamatakis, Diego Darriba, Tomas Flouri, Benoit Morel.
+Latest version: https://github.com/amkozlov/raxml-ng
+Questions/problems/suggestions? Please visit: https://groups.google.com/forum/#!forum/raxml
+
+WARNING: This is a BETA release, please use at your own risk!
+
+RAxML-NG was called as follows:
+
+raxml-ng --tree /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/pars_tree.nwk --model GTR+G6 --msa /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/raxml_alignment.nodrm.fa --msa-format FASTA --data-type DNA --seed 239 --threads 12 --force
+
+Analysis options:
+  run mode: ML tree search
+  start tree(s): user
+  random seed: 239
+  tip-inner: OFF
+  pattern compression: ON
+  per-rate scalers: OFF
+  site repeats: ON
+  fast spr radius: AUTO
+  spr subtree cutoff: 1.000000
+  branch lengths: linked (ML estimate, algorithm: NR-FAST)
+  SIMD kernels: AVX2
+  parallelization: PTHREADS (12 threads), thread pinning: OFF
+
+WARNING: Running in FORCE mode: all safety checks are disabled!
+
+WARNING: The model you specified on the command line (GTR+G6) will be ignored 
+         since the binary MSA file already contains a model definition.
+         If you want to change the model, please re-run RAxML-NG 
+         with the original PHYLIP/FASTA alignment and --redo option.
+
+[00:00:00] Loading binary alignment from file: /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/raxml_alignment.nodrm.fa.raxml.rba
+[00:00:00] Alignment comprises 3639 taxa, 1 partitions and 849 patterns
+
+Partition 0: noname
+Model: GTR+FO+G6m
+Alignment sites / patterns: 882 / 849
+Gaps: 0.04 %
+Invariant sites: 2.83 %
+
+
+[00:00:00] NOTE: Resuming execution from checkpoint (logLH: -311493.74, ML trees: 0, bootstraps: 0)
+[00:00:00] Data distribution: max. partitions/sites/weight per thread: 1 / 71 / 1704
+
+Starting ML tree search with 1 distinct starting trees
+
+[00:00:00 -311493.740495] SPR radius for FAST iterations: 25 (autodetect)
+[00:00:00 -311493.740495] SLOW spr round 121 (radius: 15)
+[00:12:03 -311493.691459] SLOW spr round 122 (radius: 20)
+
+RAxML-NG v. 0.7.0git BETA released on 22.10.2018 by The Exelixis Lab.
+Authors: Alexey Kozlov, Alexandros Stamatakis, Diego Darriba, Tomas Flouri, Benoit Morel.
+Latest version: https://github.com/amkozlov/raxml-ng
+Questions/problems/suggestions? Please visit: https://groups.google.com/forum/#!forum/raxml
+
+WARNING: This is a BETA release, please use at your own risk!
+
+RAxML-NG was called as follows:
+
+raxml-ng --tree /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/pars_tree.nwk --model GTR+G6 --msa /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/raxml_alignment.nodrm.fa --msa-format FASTA --data-type DNA --seed 239 --threads 12 --force
+
+Analysis options:
+  run mode: ML tree search
+  start tree(s): user
+  random seed: 239
+  tip-inner: OFF
+  pattern compression: ON
+  per-rate scalers: OFF
+  site repeats: ON
+  fast spr radius: AUTO
+  spr subtree cutoff: 1.000000
+  branch lengths: linked (ML estimate, algorithm: NR-FAST)
+  SIMD kernels: AVX2
+  parallelization: PTHREADS (12 threads), thread pinning: OFF
+
+WARNING: Running in FORCE mode: all safety checks are disabled!
+
+WARNING: The model you specified on the command line (GTR+G6) will be ignored 
+         since the binary MSA file already contains a model definition.
+         If you want to change the model, please re-run RAxML-NG 
+         with the original PHYLIP/FASTA alignment and --redo option.
+
+[00:00:00] Loading binary alignment from file: /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/raxml_alignment.nodrm.fa.raxml.rba
+[00:00:00] Alignment comprises 3639 taxa, 1 partitions and 849 patterns
+
+Partition 0: noname
+Model: GTR+FO+G6m
+Alignment sites / patterns: 882 / 849
+Gaps: 0.04 %
+Invariant sites: 2.83 %
+
+
+[00:00:00] NOTE: Resuming execution from checkpoint (logLH: -311493.69, ML trees: 0, bootstraps: 0)
+[00:00:00] Data distribution: max. partitions/sites/weight per thread: 1 / 71 / 1704
+
+Starting ML tree search with 1 distinct starting trees
+
+[00:00:00 -311493.691459] SPR radius for FAST iterations: 25 (autodetect)
+[00:00:00 -311493.691459] SLOW spr round 122 (radius: 20)
+[00:22:22 -311456.670855] SLOW spr round 123 (radius: 5)
+[00:29:54 -311431.563134] SLOW spr round 124 (radius: 5)
+[00:36:40 -311422.909503] SLOW spr round 125 (radius: 5)
+[00:42:46 -311422.909299] SLOW spr round 126 (radius: 10)
+[00:50:02 -311415.149156] SLOW spr round 127 (radius: 5)
+[00:57:54 -311412.160771] SLOW spr round 128 (radius: 5)
+[01:04:55 -311412.160770] SLOW spr round 129 (radius: 10)
+[01:11:58 -311410.770614] SLOW spr round 130 (radius: 5)
+[01:19:40 -311410.770168] SLOW spr round 131 (radius: 10)
+[01:27:27 -311410.770168] SLOW spr round 132 (radius: 15)
+[01:40:37 -311406.265049] SLOW spr round 133 (radius: 5)
+[01:48:51 -311405.419734] SLOW spr round 134 (radius: 5)
+[01:56:13 -311404.390177] SLOW spr round 135 (radius: 5)
+[02:03:04 -311404.385341] SLOW spr round 136 (radius: 10)
+[02:09:54 -311403.009436] SLOW spr round 137 (radius: 5)
+[02:17:59 -311403.009344] SLOW spr round 138 (radius: 10)
+[02:26:10 -311403.009344] SLOW spr round 139 (radius: 15)
+[02:39:18 -311402.810435] SLOW spr round 140 (radius: 5)
+[02:47:18 -311402.810428] SLOW spr round 141 (radius: 10)
+[02:55:32 -311402.810428] SLOW spr round 142 (radius: 15)
+[03:08:30 -311402.694832] SLOW spr round 143 (radius: 5)
+[03:16:28 -311402.694832] SLOW spr round 144 (radius: 10)
+[03:24:38 -311400.358488] SLOW spr round 145 (radius: 5)
+[03:32:22 -311400.031311] SLOW spr round 146 (radius: 5)
+[03:39:21 -311400.031308] SLOW spr round 147 (radius: 10)
+[03:46:24 -311400.031308] SLOW spr round 148 (radius: 15)
+[04:00:02 -311400.031308] SLOW spr round 149 (radius: 20)
+[04:23:06 -311385.094109] SLOW spr round 150 (radius: 5)
+[04:31:23 -311380.474601] SLOW spr round 151 (radius: 5)
+[04:38:39 -311380.474586] SLOW spr round 152 (radius: 10)
+[04:45:53 -311376.711224] SLOW spr round 153 (radius: 5)
+[04:53:36 -311376.430714] SLOW spr round 154 (radius: 5)
+[05:00:35 -311376.430714] SLOW spr round 155 (radius: 10)
+[05:07:33 -311376.430714] SLOW spr round 156 (radius: 15)
+[05:21:30 -311376.073984] SLOW spr round 157 (radius: 5)
+[05:29:38 -311371.699484] SLOW spr round 158 (radius: 5)
+[05:36:54 -311368.610724] SLOW spr round 159 (radius: 5)
+[05:43:51 -311368.610369] SLOW spr round 160 (radius: 10)
+[05:51:14 -311368.610369] SLOW spr round 161 (radius: 15)
+[06:06:01 -311367.952910] SLOW spr round 162 (radius: 5)
+[06:14:41 -311367.897487] SLOW spr round 163 (radius: 10)
+[06:23:23 -311367.897487] SLOW spr round 164 (radius: 15)
+[06:36:48 -311367.897487] SLOW spr round 165 (radius: 20)
+[07:01:08 -311364.066777] SLOW spr round 166 (radius: 5)
+[07:09:10 -311363.742762] SLOW spr round 167 (radius: 5)
+[07:16:21 -311363.742762] SLOW spr round 168 (radius: 10)
+[07:23:28 -311363.742762] SLOW spr round 169 (radius: 15)
+[07:37:03 -311363.385411] SLOW spr round 170 (radius: 5)
+[07:44:58 -311363.385409] SLOW spr round 171 (radius: 10)
+[07:53:23 -311363.385409] SLOW spr round 172 (radius: 15)
+[08:07:10 -311363.385409] SLOW spr round 173 (radius: 20)
+[08:31:30 -311363.081378] SLOW spr round 174 (radius: 5)
+[08:40:17 -311361.328049] SLOW spr round 175 (radius: 5)
+[08:48:08 -311361.328044] SLOW spr round 176 (radius: 10)
+[08:55:55 -311361.328044] SLOW spr round 177 (radius: 15)
+[09:10:11 -311361.328044] SLOW spr round 178 (radius: 20)
+[09:34:22 -311361.020634] SLOW spr round 179 (radius: 5)
+[09:44:01 -311360.990487] SLOW spr round 180 (radius: 10)
+[09:53:34 -311360.990437] SLOW spr round 181 (radius: 15)
+[10:07:20 -311360.990437] SLOW spr round 182 (radius: 20)
+[10:31:40 -311360.951139] SLOW spr round 183 (radius: 25)
+[11:07:26 -311307.143990] SLOW spr round 184 (radius: 5)
+[11:16:23 -311285.669546] SLOW spr round 185 (radius: 5)
+[11:24:21 -311285.540008] SLOW spr round 186 (radius: 5)
+[11:31:44 -311285.540008] SLOW spr round 187 (radius: 10)
+[11:39:13 -311275.918635] SLOW spr round 188 (radius: 5)
+[11:47:31 -311275.918635] SLOW spr round 189 (radius: 10)
+[11:55:49 -311275.918635] SLOW spr round 190 (radius: 15)
+[12:09:43 -311265.227859] SLOW spr round 191 (radius: 5)
+[12:19:00 -311259.289715] SLOW spr round 192 (radius: 5)
+[12:27:32 -311258.208917] SLOW spr round 193 (radius: 5)
+[12:35:29 -311258.208917] SLOW spr round 194 (radius: 10)
+[12:43:38 -311258.208917] SLOW spr round 195 (radius: 15)
+[12:58:58 -311258.208917] SLOW spr round 196 (radius: 20)
+[13:24:42 -311239.930082] SLOW spr round 197 (radius: 5)
+[13:33:46 -311239.929670] SLOW spr round 198 (radius: 10)
+[13:42:46 -311239.929670] SLOW spr round 199 (radius: 15)
+[13:56:30 -311239.929670] SLOW spr round 200 (radius: 20)
+[14:21:49 -311239.824611] SLOW spr round 201 (radius: 5)
+[14:30:27 -311239.824594] SLOW spr round 202 (radius: 10)
+[14:39:31 -311239.424742] SLOW spr round 203 (radius: 5)
+[14:48:19 -311239.424545] SLOW spr round 204 (radius: 10)
+[14:57:06 -311239.424545] SLOW spr round 205 (radius: 15)
+[15:11:04 -311239.424545] SLOW spr round 206 (radius: 20)
+[15:36:22 -311239.424545] SLOW spr round 207 (radius: 25)
+[16:15:08 -311227.911346] SLOW spr round 208 (radius: 5)
+[16:24:41 -311221.073485] SLOW spr round 209 (radius: 5)
+[16:33:18 -311221.073304] SLOW spr round 210 (radius: 10)
+[16:41:48 -311221.073304] SLOW spr round 211 (radius: 15)
+[16:56:40 -311221.073304] SLOW spr round 212 (radius: 20)
+[17:22:13 -311221.011216] SLOW spr round 213 (radius: 25)
+[17:59:56 -311220.396358] SLOW spr round 214 (radius: 5)
+[18:08:49 -311219.860536] SLOW spr round 215 (radius: 5)
+[18:16:45 -311219.860277] SLOW spr round 216 (radius: 10)
+[18:24:41 -311219.643979] SLOW spr round 217 (radius: 5)
+[18:33:41 -311219.643794] SLOW spr round 218 (radius: 10)
+[18:42:27 -311219.643794] SLOW spr round 219 (radius: 15)
+[18:56:25 -311219.643794] SLOW spr round 220 (radius: 20)
+[19:21:35 -311218.671083] SLOW spr round 221 (radius: 5)
+[19:30:16 -311218.671083] SLOW spr round 222 (radius: 10)
+[19:39:19 -311215.835756] SLOW spr round 223 (radius: 5)
+[19:47:57 -311215.488885] SLOW spr round 224 (radius: 5)
+[19:56:15 -311214.993325] SLOW spr round 225 (radius: 5)
+[20:04:10 -311214.993298] SLOW spr round 226 (radius: 10)
+[20:12:14 -311214.993298] SLOW spr round 227 (radius: 15)
+[20:27:41 -311214.129653] SLOW spr round 228 (radius: 5)
+[20:37:00 -311212.799137] SLOW spr round 229 (radius: 5)
+[20:45:37 -311210.797409] SLOW spr round 230 (radius: 5)
+[20:53:56 -311207.027160] SLOW spr round 231 (radius: 5)
+[21:01:57 -311206.440249] SLOW spr round 232 (radius: 5)
+[21:09:48 -311206.128282] SLOW spr round 233 (radius: 5)
+[21:17:34 -311206.128281] SLOW spr round 234 (radius: 10)
+[21:25:35 -311205.374032] SLOW spr round 235 (radius: 5)
+[21:34:36 -311205.374032] SLOW spr round 236 (radius: 10)
+[21:43:46 -311205.374032] SLOW spr round 237 (radius: 15)
+[21:58:40 -311204.727707] SLOW spr round 238 (radius: 5)
+[22:08:43 -311204.181556] SLOW spr round 239 (radius: 5)
+[22:17:56 -311204.181542] SLOW spr round 240 (radius: 10)
+[22:26:54 -311204.163671] SLOW spr round 241 (radius: 15)
+[22:41:55 -311204.163671] SLOW spr round 242 (radius: 20)
+[23:07:37 -311203.221564] SLOW spr round 243 (radius: 5)
+[23:17:11 -311201.832514] SLOW spr round 244 (radius: 5)
+[23:25:50 -311200.057737] SLOW spr round 245 (radius: 5)
+[23:34:01 -311199.059553] SLOW spr round 246 (radius: 5)
+[23:41:54 -311199.059551] SLOW spr round 247 (radius: 10)
+[23:49:57 -311198.038660] SLOW spr round 248 (radius: 5)
+[23:59:00 -311198.038469] SLOW spr round 249 (radius: 10)
+[24:09:06 -311198.038469] SLOW spr round 250 (radius: 15)
+[24:24:40 -311197.798029] SLOW spr round 251 (radius: 5)
+[24:34:53 -311197.798029] SLOW spr round 252 (radius: 10)
+[24:45:22 -311197.798029] SLOW spr round 253 (radius: 15)
+[25:00:49 -311197.798029] SLOW spr round 254 (radius: 20)
+[25:27:43 -311197.798029] SLOW spr round 255 (radius: 25)
+[26:06:57 -311197.577189] SLOW spr round 256 (radius: 5)
+[26:17:25 -311197.577132] SLOW spr round 257 (radius: 10)
+[26:28:10 -311197.577131] SLOW spr round 258 (radius: 15)
+[26:42:36 -311195.714340] SLOW spr round 259 (radius: 5)
+[26:51:52 -311194.772772] SLOW spr round 260 (radius: 5)
+[27:00:16 -311194.772751] SLOW spr round 261 (radius: 10)
+[27:08:43 -311194.554866] SLOW spr round 262 (radius: 5)
+[27:17:50 -311192.732697] SLOW spr round 263 (radius: 5)
+[27:26:10 -311192.732459] SLOW spr round 264 (radius: 10)
+[27:34:36 -311192.314144] SLOW spr round 265 (radius: 5)
+[27:43:44 -311192.314110] SLOW spr round 266 (radius: 10)
+[27:52:48 -311192.314110] SLOW spr round 267 (radius: 15)
+[28:07:24 -311191.290779] SLOW spr round 268 (radius: 5)
+[28:16:47 -311191.290637] SLOW spr round 269 (radius: 10)
+[28:26:19 -311191.290637] SLOW spr round 270 (radius: 15)
+[28:40:44 -311191.290637] SLOW spr round 271 (radius: 20)
+[29:06:37 -311189.163312] SLOW spr round 272 (radius: 5)
+[29:15:54 -311188.673828] SLOW spr round 273 (radius: 5)
+[29:24:20 -311188.673827] SLOW spr round 274 (radius: 10)
+[29:32:52 -311187.138617] SLOW spr round 275 (radius: 5)
+[29:41:46 -311186.953563] SLOW spr round 276 (radius: 5)
+[29:49:59 -311186.953545] SLOW spr round 277 (radius: 10)
+[29:58:16 -311186.953545] SLOW spr round 278 (radius: 15)
+[30:13:27 -311186.953545] SLOW spr round 279 (radius: 20)
+[30:38:51 -311186.397519] SLOW spr round 280 (radius: 5)
+[30:48:18 -311186.397188] SLOW spr round 281 (radius: 10)
+[30:57:57 -311185.870538] SLOW spr round 282 (radius: 5)
+[31:06:58 -311185.870489] SLOW spr round 283 (radius: 10)
+[31:15:52 -311185.870489] SLOW spr round 284 (radius: 15)
+[31:30:09 -311185.553682] SLOW spr round 285 (radius: 5)
+[31:39:58 -311183.128560] SLOW spr round 286 (radius: 5)
+[31:48:54 -311183.128527] SLOW spr round 287 (radius: 10)
+[31:57:29 -311181.592697] SLOW spr round 288 (radius: 5)
+[32:06:30 -311181.192450] SLOW spr round 289 (radius: 5)
+[32:14:52 -311181.192430] SLOW spr round 290 (radius: 10)
+[32:24:00 -311181.192430] SLOW spr round 291 (radius: 15)
+[32:39:49 -311177.301256] SLOW spr round 292 (radius: 5)
+[32:49:58 -311177.301253] SLOW spr round 293 (radius: 10)
+[33:00:26 -311177.301253] SLOW spr round 294 (radius: 15)
+[33:15:33 -311177.301253] SLOW spr round 295 (radius: 20)
+[33:41:30 -311174.361050] SLOW spr round 296 (radius: 5)
+[33:52:12 -311172.689820] SLOW spr round 297 (radius: 5)
+[34:02:14 -311172.055957] SLOW spr round 298 (radius: 5)
+[34:11:48 -311172.055929] SLOW spr round 299 (radius: 10)
+[34:21:54 -311172.055929] SLOW spr round 300 (radius: 15)
+[34:39:32 -311168.985895] SLOW spr round 301 (radius: 5)
+[34:50:57 -311168.978990] SLOW spr round 302 (radius: 10)
+[35:02:33 -311168.535681] SLOW spr round 303 (radius: 5)
+[35:13:39 -311167.804369] SLOW spr round 304 (radius: 5)
+[35:24:01 -311167.804369] SLOW spr round 305 (radius: 10)
+[35:34:26 -311167.804369] SLOW spr round 306 (radius: 15)
+[35:51:13 -311167.804369] SLOW spr round 307 (radius: 20)
+[36:19:03 -311153.546507] SLOW spr round 308 (radius: 5)
+[36:30:37 -311149.169817] SLOW spr round 309 (radius: 5)
+[36:41:08 -311149.169747] SLOW spr round 310 (radius: 10)
+[36:51:12 -311149.169747] SLOW spr round 311 (radius: 15)
+[37:07:41 -311146.159735] SLOW spr round 312 (radius: 5)
+[37:18:31 -311146.147000] SLOW spr round 313 (radius: 10)
+[37:29:29 -311146.146996] SLOW spr round 314 (radius: 15)
+[37:45:23 -311146.146996] SLOW spr round 315 (radius: 20)
+[38:12:46 -311141.384759] SLOW spr round 316 (radius: 5)
+[38:23:23 -311138.289764] SLOW spr round 317 (radius: 5)
+[38:33:18 -311138.289429] SLOW spr round 318 (radius: 10)
+[38:43:09 -311135.920084] SLOW spr round 319 (radius: 5)
+[38:53:23 -311135.919886] SLOW spr round 320 (radius: 10)
+[39:03:23 -311135.855903] SLOW spr round 321 (radius: 15)
+[39:19:07 -311135.855903] SLOW spr round 322 (radius: 20)
+[39:46:48 -311131.631589] SLOW spr round 323 (radius: 5)
+[39:57:12 -311131.031551] SLOW spr round 324 (radius: 5)
+[40:06:46 -311131.031325] SLOW spr round 325 (radius: 10)
+[40:16:29 -311130.685379] SLOW spr round 326 (radius: 5)
+[40:26:51 -311128.969672] SLOW spr round 327 (radius: 5)
+[40:36:30 -311128.969669] SLOW spr round 328 (radius: 10)
+[40:46:00 -311128.969669] SLOW spr round 329 (radius: 15)
+[41:02:07 -311128.969669] SLOW spr round 330 (radius: 20)
+[41:28:46 -311128.594784] SLOW spr round 331 (radius: 5)
+[41:39:10 -311128.460195] SLOW spr round 332 (radius: 5)
+[41:48:44 -311128.460163] SLOW spr round 333 (radius: 10)
+[41:58:16 -311128.280904] SLOW spr round 334 (radius: 5)
+[42:08:16 -311128.280885] SLOW spr round 335 (radius: 10)
+[42:18:17 -311128.280885] SLOW spr round 336 (radius: 15)
+[42:33:52 -311128.280885] SLOW spr round 337 (radius: 20)
+[43:00:45 -311128.280885] SLOW spr round 338 (radius: 25)
+[43:39:54 -311126.644759] SLOW spr round 339 (radius: 5)
+[43:50:26 -311120.601635] SLOW spr round 340 (radius: 5)
+[43:59:59 -311118.905630] SLOW spr round 341 (radius: 5)
+[44:09:04 -311118.905468] SLOW spr round 342 (radius: 10)
+[44:18:21 -311117.574547] SLOW spr round 343 (radius: 5)
+[44:28:17 -311117.574335] SLOW spr round 344 (radius: 10)
+[44:38:21 -311117.574335] SLOW spr round 345 (radius: 15)
+[44:54:25 -311117.574335] SLOW spr round 346 (radius: 20)
+[45:22:32 -311117.574335] SLOW spr round 347 (radius: 25)
+[46:01:48 -311115.939091] SLOW spr round 348 (radius: 5)

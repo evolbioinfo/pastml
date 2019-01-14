@@ -1,0 +1,70 @@
+
+RAxML-NG v. 0.7.0git BETA released on 22.10.2018 by The Exelixis Lab.
+Authors: Alexey Kozlov, Alexandros Stamatakis, Diego Darriba, Tomas Flouri, Benoit Morel.
+Latest version: https://github.com/amkozlov/raxml-ng
+Questions/problems/suggestions? Please visit: https://groups.google.com/forum/#!forum/raxml
+
+WARNING: This is a BETA release, please use at your own risk!
+
+RAxML-NG was called as follows:
+
+raxml-ng --tree /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/1/pars_tree.nwk --model GTR+G6 --msa /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/1/raxml_alignment.nodrm.fa --msa-format FASTA --data-type DNA --seed 239 --threads 12 --force
+
+Analysis options:
+  run mode: ML tree search
+  start tree(s): user
+  random seed: 239
+  tip-inner: OFF
+  pattern compression: ON
+  per-rate scalers: OFF
+  site repeats: ON
+  fast spr radius: AUTO
+  spr subtree cutoff: 1.000000
+  branch lengths: linked (ML estimate, algorithm: NR-FAST)
+  SIMD kernels: AVX2
+  parallelization: PTHREADS (12 threads), thread pinning: OFF
+
+WARNING: Running in FORCE mode: all safety checks are disabled!
+
+[00:00:00] Reading alignment from file: /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/1/raxml_alignment.nodrm.fa
+[00:00:00] Loaded alignment with 3639 taxa and 882 sites
+
+Alignment comprises 1 partitions and 849 patterns
+
+Partition 0: noname
+Model: GTR+FO+G6m
+Alignment sites / patterns: 882 / 849
+Gaps: 0.04 %
+Invariant sites: 2.83 %
+
+
+NOTE: Binary MSA file created: /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/1/raxml_alignment.nodrm.fa.raxml.rba
+
+[00:00:00] Loading user starting tree(s) from: /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/1/pars_tree.nwk
+[00:00:00] Data distribution: max. partitions/sites/weight per thread: 1 / 71 / 1704
+
+Starting ML tree search with 1 distinct starting trees
+
+[00:00:00 -400091.929151] Initial branch length optimization
+[00:00:03 -351817.048489] Model parameter optimization (eps = 10.000000)
+[00:01:03 -320752.383457] AUTODETECT spr round 1 (radius: 5)
+[00:04:24 -318183.422392] AUTODETECT spr round 2 (radius: 10)
+[00:08:29 -316925.301355] AUTODETECT spr round 3 (radius: 15)
+[00:13:53 -316040.565523] AUTODETECT spr round 4 (radius: 20)
+[00:21:07 -315304.312027] AUTODETECT spr round 5 (radius: 25)
+[00:30:39 -314937.006559] SPR radius for FAST iterations: 25 (autodetect)
+[00:30:39 -314937.006559] Model parameter optimization (eps = 3.000000)
+[00:30:57 -314886.547675] FAST spr round 1 (radius: 25)
+[00:50:03 -313087.645588] FAST spr round 2 (radius: 25)
+[01:06:26 -312446.052384] FAST spr round 3 (radius: 25)
+[01:18:39 -312061.424593] FAST spr round 4 (radius: 25)
+[01:28:46 -311907.982831] FAST spr round 5 (radius: 25)
+[01:37:16 -311845.471789] FAST spr round 6 (radius: 25)
+[01:45:00 -311803.982158] FAST spr round 7 (radius: 25)
+[01:52:14 -311749.669606] FAST spr round 8 (radius: 25)
+[01:59:02 -311722.697097] FAST spr round 9 (radius: 25)
+[02:05:37 -311711.532839] FAST spr round 10 (radius: 25)
+[02:11:46 -311709.424548] FAST spr round 11 (radius: 25)
+[02:17:43 -311696.862150] FAST spr round 12 (radius: 25)
+[02:23:35 -311696.094129] FAST spr round 13 (radius: 25)
+[02:29:11 -311696.094129] Model parameter optimization (eps = 1.000000)
