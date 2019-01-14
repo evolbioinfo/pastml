@@ -1,17 +1,24 @@
 import os
 
 # To run locally:
-# snakemake --keep-going --cores 4
+# source activate snakemake
+# snakemake --keep-going --cores 4 --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~"
 
-# To visualise the pipeline
+# To run on tars:
+# module load conda && source /local/gensoft2/exe/conda/3.19.0/conda/bin/activate snakemake && module load singularity
+# snakemake --keep-going --cores 1 --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~" --cluster "sbatch -c {threads} -o logs/{params.name}.log -e logs/{params.name}.log --mem {params.mem} -A bioevo -p bioevo,dedicated,common --qos={params.qos} -J {params.name}" --jobs 300
+# on bioevo:
+# snakemake --keep-going --cores 1 --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~" --cluster "sbatch -c {threads} -o logs/{params.name}.log -e logs/{params.name}.log --mem {params.mem} -p bioevo --qos=bioevo -A bioevo -J {params.name}" --jobs 300
+
+# To visualise the pipeline:
+# module load graphviz
 # snakemake --dag | dot -Tsvg > acr_dag.svg
+
 
 configfile: "config.yaml"
 localrules: all
 ruleorder: pastml_drm_loc_subtree > timed_pastml_drm > pastml_drm_loc > pastml_loc > pastml_drm
 
-src_command = config['src']
-py_config = config['py_config']
 
 folder = os.path.abspath(config["folder"])
 data_dir = os.path.join(folder, config['data_dir'])
@@ -34,7 +41,6 @@ s=250
 DRMS = ['RT:M184V', 'RT:K103N', 'RT:D67N', 'RT:K70R', 'RT:Y181C']
 
 # choose one or more of the tree types below
-#tree_types = ['phyml', 'fast', 'raxml']
 tree_types = [ 'raxml', 'phyml', 'fast']
 
 location_col = 'Loc'
@@ -242,21 +248,16 @@ rule pastml_loc:
         threshold = '{t}',
         # if pars does not exist it will be just ignored, otherwise we won't redo a long PastML task
         # just to trim a bit less in the visualisation
-        pars = '--parameters {}'.format(os.path.join(data_dir, 'pastml', 'params.model_{model}.tree_{n}.type_{type}.loc_{loc}.threshold_5.{suffix}.csv')) if os.path.isfile(params.pars) else ''
-
-    run:
-        shell("""
-            {src_command}
-            {py_config}
-        """)
-        import os
-        in_pars = '--parameters {}'.format(params.pars) if os.path.isfile(params.pars) else ''
-        shell("""
-            python3 {folder}/py/acr.py --trees {input.tree} --data {input.data} --htmls {output.map} \
-            --columns {params.loc} --date_column {params.date_col} \
-            --model {params.model} --tip_size_threshold {params.threshold} \
-            --out_parameters {output.pars} {in_pars}
-        """)
+        pars = '--parameters {}'.format(os.path.join(data_dir, 'pastml', 'params.model_{model}.tree_{n}.type_{type}.loc_{loc}.threshold_5.{suffix}.csv'))
+        if os.path.isfile(os.path.join(data_dir, 'pastml', 'params.model_{model}.tree_{n}.type_{type}.loc_{loc}.threshold_5.{suffix}.csv')) else ''
+    singularity: "docker://evolbioinfo/pastml:v1.9.1"
+    shell:
+        """
+        python3 {folder}/py/acr.py --trees {input.tree} --data {input.data} --htmls {output.map} \
+        --columns {params.loc} --date_column {params.date_col} \
+        --model {params.model} --tip_size_threshold {params.threshold} \
+        --out_parameters {output.pars} {params.pars} --verbose
+        """
 
 rule geomap:
     '''
