@@ -1,7 +1,6 @@
 import logging
 from ete3.parser.newick import write_newick
-
-from pastml.tree import read_tree
+from ete3 import Tree
 
 if '__main__' == __name__:
     import argparse
@@ -16,7 +15,7 @@ if '__main__' == __name__:
 
     logging.basicConfig(level=logging.INFO, format='%(asctime)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
 
-    tr = read_tree(params.input_tree)
+    tr = Tree(params.input_tree)
 
     try:
         threshold = float(params.threshold)

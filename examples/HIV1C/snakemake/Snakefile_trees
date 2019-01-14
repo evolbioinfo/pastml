@@ -279,7 +279,7 @@ rule phyml:
     shell:
         """
         cp {input.aln} {output.aln}
-        phyml -i {output.aln} -d nt -m GTR -o tlr -f m -c 6 -a e -s RAND -u {input.tree} --r_seed 239
+        phyml -i {output.aln} -d nt -m GTR -o tlr -f m -c 6 -a e -s RAND -u {input.tree} --r_seed 239 --leave_duplicates
         mv {output.aln}_phyml_tree* {output.tree}
         mv {output.aln}_phyml_stats* {output.log}
         """
@@ -308,7 +308,7 @@ rule raxml:
         cp {input.aln} {output.aln}
         raxml-ng --tree {input.tree} --model GTR+G6 --msa {output.aln} --msa-format FASTA --data-type DNA \
         --seed 239 --threads {threads} --force
-        cp {output.aln}.raxml.result {output.tree}
+        cp {output.aln}.raxml.bestTree {output.tree}
         cp {output.aln}.raxml.log {output.log}
         """
 

@@ -93,6 +93,6 @@ if '__main__' == __name__:
             out_ids = ids
         tr = root_tree(tr, out_ids=out_ids, in_ids=in_ids, keep_outgroup=params.keep_outgroup)
 
-    nwk = write_newick(tr, format_root_node=True, format=2)
+    nwk = write_newick(tr, format_root_node=True, format=5)
     with open(params.output_tree, 'w+') as f:
         f.write('%s\n' % nwk)

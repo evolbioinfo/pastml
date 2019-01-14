@@ -3,8 +3,8 @@ import os
 import numpy as np
 import pandas as pd
 from scipy.misc import comb
+from ete3 import Tree
 
-from pastml.tree import read_tree
 
 if '__main__' == __name__:
     import argparse
@@ -19,7 +19,7 @@ if '__main__' == __name__:
     results = pd.DataFrame(columns=['tree1', 'tree2', 'norm_rf', 'norm_qt'])
     trees = list(params.trees)
     prefix = os.path.commonprefix(trees)
-    path2tree = {_: read_tree(_) for _ in trees}
+    path2tree = {_: Tree(_) for _ in trees}
 
     qt_total = comb(len(next(iter(path2tree.values()))), 4)
 
