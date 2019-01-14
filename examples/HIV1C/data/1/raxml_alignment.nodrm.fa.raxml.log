@@ -68,3 +68,56 @@ Starting ML tree search with 1 distinct starting trees
 [02:17:43 -311696.862150] FAST spr round 12 (radius: 25)
 [02:23:35 -311696.094129] FAST spr round 13 (radius: 25)
 [02:29:11 -311696.094129] Model parameter optimization (eps = 1.000000)
+
+RAxML-NG v. 0.8.0git BETA released on 11.01.2019 by The Exelixis Lab.
+Authors: Alexey Kozlov, Alexandros Stamatakis, Diego Darriba, Tomas Flouri, Benoit Morel.
+Latest version: https://github.com/amkozlov/raxml-ng
+Questions/problems/suggestions? Please visit: https://groups.google.com/forum/#!forum/raxml
+
+WARNING: This is a BETA release, please use at your own risk!
+
+RAxML-NG was called at 14-Jan-2019 16:29:48 as follows:
+
+raxml-ng --tree /home/azhukova/Pasteur/projects/hiv1c/examples/HIV1C/data/1/pars_tree.nwk --model GTR+G6 --msa /home/azhukova/Pasteur/projects/hiv1c/examples/HIV1C/data/1/raxml_alignment.nodrm.fa --msa-format FASTA --data-type DNA --seed 239 --threads 4 --force
+
+Analysis options:
+  run mode: ML tree search
+  start tree(s): user
+  random seed: 239
+  tip-inner: OFF
+  pattern compression: ON
+  per-rate scalers: OFF
+  site repeats: ON
+  fast spr radius: AUTO
+  spr subtree cutoff: 1.000000
+  branch lengths: proportional (ML estimate, algorithm: NR-FAST)
+  SIMD kernels: AVX2
+  parallelization: PTHREADS (4 threads), thread pinning: OFF
+
+WARNING: Running in FORCE mode: all safety checks are disabled!
+
+WARNING: The model you specified on the command line (GTR+G6) will be ignored 
+         since the binary MSA file already contains a model definition.
+         If you want to change the model, please re-run RAxML-NG 
+         with the original PHYLIP/FASTA alignment and --redo option.
+
+[00:00:00] Loading binary alignment from file: /home/azhukova/Pasteur/projects/hiv1c/examples/HIV1C/data/1/raxml_alignment.nodrm.fa.raxml.rba
+[00:00:00] Alignment comprises 3639 taxa, 1 partitions and 849 patterns
+
+Partition 0: noname
+Model: GTR+FO+G6m
+Alignment sites / patterns: 882 / 849
+Gaps: 0.04 %
+Invariant sites: 2.83 %
+
+
+[00:00:00] NOTE: Resuming execution from checkpoint (logLH: -311696.09, ML trees: 0, bootstraps: 0)
+[00:00:00] Data distribution: max. partitions/sites/weight per thread: 1 / 213 / 5112
+
+Starting ML tree search with 1 distinct starting trees
+
+[00:00:00 -311696.094129] SPR radius for FAST iterations: 25 (autodetect)
+[00:00:00 -311696.094129] Model parameter optimization (eps = 1.000000)
+[00:00:12 -311689.138266] SLOW spr round 1 (radius: 5)
+[00:13:14 -311543.578629] SLOW spr round 2 (radius: 5)
+[00:25:26 -311516.582752] SLOW spr round 3 (radius: 5)

@@ -189,7 +189,7 @@ rule pars_trees:
     output:
         trees = os.path.join(data_dir, '{n}_pars_trees.nwk'),
     threads: 12
-    singularity: "docker://evolbioinfo/raxml-ng:v0.7.0-beta"
+    singularity: "docker://evolbioinfo/raxml-ng:v0.8.0-beta"
     params:
         mem = 8000,
         name = 'rx_pars',
@@ -296,7 +296,7 @@ rule raxml:
         tree = os.path.join(data_dir, '{n}', 'raxml_tree.nwk'),
         log = os.path.join(data_dir, '{n}', 'raxml_tree.log'),
     threads: 12
-    singularity: "docker://evolbioinfo/raxml-ng:v0.7.0-beta"
+    singularity: "docker://evolbioinfo/raxml-ng:v0.8.0-beta"
     params:
         mem = 8000,
         name = 'rx_{n}',
