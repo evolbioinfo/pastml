@@ -563,3 +563,45 @@ Starting ML tree search with 1 distinct starting trees
 [44:54:25 -311117.574335] SLOW spr round 346 (radius: 20)
 [45:22:32 -311117.574335] SLOW spr round 347 (radius: 25)
 [46:01:48 -311115.939091] SLOW spr round 348 (radius: 5)
+[46:12:17 -311115.939085] SLOW spr round 349 (radius: 10)
+[46:23:05 -311115.939085] SLOW spr round 350 (radius: 15)
+[46:38:29 -311115.939085] SLOW spr round 351 (radius: 20)
+[47:06:36 -311115.939085] SLOW spr round 352 (radius: 25)
+[47:47:06 -311114.288951] SLOW spr round 353 (radius: 5)
+[47:58:24 -311114.288866] SLOW spr round 354 (radius: 10)
+[48:10:32 -311114.288866] SLOW spr round 355 (radius: 15)
+[48:27:18 -311113.906768] SLOW spr round 356 (radius: 5)
+[48:38:51 -311113.906686] SLOW spr round 357 (radius: 10)
+[48:49:47 -311113.906686] SLOW spr round 358 (radius: 15)
+[49:05:24 -311113.906686] SLOW spr round 359 (radius: 20)
+[49:32:22 -311113.906686] SLOW spr round 360 (radius: 25)
+[50:11:45 -311113.906686] Model parameter optimization (eps = 0.100000)
+
+[50:12:20] ML tree search #1, logLikelihood: -311108.146800
+
+
+Optimized model parameters:
+
+   Partition 0: noname
+   Rate heterogeneity: GAMMA (6 cats, mean),  alpha: 0.478395 (ML),  weights&rates: (0.166667,0.012494) (0.166667,0.096624) (0.166667,0.291434) (0.166667,0.653707) (0.166667,1.347139) (0.166667,3.598603) 
+   Base frequencies (ML): 0.464986 0.170337 0.184313 0.180364 
+   Substitution rates (ML): 1.490195 6.887106 0.886612 0.669708 10.843360 1.000000 
+
+Final LogLikelihood: -311108.146800
+
+AIC score: 636784.293601 / AICc score: 106764664.293601 / BIC score: 671617.780537
+Free parameters (model + branch lengths): 7284
+
+WARNING: Number of free parameters (K=7284) is larger than alignment size (n=882).
+         This might lead to overfitting and compromise tree inference results!
+
+
+Best ML tree saved to: /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/raxml_alignment.nodrm.fa.raxml.bestTree
+Optimized model saved to: /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/raxml_alignment.nodrm.fa.raxml.bestModel
+
+Execution log saved to: /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/2/raxml_alignment.nodrm.fa.raxml.log
+
+Analysis started: 12-Jan-2019 12:29:57 / finished: 14-Jan-2019 14:42:17
+
+Elapsed time: 180740.789 seconds (this run) / 250050.819 seconds (total with restarts)
+
