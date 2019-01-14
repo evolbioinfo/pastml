@@ -386,7 +386,7 @@ rule pastml_tree:
         mem = 1000,
         name = 'name_{n}',
         qos = 'fast'
-    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    singularity: "docker://evolbioinfo/pastml:v1.9.1"
     shell: "python3 {folder}/py/name_tree.py --input_tree {input.tree} --output_tree {output.tree}"
 
 rule best_tree:
@@ -403,7 +403,7 @@ rule best_tree:
         1
     params:
         mem = 1000,
-        name = 'best',
+        name = 'best_{type}',
         type = '{type}',
         qos = 'fast'
     singularity: "docker://evolbioinfo/python-evol:v3.6"
@@ -419,17 +419,21 @@ rule compare_trees:
     '''
     input:
         trees = os.path.join(data_dir, '{trees}.nwk'),
+        names = os.path.join(data_dir, '{trees}.names'),
         qt = os.path.join(data_dir, 'distances_{trees}.quartet.tab'),
     output:
         log = os.path.join(data_dir, 'distances_{trees}.tab')
-    threads:
-        1
+    threads: int(n * (n - 1) / 2)
     params:
         mem = 1000,
         name = 'dist',
         qos = 'fast'
     singularity: "docker://evolbioinfo/python-evol:v3.6"
-    shell: "python3 {folder}/py/compare_trees.py --trees {input.trees} --output {output.log} --qt {input.qt}"
+    shell:
+        """
+        python3 {folder}/py/compare_trees.py --trees {input.trees} --labels {input.names} \
+        --output {output.log} --qt {input.qt}
+        """
 
 rule merge_nwk_best:
     '''
@@ -438,13 +442,19 @@ rule merge_nwk_best:
     input:
         trees = expand(os.path.join(data_dir, 'best', '{type}_tree.nwk'), type=tree_types)
     output:
-        trees = os.path.join(data_dir, 'best_trees.nwk')
+        trees = os.path.join(data_dir, 'best_trees.nwk'),
+        names = os.path.join(data_dir, 'best_trees.names')
     params:
         mem = 1000,
         name = 'merge_nwk',
-        qos = 'fast'
+        qos = 'fast',
+        names = '\t'.join(tree_types)
     threads: 1
-    shell: "cat {input.trees} >> {output.trees}"
+    shell:
+        """
+        ls {input.trees} | xargs cat >> {output.trees}
+        echo "{params.names}" >> {output.names}
+        """
 
 rule merge_nwk_same_type:
     '''
@@ -453,13 +463,19 @@ rule merge_nwk_same_type:
     input:
         trees = expand(os.path.join(data_dir, '{n}', '{{type}}_tree.nwk'), n=range(n))
     output:
-        trees = os.path.join(data_dir, '{type}_trees.nwk')
+        trees = os.path.join(data_dir, '{type}_trees.nwk'),
+        names = os.path.join(data_dir, '{type}_trees.names')
     params:
         mem = 1000,
         name = 'merge_nwk',
-        qos = 'fast'
+        qos = 'fast',
+        names = '\t'.join(str(_) for _ in range(n))
     threads: 1
-    shell: "cat {input.trees} >> {output.trees}"
+    shell:
+        """
+        ls {input.trees} | xargs cat >> {output.trees}
+        echo "{params.names}" >> {output.names}
+        """
 
 rule quartet_dists:
     '''
@@ -475,7 +491,5 @@ rule quartet_dists:
         mem = 8000,
         name = 'tqdist',
         qos = 'fast'
-    shell:
-        """
-        all_pairs_quartet_dist {input} {output}
-        """
+    shell: "all_pairs_quartet_dist {input} {output}"
+
