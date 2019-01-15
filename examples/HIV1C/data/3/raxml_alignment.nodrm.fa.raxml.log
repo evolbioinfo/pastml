@@ -514,3 +514,92 @@ Starting ML tree search with 1 distinct starting trees
 [50:38:05 -310993.703371] SLOW spr round 348 (radius: 5)
 [50:47:42 -310990.397086] SLOW spr round 349 (radius: 5)
 [50:56:22 -310989.302695] SLOW spr round 350 (radius: 5)
+[51:04:36 -310989.302501] SLOW spr round 351 (radius: 10)
+[51:12:42 -310989.302501] SLOW spr round 352 (radius: 15)
+[51:27:23 -310989.029439] SLOW spr round 353 (radius: 5)
+[51:36:38 -310989.029301] SLOW spr round 354 (radius: 10)
+[51:46:51 -310989.029301] SLOW spr round 355 (radius: 15)
+[52:01:41 -310989.029301] SLOW spr round 356 (radius: 20)
+[52:25:35 -310988.570887] SLOW spr round 357 (radius: 5)
+[52:35:38 -310988.570882] SLOW spr round 358 (radius: 10)
+[52:44:59 -310988.570882] SLOW spr round 359 (radius: 15)
+[52:58:45 -310988.570882] SLOW spr round 360 (radius: 20)
+[53:22:14 -310988.570882] SLOW spr round 361 (radius: 25)
+[53:52:40 -310986.600697] SLOW spr round 362 (radius: 5)
+[54:02:51 -310975.030222] SLOW spr round 363 (radius: 5)
+[54:11:59 -310975.030213] SLOW spr round 364 (radius: 10)
+[54:21:00 -310975.030213] SLOW spr round 365 (radius: 15)
+[54:35:14 -310975.030213] SLOW spr round 366 (radius: 20)
+[54:57:58 -310970.418453] SLOW spr round 367 (radius: 5)
+[55:07:08 -310970.418341] SLOW spr round 368 (radius: 10)
+[55:16:36 -310970.418341] SLOW spr round 369 (radius: 15)
+[55:30:29 -310970.418341] SLOW spr round 370 (radius: 20)
+[55:53:37 -310963.864401] SLOW spr round 371 (radius: 5)
+[56:03:39 -310963.222705] SLOW spr round 372 (radius: 5)
+[56:12:47 -310963.222667] SLOW spr round 373 (radius: 10)
+[56:21:49 -310963.222667] SLOW spr round 374 (radius: 15)
+[56:36:45 -310960.331325] SLOW spr round 375 (radius: 5)
+[56:46:37 -310959.739727] SLOW spr round 376 (radius: 5)
+[56:55:39 -310959.739727] SLOW spr round 377 (radius: 10)
+[57:04:40 -310956.222840] SLOW spr round 378 (radius: 5)
+[57:14:15 -310956.222480] SLOW spr round 379 (radius: 10)
+[57:23:35 -310956.222480] SLOW spr round 380 (radius: 15)
+[57:37:33 -310956.222480] SLOW spr round 381 (radius: 20)
+[58:00:25 -310956.072011] SLOW spr round 382 (radius: 5)
+[58:09:48 -310955.626346] SLOW spr round 383 (radius: 5)
+[58:18:14 -310955.626346] SLOW spr round 384 (radius: 10)
+[58:26:49 -310955.393533] SLOW spr round 385 (radius: 5)
+[58:36:55 -310955.296547] SLOW spr round 386 (radius: 10)
+[58:46:53 -310955.296525] SLOW spr round 387 (radius: 15)
+[59:01:18 -310955.296525] SLOW spr round 388 (radius: 20)
+[59:24:12 -310951.969182] SLOW spr round 389 (radius: 5)
+[59:33:30 -310951.969143] SLOW spr round 390 (radius: 10)
+[59:43:10 -310950.990015] SLOW spr round 391 (radius: 5)
+[59:52:39 -310949.339865] SLOW spr round 392 (radius: 5)
+[60:01:33 -310948.827836] SLOW spr round 393 (radius: 5)
+[60:10:04 -310948.827789] SLOW spr round 394 (radius: 10)
+[60:18:33 -310948.827789] SLOW spr round 395 (radius: 15)
+[60:34:10 -310948.706879] SLOW spr round 396 (radius: 5)
+[60:44:50 -310948.150420] SLOW spr round 397 (radius: 5)
+[60:54:37 -310948.150418] SLOW spr round 398 (radius: 10)
+[61:04:17 -310948.150418] SLOW spr round 399 (radius: 15)
+[61:19:48 -310948.150418] SLOW spr round 400 (radius: 20)
+[61:43:18 -310948.150418] SLOW spr round 401 (radius: 25)
+[62:14:15 -310945.352455] SLOW spr round 402 (radius: 5)
+[62:24:26 -310942.500246] SLOW spr round 403 (radius: 5)
+[62:34:28 -310942.500067] SLOW spr round 404 (radius: 10)
+[62:43:14 -310941.754981] SLOW spr round 405 (radius: 5)
+[62:52:17 -310941.754759] SLOW spr round 406 (radius: 10)
+[63:02:34 -310941.754759] SLOW spr round 407 (radius: 15)
+[63:17:11 -310941.754759] SLOW spr round 408 (radius: 20)
+[63:40:48 -310941.733315] SLOW spr round 409 (radius: 25)
+[64:11:57 -310941.673284] Model parameter optimization (eps = 0.100000)
+
+[64:12:28] ML tree search #1, logLikelihood: -310925.960426
+
+
+Optimized model parameters:
+
+   Partition 0: noname
+   Rate heterogeneity: GAMMA (6 cats, mean),  alpha: 0.485966 (ML),  weights&rates: (0.166667,0.013239) (0.166667,0.099901) (0.166667,0.297068) (0.166667,0.660093) (0.166667,1.350449) (0.166667,3.579250) 
+   Base frequencies (ML): 0.451045 0.166056 0.179076 0.203822 
+   Substitution rates (ML): 1.750700 8.173305 0.888353 0.784519 10.831997 1.000000 
+
+Final LogLikelihood: -310925.960426
+
+AIC score: 636419.920851 / AICc score: 106764299.920851 / BIC score: 671253.407787
+Free parameters (model + branch lengths): 7284
+
+WARNING: Number of free parameters (K=7284) is larger than alignment size (n=882).
+         This might lead to overfitting and compromise tree inference results!
+
+
+Best ML tree saved to: /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/3/raxml_alignment.nodrm.fa.raxml.bestTree
+Optimized model saved to: /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/3/raxml_alignment.nodrm.fa.raxml.bestModel
+
+Execution log saved to: /pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/3/raxml_alignment.nodrm.fa.raxml.log
+
+Analysis started: 12-Jan-2019 12:29:57 / finished: 15-Jan-2019 04:42:25
+
+Elapsed time: 231148.641 seconds (this run) / 300142.231 seconds (total with restarts)
+
