@@ -13,8 +13,8 @@ def get_best_tree(trees, logs, type):
                 return float(line[line.find('Log-likelihood:') + len('Log-likelihood:'):])
             return None
         if 'raxml' == type:
-            if 'Final GAMMA  likelihood:' in line:
-                return float(line[line.find('Final GAMMA  likelihood:') + len('Final GAMMA  likelihood:'):])
+            if 'Final LogLikelihood:' in line:
+                return float(line[line.find('Final LogLikelihood:') + len('Final LogLikelihood:'):])
             return None
 
     best_tree, best_log = None, None
