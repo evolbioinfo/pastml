@@ -51,7 +51,6 @@ model='F81'
 # last is the latest year in the dataset, first is the first year containing a resistance mutation of interest,
 # mid is the last year - 10.
 YEARS = ['last', 'mid', 'first']
-
 rule all:
     input:
         drm_prevalence = os.path.join(data_dir, 'prevalence.tab'),
@@ -61,23 +60,24 @@ rule all:
 
         loc_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'Loc_{loc}', 'threshold_{t}', \
         'map_{n}.tree_{type}.model_{model}.location_{loc}.threshold_{t}.tree.html'), \
-        n=['best'], type=tree_types, model='F81', loc=location_col, t=[15]),
+        n=['best'], type=tree_types, model='F81', loc=location_col, t=[5, 10, 15, 25]),
 
-#        sampled_loc_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'Loc_{loc}', 'threshold_{t}', \
-#        'map_best.tree_{type}.model_{model}.location_{loc}.threshold_{t}.tree.sampled_{s}.state_{loc}.rep_{r}.html'), \
-#        type=tree_types, model=model, loc=location_col, r=range(r), s=s, t=5),
-#
-#        drm_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'DRM_{DRM}', 'pastml_{type}_{n}_{model}_tree.html'), \
-#        type=tree_types, DRM=DRMS, model=model, n=list(range(n)) + ['best']),
-#
-#        drm_loc_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'DRM_{DRM}', 'Loc_{loc}', \
-#        'pastml_{type}_best_{model}_tree.html'), type=tree_types, DRM=DRMS, model=model, loc=location_col),
-#
-#        drm_times_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'DRM_{DRM}', 'best_timed', \
-#        'pastml_{type}_{model}_tree.year_{r}.html'), r=YEARS, model=model, type=tree_types, DRM=DRMS),
-#
-#        TDR_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'DRM_{DRM}', 'Loc_{loc1}', 'pastml_{type}_best_{model}_subtree.TDR_loc_{loc}.html'), \
-#        model=model, type=tree_types, DRM=DRMS, loc=location_col, loc1='Country')
+        sampled_loc_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'Loc_{loc}', 'threshold_{t}', \
+        'map_best.tree_{type}.model_{model}.location_{loc}.threshold_{t}.tree.sampled_{s}.state_{loc}.rep_{r}.html'), \
+        type=tree_types, model=model, loc=location_col, r=range(r), s=s, t=[5, 10, 15, 25]),
+
+        drm_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'DRM_{DRM}', 'pastml_{type}_{n}_{model}_tree.html'), \
+        type=tree_types, DRM=DRMS, model=model, n=list(range(n)) + ['best']),
+
+        drm_loc_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'DRM_{DRM}', 'Loc_{loc}', \
+        'pastml_{type}_best_{model}_tree.html'), type=tree_types, DRM=DRMS, model=model, loc=location_col),
+
+        drm_times_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'DRM_{DRM}', 'best_timed', \
+        'pastml_{type}_{model}_tree.year_{r}.html'), r=YEARS, model=model, type=tree_types, DRM=DRMS),
+
+        TDR_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'DRM_{DRM}', 'Loc_{loc1}', \
+        'pastml_{type}_best_{model}_subtree.TDR_loc_{loc}.html'), \
+        model=model, type=tree_types, DRM=DRMS, loc=location_col, loc1='Country')
 
 rule loc_metadata:
     '''
@@ -89,7 +89,8 @@ rule loc_metadata:
         data = metadata_loc
     params:
         mem = 2000,
-        name = 'loc_md'
+        name = 'loc_md',
+        qos = 'fast'
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell: "python3 {folder}/py/map_location.py --output_data {output.data} --input_data {input.data}"
@@ -110,6 +111,7 @@ rule timed_trees:
         tree = os.path.join(data_dir, '{n}', 'pastml_{type}_tree_drm_{drm}.year_{}.nwk'),
         drm = '{drm}',
         date_col = 'Year',
+        qos = 'fast',
     singularity: "docker://evolbioinfo/pastml:v1.9.1"
     shell:
         """
@@ -134,6 +136,7 @@ rule timed_pastml_drm:
         drm = '{drm}',
         model = '{model}',
         date_col = 'Year',
+        qos = 'fast',
     singularity: "docker://evolbioinfo/pastml:v1.9.1"
     shell:
         """
@@ -158,6 +161,7 @@ rule pastml_drm:
         name = 'p_{n}_{DRM}',
         model = '{model}',
         date_col = 'Year',
+        qos = 'fast',
         drm = '{DRM}',
         work_dir = os.path.join(data_dir, 'pastml', 'drm_{DRM}', 'tree_{type}_{n}')
     singularity: "docker://evolbioinfo/pastml:v1.9.1"
@@ -187,7 +191,8 @@ rule pastml_drm_loc:
         model = '{model}',
         date_col = 'Year',
         drm = '{DRM}',
-        loc = '{loc}'
+        loc = '{loc}',
+        qos = 'fast'
     singularity: "docker://evolbioinfo/pastml:v1.9.1"
     shell:
         """
@@ -216,7 +221,8 @@ rule pastml_drm_loc_subtree:
         date_col = 'Year',
         drm = '{DRM}',
         loc = '{loc}',
-        loc1 = '{loc1}'
+        loc1 = '{loc1}',
+        qos = 'fast'
     singularity: "docker://evolbioinfo/pastml:v1.9.1"
     shell:
         """
@@ -249,7 +255,8 @@ rule pastml_loc:
         # if pars does not exist it will be just ignored, otherwise we won't redo a long PastML task
         # just to trim a bit less in the visualisation
         pars = '--parameters {}'.format(os.path.join(data_dir, 'pastml', 'params.model_{model}.tree_{n}.type_{type}.loc_{loc}.threshold_5.{suffix}.csv'))
-        if os.path.isfile(os.path.join(data_dir, 'pastml', 'params.model_{model}.tree_{n}.type_{type}.loc_{loc}.threshold_5.{suffix}.csv')) else ''
+        if os.path.isfile(os.path.join(data_dir, 'pastml', 'params.model_{model}.tree_{n}.type_{type}.loc_{loc}.threshold_5.{suffix}.csv')) else '',
+        qos = 'fast'
     singularity: "docker://evolbioinfo/pastml:v1.9.1"
     shell:
         """
@@ -273,7 +280,8 @@ rule geomap:
         mem = 4000,
         name = 'pastml_{n}',
         loc = '{loc}',
-        country_col = 'Country'
+        country_col = 'Country',
+        qos = 'fast'
     singularity: "docker://evolbioinfo/pastml:v1.9.1"
     shell:
         """
@@ -295,7 +303,8 @@ rule sample_tree:
         mem = 1000,
         name = 'sample',
         s = '{s}',
-        col = '{loc}'
+        col = '{loc}',
+        qos = 'fast'
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell:
         """
@@ -314,6 +323,7 @@ rule prevalence:
     threads: 1
     params:
         mem = 1000,
-        name = 'prev'
+        name = 'prev',
+        qos = 'fast'
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell: "python3 {folder}/py/prevalence.py --input {input.tab} --output {output.tab}"
