@@ -31,7 +31,7 @@ metadata = os.path.join(data_dir, 'metadata.tab')
 n=5
 
 # choose one or more of the tree types below
-tree_types = ['fast']
+tree_types = ['fast', 'raxml', 'phyml']
 
 rule all:
     input:
@@ -109,7 +109,7 @@ rule split_fa:
     input:
         fa = os.path.join(data_dir, 'aln.fa')
     output:
-        fa = expand(os.path.join(data_dir, 'split_aln', 'aln.{n}.fa'), n=list(range(365)))
+        fa = temp(expand(os.path.join(data_dir, 'split_aln', 'aln.{n}.fa'), n=list(range(365))))
     params:
         mem = 1000,
         name = 'split',
@@ -118,6 +118,7 @@ rule split_fa:
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell: "python3 {folder}/py/split_aln.py --out_aln_pattern {params.fa} --in_aln {input.fa}"
+
 
 rule detect_recombinants:
     '''Detects recombinants in the alignment'''
@@ -215,6 +216,7 @@ rule remove_recombinants:
     params:
         mem = 1000,
         name = 'rm_recomb',
+        qos = 'fast',
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell:

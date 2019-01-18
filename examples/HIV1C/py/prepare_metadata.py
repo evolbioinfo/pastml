@@ -19,7 +19,7 @@ if '__main__' == __name__:
     # Read and fix DRM metadata
     df = pd.read_table(params.drm_tab, index_col=0, header=0)
     df = df.join(pd.read_table(params.input_data, index_col=0, header=0), how='outer')
-    df = df[df['Sierra_subtype'] == df['Sierra subtype']]
+    df['sierra_subtype'] = df['Sierra subtype']
     df.drop(['Sierra subtype'], axis=1, inplace=True)
 
     SeqIO.write((_ for _ in SeqIO.parse(params.input_fa, "fasta", alphabet=generic_dna) if _.id in df.index),
