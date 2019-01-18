@@ -1,10 +1,8 @@
 import logging
-import os
 from multiprocessing.pool import ThreadPool
 
 import numpy as np
 import pandas as pd
-from Bio.Phylo import parse
 from ete3 import Tree
 from scipy.misc import comb
 
@@ -22,10 +20,12 @@ if '__main__' == __name__:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
 
     data, indices = [], []
-    trees = [Tree(_.format('newick')) for _ in parse(params.trees, 'newick')]
     with open(params.labels, 'r') as f:
         labels = f.readline().strip('\n').strip(' ').split('\t')
+    with open(params.trees, 'r') as f:
+        trees = [Tree('{};'.format(_)) for _ in f.read().replace('\n', '').strip().split(';')[:-1]]
     n = len(trees)
+    logging.info('Read {} trees'.format(n))
     tri = np.zeros((n, n))
     tri[np.tril_indices(n, 0)] = np.fromfile(params.qt, dtype=float, sep='\t')
     tri /= comb(len(trees[0]), 4)
