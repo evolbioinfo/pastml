@@ -31,7 +31,7 @@ metadata = os.path.join(data_dir, 'metadata.tab')
 n=5
 
 # choose one or more of the tree types below
-tree_types = ['phyml', 'fast', 'raxml']
+tree_types = ['fast']
 
 rule all:
     input:
@@ -88,7 +88,7 @@ rule merge_aln:
         """
 
 rule filter_aln:
-    '''Filters out duplicated sequences (in terms of accession) from an alignments'''
+    '''Filters out duplicated sequences (in terms of accession) from an alignment'''
     input:
         fa = os.path.join(data_dir, 'aln.la.phy.c.outgroup.fa'),
     output:
@@ -100,6 +100,45 @@ rule filter_aln:
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell: "python3 {folder}/py/filter_unique_fasta_seq.py --fa_in {input.fa} --fa_out {output.fa}"
+
+
+rule split_fa:
+    '''
+    Splits fasta into chunks.
+    '''
+    input:
+        fa = os.path.join(data_dir, 'aln.fa')
+    output:
+        fa = expand(os.path.join(data_dir, 'split_aln', 'aln.{n}.fa'), n=list(range(365)))
+    params:
+        mem = 1000,
+        name = 'split',
+        fa = os.path.join(data_dir, 'split_aln', 'aln.{}.fa'),
+        qos = 'fast'
+    threads: 1
+    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    shell: "python3 {folder}/py/split_aln.py --out_aln_pattern {params.fa} --in_aln {input.fa}"
+
+rule detect_recombinants:
+    '''Detects recombinants in the alignment'''
+    input:
+        fa = os.path.join(data_dir, 'split_aln', 'aln.{n}.fa'),
+        emission_priors = os.path.join(data_dir, 'jpHMM_files', 'priors', 'emissionPriors_HIV.txt'),
+        transition_priors = os.path.join(data_dir, 'jpHMM_files', 'priors', 'transition_priors.txt'),
+        aln = os.path.join(data_dir, 'jpHMM_files', 'input', 'HIV_alignment.fas'),
+    output:
+        os.path.join(data_dir, 'jpHMM_output', '{n}', 'recombination_without_positions.txt')
+    params:
+        mem = 80000,
+        name = 'jpHMM_{n}',
+        output_dir = os.path.join(data_dir, 'jpHMM_output', '{n}'),
+        qos = 'fast'
+    threads: 1
+    singularity: "docker://evolbioinfo/jphmm:v03.2015"
+    shell:
+        """
+        jpHMM -s {input.fa} -a {input.emission_priors} -b {input.transition_priors} -i {input.aln} -v HIV -o {params.output_dir}
+        """
 
 rule merge_md:
     '''Merges LA and Phylotype metadata'''
@@ -130,7 +169,15 @@ rule drm_data:
         qos = 'fast'
     threads: 1
     singularity: "docker://evolbioinfo/sdrmhunter:v0.2.1.2"
-    shell: "sdrmhunter --fasta {input.fasta} --output {output.tab}"
+    shell:
+        """
+        if [ -e {output.tab}.backup ]
+        then
+            cp {output.tab}.backup {output.tab}
+        else
+            sdrmhunter --fasta {input.fasta} --output {output.tab}
+        fi
+        """
 
 rule metadata:
     '''
@@ -139,6 +186,7 @@ rule metadata:
     input:
         drm_tab = os.path.join(data_dir, 'drm_data.tab'),
         data = os.path.join(data_dir, 'data_la_phy.tab'),
+        rec = expand(os.path.join(data_dir, 'jpHMM_output', '{n}', 'recombination_without_positions.txt'), n=list(range(365))),
         fa = os.path.join(data_dir, 'aln.fa')
     output:
         data = metadata,
@@ -152,7 +200,26 @@ rule metadata:
     shell:
         """
         python3 {folder}/py/prepare_metadata.py --drm_tab {input.drm_tab} --input_data {input.data} \
-        --output_data {output.data} --output_fa {output.fa} --input_fa {input.fa}
+        --output_data {output.data} --output_fa {output.fa} --input_fa {input.fa} --subtype_data {input.rec}
+        """
+
+rule remove_recombinants:
+    '''
+    Remove recombinants from the alignment.
+    '''
+    input:
+        aln = os.path.join(data_dir, 'alignment.fa'),
+        tab = expand(os.path.join(data_dir, 'ids_{subtype}.txt'), subtype=['H', 'J', 'D', 'B', 'G', 'K', 'C'])
+    output:
+        aln = os.path.join(data_dir, 'alignment.norecombinants.fa')
+    params:
+        mem = 1000,
+        name = 'rm_recomb',
+    threads: 1
+    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    shell:
+        """
+        python3 {folder}/py/filter_aln.py --out_aln {output.aln} --in_aln {input.aln} --ids {input.tab}
         """
 
 rule clean_alignment:
@@ -161,10 +228,10 @@ rule clean_alignment:
     selective pressure.
     '''
     input:
-        fa = os.path.join(data_dir, 'alignment.fa'),
+        fa = os.path.join(data_dir, 'alignment.norecombinants.fa'),
         data = metadata
     output:
-        fa = os.path.join(data_dir, 'alignment.nodrm.fa'),
+        fa = os.path.join(data_dir, 'alignment.norecombinants.nodrm.fa'),
     params:
         mem = 1000,
         name = 'clean',
@@ -185,7 +252,7 @@ rule pars_trees:
     Generates n parsimonious starting trees with RAxML-NG.
     '''
     input:
-        aln = os.path.join(data_dir, 'alignment.nodrm.fa')
+        aln = os.path.join(data_dir, 'alignment.norecombinants.nodrm.fa')
     output:
         trees = os.path.join(data_dir, '{n}_pars_trees.nwk'),
     threads: 12
@@ -227,7 +294,7 @@ rule fasttree:
     Reconstructs a tree with FastTree.
     '''
     input:
-        aln = os.path.join(data_dir, 'alignment.nodrm.fa'),
+        aln = os.path.join(data_dir, 'alignment.norecombinants.nodrm.fa'),
         tree = os.path.join(data_dir, '{n}', 'pars_tree.nwk')
     output:
         tree = os.path.join(data_dir, '{n}', 'fast_tree.nwk'),
@@ -238,7 +305,7 @@ rule fasttree:
         mem = 8000,
         name='fast_{n}',
         qos = 'normal'
-    shell: "FastTree -gamma -nt -gtr -cat 6 -intree {input.tree} -log {output.log} < {input.aln} > {output.tree}"
+    shell: "FastTree -gamma -nt -gtr -cat 6 -slow -intree {input.tree} -log {output.log} < {input.aln} > {output.tree}"
 
 
 rule convert_alignment:
@@ -248,7 +315,7 @@ rule convert_alignment:
     input:
         fa = os.path.join(data_dir, 'alignment{af}.fa')
     output:
-        fa = os.path.join(data_dir, 'alignment{af}.{format}')
+        fa = os.path.join(data_dir, 'alignment{af}.phylip')
     params:
         mem = 1000,
         name = 'fa2{format}',
@@ -264,7 +331,7 @@ rule phyml:
     Reconstructs a tree with PhyML.
     '''
     input:
-        aln = os.path.join(data_dir, 'alignment.nodrm.phylip'),
+        aln = os.path.join(data_dir, 'alignment.norecombinants.nodrm.phylip'),
         tree = os.path.join(data_dir, '{n}', 'pars_tree.nwk')
     output:
         aln = temp(os.path.join(data_dir, '{n}', 'phyml_alignment.nodrm.fa')),
@@ -289,7 +356,7 @@ rule raxml:
     Reconstructs a tree with RAxML-NG.
     '''
     input:
-        aln = os.path.join(data_dir, 'alignment.nodrm.fa'),
+        aln = os.path.join(data_dir, 'alignment.norecombinants.nodrm.fa'),
         tree = os.path.join(data_dir, '{n}', 'pars_tree.nwk')
     output:
         aln = temp(os.path.join(data_dir, '{n}', 'raxml_alignment.nodrm.fa')),
@@ -324,7 +391,7 @@ rule get_seq_ids:
         mem = 500,
         name = 'ids_{subtype}',
         col_value = '{subtype}',
-        col_name = 'Subtype',
+        col_name = 'jpHMM_subtype',
         qos = 'fast'
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"

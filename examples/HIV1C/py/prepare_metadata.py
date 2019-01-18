@@ -13,12 +13,13 @@ if '__main__' == __name__:
     parser.add_argument('--drm_tab', required=True, type=str)
     parser.add_argument('--input_data', required=True, type=str)
     parser.add_argument('--output_data', required=True, type=str)
+    parser.add_argument('--subtype_data', nargs='+', type=str)
     params = parser.parse_args()
 
     # Read and fix DRM metadata
     df = pd.read_table(params.drm_tab, index_col=0, header=0)
     df = df.join(pd.read_table(params.input_data, index_col=0, header=0), how='outer')
-    df = df[df['Subtype'] == df['Sierra subtype']]
+    df = df[df['Sierra_subtype'] == df['Sierra subtype']]
     df.drop(['Sierra subtype'], axis=1, inplace=True)
 
     SeqIO.write((_ for _ in SeqIO.parse(params.input_fa, "fasta", alphabet=generic_dna) if _.id in df.index),
@@ -56,5 +57,12 @@ if '__main__' == __name__:
     df['IsDeveloped'] = df['Country ISO3'].apply(
         lambda _: iso32info[_]['Developed / Developing Countries']
         if _ in iso32info and 'Developed / Developing Countries' in iso32info[_] else None)
+
+    df.index = df.index.map(str)
+
+    for file in params.subtype_data:
+        rec_df = pd.read_table(file, skiprows=9, header=None, index_col=0, names=['params', 'jpHMM subtype'])
+        rec_df.index = rec_df.index.str.replace('^>', '')
+        df.loc[rec_df.index, 'jpHMM_subtype'] = rec_df['jpHMM subtype']
 
     df.to_csv(params.output_data, sep='\t', header=True, index=True)

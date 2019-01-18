@@ -1,0 +1,16 @@
+# April 2005
+# transition priors for the jpHMM transition probabilities
+#
+# derived from Wistrand et al.
+
+numTransitions: 7
+
+# transition priors:
+
+MM 0.794
+MI 0.095
+MD 0.005
+IM 0.333
+II 0.667
+DM 0.278
+DD 0.222
