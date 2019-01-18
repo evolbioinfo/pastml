@@ -492,8 +492,8 @@ rule compare_trees:
         log = os.path.join(data_dir, 'distances_{trees}.tab')
     threads: int(n * (n - 1) / 2)
     params:
-        mem = 1000,
-        name = 'dist',
+        mem = 10000,
+        name = 'dist_{trees}',
         qos = 'fast'
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell:
@@ -556,7 +556,7 @@ rule quartet_dists:
     singularity: "docker://evolbioinfo/tqdist:v1.0.1"
     params:
         mem = 8000,
-        name = 'tqdist',
+        name = 'tqdist_{trees}',
         qos = 'fast'
     shell: "all_pairs_quartet_dist {input} {output}"
 
