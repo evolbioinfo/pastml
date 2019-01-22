@@ -60,7 +60,7 @@ rule all:
 
         loc_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'Loc_{loc}', 'threshold_{t}', \
         'map_{n}.tree_{type}.model_{model}.location_{loc}.threshold_{t}.tree.html'), \
-        n=['best'], type=tree_types, model='F81', loc=location_col, t=[5, 10, 15, 25]),
+        n=list(range(n)) + ['best'], type=tree_types, model='F81', loc=location_col, t=[5, 10, 15, 25]),
 
         sampled_loc_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'Loc_{loc}', 'threshold_{t}', \
         'map_best.tree_{type}.model_{model}.location_{loc}.threshold_{t}.tree.sampled_{s}.state_{loc}.rep_{r}.html'), \
@@ -305,7 +305,7 @@ rule sample_tree:
         s = '{s}',
         col = '{loc}',
         qos = 'fast'
-    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    singularity: "docker://evolbioinfo/pastml:v1.9.1"
     shell:
         """
         python3 {folder}/py/sample_tree.py --in_tree {input.tree} --metadata {input.data} --out_tree {output.tree} \

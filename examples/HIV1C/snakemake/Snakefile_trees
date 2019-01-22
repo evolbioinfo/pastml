@@ -320,12 +320,11 @@ rule convert_alignment:
         fa = os.path.join(data_dir, 'alignment{af}.phylip')
     params:
         mem = 1000,
-        name = 'fa2{format}',
-        format = '{format}',
+        name = 'fa2phylip',
         qos = 'fast'
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
-    shell: "python3 {folder}/py/convert_aln.py --output_fa {output.fa} --input_fa {input.fa} --format {params.format}"
+    shell: "python3 {folder}/py/convert_aln.py --output_fa {output.fa} --input_fa {input.fa} --format phylip"
 
 
 rule phyml:
@@ -336,7 +335,7 @@ rule phyml:
         aln = os.path.join(data_dir, 'alignment.norecombinants.nodrm.phylip'),
         tree = os.path.join(data_dir, '{n}', 'pars_tree.nwk')
     output:
-        aln = temp(os.path.join(data_dir, '{n}', 'phyml_alignment.nodrm.fa')),
+        aln = temp(os.path.join(data_dir, '{n}', 'phyml_alignment.norecombinants.nodrm.fa')),
         tree = os.path.join(data_dir, '{n}', 'phyml_tree.nwk'),
         log = os.path.join(data_dir, '{n}', 'phyml_tree.log')
     threads: 12
@@ -361,7 +360,7 @@ rule raxml:
         aln = os.path.join(data_dir, 'alignment.norecombinants.nodrm.fa'),
         tree = os.path.join(data_dir, '{n}', 'pars_tree.nwk')
     output:
-        aln = temp(os.path.join(data_dir, '{n}', 'raxml_alignment.nodrm.fa')),
+        aln = temp(os.path.join(data_dir, '{n}', 'raxml_alignment.norecombinants.nodrm.fa')),
         tree = os.path.join(data_dir, '{n}', 'raxml_tree.nwk'),
         log = os.path.join(data_dir, '{n}', 'raxml_tree.log'),
     threads: 12
