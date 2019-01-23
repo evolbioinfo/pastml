@@ -338,7 +338,7 @@ rule phyml:
         aln = temp(os.path.join(data_dir, '{n}', 'phyml_alignment.norecombinants.nodrm.fa')),
         tree = os.path.join(data_dir, '{n}', 'phyml_tree.nwk'),
         log = os.path.join(data_dir, '{n}', 'phyml_tree.log')
-    threads: 12
+    threads: 1
     singularity: "docker://evolbioinfo/phyml:v3.3.20180621"
     params:
         mem = 4000,
