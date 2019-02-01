@@ -14,6 +14,6 @@ if '__main__' == __name__:
     tr = read_tree(params.input_tree)
     name_tree(tr)
 
-    nwk = write_newick(tr, format_root_node=True)
+    nwk = write_newick(tr, format_root_node=True, format=3)
     with open(params.output_tree, 'w+') as f:
         f.write('%s\n' % nwk)
