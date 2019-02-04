@@ -3,11 +3,11 @@ LEAST-SQUARE METHODS TO ESTIMATE RATES AND DATES - v0.3beta
 
 
 Input files:
-  I                                 Input tree file : /home/azhukova/Pasteur/projects/Phylogenomics-Chapter/ml_analysis/../data/max_lh/DENV2/resampled/4/fast_tree.nwk
-  D                                 Input date file : /home/azhukova/Pasteur/projects/Phylogenomics-Chapter/ml_analysis/../data/max_lh/DENV2/resampled/4/dates_real.tab
+  I                                 Input tree file : /home/azhukova/Pasteur/projects/pastml/examples/DENV2/data/resampled/4/fast_tree.nwk
+  D                                 Input date file : /home/azhukova/Pasteur/projects/pastml/examples/DENV2/data/resampled/4/dates.tab
   P                                  Partition file : No
 Output file:
-  O                                    Output file  : /home/azhukova/Pasteur/projects/Phylogenomics-Chapter/ml_analysis/../data/max_lh/DENV2/resampled/4/fast_tree.dated_real
+  O                                    Output file  : /home/azhukova/Pasteur/projects/pastml/examples/DENV2/data/resampled/4/fast_tree.dated
 Parameters:
   C                                With constraints : Yes
   T                        Lower bound for the rate : 1.000e-10
@@ -29,4 +29,4 @@ rate 4.555e-04 [4.265e-04 , 4.769e-04] , tMRCA 1545.291462 [1514.378837 , 1567.8
 
 
 *********************************************************
-Elapsed time: 14.73 seconds
+Elapsed time: 14.44 seconds

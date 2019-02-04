@@ -45,10 +45,10 @@ rule table2itol:
         "docker://evolbioinfo/table2itol:latest"
     params:
         mem = 2000,
-        name = 'loc_metadata'
+        name = 'loc_metadata',
+        wd = os.path.join(data_dir, '{prefix}', 'iTOL')
     threads: 1
-    shell:
-        "table2itol.R -i accession {input.data} -D {prefix}/iTOL/"
+    shell: "table2itol.R -i accession {input.data} -D {params.wd}"
 
 rule fasttree:
     '''
@@ -98,8 +98,7 @@ rule convert_alignment:
         fa = os.path.join(data_dir, '{prefix}', 'aln.phylip')
     params:
         mem = 1000,
-        name = 'fa2phylip',
-        qos = 'fast'
+        name = 'fa2phylip'
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell: "python3 {folder}/py/convert_aln.py --output_fa {output.fa} --input_fa {input.fa} --format phylip"
@@ -117,8 +116,7 @@ rule resample_alignment:
         data = os.path.join(data_dir, 'resampled', '{n}', 'metadata.tab')
     params:
         mem = 1000,
-        name = 'resample_fa',
-        qos = 'fast'
+        name = 'resample_fa'
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell:
@@ -164,14 +162,12 @@ rule extract_dates:
         date_col = 'year',
         c_tip = 'b(1940,2015)'
     threads: 1
-    run:
-        shell("""
-            {src_command}
-            {py_config}
-
-            python3 {folder}/py/extract_dates.py --data {input.tab} --dates {output.tab} --c_tip "{params.c_tip}" \
-            --date_col {params.date_col}
-        """)
+    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    shell:
+        """
+        python3 {folder}/py/extract_dates.py --data {input.tab} --dates {output.tab} --c_tip "{params.c_tip}" \
+        --date_col {params.date_col}
+        """
 
 rule date_and_root_globally:
     '''
@@ -211,8 +207,7 @@ rule compare_trees:
     threads: int(len(tree_types) * (len(tree_types) - 1) / 2)
     params:
         mem = 10000,
-        name = 'dist_{trees}',
-        qos = 'fast'
+        name = 'dist_{trees}'
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell:
         """
@@ -232,7 +227,6 @@ rule merge_nwk:
     params:
         mem = 1000,
         name = 'merge_nwk',
-        qos = 'fast',
         names = '\t'.join(tree_types)
     threads: 1
     shell:
@@ -253,7 +247,6 @@ rule quartet_dists:
     singularity: "docker://evolbioinfo/tqdist:v1.0.1"
     params:
         mem = 8000,
-        name = 'tqdist_{trees}',
-        qos = 'fast'
+        name = 'tqdist_{trees}'
     shell: "all_pairs_quartet_dist {input} {output}"
 
