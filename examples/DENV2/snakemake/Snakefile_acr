@@ -1,534 +1,94 @@
 import os
 
 # To run locally:
-# snakemake --keep-going --cores 4 --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~"
+# snakemake --snakefile Snakefile_acr --keep-going --cores 4 --config folder=.. --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~"
 
 # To visualise the pipeline
-# snakemake --dag | dot -Tsvg > acr_dag.svg
+# snakemake --snakefile Snakefile_acr --config folder=.. --dag | dot -Tsvg > pipeline_acr.svg
 
-configfile: "config.yaml"
 localrules: all
-ruleorder: resample_alignment > serotype_data
 
-src_command = config['src']
-py_config = config['py_config']
+ruleorder: pastml_loc_genotype > pastml_loc
 
 folder = os.path.abspath(config["folder"])
-data_dir = os.path.join(folder, '..', config['data_dir'], 'max_lh')
-dengue_data = os.path.join(folder, '..', config['data_dir'], config['dengue_data'])
-
-metadata = os.path.join(data_dir, 'metadata.tab')
-metadata_loc = os.path.join(data_dir, 'metadata_location.tab')
-aln = os.path.join(data_dir, 'ALL', 'aln.fa')
-
-# The folder where the reconstructed ACR maps will be placed
-maps_dir = 'maps'
+data_dir = os.path.join(folder, 'data')
 
 # choose one or more of the tree types below
 tree_types = ['raxml', 'fast', 'phyml']
 
+# The folder where the reconstructed ACR maps will be placed
+maps_dir = 'maps'
+
 model='F81'
 
-num_date_randomisations = 10
-
-#serotypes = ['DENV1', 'DENV2', 'DENV3', 'DENV4']
-serotypes = ['DENV2']
-
-#locs = ['Location', 'Country']
 locs = ['Location']
 
 
 rule all:
     input:
-        itol = os.path.join(data_dir, 'iTOL', 'iTOL_colorstrip-genotype.txt'),
-
-        pdfs = expand(os.path.join(data_dir, '{serotype}', '{type}_tree_dates_randomisation.pdf'), \
-        type=tree_types, serotype=serotypes),
-
-        geo_maps = expand(os.path.join(data_dir, maps_dir, '{serotype}', 'Loc_{loc}', 'geo_map_{loc}_{type}_tree.html'),
-        type=tree_types, loc=locs, serotype=serotypes),
-
-        geo_map_denv2 = expand(os.path.join(data_dir, maps_dir, 'DENV2', 'Loc_{loc}', 'geo_map_{loc}_{type}_tree.rooted_Sylvatic.html'),
+        expand(os.path.join(data_dir, maps_dir, '{loc}', 'real', 'geo_map_{loc}_{type}_tree.dated.html'),
         type=tree_types, loc=locs),
+        expand(os.path.join(data_dir, maps_dir, '{loc}', 'resampled', '{n}', 'geo_map_{loc}_{type}_tree.dated.html'),
+        type=tree_types, loc=locs, n=range(5)),
 
-        geo_map_denv4 = expand(os.path.join(data_dir, maps_dir, 'DENV4', 'Loc_{loc}', 'geo_map_{loc}_{type}_tree.rooted_S.html'),
+        expand(os.path.join(data_dir, maps_dir, '{loc}', 'real', 'acr_map_{loc}_{type}_tree.dated.html'),
         type=tree_types, loc=locs),
+        expand(os.path.join(data_dir, maps_dir, '{loc}', 'resampled', '{n}', 'acr_map_{loc}_{type}_tree.dated.html'),
+        type=tree_types, loc=locs, n=range(5)),
 
-        maps = expand(os.path.join(data_dir, maps_dir, '{serotype}', 'Loc_{loc}', 'map.loc_{loc}.{type}_tree.dated_real.html'),
-        serotype=serotypes, type=tree_types, loc=locs),
-
-        maps_resampled = expand(os.path.join(data_dir, maps_dir, '{serotype}', 'resampled', '{r}', 'Loc_{loc}', 'map.loc_{loc}.{type}_tree.dated_real.html'),
-        serotype=serotypes, type=tree_types, loc=locs, r=list(range(5))),
-
-        maps_gt = expand(os.path.join(data_dir, maps_dir, '{serotype}', 'Loc_{loc}', 'map.loc_{loc}.genotype.{type}_tree.dated_real.html'),
-        serotype=serotypes, type=tree_types, loc=locs),
-
-        map_denv2 = expand(os.path.join(data_dir, maps_dir, 'DENV2', 'Loc_{loc}', 'map.loc_{loc}.{type}_tree.rooted_Sylvatic{dated}.html'),
-        type=tree_types, loc=locs, dated=['.dated_real', '']),
-
-        map_denv4 = expand(os.path.join(data_dir, maps_dir, 'DENV4', 'Loc_{loc}', 'map.loc_{loc}.{type}_tree.rooted_S{dated}.html'),
-        type=tree_types, loc=locs, dated=['.dated_real', '']),
-
-        maps_gt_denv2 = expand(os.path.join(data_dir, maps_dir, 'DENV2', 'Loc_{loc}', 'map.loc_{loc}.genotype.{type}_tree.rooted_Sylvatic{dated}.html'),
-        type=tree_types, loc=locs, dated=['.dated_real', '']),
-
-        maps_gt_denv4 = expand(os.path.join(data_dir, maps_dir, 'DENV4', 'Loc_{loc}', 'map.loc_{loc}.genotype.{type}_tree.rooted_S{dated}.html'),
-        type=tree_types, loc=locs, dated=['.dated_real', '']),
-
-        date_tab = expand(os.path.join(data_dir, '{type}_tree_dates_predictions.tab'), type=tree_types),
-
-        distances = expand(os.path.join(data_dir, '{serotype}', 'distances_all_trees.tab'), serotype=serotypes),
-
-        loglh = os.path.join(data_dir, 'DENV2', 'all_trees_loglh.log'),
-
-#        sero_maps_dated = expand(os.path.join(data_dir, maps_dir, 'ALL', 'Loc_{loc}',
-#        'map.loc_{loc}.serotype.{type}_tree.dated_real.html'), type=tree_types, loc=locs),
-
-
-rule data:
-    '''
-    Transforms dengue input file into fasta alignment and metadata
-    '''
-    input:
-        data = dengue_data
-    output:
-        fa = aln,
-        data = metadata
-    params:
-        mem = 2000,
-        name = 'metadata'
-    threads: 1
-    run:
-        shell("""
-            {src_command}
-            {py_config}
-
-            python3 {folder}/py/data_reader.py --input_nex {input.data} --output_fa {output.fa} --output_data {output.data}
-        """)
-
-
-rule serotype_data:
-    '''
-    Extracts serotype-specific alignments
-    '''
-    input:
-        fa = aln,
-        data = metadata
-    output:
-        fa = os.path.join(data_dir, '{serotype}', 'aln.fa')
-    params:
-        mem = 2000,
-        name = 'aln_{serotype}',
-        serotype = '{serotype}'
-    threads: 1
-    run:
-        shell("""
-            {src_command}
-            {py_config}
-
-            python3 {folder}/py/serotype_data_extractor.py --input_data {input.data} --input_fa {input.fa} \
-            --output_fa {output.fa} --serotype {params.serotype}
-        """)
-
-
-rule location:
-    '''
-    Extracts location metadata
-    '''
-    input:
-        data = metadata
-    output:
-        data = metadata_loc
-    params:
-        mem = 2000,
-        name = 'loc_metadata'
-    threads: 1
-    run:
-        shell("""
-            {src_command}
-            {py_config}
-
-            python3 {folder}/py/location_metadata.py --input_data {input.data} --output_data {output.data}
-        """)
-
-rule table2itol:
-    '''
-    Extracts itol metadata
-    '''
-    input:
-        data = metadata_loc
-    output:
-        os.path.join(data_dir, 'iTOL', 'iTOL_colorstrip-genotype.txt')
-    singularity:
-        "docker://evolbioinfo/table2itol:latest"
-    params:
-        mem = 2000,
-        name = 'loc_metadata'
-    threads: 1
-    shell:
-        "table2itol.R -i accession {input.data} -D {data_dir}/iTOL/"
-
-
-rule get_seq_ids:
-    '''
-    Extracts sequence ids of interest.
-    '''
-    input:
-        tab = metadata
-    output:
-        tab = os.path.join(data_dir, 'ids_{genotype}.txt')
-    params:
-        mem = 500,
-        name = 'ids_{genotype}',
-        col_value = '{genotype}',
-        col_name = 'genotype'
-    threads: 1
-    run:
-        shell("""
-            {src_command}
-            {py_config}
-
-            python3 {folder}/py/get_seq_ids.py --input_data {input.tab} --output_data {output.tab} \
-            --col_name "{params.col_name}" --col_value {params.col_value}
-        """)
-
-rule root:
-    '''
-    Roots a tree using an outgroup.
-    '''
-    input:
-        tree = os.path.join('{dir}', '{tree}.nwk'),
-        ids = os.path.join(data_dir, 'ids_{genotype}.txt')
-    output:
-        tree = os.path.join('{dir}', '{tree}.rooted_{genotype}.nwk'),
-    threads: 1
-    params:
-        mem = 500,
-        name='root'
-    run:
-        shell("""
-            {src_command}
-            {py_config}
-            python3 {folder}/py/root.py --input_tree {input.tree} --ids {input.ids} --output_tree {output.tree}
-        """)
-
-rule fasttree:
-    '''
-    Reconstructs a tree with FastTree.
-    '''
-    input:
-        aln = os.path.join(data_dir, '{serotype}', 'aln.fa'),
-    output:
-        tree = os.path.join(data_dir, '{serotype}', 'fast_tree.nwk'),
-        log = os.path.join(data_dir, '{serotype}', 'fast_tree.log')
-    threads: 6
-    singularity: "docker://evolbioinfo/fasttree:v2.1.10"
-    params:
-        mem = 8000,
-        name='fasttree'
-    shell:
-        "FastTree -gamma -nt -gtr -cat 6 -log {output.log} < {input.aln} > {output.tree}"
-
-rule phyml:
-    '''
-    Reconstructs a tree with PhyML.
-    '''
-    input:
-        aln = os.path.join(data_dir, '{serotype}', 'aln.phylip')
-    output:
-        tree = os.path.join(data_dir, '{serotype}', 'phyml_tree.nwk'),
-        log = os.path.join(data_dir, '{serotype}', 'phyml_tree.log')
-    threads: 1
-    singularity: "docker://evolbioinfo/phyml:v3.3.20180621"
-    params:
-        mem = 4000,
-        name = 'phyml'
-    shell:
-        """
-        phyml -i {input.aln} -d nt -m GTR -o tlr -f m -t e -c 6 -a e -s RAND --r_seed 239 --leave_duplicates
-        mv {input.aln}_phyml_tree* {output.tree}
-        mv {input.aln}_phyml_stats* {output.log}
-        """
-
-rule convert_alignment:
-    '''
-    Filter and convert a fasta alignment to another format.
-    '''
-    input:
-        fa = os.path.join(data_dir, '{serotype}', 'aln.fa')
-    output:
-        fa = os.path.join(data_dir, '{serotype}', 'aln.phylip')
-    params:
-        mem = 1000,
-        name = 'fa2phylip',
-        qos = 'fast'
-    threads: 1
-    singularity: "docker://evolbioinfo/python-evol:v3.6"
-    shell: "python3 {folder}/py/convert_aln.py --output_fa {output.fa} --input_fa {input.fa} --format phylip"
-
-
-rule resample_alignment:
-    '''
-    Resamples a fasta alignment with replacement.
-    '''
-    input:
-        fa = os.path.join(data_dir, '{serotype}', 'aln.fa'),
-        data = metadata_loc
-    output:
-        fa = os.path.join(data_dir, '{serotype}', 'resampled', '{n}', 'aln.fa'),
-        data = os.path.join(data_dir, '{serotype}', 'resampled', '{n}', 'metadata_location.tab')
-    params:
-        mem = 1000,
-        name = 'resample_fa',
-        qos = 'fast'
-    threads: 1
-    singularity: "docker://evolbioinfo/python-evol:v3.6"
-    shell:
-        """
-        python3 {folder}/py/resample_aln.py --output_fa {output.fa} --input_fa {input.fa} \
-        --output_tab {output.data} --input_tab {input.data}
-        """
-
-rule raxml:
-    '''
-    Reconstructs a tree with RAxML.
-    '''
-    input:
-        aln = os.path.join(data_dir, '{serotype}', 'aln.fa')
-    output:
-        tree = os.path.join(data_dir, '{serotype}', 'raxml_tree.nwk'),
-        log = os.path.join(data_dir, '{serotype}', 'raxml_tree.log'),
-    threads: 12
-    singularity: "docker://evolbioinfo/raxml:v8.2.11-sse3"
-    params:
-        mem = 10000,
-        name = 'raxml',
-        wd = os.path.join(data_dir, '{serotype}')
-    shell:
-        """
-        raxmlHPC -f ad -m GTRGAMMA -s {input.aln} -c 6 -n "RAXML" -p 239 -T {threads} -w {params.wd} -x 239 -N 100
-        mv "{params.wd}/RAxML_bestTree.RAXML" {output.tree}
-        mv "{params.wd}/RAxML_info.RAXML" {output.log}
-        rm -rf "{params.wd}/RAxML_*"
-        """
-
-rule log_lh:
-    '''
-    Reconstructs a tree with RAxML.
-    '''
-    input:
-        aln = os.path.join(data_dir, '{serotype}', 'aln.fa'),
-        trees = os.path.join(data_dir, '{serotype}', 'all_trees.nwk'),
-    output:
-        log = os.path.join(data_dir, '{serotype}', 'all_trees_loglh.log'),
-    threads: 12
-    singularity: "docker://evolbioinfo/raxml:v8.2.11-sse3"
-    params:
-        mem = 10000,
-        name = 'raxml',
-        wd = os.path.join(data_dir, '{serotype}')
-    shell:
-        """
-        raxmlHPC -f N -m GTRGAMMA -s {input.aln} -c 6 -n "RAXML" -p 239 -T {threads} -w {params.wd} -z {input.trees}
-        mv "{params.wd}/RAxML_info.RAXML" {output.log}
-        rm -rf "{params.wd}/RAxML_*"
-        """
-
-rule extract_dates:
-    '''
-    Reformats metadata into date file readable by LSD.
-    '''
-    input:
-        tab = os.path.join(data_dir, '{serotype}', 'metadata_location.tab')
-    output:
-        tab = os.path.join(data_dir, '{serotype}', 'dates_real.tab')
-    params:
-        mem = 1000,
-        name = 'dates',
-        date_col = 'year',
-        c_tip = 'b(1940,2015)'
-    threads: 1
-    run:
-        shell("""
-            {src_command}
-            {py_config}
-
-            python3 {folder}/py/extract_dates.py --data {input.tab} --dates {output.tab} --c_tip "{params.c_tip}" \
-            --date_col {params.date_col}
-        """)
-
-rule extract_random_dates:
-    '''
-    Reformats metadata into date file readable by LSD.
-    '''
-    input:
-        tab = os.path.join(data_dir, '{serotype}', 'metadata_location.tab')
-    output:
-        random_tab = expand(os.path.join(data_dir, '{{serotype}}', 'dates_random_{n}.tab'), n=list(range(num_date_randomisations)))
-    params:
-        mem = 1000,
-        name = 'dates',
-        date_col = 'year',
-        c_tip = 'b(1940,2015)'
-    threads: 1
-    run:
-        shell("""
-            {src_command}
-            {py_config}
-
-            python3 {folder}/py/extract_dates.py --data {input.tab} --c_tip "{params.c_tip}" \
-            --date_col {params.date_col} --random_date_files {output.random_tab}
-        """)
-
-rule date_and_root_globally:
-    '''
-    Dates a tree.
-    '''
-    input:
-        tree = os.path.join(data_dir, '{serotype}', '{tree}.nwk'),
-        dates = os.path.join(data_dir, '{serotype}', 'dates_{suffix}.tab')
-    output:
-        tree = os.path.join(data_dir, '{serotype}', '{tree}.dated_{suffix}.nwk'),
-        log = os.path.join(data_dir, '{serotype}', '{tree}.lsd_{suffix}.log'),
-    threads: 1
-    singularity: "docker://evolbioinfo/lsd:v0.3beta-55183ca9d0"
-    params:
-        mem = 2000,
-        name = 'date',
-        wd = os.path.join(data_dir, '{serotype}', '{tree}.dated_{suffix}')
-    shell:
-        """
-        lsd -i {input.tree} -d {input.dates} -v 2 -c -s 10188 -f 1000 -r a -o {params.wd}
-        mv {params.wd}.date.newick {output.tree}
-        mv {params.wd} {output.log}
-        rm {params.wd}.newick
-        rm {params.wd}.nexus
-        """
-
-rule test_dates:
-    '''
-    Date a tree.
-    '''
-    input:
-        log = os.path.join(data_dir, '{serotype}', '{tree}.lsd_real.log'),
-        random_logs = expand(os.path.join(data_dir, '{{serotype}}', '{{tree}}.lsd_random_{n}.log'), \
-        n=list(range(num_date_randomisations))),
-        random_trees = expand(os.path.join(data_dir, '{{serotype}}', '{{tree}}.dated_random_{n}.nwk'), \
-        n=list(range(num_date_randomisations)))
-    output:
-        pdf = os.path.join(data_dir, '{serotype}', '{tree}_dates_randomisation.pdf')
-    threads:
-        4
-    params:
-        mem = 2000,
-        name = 'rand_date'
-    run:
-        shell("""
-            {src_command}
-            {py_config}
-
-            python3 {folder}/py/date_randomisation.py --real_log {input.log} --logs {input.random_logs} \
-            --pdf {output.pdf}
-        """)
-
-rule extract_date_predictions:
-    '''
-    Reformat dates nicely.
-    '''
-    input:
-        logs = expand(os.path.join(data_dir, '{serotype}', '{{tree}}.lsd_real.log'), serotype=serotypes),
-        log2 = expand(os.path.join(data_dir, 'DENV2', '{{tree}}.rooted_Sylvatic.lsd_real.log')),
-        log4 = expand(os.path.join(data_dir, 'DENV4', '{{tree}}.rooted_S.lsd_real.log'))
-    output:
-        tab = os.path.join(data_dir, '{tree}_dates_predictions.tab')
-    threads:
-        4
-    params:
-        mem = 2000,
-        name = 'dates',
-        sts = ' '.join(serotypes)
-    run:
-        shell("""
-            {src_command}
-            {py_config}
-
-            python3 {folder}/py/date_formatter.py --logs {input.logs} {input.log2} {input.log4} --tab {output.tab} \
-            --labels {params.sts} DENV2_human DENV4_human
-        """)
-
-
-rule pastml_loc:
-    '''
-    Reconstructs tree ancestral states with PASTML and visualises the result.
-    '''
-    input:
-        tree = os.path.join(data_dir, '{serotype}', '{tree}.nwk'),
-        data = os.path.join(data_dir, '{serotype}', 'metadata_location.tab')
-    output:
-        map = os.path.join(data_dir, maps_dir, '{serotype}', 'Loc_{loc}', 'map.loc_{loc}.{tree}.html'),
-        tree = os.path.join(data_dir, maps_dir, '{serotype}', 'Loc_{loc}', 'tree.loc_{loc}.{tree}.html')
-    threads: 4
-    singularity: "docker://evolbioinfo/pastml:v1.9.1"
-    params:
-        mem = 4000,
-        name = 'pastml_{loc}',
-        loc = '{loc}',
-        date_col = 'year',
-        work_dir = os.path.join(data_dir, 'pastml', '{loc}', '{serotype}', '{tree}')
-    shell:
-        """
-         pastml --tree {input.tree} --data {input.data} \
-        --html_compressed {output.map} --html {output.tree} --columns {params.loc} \
-        --model F81 --date_column {params.date_col} --tip_size_threshold 50 -v \
-        --work_dir {params.work_dir}
-        """
-
-
-rule pastml_loc_serotype:
-    '''
-    Reconstructs tree ancestral states with PASTML and visualises the result.
-    '''
-    input:
-        tree = os.path.join(data_dir, 'ALL', '{tree}.nwk'),
-        data = metadata_loc
-    output:
-        map = os.path.join(data_dir, maps_dir, 'ALL', 'Loc_{loc}', 'map.loc_{loc}.serotype.{tree}.html')
-    threads: 4
-    singularity: "docker://evolbioinfo/pastml:v1.9.1"
-    params:
-        mem = 4000,
-        name = 'pastml_{loc}',
-        loc = '{loc}',
-        date_col = 'year'
-    shell:
-        """
-         pastml --tree {input.tree} --data {input.data} \
-        --html_compressed {output.map} --columns {params.loc} serotype \
-        --model F81 --date_column {params.date_col} --tip_size_threshold 50 -v
-        """
+        expand(os.path.join(data_dir, maps_dir, '{loc}.genotype', 'real', 'acr_map_{loc}.genotype_{type}_tree.dated.html'),
+        type=tree_types, loc=locs),
+        expand(os.path.join(data_dir, maps_dir, '{loc}.genotype', 'resampled', '{n}', 'acr_map_{loc}.genotype_{type}_tree.dated.html'),
+        type=tree_types, loc=locs, n=range(5)),
 
 rule pastml_loc_genotype:
     '''
     Reconstructs tree ancestral states with PASTML and visualises the result.
     '''
     input:
-        tree = os.path.join(data_dir, '{serotype}', '{tree}.nwk'),
-        data = metadata_loc
+        tree = os.path.join(data_dir, '{prefix}', '{tree}.nwk'),
+        data = os.path.join(data_dir, '{prefix}', 'metadata.tab'),
     output:
-        map = os.path.join(data_dir, maps_dir, '{serotype}', 'Loc_{loc}', 'map.loc_{loc}.genotype.{tree}.html'),
-        tree = os.path.join(data_dir, maps_dir, '{serotype}', 'Loc_{loc}', 'tree.loc_{loc}.genotype.{tree}.html')
+        map = os.path.join(data_dir, maps_dir, '{loc}.genotype', '{prefix}', 'acr_map_{loc}.genotype_{tree}.html'),
+        tree = os.path.join(data_dir, maps_dir, '{loc}.genotype', '{prefix}', 'acr_tree_{loc}.genotype_{tree}.html')
     threads: 4
     singularity: "docker://evolbioinfo/pastml:v1.9.1"
     params:
         mem = 4000,
         name = 'pastml_{loc}_gt',
         loc = '{loc}',
-        date_col = 'year'
+        date_col = 'year',
+        wd = os.path.join(data_dir, 'pastml', '{loc}.genotype', '{prefix}')
     shell:
         """
         pastml --tree {input.tree} --data {input.data} \
         --html_compressed {output.map} --html {output.tree} --columns {params.loc} genotype  --name_column {params.loc} \
-        --model F81 --date_column {params.date_col} --tip_size_threshold 50 -v
+        --date_column {params.date_col} -v --work_dir {params.wd}
+        """
+
+rule pastml_loc:
+    '''
+    Reconstructs tree ancestral states with PASTML and visualises the result.
+    '''
+    input:
+        tree = os.path.join(data_dir, '{prefix}', '{tree}.nwk'),
+        data = os.path.join(data_dir, '{prefix}', 'metadata.tab'),
+    output:
+        map = os.path.join(data_dir, maps_dir, '{loc}', '{prefix}', 'acr_map_{loc}_{tree}.html'),
+        tree = os.path.join(data_dir, maps_dir, '{loc}', '{prefix}', 'acr_tree_{loc}_{tree}.html')
+    threads: 4
+    singularity: "docker://evolbioinfo/pastml:v1.9.1"
+    params:
+        mem = 4000,
+        name = 'pastml_{loc}',
+        loc = '{loc}',
+        date_col = 'year',
+        wd = os.path.join(data_dir, 'pastml', '{loc}', '{prefix}')
+    shell:
+        """
+        pastml --tree {input.tree} --data {input.data} \
+        --html_compressed {output.map} --html {output.tree} --columns {params.loc} \
+        --date_column {params.date_col} -v --work_dir {params.wd}
         """
 
 rule geomap:
@@ -536,81 +96,19 @@ rule geomap:
     Reconstructs the geographical map coloured according to PastML categories.
     '''
     input:
-        tree = os.path.join(data_dir, '{serotype}', '{tree}.nwk'),
-        data = metadata_loc
+        tree = os.path.join(data_dir, '{prefix}', '{tree}.nwk'),
+        data = os.path.join(data_dir, '{prefix}', 'metadata.tab'),
     output:
-        geo_map = os.path.join(data_dir, maps_dir, '{serotype}', 'Loc_{loc}', 'geo_map_{loc}_{tree}.html'),
+        geo_map = os.path.join(data_dir, maps_dir, '{loc}', '{prefix}', 'geo_map_{loc}_{tree}.html'),
     threads: 1
     params:
         mem = 4000,
-        name = 'geomap_{serotype}',
+        name = 'geomap_{loc}',
         loc = '{loc}',
         country_col = 'Country'
-    run:
-        shell("""
-            {src_command}
-            {py_config}
-
-            python3 {folder}/py/get_geomap.py --tree {input.tree} --metadata {input.data} \
-            --geo_html {output.geo_map} --location_col {params.loc} --country_col {params.country_col}
-        """)
-
-rule compare_trees:
-    '''
-    Calculates RF and quantet distances between the trees.
-    '''
-    input:
-        trees = os.path.join(data_dir, '{serotype}', '{trees}.nwk'),
-        names = os.path.join(data_dir, '{serotype}', '{trees}.names'),
-        qt = os.path.join(data_dir, '{serotype}', 'distances_{trees}.quartet.tab'),
-    output:
-        log = os.path.join(data_dir, '{serotype}', 'distances_{trees}.tab')
-    threads: int(len(tree_types) * (len(tree_types) - 1) / 2)
-    params:
-        mem = 10000,
-        name = 'dist_{trees}',
-        qos = 'fast'
-    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    singularity: "docker://evolbioinfo/pastml:v1.9.1"
     shell:
         """
-        python3 {folder}/py/compare_trees.py --trees {input.trees} --labels {input.names} \
-        --output {output.log} --qt {input.qt}
+        python3 {folder}/py/get_geomap.py --tree {input.tree} --metadata {input.data} \
+        --geo_html {output.geo_map} --location_col {params.loc} --country_col {params.country_col}
         """
-
-rule merge_nwk:
-    '''
-    Merge multiple one-tree newick files into one multiple-tree newick file.
-    '''
-    input:
-        trees = expand(os.path.join(data_dir, '{{serotype}}', '{type}_tree.nwk'), type=tree_types)
-    output:
-        trees = os.path.join(data_dir, '{serotype}', 'all_trees.nwk'),
-        names = os.path.join(data_dir, '{serotype}', 'all_trees.names')
-    params:
-        mem = 1000,
-        name = 'merge_nwk',
-        qos = 'fast',
-        names = '\t'.join(tree_types)
-    threads: 1
-    shell:
-        """
-        ls {input.trees} | xargs cat >> {output.trees}
-        echo "{params.names}" >> {output.names}
-        """
-
-rule quartet_dists:
-    '''
-    Calculates quartet distances with tqDist.
-    '''
-    input:
-        trees = os.path.join(data_dir, '{serotype}', '{trees}.nwk')
-    output:
-        log = temp(os.path.join(data_dir, '{serotype}', 'distances_{trees}.quartet.tab')),
-    threads: 1
-    singularity: "docker://evolbioinfo/tqdist:v1.0.1"
-    params:
-        mem = 8000,
-        name = 'tqdist_{trees}',
-        qos = 'fast'
-    shell: "all_pairs_quartet_dist {input} {output}"
-

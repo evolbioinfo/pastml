@@ -1,14 +1,7 @@
 import logging
 import os
 
-import pandas as pd
-from ete3 import Tree
-
-from pastml import get_personalized_feature_name
 from pastml.acr import pastml_pipeline
-from pastml.file import get_combined_ancestral_state_file, get_pastml_parameter_file
-from pastml.ml import MPPA, F81, ML
-from pastml.tree import remove_certain_leaves
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'best', 'phyml_tree.rooted.collapsed_dist_0.nwk')
