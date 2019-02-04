@@ -58,7 +58,7 @@ rule pastml_loc_genotype:
         name = 'pastml_{loc}_gt',
         loc = '{loc}',
         date_col = 'year',
-        wd = os.path.join(data_dir, 'pastml', '{loc}.genotype', '{prefix}')
+        wd = os.path.join(data_dir, 'pastml', '{loc}.genotype', '{prefix}', '{tree}')
     shell:
         """
         pastml --tree {input.tree} --data {input.data} \
@@ -83,7 +83,7 @@ rule pastml_loc:
         name = 'pastml_{loc}',
         loc = '{loc}',
         date_col = 'year',
-        wd = os.path.join(data_dir, 'pastml', '{loc}', '{prefix}')
+        wd = os.path.join(data_dir, 'pastml', '{loc}', '{prefix}', '{tree}')
     shell:
         """
         pastml --tree {input.tree} --data {input.data} \
