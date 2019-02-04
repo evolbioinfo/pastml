@@ -1,0 +1,259 @@
+import os
+
+# To run locally:
+# snakemake --snakefile Snakefile_trees --keep-going --cores 4 --config folder=.. --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~"
+
+# To visualise the pipeline
+# snakemake --snakefile Snakefile_trees --config folder=.. --dag | dot -Tsvg > pipeline_trees.svg
+
+localrules: all
+
+
+folder = os.path.abspath(config["folder"])
+data_dir = os.path.join(folder, 'data')
+aln = os.path.join(data_dir, 'real', 'aln.fa')
+
+# The folder where the reconstructed ACR maps will be placed
+maps_dir = 'maps'
+
+# choose one or more of the tree types below
+tree_types = ['raxml', 'fast', 'phyml']
+
+model='F81'
+
+
+rule all:
+    input:
+        os.path.join(data_dir, 'real', 'iTOL', 'iTOL_colorstrip-genotype.txt'),
+        expand(os.path.join(data_dir, 'resampled', '{n}', 'iTOL', 'iTOL_colorstrip-genotype.txt'), n=range(5)),
+
+        expand(os.path.join(data_dir, 'real', '{type}_tree.dated.nwk'), type=tree_types),
+        expand(os.path.join(data_dir, 'resampled', '{n}', '{type}_tree.dated.nwk'), type=tree_types, n=range(5)),
+
+        distances = expand(os.path.join(data_dir, 'real', 'distances_all_trees.tab'))
+
+
+rule table2itol:
+    '''
+    Extracts itol metadata
+    '''
+    input:
+        data = os.path.join(data_dir, '{prefix}', 'metadata.tab')
+    output:
+        os.path.join(data_dir, '{prefix}', 'iTOL', 'iTOL_colorstrip-genotype.txt')
+    singularity:
+        "docker://evolbioinfo/table2itol:latest"
+    params:
+        mem = 2000,
+        name = 'loc_metadata'
+    threads: 1
+    shell:
+        "table2itol.R -i accession {input.data} -D {prefix}/iTOL/"
+
+rule fasttree:
+    '''
+    Reconstructs a tree with FastTree.
+    '''
+    input:
+        aln = os.path.join(data_dir, '{prefix}', 'aln.fa'),
+    output:
+        tree = os.path.join(data_dir, '{prefix}', 'fast_tree.nwk'),
+        log = os.path.join(data_dir, '{prefix}', 'fast_tree.log')
+    threads: 6
+    singularity: "docker://evolbioinfo/fasttree:v2.1.10"
+    params:
+        mem = 8000,
+        name='fasttree'
+    shell:
+        "FastTree -gamma -nt -gtr -cat 6 -log {output.log} < {input.aln} > {output.tree}"
+
+rule phyml:
+    '''
+    Reconstructs a tree with PhyML.
+    '''
+    input:
+        aln = os.path.join(data_dir, '{prefix}', 'aln.phylip')
+    output:
+        tree = os.path.join(data_dir, '{prefix}', 'phyml_tree.nwk'),
+        log = os.path.join(data_dir, '{prefix}', 'phyml_tree.log')
+    threads: 1
+    singularity: "docker://evolbioinfo/phyml:v3.3.20180621"
+    params:
+        mem = 4000,
+        name = 'phyml'
+    shell:
+        """
+        phyml -i {input.aln} -d nt -m GTR -o tlr -f m -t e -c 6 -a e -s RAND --r_seed 239 --leave_duplicates
+        mv {input.aln}_phyml_tree* {output.tree}
+        mv {input.aln}_phyml_stats* {output.log}
+        """
+
+rule convert_alignment:
+    '''
+    Filter and convert a fasta alignment to another format.
+    '''
+    input:
+        fa = os.path.join(data_dir, '{prefix}', 'aln.fa')
+    output:
+        fa = os.path.join(data_dir, '{prefix}', 'aln.phylip')
+    params:
+        mem = 1000,
+        name = 'fa2phylip',
+        qos = 'fast'
+    threads: 1
+    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    shell: "python3 {folder}/py/convert_aln.py --output_fa {output.fa} --input_fa {input.fa} --format phylip"
+
+
+rule resample_alignment:
+    '''
+    Resamples a fasta alignment with replacement.
+    '''
+    input:
+        fa = os.path.join(data_dir, 'real', 'aln.fa'),
+        data = os.path.join(data_dir, 'real', 'metadata.tab')
+    output:
+        fa = os.path.join(data_dir, 'resampled', '{n}', 'aln.fa'),
+        data = os.path.join(data_dir, 'resampled', '{n}', 'metadata.tab')
+    params:
+        mem = 1000,
+        name = 'resample_fa',
+        qos = 'fast'
+    threads: 1
+    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    shell:
+        """
+        python3 {folder}/py/resample_aln.py --output_fa {output.fa} --input_fa {input.fa} \
+        --output_tab {output.data} --input_tab {input.data}
+        """
+
+rule raxml:
+    '''
+    Reconstructs a tree with RAxML.
+    '''
+    input:
+        aln = os.path.join(data_dir, '{prefix}', 'aln.fa')
+    output:
+        tree = os.path.join(data_dir, '{prefix}', 'raxml_tree.nwk'),
+        log = os.path.join(data_dir, '{prefix}', 'raxml_tree.log'),
+    threads: 12
+    singularity: "docker://evolbioinfo/raxml:v8.2.11-sse3"
+    params:
+        mem = 10000,
+        name = 'raxml',
+        wd = os.path.join('{prefix}')
+    shell:
+        """
+        raxmlHPC -f ad -m GTRGAMMA -s {input.aln} -c 6 -n "RAXML" -p 239 -T {threads} -w {params.wd} -x 239 -N 100
+        mv "{params.wd}/RAxML_bestTree.RAXML" {output.tree}
+        mv "{params.wd}/RAxML_info.RAXML" {output.log}
+        rm -rf "{params.wd}/RAxML_*"
+        """
+
+rule extract_dates:
+    '''
+    Reformats metadata into date file readable by LSD.
+    '''
+    input:
+        tab = os.path.join(data_dir, '{prefix}', 'metadata.tab')
+    output:
+        tab = os.path.join(data_dir, '{prefix}', 'dates.tab')
+    params:
+        mem = 1000,
+        name = 'dates',
+        date_col = 'year',
+        c_tip = 'b(1940,2015)'
+    threads: 1
+    run:
+        shell("""
+            {src_command}
+            {py_config}
+
+            python3 {folder}/py/extract_dates.py --data {input.tab} --dates {output.tab} --c_tip "{params.c_tip}" \
+            --date_col {params.date_col}
+        """)
+
+rule date_and_root_globally:
+    '''
+    Dates a tree.
+    '''
+    input:
+        tree = os.path.join(data_dir, '{prefix}', '{tree}.nwk'),
+        dates = os.path.join(data_dir, '{prefix}', 'dates.tab')
+    output:
+        tree = os.path.join(data_dir, '{prefix}', '{tree}.dated.nwk'),
+        log = os.path.join(data_dir, '{prefix}', '{tree}.lsd.log'),
+    threads: 1
+    singularity: "docker://evolbioinfo/lsd:v0.3beta-55183ca9d0"
+    params:
+        mem = 2000,
+        name = 'date',
+        wd = os.path.join(data_dir, '{prefix}',  '{tree}.dated')
+    shell:
+        """
+        lsd -i {input.tree} -d {input.dates} -v 2 -c -s 10188 -f 1000 -r a -o {params.wd}
+        mv {params.wd}.date.newick {output.tree}
+        mv {params.wd} {output.log}
+        rm {params.wd}.newick
+        rm {params.wd}.nexus
+        """
+
+rule compare_trees:
+    '''
+    Calculates RF and quantet distances between the trees.
+    '''
+    input:
+        trees = os.path.join(data_dir, '{prefix}', '{trees}.nwk'),
+        names = os.path.join(data_dir, '{prefix}', '{trees}.names'),
+        qt = os.path.join(data_dir, '{prefix}', 'distances_{trees}.quartet.tab'),
+    output:
+        log = os.path.join(data_dir, '{prefix}', 'distances_{trees}.tab')
+    threads: int(len(tree_types) * (len(tree_types) - 1) / 2)
+    params:
+        mem = 10000,
+        name = 'dist_{trees}',
+        qos = 'fast'
+    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    shell:
+        """
+        python3 {folder}/py/compare_trees.py --trees {input.trees} --labels {input.names} \
+        --output {output.log} --qt {input.qt}
+        """
+
+rule merge_nwk:
+    '''
+    Merge multiple one-tree newick files into one multiple-tree newick file.
+    '''
+    input:
+        trees = expand(os.path.join(data_dir, '{{prefix}}', '{type}_tree.nwk'), type=tree_types)
+    output:
+        trees = os.path.join(data_dir, '{prefix}', 'all_trees.nwk'),
+        names = os.path.join(data_dir, '{prefix}', 'all_trees.names')
+    params:
+        mem = 1000,
+        name = 'merge_nwk',
+        qos = 'fast',
+        names = '\t'.join(tree_types)
+    threads: 1
+    shell:
+        """
+        ls {input.trees} | xargs cat >> {output.trees}
+        echo "{params.names}" >> {output.names}
+        """
+
+rule quartet_dists:
+    '''
+    Calculates quartet distances with tqDist.
+    '''
+    input:
+        trees = os.path.join(data_dir, '{prefix}', '{trees}.nwk')
+    output:
+        log = temp(os.path.join(data_dir, '{prefix}', 'distances_{trees}.quartet.tab')),
+    threads: 1
+    singularity: "docker://evolbioinfo/tqdist:v1.0.1"
+    params:
+        mem = 8000,
+        name = 'tqdist_{trees}',
+        qos = 'fast'
+    shell: "all_pairs_quartet_dist {input} {output}"
+
