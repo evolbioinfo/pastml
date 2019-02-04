@@ -1,0 +1,65 @@
+
+ oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+                                  ---  PhyML 3.3.20180621  ---                                             
+                              http://www.atgc-montpellier.fr/phyml                                          
+                             Copyright CNRS - Universite Montpellier                                 
+ oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+
+. Sequence filename: 			aln.phylip
+. Data set: 				#1
+. Tree topology search: 		SPRs
+. Initial tree: 			BioNJ
+. Model of nucleotides substitution: 	GTR
+. Number of taxa: 			356
+. Log-likelihood: 			-118184.69345
+. Unconstrained log-likelihood: 	-51639.34885
+. Composite log-likelihood: 		-4962585.39612
+. Parsimony: 				18396
+. Tree size: 				1.85502
+. Discrete gamma model: 		Yes
+  - Number of classes: 			6
+  - Gamma shape parameter: 		0.306
+  - Relative rate in class 1: 		0.00154 [freq=0.166667] 		
+  - Relative rate in class 2: 		0.02838 [freq=0.166667] 		
+  - Relative rate in class 3: 		0.14287 [freq=0.166667] 		
+  - Relative rate in class 4: 		0.45071 [freq=0.166667] 		
+  - Relative rate in class 5: 		1.20075 [freq=0.166667] 		
+  - Relative rate in class 6: 		4.17575 [freq=0.166667] 		
+. Nucleotides frequencies:
+  - f(A)=  0.33606
+  - f(C)=  0.22535
+  - f(G)=  0.24213
+  - f(T)=  0.19647
+. GTR relative rate parameters : 
+  A <-> C    1.21560
+  A <-> G   12.00540
+  A <-> T    1.83352
+  C <-> G    0.68941
+  C <-> T   32.74786
+  G <-> T    1.00000
+
+. Instantaneous rate matrix : 
+  [A---------C---------G---------T------]
+  -0.64971   0.05026   0.53335   0.06610  
+   0.07495  -1.28613   0.03063   1.18054  
+   0.74026   0.02851  -0.80481   0.03605  
+   0.11306   1.35403   0.04443  -1.51152  
+
+
+
+. Run ID:				none
+. Random seed:				239
+. Subtree patterns aliasing:		no
+. Version:				3.3.20180621
+. Time used:				3h48m21s (13701 seconds)
+
+ oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+ Suggested citations:
+ S. Guindon, JF. Dufayard, V. Lefort, M. Anisimova, W. Hordijk, O. Gascuel
+ "New algorithms and methods to estimate maximum-likelihood phylogenies: assessing the performance of PhyML 3.0."
+ Systematic Biology. 2010. 59(3):307-321.
+
+ S. Guindon & O. Gascuel
+ "A simple, fast, and accurate algorithm to estimate large phylogenies by maximum likelihood"
+ Systematic Biology. 2003. 52(5):696-704.
+ oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo

@@ -1,0 +1,32 @@
+
+LEAST-SQUARE METHODS TO ESTIMATE RATES AND DATES - v0.3beta 
+
+
+Input files:
+  I                                 Input tree file : /home/azhukova/Pasteur/projects/Phylogenomics-Chapter/ml_analysis/../data/max_lh/DENV2/resampled/4/phyml_tree.nwk
+  D                                 Input date file : /home/azhukova/Pasteur/projects/Phylogenomics-Chapter/ml_analysis/../data/max_lh/DENV2/resampled/4/dates_real.tab
+  P                                  Partition file : No
+Output file:
+  O                                    Output file  : /home/azhukova/Pasteur/projects/Phylogenomics-Chapter/ml_analysis/../data/max_lh/DENV2/resampled/4/phyml_tree.dated_real
+Parameters:
+  C                                With constraints : Yes
+  T                        Lower bound for the rate : 1.000e-10
+  V                                  With variances : Yes, use variances based on branches estimated by LSD
+  B                          Parameter of variances : 10
+  S                                 Sequence Length : 10188
+  R                               Estimate the root : Use fast method to search on all branches
+  W                         Given substitution rate : No
+  G                                 Given outgroups : No
+  N                               Multiple data set : No
+  F                    Compute confidence intervals : Yes, sampling 1000 times
+
+  H to print Help 
+  Y to accept or type a letter to change an option (Q = Exit) 
+Tree 1 rate 2.632e-04 , tMRCA 1225.201584 , objective function 2.297199e+03
+Re-estimate using variances based on the branch lengths of the previous run ...
+rate 2.845e-04 , tMRCA 1258.216486 , objective function 4.857920e+03
+rate 2.845e-04 [2.604e-04 , 3.037e-04] , tMRCA 1258.216486 [1188.417275 , 1308.965715] , objective function 4.857920e+03
+
+
+*********************************************************
+Elapsed time: 15.92 seconds
