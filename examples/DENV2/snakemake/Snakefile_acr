@@ -27,9 +27,9 @@ locs = ['Location']
 rule all:
     input:
         expand(os.path.join(data_dir, maps_dir, '{loc}', 'real', 'geo_map_{loc}_{type}_tree.dated.html'),
-        type=tree_types, loc=locs),
+        type=tree_types[:1], loc=locs),
         expand(os.path.join(data_dir, maps_dir, '{loc}', 'resampled', '{n}', 'geo_map_{loc}_{type}_tree.dated.html'),
-        type=tree_types, loc=locs, n=range(5)),
+        type=tree_types[:1], loc=locs, n=range(5)),
 
         expand(os.path.join(data_dir, maps_dir, '{loc}', 'real', 'acr_map_{loc}_{type}_tree.dated.html'),
         type=tree_types, loc=locs),

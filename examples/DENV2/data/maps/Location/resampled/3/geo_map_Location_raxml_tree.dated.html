@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Colour Map</title>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <style>
+        .floating {
+            float: right;
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            z-index: 100;
+          justify-content: center;
+          align-items: center;
+        }
+
+        .button {
+            background-color: #555555;
+            border: none;
+            color: white;
+            padding: 6px 0px;
+            width: 100%;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 3px 10px 0 rgba(0,0,0,0.19);
+        }
+    </style>
+</head>
+<body>
+    <div id="regions_div" style="width: 100%; height: 100%;"></div>
+    <div id='chart_div'></div>
+    <div class="floating">
+        <a class="button" href="#" id="downloader" download="map.png">Download</a>
+    </div>
+           
+    <script type="text/javascript"> 
+        google.charts.load('current', {
+            'packages':['geochart'],
+          });
+        google.charts.setOnLoadCallback(drawRegionsMap);    
+
+        function drawRegionsMap() {
+
+
+              var data = new google.visualization.DataTable();
+                data.addColumn('string', 'Country');
+                data.addColumn('number', 'Colour');
+                // A column for custom tooltip content
+                data.addColumn({type: 'string', role: 'tooltip'});
+                data.addRows([
+                    
+                        ['NG', 0, 'Nigeria: 5 samples (out of 15 in Africa)'],
+                    
+                        ['CI', 0, 'Côte d’Ivoire: 4 samples (out of 15 in Africa)'],
+                    
+                        ['BF', 0, 'Burkina Faso: 3 samples (out of 15 in Africa)'],
+                    
+                        ['SN', 0, 'Senegal: 3 samples (out of 15 in Africa)'],
+                    
+                        ['PR', 1, 'Puerto Rico: 49 samples (out of 57 in Caribbean)'],
+                    
+                        ['JM', 1, 'Jamaica: 1 samples (out of 57 in Caribbean)'],
+                    
+                        ['VI', 1, 'United States Virgin Islands: 2 samples (out of 57 in Caribbean)'],
+                    
+                        ['None', 6, 'French Guiana: 8 samples (out of 59 in South America)'],
+                    
+                        ['CU', 1, 'Cuba: 1 samples (out of 57 in Caribbean)'],
+                    
+                        ['MX', 2, 'Mexico: 11 samples (out of 44 in Central America)'],
+                    
+                        ['NI', 2, 'Nicaragua: 33 samples (out of 44 in Central America)'],
+                    
+                        ['CN', 3, 'China: 9 samples (out of 11 in Eastern Asia)'],
+                    
+                        ['TW', 3, 'Republic of China: 2 samples (out of 11 in Eastern Asia)'],
+                    
+                        ['ES', 4, 'Spain: 1 samples (out of 1 in Europe)'],
+                    
+                        ['TO', 5, 'Tonga: 2 samples (out of 6 in Oceania)'],
+                    
+                        ['PG', 5, 'Papua New Guinea: 2 samples (out of 6 in Oceania)'],
+                    
+                        ['GU', 5, 'Guam: 1 samples (out of 6 in Oceania)'],
+                    
+                        ['AU', 5, 'Australia: 1 samples (out of 6 in Oceania)'],
+                    
+                        ['BR', 6, 'Brazil: 19 samples (out of 59 in South America)'],
+                    
+                        ['CO', 6, 'Colombia: 9 samples (out of 59 in South America)'],
+                    
+                        ['VE', 6, 'Venezuela (Bolivarian Republic of): 20 samples (out of 59 in South America)'],
+                    
+                        ['PE', 6, 'Peru: 2 samples (out of 59 in South America)'],
+                    
+                        ['SR', 6, 'Suriname: 1 samples (out of 59 in South America)'],
+                    
+                        ['TH', 7, 'Thailand: 23 samples (out of 142 in South-eastern Asia)'],
+                    
+                        ['VN', 7, 'Viet Nam: 76 samples (out of 142 in South-eastern Asia)'],
+                    
+                        ['KH', 7, 'Cambodia: 24 samples (out of 142 in South-eastern Asia)'],
+                    
+                        ['SG', 7, 'Singapore: 9 samples (out of 142 in South-eastern Asia)'],
+                    
+                        ['ID', 7, 'Indonesia: 7 samples (out of 142 in South-eastern Asia)'],
+                    
+                        ['MY', 7, 'Malaysia: 2 samples (out of 142 in South-eastern Asia)'],
+                    
+                        ['BN', 7, 'Brunei Darussalam: 1 samples (out of 142 in South-eastern Asia)'],
+                    
+                        ['IN', 8, 'India: 13 samples (out of 20 in Southern Asia)'],
+                    
+                        ['PK', 8, 'Pakistan: 5 samples (out of 20 in Southern Asia)'],
+                    
+                        ['LK', 8, 'Sri Lanka: 2 samples (out of 20 in Southern Asia)'],
+                    
+                        ['SA', 9, 'Saudi Arabia: 1 samples (out of 1 in Western Asia)'],
+                    
+                ]);
+        
+              var options = {
+                displayMode: 'regions',
+                colorAxis:{
+                  colors: [ '#a6cee3',  '#1f78b4',  '#b2df8a',  '#33a02c',  '#fb9a99',  '#e31a1c',  '#fdbf6f',  '#ff7f00',  '#cab2d6',  '#6a3d9a', ],
+                  values: [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, ]
+                },
+               legend:'none'
+              };
+        
+              var chart = new google.visualization.GeoChart(document.getElementById('regions_div'));
+              
+              // Wait for the chart to finish drawing before calling the getImageURI() method.
+              google.visualization.events.addListener(chart, 'ready', function () {
+                    document.getElementById("downloader").href = chart.getImageURI().replace(/^data:image\/[^;]/, 'data:application/octet-stream');
+              });
+        
+        
+             chart.draw(data, options);
+          }
+    </script>
+</body>
+</html>
