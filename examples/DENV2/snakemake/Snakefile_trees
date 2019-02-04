@@ -13,13 +13,8 @@ folder = os.path.abspath(config["folder"])
 data_dir = os.path.join(folder, 'data')
 aln = os.path.join(data_dir, 'real', 'aln.fa')
 
-# The folder where the reconstructed ACR maps will be placed
-maps_dir = 'maps'
-
 # choose one or more of the tree types below
 tree_types = ['raxml', 'fast', 'phyml']
-
-model='F81'
 
 
 rule all:
