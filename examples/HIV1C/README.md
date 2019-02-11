@@ -45,7 +45,7 @@ The branches of length zero or aLRT SH-like support less than 0.5 were collapsed
 
 
 ### 4. Ancestral character reconstruction (ACR)
-We reconstructed ACR for Location and 5 most prevalent SDRMs using PastML.
+We reconstructed ACR for Location and 5 most prevalent SDRMs using PastML (MPPA F81).
 
 ## DIY
 
