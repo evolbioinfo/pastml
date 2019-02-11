@@ -1,0 +1,357 @@
+accession	id	country_code	serotype	genotype	year	Country ISO3	Continent	Country	Sub-region	Region	Int-region	Is Developed	Location
+GQ868600	DENV2_GQ868600_American_PR_1969	PR	DENV2	American	1969.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+FJ639707	DENV2_FJ639707_Asian_I_KH_2004	KH	DENV2	AsianI	2004.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AF100461	DENV2_AF100461_Asian_I_TH_1995	TH	DENV2	AsianI	1995.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+JF357906	DENV2_JF357906_AsianAmerican_NI_2008	NI	DENV2	AsianAmerican	2008.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+KJ830750	DENV2_KJ830750_Cosmopolitan_SA_2014	SA	DENV2	Cosmopolitan	2014.0	SAU	Asia	Saudi Arabia	Western Asia	Asia	Western Asia	Developing	Western Asia
+EU482474	DENV2_EU482474_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482784	DENV2_EU482784_Asian_I_VN_2003	VN	DENV2	AsianI	2003.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ024452	DENV2_FJ024452_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EF105384	DENV2_EF105384_Sylvatic_SN_1970	SN	DENV2	Sylvatic	1970.0	SEN	Africa	Senegal	Sub-Saharan Africa	Africa	Western Africa	Developing	Africa
+FJ850061	DENV2_FJ850061_AsianAmerican_NI_2000	NI	DENV2	AsianAmerican	2000.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+GQ398263	DENV2_GQ398263_Cosmopolitan_ID_1975	ID	DENV2	Cosmopolitan	1975.0	IDN	Asia	Indonesia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482669	DENV2_EU482669_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU677145	DENV2_EU677145_AsianAmerican_PR_1999	PR	DENV2	AsianAmerican	1999.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+EU677148	DENV2_EU677148_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ850121	DENV2_FJ850121_AsianAmerican_NI_2001	NI	DENV2	AsianAmerican	2001.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+KF479233	DENV2_KF479233_Cosmopolitan_CN_2013	CN	DENV2	Cosmopolitan	2013.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+EU569714	DENV2_EU569714_AsianAmerican_PR_1997	PR	DENV2	AsianAmerican	1997.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+KJ010185	DENV2_KJ010185_Cosmopolitan_PK_2011	PK	DENV2	Cosmopolitan	2011.0	PAK	Asia	Pakistan	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+AF100465	DENV2_AF100465_American_VE_1987	VE	DENV2	American	1987.0	VEN	Americas	Venezuela (Bolivarian Republic of)	Latin America and the Caribbean	Americas	South America	Developing	South America
+FM210234	DENV2_FM210234_AsianAmerican_VN_2004	VN	DENV2	AsianAmerican	2004.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AF169679	DENV2_AF169679_Asian_I_TH_1993	TH	DENV2	AsianI	1993.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ906961	DENV2_FJ906961_AsianAmerican_NI_2005	NI	DENV2	AsianAmerican	2005.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+GU370051	DENV2_GU370051_Cosmopolitan_SG_2008	SG	DENV2	Cosmopolitan	2008.0	SGP	Asia	Singapore	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482729	DENV2_EU482729_AsianAmerican_PR_1999	PR	DENV2	AsianAmerican	1999.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+EU482640	DENV2_EU482640_Cosmopolitan_VN_2006	VN	DENV2	Cosmopolitan	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AY858036	DENV2_AY858036_Cosmopolitan_ID_2004	ID	DENV2	Cosmopolitan	2004.0	IDN	Asia	Indonesia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+GQ398302	DENV2_GQ398302_AsianAmerican_PR_1994	PR	DENV2	AsianAmerican	1994.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+FM210204	DENV2_FM210204_AsianAmerican_VN_2003	VN	DENV2	AsianAmerican	2003.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+DQ181799	DENV2_DQ181799_Asian_I_TH_1998	TH	DENV2	AsianI	1998.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ196854	DENV2_FJ196854_Cosmopolitan_CN_1993	CN	DENV2	Cosmopolitan	1993.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+GQ868515	DENV2_GQ868515_AsianAmerican_MX_2007	MX	DENV2	AsianAmerican	2007.0	MEX	Americas	Mexico	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+EU482572	DENV2_EU482572_AsianAmerican_PR_1987	PR	DENV2	AsianAmerican	1987.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+GQ398291	DENV2_GQ398291_AsianAmerican_PR_1994	PR	DENV2	AsianAmerican	1994.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+GQ199898	DENV2_GQ199898_AsianAmerican_NI_2001	NI	DENV2	AsianAmerican	2001.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+FJ547064	DENV2_FJ547064_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EF105387	DENV2_EF105387_Sylvatic_NG_1966	NG	DENV2	Sylvatic	1966.0	NGA	Africa	Nigeria	Sub-Saharan Africa	Africa	Western Africa	Developing	Africa
+FJ639704	DENV2_FJ639704_Asian_I_KH_2003	KH	DENV2	AsianI	2003.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482693	DENV2_EU482693_AsianAmerican_NI_2006	NI	DENV2	AsianAmerican	2006.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+GQ398284	DENV2_GQ398284_AsianAmerican_PR_1994	PR	DENV2	AsianAmerican	1994.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+DQ181803	DENV2_DQ181803_Asian_I_TH_1985	TH	DENV2	AsianI	1985.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AY702039	DENV2_AY702039_AsianAmerican_CU_1997	CU	DENV2	AsianAmerican	1997.0	CUB	Americas	Cuba	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+FJ898439	DENV2_FJ898439_AsianAmerican_MX_2008	MX	DENV2	AsianAmerican	2008.0	MEX	Americas	Mexico	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+GQ868620	DENV2_GQ868620_Asian_I_KH_2003	KH	DENV2	AsianI	2003.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ205885	DENV2_FJ205885_AsianAmerican_NI_2008	NI	DENV2	AsianAmerican	2008.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+AY037116	DENV2_AY037116_Cosmopolitan_AU_1993	AU	DENV2	Cosmopolitan	1993.0	AUS	Oceania	Australia	Australia and New Zealand	Oceania	Australia and New Zealand	Developed	Oceania
+GU131924	DENV2_GU131924_Asian_I_KH_2008	KH	DENV2	AsianI	2008.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482469	DENV2_EU482469_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ639701	DENV2_FJ639701_AsianAmerican_KH_2002	KH	DENV2	AsianAmerican	2002.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AF276619	DENV2_AF276619_Cosmopolitan_CN_1987	CN	DENV2	Cosmopolitan	1987.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+AF204177	DENV2_AF204177_Asian_II_CN_1989	CN	DENV2	AsianII	1989.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+GQ868558	DENV2_GQ868558_AsianAmerican_CO_2007	CO	DENV2	AsianAmerican	2007.0	COL	Americas	Colombia	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU482699	DENV2_EU482699_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ410224	DENV2_FJ410224_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ410202	DENV2_FJ410202_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+GQ868544	DENV2_GQ868544_Asian_I_TH_1996	TH	DENV2	AsianI	1996.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+JF730047	DENV2_JF730047_Asian_I_KH_2008	KH	DENV2	AsianI	2008.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ196853	DENV2_FJ196853_Cosmopolitan_CN_2003	CN	DENV2	Cosmopolitan	2003.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+FJ906957	DENV2_FJ906957_Asian_I_TH_1996	TH	DENV2	AsianI	1996.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+GQ868553	DENV2_GQ868553_AsianAmerican_CO_1999	CO	DENV2	AsianAmerican	1999.0	COL	Americas	Colombia	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU482776	DENV2_EU482776_Asian_I_VN_2005	VN	DENV2	AsianI	2005.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ639702	DENV2_FJ639702_AsianAmerican_KH_2003	KH	DENV2	AsianAmerican	2003.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU920828	DENV2_EU920828_AsianAmerican_GF_1993	GF	DENV2	AsianAmerican	1993.0	GUF	Americas	French Guiana	Latin America and the Caribbean	Americas	South America	Developing	South America
+JQ922553	DENV2_JQ922553_American_IN_1980	IN	DENV2	American	1980.0	IND	Asia	India	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+FJ898465	DENV2_FJ898465_AsianAmerican_VE_1998	VE	DENV2	AsianAmerican	1998.0	VEN	Americas	Venezuela (Bolivarian Republic of)	Latin America and the Caribbean	Americas	South America	Developing	South America
+AF489932	DENV2_AF489932_AsianAmerican_BR_1998	BR	DENV2	AsianAmerican	1998.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU920833	DENV2_EU920833_AsianAmerican_GF_2000	GF	DENV2	AsianAmerican	2000.0	GUF	Americas	French Guiana	Latin America and the Caribbean	Americas	South America	Developing	South America
+FJ205879	DENV2_FJ205879_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ639706	DENV2_FJ639706_Asian_I_KH_2004	KH	DENV2	AsianI	2004.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+JF260983	DENV2_JF260983_Sylvatic_ES_2009	ES	DENV2	Sylvatic	2009.0	ESP	Europe	Spain	Southern Europe	Europe	Southern Europe	Developed	Europe
+FJ410221	DENV2_FJ410221_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FM210214	DENV2_FM210214_Asian_I_VN_2004	VN	DENV2	AsianI	2004.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+GQ398259	DENV2_GQ398259_Cosmopolitan_ID_1976	ID	DENV2	Cosmopolitan	1976.0	IDN	Asia	Indonesia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+KJ010186	DENV2_KJ010186_Cosmopolitan_PK_2013	PK	DENV2	Cosmopolitan	2013.0	PAK	Asia	Pakistan	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+FJ687434	DENV2_FJ687434_Asian_I_TH_2001	TH	DENV2	AsianI	2001.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+GU131927	DENV2_GU131927_Asian_I_KH_2007	KH	DENV2	AsianI	2007.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+KF041233	DENV2_KF041233_Cosmopolitan_PK_2011	PK	DENV2	Cosmopolitan	2011.0	PAK	Asia	Pakistan	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+FJ410259	DENV2_FJ410259_Asian_I_VN_2008	VN	DENV2	AsianI	2008.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482546	DENV2_EU482546_AsianAmerican_PR_1998	PR	DENV2	AsianAmerican	1998.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+EU482587	DENV2_EU482587_AsianAmerican_PR_1990	PR	DENV2	AsianAmerican	1990.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+AF119661	DENV2_AF119661_American_CN_1985	CN	DENV2	American	1985.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+JQ922551	DENV2_JQ922551_Cosmopolitan_IN_2005	IN	DENV2	Cosmopolitan	2005.0	IND	Asia	India	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+FJ639733	DENV2_FJ639733_AsianAmerican_VE_2005	VE	DENV2	AsianAmerican	2005.0	VEN	Americas	Venezuela (Bolivarian Republic of)	Latin America and the Caribbean	Americas	South America	Developing	South America
+KC294201	DENV2_KC294201_AsianAmerican_PE_2009	PE	DENV2	AsianAmerican	2009.0	PER	Americas	Peru	Latin America and the Caribbean	Americas	South America	Developing	South America
+KC294222	DENV2_KC294222_AsianAmerican_PE_2002	PE	DENV2	AsianAmerican	2002.0	PER	Americas	Peru	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU482545	DENV2_EU482545_AsianAmerican_PR_1998	PR	DENV2	AsianAmerican	1998.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+FJ639831	DENV2_FJ639831_Asian_I_TH_2001	TH	DENV2	AsianI	2001.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ882602	DENV2_FJ882602_Cosmopolitan_LK_1996	LK	DENV2	Cosmopolitan	1996.0	LKA	Asia	Sri Lanka	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+EU920842	DENV2_EU920842_AsianAmerican_SR_2005	SR	DENV2	AsianAmerican	2005.0	SUR	Americas	Suriname	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU482468	DENV2_EU482468_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+DQ181805	DENV2_DQ181805_Asian_I_TH_1979	TH	DENV2	AsianI	1979.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AF204178	DENV2_AF204178_Asian_II_CN_1987	CN	DENV2	AsianII	1987.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+FJ744708	DENV2_FJ744708_AsianAmerican_NI_2007	NI	DENV2	AsianAmerican	2007.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+GQ199890	DENV2_GQ199890_AsianAmerican_BR_2008	BR	DENV2	AsianAmerican	2008.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU482556	DENV2_EU482556_AsianAmerican_PR_2005	PR	DENV2	AsianAmerican	2005.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+EU920835	DENV2_EU920835_AsianAmerican_GF_2002	GF	DENV2	AsianAmerican	2002.0	GUF	Americas	French Guiana	Latin America and the Caribbean	Americas	South America	Developing	South America
+EF105379	DENV2_EF105379_Sylvatic_MY_1970	MY	DENV2	Sylvatic	1970.0	MYS	Asia	Malaysia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+HM488257	DENV2_HM488257_Cosmopolitan_GU_2001	GU	DENV2	Cosmopolitan	2001.0	GUM	Oceania	Guam	Micronesia	Oceania	Micronesia	Developing	Oceania
+HQ705625	DENV2_HQ705625_AsianAmerican_NI_2009	NI	DENV2	AsianAmerican	2009.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+FJ639828	DENV2_FJ639828_Asian_I_TH_2001	TH	DENV2	AsianI	2001.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ639710	DENV2_FJ639710_Asian_I_KH_2005	KH	DENV2	AsianI	2005.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482726	DENV2_EU482726_AsianAmerican_PR_2006	PR	DENV2	AsianAmerican	2006.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+JX669483	DENV2_JX669483_AsianAmerican_BR_1997	BR	DENV2	AsianAmerican	1997.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+FM210206	DENV2_FM210206_Asian_I_VN_2005	VN	DENV2	AsianI	2005.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482444	DENV2_EU482444_AsianAmerican_NI_2006	NI	DENV2	AsianAmerican	2006.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+M29095	DENV2_M29095_Asian_II_PG_1944	PG	DENV2	AsianII	1944.0	PNG	Oceania	Papua New Guinea	Melanesia	Oceania	Melanesia	Developing	Oceania
+KF360005	DENV2_KF360005_Cosmopolitan_PK_2010	PK	DENV2	Cosmopolitan	2010.0	PAK	Asia	Pakistan	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+EU482728	DENV2_EU482728_AsianAmerican_PR_1998	PR	DENV2	AsianAmerican	1998.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+EU482635	DENV2_EU482635_AsianAmerican_NI_2005	NI	DENV2	AsianAmerican	2005.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+FJ850050	DENV2_FJ850050_AsianAmerican_NI_2007	NI	DENV2	AsianAmerican	2007.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+KJ189305	DENV2_KJ189305_AsianAmerican_CO_2000	CO	DENV2	AsianAmerican	2000.0	COL	Americas	Colombia	Latin America and the Caribbean	Americas	South America	Developing	South America
+AJ487271	DENV2_AJ487271_Asian_I_TH_1974	TH	DENV2	AsianI	1974.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+GQ398308	DENV2_GQ398308_AsianAmerican_PR_1994	PR	DENV2	AsianAmerican	1994.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+JX649148	DENV2_JX649148_AsianAmerican_VN_1995	VN	DENV2	AsianAmerican	1995.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ410195	DENV2_FJ410195_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+GQ398257	DENV2_GQ398257_American_ID_1977	ID	DENV2	American	1977.0	IDN	Asia	Indonesia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+JN819408	DENV2_JN819408_AsianAmerican_VE_2001	VE	DENV2	AsianAmerican	2001.0	VEN	Americas	Venezuela (Bolivarian Republic of)	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU529701	DENV2_EU529701_AsianAmerican_PR_1991	PR	DENV2	AsianAmerican	1991.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+KJ734727	DENV2_KJ734727_Asian_II_TW_2014	TW	DENV2	AsianII	2014.0	TWN	Asia	Republic of China	Eastern Asia	Asia	Eastern Asia		Eastern Asia
+FM210241	DENV2_FM210241_AsianAmerican_VN_2004	VN	DENV2	AsianAmerican	2004.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+JX286520	DENV2_JX286520_AsianAmerican_BR_2010	BR	DENV2	AsianAmerican	2010.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU569719	DENV2_EU569719_AsianAmerican_PR_1997	PR	DENV2	AsianAmerican	1997.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+GQ868638	DENV2_GQ868638_Asian_I_KH_2008	KH	DENV2	AsianI	2008.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ410217	DENV2_FJ410217_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EF105378	DENV2_EF105378_Sylvatic_GN_1981	GN	DENV2	Sylvatic	1981.0	GIN	Africa	Guinea	Sub-Saharan Africa	Africa	Western Africa	Developing	Africa
+FJ898453	DENV2_FJ898453_AsianAmerican_VI_2005	VI	DENV2	AsianAmerican	2005.0	VIR	Americas	United States Virgin Islands	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+JX669484	DENV2_JX669484_AsianAmerican_BR_1998	BR	DENV2	AsianAmerican	1998.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+AF100469	DENV2_AF100469_American_MX_1992	MX	DENV2	American	1992.0	MEX	Americas	Mexico	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+FJ898454	DENV2_FJ898454_Cosmopolitan_IN_2006	IN	DENV2	Cosmopolitan	2006.0	IND	Asia	India	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+HQ332186	DENV2_HQ332186_AsianAmerican_VE_2007	VE	DENV2	AsianAmerican	2007.0	VEN	Americas	Venezuela (Bolivarian Republic of)	Latin America and the Caribbean	Americas	South America	Developing	South America
+FJ410237	DENV2_FJ410237_Asian_I_VN_2008	VN	DENV2	AsianI	2008.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EF105389	DENV2_EF105389_Sylvatic_SN_1999	SN	DENV2	Sylvatic	1999.0	SEN	Africa	Senegal	Sub-Saharan Africa	Africa	Western Africa	Developing	Africa
+FJ410215	DENV2_FJ410215_Asian_I_VN_2008	VN	DENV2	AsianI	2008.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU726767	DENV2_EU726767_Asian_I_TH_1994	TH	DENV2	AsianI	1994.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ898451	DENV2_FJ898451_AsianAmerican_DO_2003	DO	DENV2	AsianAmerican	2003.0	DOM	Americas	Dominican Republic	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+JN819419	DENV2_JN819419_AsianAmerican_BR_2000	BR	DENV2	AsianAmerican	2000.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+FM210208	DENV2_FM210208_AsianAmerican_VN_2003	VN	DENV2	AsianAmerican	2003.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU677142	DENV2_EU677142_AsianAmerican_PR_1999	PR	DENV2	AsianAmerican	1999.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+FJ850120	DENV2_FJ850120_AsianAmerican_NI_2001	NI	DENV2	AsianAmerican	2001.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+GQ868622	DENV2_GQ868622_Asian_I_KH_2003	KH	DENV2	AsianI	2003.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+GQ398262	DENV2_GQ398262_Cosmopolitan_ID_1976	ID	DENV2	Cosmopolitan	1976.0	IDN	Asia	Indonesia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FM210221	DENV2_FM210221_AsianAmerican_VN_2003	VN	DENV2	AsianAmerican	2003.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+GQ868555	DENV2_GQ868555_AsianAmerican_CO_2005	CO	DENV2	AsianAmerican	2005.0	COL	Americas	Colombia	Latin America and the Caribbean	Americas	South America	Developing	South America
+GQ398285	DENV2_GQ398285_AsianAmerican_PR_1994	PR	DENV2	AsianAmerican	1994.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+GQ398286	DENV2_GQ398286_AsianAmerican_PR_1994	PR	DENV2	AsianAmerican	1994.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+GQ199894	DENV2_GQ199894_AsianAmerican_MX_2005	MX	DENV2	AsianAmerican	2005.0	MEX	Americas	Mexico	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+EU482449	DENV2_EU482449_AsianAmerican_VN_2006	VN	DENV2	AsianAmerican	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482679	DENV2_EU482679_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ467493	DENV2_FJ467493_Sylvatic_MY_2008	MY	DENV2	Sylvatic	2008.0	MYS	Asia	Malaysia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ410228	DENV2_FJ410228_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482649	DENV2_EU482649_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482551	DENV2_EU482551_AsianAmerican_PR_2006	PR	DENV2	AsianAmerican	2006.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+JQ955624	DENV2_JQ955624_Cosmopolitan_IN_2011	IN	DENV2	Cosmopolitan	2011.0	IND	Asia	India	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+KF041236	DENV2_KF041236_Cosmopolitan_PK_2008	PK	DENV2	Cosmopolitan	2008.0	PAK	Asia	Pakistan	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+JN819407	DENV2_JN819407_AsianAmerican_VE_2007	VE	DENV2	AsianAmerican	2007.0	VEN	Americas	Venezuela (Bolivarian Republic of)	Latin America and the Caribbean	Americas	South America	Developing	South America
+FJ850065	DENV2_FJ850065_AsianAmerican_NI_2000	NI	DENV2	AsianAmerican	2000.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+JN851131	DENV2_JN851131_Cosmopolitan_SG_2005	SG	DENV2	Cosmopolitan	2005.0	SGP	Asia	Singapore	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU677143	DENV2_EU677143_AsianAmerican_PR_1999	PR	DENV2	AsianAmerican	1999.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+FM210220	DENV2_FM210220_AsianAmerican_VN_2003	VN	DENV2	AsianAmerican	2003.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AF100464	DENV2_AF100464_Asian_I_TH_1996	TH	DENV2	AsianI	1996.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ687442	DENV2_FJ687442_Asian_I_TH_2001	TH	DENV2	AsianI	2001.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482467	DENV2_EU482467_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU179859	DENV2_EU179859_Cosmopolitan_BN_2006	BN	DENV2	Cosmopolitan	2006.0	BRN	Asia	Brunei Darussalam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FM210237	DENV2_FM210237_AsianAmerican_VN_2003	VN	DENV2	AsianAmerican	2003.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ461309	DENV2_FJ461309_Asian_I_VN_2008	VN	DENV2	AsianI	2008.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AF100460	DENV2_AF100460_Asian_I_TH_1994	TH	DENV2	AsianI	1994.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ432726	DENV2_FJ432726_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+JN851130	DENV2_JN851130_Cosmopolitan_SG_2005	SG	DENV2	Cosmopolitan	2005.0	SGP	Asia	Singapore	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU687216	DENV2_EU687216_AsianAmerican_PR_2005	PR	DENV2	AsianAmerican	2005.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+GU131932	DENV2_GU131932_Asian_I_KH_2008	KH	DENV2	AsianI	2008.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU920840	DENV2_EU920840_AsianAmerican_GF_2005	GF	DENV2	AsianAmerican	2005.0	GUF	Americas	French Guiana	Latin America and the Caribbean	Americas	South America	Developing	South America
+DQ645550	DENV2_DQ645550_Cosmopolitan_TW_2002	TW	DENV2	Cosmopolitan	2002.0	TWN	Asia	Republic of China	Eastern Asia	Asia	Eastern Asia		Eastern Asia
+EU179858	DENV2_EU179858_Cosmopolitan_BN_2005	BN	DENV2	Cosmopolitan	2005.0	BRN	Asia	Brunei Darussalam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ639732	DENV2_FJ639732_AsianAmerican_VE_2005	VE	DENV2	AsianAmerican	2005.0	VEN	Americas	Venezuela (Bolivarian Republic of)	Latin America and the Caribbean	Americas	South America	Developing	South America
+FJ898450	DENV2_FJ898450_AsianAmerican_VI_1990	VI	DENV2	AsianAmerican	1990.0	VIR	Americas	United States Virgin Islands	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+EU482639	DENV2_EU482639_AsianAmerican_NI_2006	NI	DENV2	AsianAmerican	2006.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+FJ410223	DENV2_FJ410223_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ898461	DENV2_FJ898461_AsianAmerican_BZ_2002	BZ	DENV2	AsianAmerican	2002.0	BLZ	Americas	Belize	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+EU482576	DENV2_EU482576_AsianAmerican_PR_1987	PR	DENV2	AsianAmerican	1987.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+FJ461311	DENV2_FJ461311_Asian_I_VN_2008	VN	DENV2	AsianI	2008.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AF169680	DENV2_AF169680_Asian_I_TH_1993	TH	DENV2	AsianI	1993.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ205877	DENV2_FJ205877_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+JX286525	DENV2_JX286525_AsianAmerican_BR_2010	BR	DENV2	AsianAmerican	2010.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+DQ181798	DENV2_DQ181798_Asian_I_TH_1999	TH	DENV2	AsianI	1999.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ810411	DENV2_FJ810411_Asian_I_TH_2001	TH	DENV2	AsianI	2001.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+KJ189370	DENV2_KJ189370_AsianAmerican_MX_2011	MX	DENV2	AsianAmerican	2011.0	MEX	Americas	Mexico	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+EU482658	DENV2_EU482658_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FM210217	DENV2_FM210217_AsianAmerican_VN_1999	VN	DENV2	AsianAmerican	1999.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482676	DENV2_EU482676_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+KC131142	DENV2_KC131142_Cosmopolitan_CN_2012	CN	DENV2	Cosmopolitan	2012.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+EU920846	DENV2_EU920846_AsianAmerican_GF_2006	GF	DENV2	AsianAmerican	2006.0	GUF	Americas	French Guiana	Latin America and the Caribbean	Americas	South America	Developing	South America
+M84728	DENV2_M84728__Asian_I_TH_1984	TH	DENV2	AsianI	1984.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU660413	DENV2_EU660413_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+KF704355	DENV2_KF704355_Asian_II_CU_1981	CU	DENV2	AsianII	1981.0	CUB	Americas	Cuba	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+FJ639718	DENV2_FJ639718_Asian_I_KH_2008	KH	DENV2	AsianI	2008.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482464	DENV2_EU482464_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU056812	DENV2_EU056812_American_PR_1977	PR	DENV2	American	1977.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+EU677146	DENV2_EU677146_AsianAmerican_PR_2004	PR	DENV2	AsianAmerican	2004.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+EU482670	DENV2_EU482670_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ639697	DENV2_FJ639697_AsianAmerican_KH_2001	KH	DENV2	AsianAmerican	2001.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ898449	DENV2_FJ898449_American_HN_1984	HN	DENV2	American	1984.0	HND	Americas	Honduras	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+FM210202	DENV2_FM210202_AsianAmerican_VN_2004	VN	DENV2	AsianAmerican	2004.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FM210222	DENV2_FM210222_AsianAmerican_VN_2004	VN	DENV2	AsianAmerican	2004.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ744724	DENV2_FJ744724_Asian_I_TH_2001	TH	DENV2	AsianI	2001.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+M20558	DENV2_M20558_AsianAmerican_JM_1983	JM	DENV2	AsianAmerican	1983.0	JAM	Americas	Jamaica	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+GQ868604	DENV2_GQ868604_AsianAmerican_NI_2005	NI	DENV2	AsianAmerican	2005.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+HM181971	DENV2_HM181971_AsianAmerican_BR_2008	BR	DENV2	AsianAmerican	2008.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU482607	DENV2_EU482607_AsianAmerican_VE_2007	VE	DENV2	AsianAmerican	2007.0	VEN	Americas	Venezuela (Bolivarian Republic of)	Latin America and the Caribbean	Americas	South America	Developing	South America
+FJ196851	DENV2_FJ196851_Asian_I_CN_1998	CN	DENV2	AsianI	1998.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+EU482762	DENV2_EU482762_AsianAmerican_NI_2005	NI	DENV2	AsianAmerican	2005.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+FJ744704	DENV2_FJ744704_AsianAmerican_NI_2001	NI	DENV2	AsianAmerican	2001.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+JQ922549	DENV2_JQ922549_Cosmopolitan_IN_1996	IN	DENV2	Cosmopolitan	1996.0	IND	Asia	India	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+JQ955623	DENV2_JQ955623_Cosmopolitan_IN_2009	IN	DENV2	Cosmopolitan	2009.0	IND	Asia	India	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+AF208496	DENV2_AF208496_AsianAmerican_MQ_1998	MQ	DENV2	AsianAmerican	1998.0	MTQ	Americas	Martinique	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+EU687249	DENV2_EU687249_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU920850	DENV2_EU920850_AsianAmerican_GP_2006	GP	DENV2	AsianAmerican	2006.0	GLP	Americas	Guadeloupe	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+FJ898466	DENV2_FJ898466_AsianAmerican_VE_2000	VE	DENV2	AsianAmerican	2000.0	VEN	Americas	Venezuela (Bolivarian Republic of)	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU482451	DENV2_EU482451_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+JX669478	DENV2_JX669478_AsianAmerican_BR_2010	BR	DENV2	AsianAmerican	2010.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU482721	DENV2_EU482721_AsianAmerican_PR_2006	PR	DENV2	AsianAmerican	2006.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+DQ181804	DENV2_DQ181804_Asian_I_TH_1984	TH	DENV2	AsianI	1984.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482565	DENV2_EU482565_AsianAmerican_PR_1998	PR	DENV2	AsianAmerican	1998.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+JN851121	DENV2_JN851121_Cosmopolitan_SG_2008	SG	DENV2	Cosmopolitan	2008.0	SGP	Asia	Singapore	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+JX669488	DENV2_JX669488_AsianAmerican_BR_2002	BR	DENV2	AsianAmerican	2002.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU920834	DENV2_EU920834_AsianAmerican_GF_2001	GF	DENV2	AsianAmerican	2001.0	GUF	Americas	French Guiana	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU687246	DENV2_EU687246_Asian_I_TH_1994	TH	DENV2	AsianI	1994.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+KC294211	DENV2_KC294211_AsianAmerican_PE_2011	PE	DENV2	AsianAmerican	2011.0	PER	Americas	Peru	Latin America and the Caribbean	Americas	South America	Developing	South America
+FJ744744	DENV2_FJ744744_AsianAmerican_NI_2000	NI	DENV2	AsianAmerican	2000.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+AF100466	DENV2_AF100466_AsianAmerican_VE_1990	VE	DENV2	AsianAmerican	1990.0	VEN	Americas	Venezuela (Bolivarian Republic of)	Latin America and the Caribbean	Americas	South America	Developing	South America
+JN851128	DENV2_JN851128_Cosmopolitan_SG_2006	SG	DENV2	Cosmopolitan	2006.0	SGP	Asia	Singapore	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ547067	DENV2_FJ547067_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ850088	DENV2_FJ850088_AsianAmerican_BR_2006	BR	DENV2	AsianAmerican	2006.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+JN851129	DENV2_JN851129_Cosmopolitan_SG_2006	SG	DENV2	Cosmopolitan	2006.0	SGP	Asia	Singapore	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482664	DENV2_EU482664_AsianAmerican_VN_2006	VN	DENV2	AsianAmerican	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EF105383	DENV2_EF105383_Sylvatic_CI_1980	CI	DENV2	Sylvatic	1980.0	CIV	Africa	Côte d’Ivoire	Sub-Saharan Africa	Africa	Western Africa	Developing	Africa
+FJ850066	DENV2_FJ850066_AsianAmerican_NI_2000	NI	DENV2	AsianAmerican	2000.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+JN851130.1	DENV2_JN851130_Cosmopolitan_SG_2005	SG	DENV2	Cosmopolitan	2005.0	SGP	Asia	Singapore	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+HQ705625.1	DENV2_HQ705625_AsianAmerican_NI_2009	NI	DENV2	AsianAmerican	2009.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+JN851129.1	DENV2_JN851129_Cosmopolitan_SG_2006	SG	DENV2	Cosmopolitan	2006.0	SGP	Asia	Singapore	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AY037116.1	DENV2_AY037116_Cosmopolitan_AU_1993	AU	DENV2	Cosmopolitan	1993.0	AUS	Oceania	Australia	Australia and New Zealand	Oceania	Australia and New Zealand	Developed	Oceania
+EU920835.1	DENV2_EU920835_AsianAmerican_GF_2002	GF	DENV2	AsianAmerican	2002.0	GUF	Americas	French Guiana	Latin America and the Caribbean	Americas	South America	Developing	South America
+FJ639701.1	DENV2_FJ639701_AsianAmerican_KH_2002	KH	DENV2	AsianAmerican	2002.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ639733.1	DENV2_FJ639733_AsianAmerican_VE_2005	VE	DENV2	AsianAmerican	2005.0	VEN	Americas	Venezuela (Bolivarian Republic of)	Latin America and the Caribbean	Americas	South America	Developing	South America
+FJ196854.1	DENV2_FJ196854_Cosmopolitan_CN_1993	CN	DENV2	Cosmopolitan	1993.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+FM210237.1	DENV2_FM210237_AsianAmerican_VN_2003	VN	DENV2	AsianAmerican	2003.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ850121.1	DENV2_FJ850121_AsianAmerican_NI_2001	NI	DENV2	AsianAmerican	2001.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+HM488257.1	DENV2_HM488257_Cosmopolitan_GU_2001	GU	DENV2	Cosmopolitan	2001.0	GUM	Oceania	Guam	Micronesia	Oceania	Micronesia	Developing	Oceania
+JX669488.1	DENV2_JX669488_AsianAmerican_BR_2002	BR	DENV2	AsianAmerican	2002.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU482649.1	DENV2_EU482649_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482468.1	DENV2_EU482468_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FM210237.2	DENV2_FM210237_AsianAmerican_VN_2003	VN	DENV2	AsianAmerican	2003.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+HM181971.1	DENV2_HM181971_AsianAmerican_BR_2008	BR	DENV2	AsianAmerican	2008.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+AF208496.1	DENV2_AF208496_AsianAmerican_MQ_1998	MQ	DENV2	AsianAmerican	1998.0	MTQ	Americas	Martinique	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+FJ898461.1	DENV2_FJ898461_AsianAmerican_BZ_2002	BZ	DENV2	AsianAmerican	2002.0	BLZ	Americas	Belize	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+EU482649.2	DENV2_EU482649_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AF489932.1	DENV2_AF489932_AsianAmerican_BR_1998	BR	DENV2	AsianAmerican	1998.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+AJ487271.1	DENV2_AJ487271_Asian_I_TH_1974	TH	DENV2	AsianI	1974.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+GQ398263.1	DENV2_GQ398263_Cosmopolitan_ID_1975	ID	DENV2	Cosmopolitan	1975.0	IDN	Asia	Indonesia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ744704.1	DENV2_FJ744704_AsianAmerican_NI_2001	NI	DENV2	AsianAmerican	2001.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+FJ196854.2	DENV2_FJ196854_Cosmopolitan_CN_1993	CN	DENV2	Cosmopolitan	1993.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+FM210237.3	DENV2_FM210237_AsianAmerican_VN_2003	VN	DENV2	AsianAmerican	2003.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+GQ398302.1	DENV2_GQ398302_AsianAmerican_PR_1994	PR	DENV2	AsianAmerican	1994.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+EU687249.1	DENV2_EU687249_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ898450.1	DENV2_FJ898450_AsianAmerican_VI_1990	VI	DENV2	AsianAmerican	1990.0	VIR	Americas	United States Virgin Islands	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+KJ010185.1	DENV2_KJ010185_Cosmopolitan_PK_2011	PK	DENV2	Cosmopolitan	2011.0	PAK	Asia	Pakistan	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+AF100465.1	DENV2_AF100465_American_VE_1987	VE	DENV2	American	1987.0	VEN	Americas	Venezuela (Bolivarian Republic of)	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU482658.1	DENV2_EU482658_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ410223.1	DENV2_FJ410223_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+KJ010185.2	DENV2_KJ010185_Cosmopolitan_PK_2011	PK	DENV2	Cosmopolitan	2011.0	PAK	Asia	Pakistan	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+GQ398285.1	DENV2_GQ398285_AsianAmerican_PR_1994	PR	DENV2	AsianAmerican	1994.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+GQ398302.2	DENV2_GQ398302_AsianAmerican_PR_1994	PR	DENV2	AsianAmerican	1994.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+FJ410221.1	DENV2_FJ410221_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AF204177.1	DENV2_AF204177_Asian_II_CN_1989	CN	DENV2	AsianII	1989.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+FM210234.1	DENV2_FM210234_AsianAmerican_VN_2004	VN	DENV2	AsianAmerican	2004.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ024452.1	DENV2_FJ024452_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ196851.1	DENV2_FJ196851_Asian_I_CN_1998	CN	DENV2	AsianI	1998.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+AF204177.2	DENV2_AF204177_Asian_II_CN_1989	CN	DENV2	AsianII	1989.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+FM210237.4	DENV2_FM210237_AsianAmerican_VN_2003	VN	DENV2	AsianAmerican	2003.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EF105383.1	DENV2_EF105383_Sylvatic_CI_1980	CI	DENV2	Sylvatic	1980.0	CIV	Africa	Côte d’Ivoire	Sub-Saharan Africa	Africa	Western Africa	Developing	Africa
+FJ850088.1	DENV2_FJ850088_AsianAmerican_BR_2006	BR	DENV2	AsianAmerican	2006.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+AF100464.1	DENV2_AF100464_Asian_I_TH_1996	TH	DENV2	AsianI	1996.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482729.1	DENV2_EU482729_AsianAmerican_PR_1999	PR	DENV2	AsianAmerican	1999.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+KC131142.1	DENV2_KC131142_Cosmopolitan_CN_2012	CN	DENV2	Cosmopolitan	2012.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+GQ398302.3	DENV2_GQ398302_AsianAmerican_PR_1994	PR	DENV2	AsianAmerican	1994.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+EU482726.1	DENV2_EU482726_AsianAmerican_PR_2006	PR	DENV2	AsianAmerican	2006.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+EU482693.1	DENV2_EU482693_AsianAmerican_NI_2006	NI	DENV2	AsianAmerican	2006.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+JF357906.1	DENV2_JF357906_AsianAmerican_NI_2008	NI	DENV2	AsianAmerican	2008.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+EU482726.2	DENV2_EU482726_AsianAmerican_PR_2006	PR	DENV2	AsianAmerican	2006.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+KJ189370.1	DENV2_KJ189370_AsianAmerican_MX_2011	MX	DENV2	AsianAmerican	2011.0	MEX	Americas	Mexico	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+FJ744724.1	DENV2_FJ744724_Asian_I_TH_2001	TH	DENV2	AsianI	2001.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ410224.1	DENV2_FJ410224_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+DQ181798.1	DENV2_DQ181798_Asian_I_TH_1999	TH	DENV2	AsianI	1999.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+DQ181798.2	DENV2_DQ181798_Asian_I_TH_1999	TH	DENV2	AsianI	1999.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AY037116.2	DENV2_AY037116_Cosmopolitan_AU_1993	AU	DENV2	Cosmopolitan	1993.0	AUS	Oceania	Australia	Australia and New Zealand	Oceania	Australia and New Zealand	Developed	Oceania
+GQ398302.4	DENV2_GQ398302_AsianAmerican_PR_1994	PR	DENV2	AsianAmerican	1994.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+GU131927.1	DENV2_GU131927_Asian_I_KH_2007	KH	DENV2	AsianI	2007.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+JN851130.2	DENV2_JN851130_Cosmopolitan_SG_2005	SG	DENV2	Cosmopolitan	2005.0	SGP	Asia	Singapore	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ906957.1	DENV2_FJ906957_Asian_I_TH_1996	TH	DENV2	AsianI	1996.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ898451.1	DENV2_FJ898451_AsianAmerican_DO_2003	DO	DENV2	AsianAmerican	2003.0	DOM	Americas	Dominican Republic	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+AF169679.1	DENV2_AF169679_Asian_I_TH_1993	TH	DENV2	AsianI	1993.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+GQ398259.1	DENV2_GQ398259_Cosmopolitan_ID_1976	ID	DENV2	Cosmopolitan	1976.0	IDN	Asia	Indonesia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482721.1	DENV2_EU482721_AsianAmerican_PR_2006	PR	DENV2	AsianAmerican	2006.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+GQ199898.1	DENV2_GQ199898_AsianAmerican_NI_2001	NI	DENV2	AsianAmerican	2001.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+GQ398257.1	DENV2_GQ398257_American_ID_1977	ID	DENV2	American	1977.0	IDN	Asia	Indonesia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AF100460.1	DENV2_AF100460_Asian_I_TH_1994	TH	DENV2	AsianI	1994.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU687249.2	DENV2_EU687249_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU726767.1	DENV2_EU726767_Asian_I_TH_1994	TH	DENV2	AsianI	1994.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482572.1	DENV2_EU482572_AsianAmerican_PR_1987	PR	DENV2	AsianAmerican	1987.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+AF489932.2	DENV2_AF489932_AsianAmerican_BR_1998	BR	DENV2	AsianAmerican	1998.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+HQ705625.2	DENV2_HQ705625_AsianAmerican_NI_2009	NI	DENV2	AsianAmerican	2009.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+GU131927.2	DENV2_GU131927_Asian_I_KH_2007	KH	DENV2	AsianI	2007.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AF204178.1	DENV2_AF204178_Asian_II_CN_1987	CN	DENV2	AsianII	1987.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+KC294222.1	DENV2_KC294222_AsianAmerican_PE_2002	PE	DENV2	AsianAmerican	2002.0	PER	Americas	Peru	Latin America and the Caribbean	Americas	South America	Developing	South America
+EF105379.1	DENV2_EF105379_Sylvatic_MY_1970	MY	DENV2	Sylvatic	1970.0	MYS	Asia	Malaysia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+GU131927.3	DENV2_GU131927_Asian_I_KH_2007	KH	DENV2	AsianI	2007.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ639831.1	DENV2_FJ639831_Asian_I_TH_2001	TH	DENV2	AsianI	2001.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ744704.2	DENV2_FJ744704_AsianAmerican_NI_2001	NI	DENV2	AsianAmerican	2001.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+FJ410217.1	DENV2_FJ410217_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FM210206.1	DENV2_FM210206_Asian_I_VN_2005	VN	DENV2	AsianI	2005.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+GU131932.1	DENV2_GU131932_Asian_I_KH_2008	KH	DENV2	AsianI	2008.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+JX669488.2	DENV2_JX669488_AsianAmerican_BR_2002	BR	DENV2	AsianAmerican	2002.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU482556.1	DENV2_EU482556_AsianAmerican_PR_2005	PR	DENV2	AsianAmerican	2005.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+FJ882602.1	DENV2_FJ882602_Cosmopolitan_LK_1996	LK	DENV2	Cosmopolitan	1996.0	LKA	Asia	Sri Lanka	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+HQ705625.3	DENV2_HQ705625_AsianAmerican_NI_2009	NI	DENV2	AsianAmerican	2009.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+FJ898454.1	DENV2_FJ898454_Cosmopolitan_IN_2006	IN	DENV2	Cosmopolitan	2006.0	IND	Asia	India	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+EU482669.1	DENV2_EU482669_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+JF260983.1	DENV2_JF260983_Sylvatic_ES_2009	ES	DENV2	Sylvatic	2009.0	ESP	Europe	Spain	Southern Europe	Europe	Southern Europe	Developed	Europe
+FJ639704.1	DENV2_FJ639704_Asian_I_KH_2003	KH	DENV2	AsianI	2003.0	KHM	Asia	Cambodia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ850088.2	DENV2_FJ850088_AsianAmerican_BR_2006	BR	DENV2	AsianAmerican	2006.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU482468.2	DENV2_EU482468_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ410259.1	DENV2_FJ410259_Asian_I_VN_2008	VN	DENV2	AsianI	2008.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+KF041233.1	DENV2_KF041233_Cosmopolitan_PK_2011	PK	DENV2	Cosmopolitan	2011.0	PAK	Asia	Pakistan	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+GQ199890.1	DENV2_GQ199890_AsianAmerican_BR_2008	BR	DENV2	AsianAmerican	2008.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+FM210222.1	DENV2_FM210222_AsianAmerican_VN_2004	VN	DENV2	AsianAmerican	2004.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482728.1	DENV2_EU482728_AsianAmerican_PR_1998	PR	DENV2	AsianAmerican	1998.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+FJ024452.2	DENV2_FJ024452_Asian_I_VN_2007	VN	DENV2	AsianI	2007.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AF100464.2	DENV2_AF100464_Asian_I_TH_1996	TH	DENV2	AsianI	1996.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ850120.1	DENV2_FJ850120_AsianAmerican_NI_2001	NI	DENV2	AsianAmerican	2001.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+EU920828.1	DENV2_EU920828_AsianAmerican_GF_1993	GF	DENV2	AsianAmerican	1993.0	GUF	Americas	French Guiana	Latin America and the Caribbean	Americas	South America	Developing	South America
+EU482669.2	DENV2_EU482669_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+JN851131.1	DENV2_JN851131_Cosmopolitan_SG_2005	SG	DENV2	Cosmopolitan	2005.0	SGP	Asia	Singapore	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FM210234.2	DENV2_FM210234_AsianAmerican_VN_2004	VN	DENV2	AsianAmerican	2004.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+EU482451.1	DENV2_EU482451_Asian_I_VN_2006	VN	DENV2	AsianI	2006.0	VNM	Asia	Viet Nam	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ687442.1	DENV2_FJ687442_Asian_I_TH_2001	TH	DENV2	AsianI	2001.0	THA	Asia	Thailand	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+FJ882602.2	DENV2_FJ882602_Cosmopolitan_LK_1996	LK	DENV2	Cosmopolitan	1996.0	LKA	Asia	Sri Lanka	Southern Asia	Asia	Southern Asia	Developing	Southern Asia
+GQ199894.1	DENV2_GQ199894_AsianAmerican_MX_2005	MX	DENV2	AsianAmerican	2005.0	MEX	Americas	Mexico	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+GQ398263.2	DENV2_GQ398263_Cosmopolitan_ID_1975	ID	DENV2	Cosmopolitan	1975.0	IDN	Asia	Indonesia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+KC294211.1	DENV2_KC294211_AsianAmerican_PE_2011	PE	DENV2	AsianAmerican	2011.0	PER	Americas	Peru	Latin America and the Caribbean	Americas	South America	Developing	South America
+GQ868600.1	DENV2_GQ868600_American_PR_1969	PR	DENV2	American	1969.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+EU482728.2	DENV2_EU482728_AsianAmerican_PR_1998	PR	DENV2	AsianAmerican	1998.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+JX669483.1	DENV2_JX669483_AsianAmerican_BR_1997	BR	DENV2	AsianAmerican	1997.0	BRA	Americas	Brazil	Latin America and the Caribbean	Americas	South America	Developing	South America
+FJ850050.1	DENV2_FJ850050_AsianAmerican_NI_2007	NI	DENV2	AsianAmerican	2007.0	NIC	Americas	Nicaragua	Latin America and the Caribbean	Americas	Central America	Developing	Central America
+KF479233.1	DENV2_KF479233_Cosmopolitan_CN_2013	CN	DENV2	Cosmopolitan	2013.0	CHN	Asia	China	Eastern Asia	Asia	Eastern Asia	Developing	Eastern Asia
+EU482565.1	DENV2_EU482565_AsianAmerican_PR_1998	PR	DENV2	AsianAmerican	1998.0	PRI	Americas	Puerto Rico	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean
+AY858036.1	DENV2_AY858036_Cosmopolitan_ID_2004	ID	DENV2	Cosmopolitan	2004.0	IDN	Asia	Indonesia	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+JN851131.2	DENV2_JN851131_Cosmopolitan_SG_2005	SG	DENV2	Cosmopolitan	2005.0	SGP	Asia	Singapore	South-eastern Asia	Asia	South-eastern Asia	Developing	South-eastern Asia
+AF208496.2	DENV2_AF208496_AsianAmerican_MQ_1998	MQ	DENV2	AsianAmerican	1998.0	MTQ	Americas	Martinique	Latin America and the Caribbean	Americas	Caribbean	Developing	Caribbean

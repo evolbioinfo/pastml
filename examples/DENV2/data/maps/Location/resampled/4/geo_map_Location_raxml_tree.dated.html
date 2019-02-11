@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Colour Map</title>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <style>
+        .floating {
+            float: right;
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            z-index: 100;
+          justify-content: center;
+          align-items: center;
+        }
+
+        .button {
+            background-color: #555555;
+            border: none;
+            color: white;
+            padding: 6px 0px;
+            width: 100%;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 3px 10px 0 rgba(0,0,0,0.19);
+        }
+    </style>
+</head>
+<body>
+    <div id="regions_div" style="width: 100%; height: 100%;"></div>
+    <div id='chart_div'></div>
+    <div class="floating">
+        <a class="button" href="#" id="downloader" download="map.png">Download</a>
+    </div>
+           
+    <script type="text/javascript"> 
+        google.charts.load('current', {
+            'packages':['geochart'],
+          });
+        google.charts.setOnLoadCallback(drawRegionsMap);    
+
+        function drawRegionsMap() {
+
+
+              var data = new google.visualization.DataTable();
+                data.addColumn('string', 'Country');
+                data.addColumn('number', 'Colour');
+                // A column for custom tooltip content
+                data.addColumn({type: 'string', role: 'tooltip'});
+                data.addRows([
+                    
+                        ['NG', 0, 'Nigeria: 2 samples (out of 15 in Africa)'],
+                    
+                        ['GN', 0, 'Guinea: 1 samples (out of 15 in Africa)'],
+                    
+                        ['CI', 0, 'Côte d’Ivoire: 4 samples (out of 15 in Africa)'],
+                    
+                        ['SN', 0, 'Senegal: 6 samples (out of 15 in Africa)'],
+                    
+                        ['BF', 0, 'Burkina Faso: 2 samples (out of 15 in Africa)'],
+                    
+                        ['PR', 1, 'Puerto Rico: 45 samples (out of 60 in Caribbean)'],
+                    
+                        ['CU', 1, 'Cuba: 1 samples (out of 60 in Caribbean)'],
+                    
+                        ['JM', 1, 'Jamaica: 4 samples (out of 60 in Caribbean)'],
+                    
+                        ['None', 6, 'French Guiana: 7 samples (out of 54 in South America)'],
+                    
+                        ['DO', 1, 'Dominican Republic: 3 samples (out of 60 in Caribbean)'],
+                    
+                        ['VI', 1, 'United States Virgin Islands: 3 samples (out of 60 in Caribbean)'],
+                    
+                        ['KN', 1, 'Saint Kitts and Nevis: 1 samples (out of 60 in Caribbean)'],
+                    
+                        ['HN', 2, 'Honduras: 3 samples (out of 47 in Central America)'],
+                    
+                        ['MX', 2, 'Mexico: 10 samples (out of 47 in Central America)'],
+                    
+                        ['NI', 2, 'Nicaragua: 34 samples (out of 47 in Central America)'],
+                    
+                        ['CN', 3, 'China: 10 samples (out of 13 in Eastern Asia)'],
+                    
+                        ['TW', 3, 'Republic of China: 3 samples (out of 13 in Eastern Asia)'],
+                    
+                        ['ES', 4, 'Spain: 2 samples (out of 2 in Europe)'],
+                    
+                        ['PG', 5, 'Papua New Guinea: 2 samples (out of 7 in Oceania)'],
+                    
+                        ['AU', 5, 'Australia: 3 samples (out of 7 in Oceania)'],
+                    
+                        ['TO', 5, 'Tonga: 1 samples (out of 7 in Oceania)'],
+                    
+                        ['GU', 5, 'Guam: 1 samples (out of 7 in Oceania)'],
+                    
+                        ['BR', 6, 'Brazil: 17 samples (out of 54 in South America)'],
+                    
+                        ['CO', 6, 'Colombia: 8 samples (out of 54 in South America)'],
+                    
+                        ['PE', 6, 'Peru: 6 samples (out of 54 in South America)'],
+                    
+                        ['VE', 6, 'Venezuela (Bolivarian Republic of): 15 samples (out of 54 in South America)'],
+                    
+                        ['SR', 6, 'Suriname: 1 samples (out of 54 in South America)'],
+                    
+                        ['TH', 7, 'Thailand: 26 samples (out of 137 in South-eastern Asia)'],
+                    
+                        ['VN', 7, 'Viet Nam: 74 samples (out of 137 in South-eastern Asia)'],
+                    
+                        ['SG', 7, 'Singapore: 6 samples (out of 137 in South-eastern Asia)'],
+                    
+                        ['KH', 7, 'Cambodia: 20 samples (out of 137 in South-eastern Asia)'],
+                    
+                        ['ID', 7, 'Indonesia: 10 samples (out of 137 in South-eastern Asia)'],
+                    
+                        ['BN', 7, 'Brunei Darussalam: 1 samples (out of 137 in South-eastern Asia)'],
+                    
+                        ['IN', 8, 'India: 11 samples (out of 19 in Southern Asia)'],
+                    
+                        ['PK', 8, 'Pakistan: 7 samples (out of 19 in Southern Asia)'],
+                    
+                        ['LK', 8, 'Sri Lanka: 1 samples (out of 19 in Southern Asia)'],
+                    
+                        ['SA', 9, 'Saudi Arabia: 2 samples (out of 2 in Western Asia)'],
+                    
+                ]);
+        
+              var options = {
+                displayMode: 'regions',
+                colorAxis:{
+                  colors: [ '#a6cee3',  '#1f78b4',  '#b2df8a',  '#33a02c',  '#fb9a99',  '#e31a1c',  '#fdbf6f',  '#ff7f00',  '#cab2d6',  '#6a3d9a', ],
+                  values: [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, ]
+                },
+               legend:'none'
+              };
+        
+              var chart = new google.visualization.GeoChart(document.getElementById('regions_div'));
+              
+              // Wait for the chart to finish drawing before calling the getImageURI() method.
+              google.visualization.events.addListener(chart, 'ready', function () {
+                    document.getElementById("downloader").href = chart.getImageURI().replace(/^data:image\/[^;]/, 'data:application/octet-stream');
+              });
+        
+        
+             chart.draw(data, options);
+          }
+    </script>
+</body>
+</html>

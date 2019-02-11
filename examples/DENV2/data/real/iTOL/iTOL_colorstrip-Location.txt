@@ -1,0 +1,368 @@
+DATASET_COLORSTRIP
+SEPARATOR TAB
+BORDER_WIDTH	0.5
+COLOR	#bebada
+DATASET_LABEL	Location
+LEGEND_COLORS	#a6cee3	#1f78b4	#b2df8a	#33a02c	#fb9a99	#e31a1c	#fdbf6f	#ff7f00	#cab2d6	#6a3d9a
+LEGEND_LABELS	Africa	Caribbean	Central America	Eastern Asia	Europe	Oceania	South America	South-eastern Asia	Southern Asia	Western Asia
+LEGEND_SHAPES	1	1	1	1	1	1	1	1	1	1
+LEGEND_TITLE	Location
+MARGIN	5
+STRIP_WIDTH	25
+DATA
+JX286525	#fdbf6f	South America
+EU687246	#ff7f00	South-eastern Asia
+AF100466	#fdbf6f	South America
+EF105389	#a6cee3	Africa
+DQ181801	#ff7f00	South-eastern Asia
+AY858035	#ff7f00	South-eastern Asia
+FM210214	#ff7f00	South-eastern Asia
+FM210204	#ff7f00	South-eastern Asia
+JX669483	#fdbf6f	South America
+GQ868553	#fdbf6f	South America
+EU482635	#b2df8a	Central America
+FJ390387	#ff7f00	South-eastern Asia
+FM210241	#ff7f00	South-eastern Asia
+AF204178	#33a02c	Eastern Asia
+AF100469	#b2df8a	Central America
+JQ922553	#cab2d6	Southern Asia
+M84728	#ff7f00	South-eastern Asia
+JN819407	#fdbf6f	South America
+HQ332189	#fdbf6f	South America
+EU482728	#1f78b4	Caribbean
+FJ461311	#ff7f00	South-eastern Asia
+FJ639710	#ff7f00	South-eastern Asia
+GQ398286	#1f78b4	Caribbean
+FJ639732	#fdbf6f	South America
+FJ898451	#1f78b4	Caribbean
+FM210234	#ff7f00	South-eastern Asia
+FJ898454	#cab2d6	Southern Asia
+JX669486	#fdbf6f	South America
+FJ639701	#ff7f00	South-eastern Asia
+GQ398314	#1f78b4	Caribbean
+EU920842	#fdbf6f	South America
+JN851127	#ff7f00	South-eastern Asia
+FJ898466	#fdbf6f	South America
+GQ868623	#ff7f00	South-eastern Asia
+AF489932	#fdbf6f	South America
+FJ024454	#ff7f00	South-eastern Asia
+FM210208	#ff7f00	South-eastern Asia
+KC294211	#fdbf6f	South America
+FJ024473	#fdbf6f	South America
+JF260983	#fb9a99	Europe
+JF730047	#ff7f00	South-eastern Asia
+EF105378	#a6cee3	Africa
+FJ850108	#fdbf6f	South America
+EU482552	#1f78b4	Caribbean
+GU131881	#fdbf6f	South America
+FM210207	#ff7f00	South-eastern Asia
+EU482642	#ff7f00	South-eastern Asia
+JX470186	#33a02c	Eastern Asia
+JX649148	#ff7f00	South-eastern Asia
+EU482449	#ff7f00	South-eastern Asia
+FJ850121	#b2df8a	Central America
+FJ850066	#b2df8a	Central America
+FJ850050	#b2df8a	Central America
+FJ410202	#ff7f00	South-eastern Asia
+EF105387	#a6cee3	Africa
+GU369819	#b2df8a	Central America
+GQ868595	#fdbf6f	South America
+JN368476	#ff7f00	South-eastern Asia
+EU660413	#ff7f00	South-eastern Asia
+FM210246	#ff7f00	South-eastern Asia
+EU687249	#ff7f00	South-eastern Asia
+HQ332186	#fdbf6f	South America
+EU482467	#ff7f00	South-eastern Asia
+EU677145	#1f78b4	Caribbean
+EU920834	#fdbf6f	South America
+HM488257	#e31a1c	Oceania
+AJ487271	#ff7f00	South-eastern Asia
+DQ181803	#ff7f00	South-eastern Asia
+FJ639702	#ff7f00	South-eastern Asia
+FJ196851	#33a02c	Eastern Asia
+FM210236	#ff7f00	South-eastern Asia
+HM582115	#e31a1c	Oceania
+GQ868497	#b2df8a	Central America
+EU482575	#1f78b4	Caribbean
+FJ898439	#b2df8a	Central America
+EU726767	#ff7f00	South-eastern Asia
+FJ898461	#b2df8a	Central America
+FJ410241	#ff7f00	South-eastern Asia
+FJ810411	#ff7f00	South-eastern Asia
+GU131947	#fdbf6f	South America
+HQ332188	#fdbf6f	South America
+FJ410228	#ff7f00	South-eastern Asia
+JX966379	#b2df8a	Central America
+FJ744741	#b2df8a	Central America
+KF360005	#cab2d6	Southern Asia
+FJ850088	#fdbf6f	South America
+EU482659	#ff7f00	South-eastern Asia
+FJ850106	#fdbf6f	South America
+EF105379	#ff7f00	South-eastern Asia
+AF169680	#ff7f00	South-eastern Asia
+JF730049	#ff7f00	South-eastern Asia
+EU482561	#1f78b4	Caribbean
+EU482656	#ff7f00	South-eastern Asia
+JN819418	#ff7f00	South-eastern Asia
+FJ744724	#ff7f00	South-eastern Asia
+DQ645550	#33a02c	Eastern Asia
+FJ562098	#ff7f00	South-eastern Asia
+JN851121	#ff7f00	South-eastern Asia
+JN851131	#ff7f00	South-eastern Asia
+EU482554	#1f78b4	Caribbean
+KJ189309	#b2df8a	Central America
+AB189123	#ff7f00	South-eastern Asia
+AF022434	#ff7f00	South-eastern Asia
+GQ868515	#b2df8a	Central America
+KJ010185	#cab2d6	Southern Asia
+FM210213	#ff7f00	South-eastern Asia
+FJ687442	#ff7f00	South-eastern Asia
+AF169679	#ff7f00	South-eastern Asia
+HM181971	#fdbf6f	South America
+AF119661	#33a02c	Eastern Asia
+EF105380	#a6cee3	Africa
+EU677144	#1f78b4	Caribbean
+GQ398257	#ff7f00	South-eastern Asia
+FJ410195	#ff7f00	South-eastern Asia
+JQ955623	#cab2d6	Southern Asia
+EF105384	#a6cee3	Africa
+GQ199890	#fdbf6f	South America
+KF955402	#ff7f00	South-eastern Asia
+GQ868544	#ff7f00	South-eastern Asia
+EU569719	#1f78b4	Caribbean
+EU482576	#1f78b4	Caribbean
+EU482587	#1f78b4	Caribbean
+AY702039	#1f78b4	Caribbean
+GQ398308	#1f78b4	Caribbean
+EU482634	#b2df8a	Central America
+EU482676	#ff7f00	South-eastern Asia
+AF100464	#ff7f00	South-eastern Asia
+EU081180	#ff7f00	South-eastern Asia
+FJ410217	#ff7f00	South-eastern Asia
+JX567950	#fdbf6f	South America
+FM210206	#ff7f00	South-eastern Asia
+KF704355	#1f78b4	Caribbean
+M84727	#ff7f00	South-eastern Asia
+KJ734727	#33a02c	Eastern Asia
+EU179858	#ff7f00	South-eastern Asia
+JX669488	#fdbf6f	South America
+FJ639733	#fdbf6f	South America
+EU482590	#1f78b4	Caribbean
+JX669478	#fdbf6f	South America
+AF100467	#fdbf6f	South America
+JQ922552	#cab2d6	Southern Asia
+KF041236	#cab2d6	Southern Asia
+GQ199898	#b2df8a	Central America
+FJ410221	#ff7f00	South-eastern Asia
+EU482639	#b2df8a	Central America
+EU482474	#ff7f00	South-eastern Asia
+EU596490	#1f78b4	Caribbean
+EU596489	#1f78b4	Caribbean
+GQ398297	#1f78b4	Caribbean
+FJ410215	#ff7f00	South-eastern Asia
+GU131899	#ff7f00	South-eastern Asia
+EU482744	#1f78b4	Caribbean
+FJ639697	#ff7f00	South-eastern Asia
+GQ868604	#b2df8a	Central America
+KJ010186	#cab2d6	Southern Asia
+GU131959	#b2df8a	Central America
+FJ898453	#1f78b4	Caribbean
+GQ868555	#fdbf6f	South America
+FJ390385	#ff7f00	South-eastern Asia
+FJ205879	#ff7f00	South-eastern Asia
+GQ868603	#1f78b4	Caribbean
+EU482726	#1f78b4	Caribbean
+FJ898460	#1f78b4	Caribbean
+AF100465	#fdbf6f	South America
+JN819424	#b2df8a	Central America
+DQ181804	#ff7f00	South-eastern Asia
+EU482551	#1f78b4	Caribbean
+JN819408	#fdbf6f	South America
+EU482546	#1f78b4	Caribbean
+FM210220	#ff7f00	South-eastern Asia
+JN851126	#ff7f00	South-eastern Asia
+EU482565	#1f78b4	Caribbean
+FJ906956	#b2df8a	Central America
+FJ196854	#33a02c	Eastern Asia
+EU920833	#fdbf6f	South America
+EU482721	#1f78b4	Caribbean
+GU131843	#a6cee3	Africa
+EU677148	#ff7f00	South-eastern Asia
+FJ687434	#ff7f00	South-eastern Asia
+FJ744744	#b2df8a	Central America
+FM210222	#ff7f00	South-eastern Asia
+EU482444	#b2df8a	Central America
+FJ850061	#b2df8a	Central America
+EU482469	#ff7f00	South-eastern Asia
+EU179859	#ff7f00	South-eastern Asia
+JX669484	#fdbf6f	South America
+DQ448231	#cab2d6	Southern Asia
+EF457904	#a6cee3	Africa
+DQ181798	#ff7f00	South-eastern Asia
+EU482588	#1f78b4	Caribbean
+EU529706	#1f78b4	Caribbean
+JN851128	#ff7f00	South-eastern Asia
+JN851129	#ff7f00	South-eastern Asia
+EU482640	#ff7f00	South-eastern Asia
+EU482607	#fdbf6f	South America
+EU056812	#1f78b4	Caribbean
+FJ410224	#ff7f00	South-eastern Asia
+FJ873808	#b2df8a	Central America
+AF204177	#33a02c	Eastern Asia
+GQ398262	#ff7f00	South-eastern Asia
+EU687216	#1f78b4	Caribbean
+FJ639704	#ff7f00	South-eastern Asia
+EU482468	#ff7f00	South-eastern Asia
+EU003591	#a6cee3	Africa
+AF100460	#ff7f00	South-eastern Asia
+GQ398270	#1f78b4	Caribbean
+DQ181802	#ff7f00	South-eastern Asia
+FJ461309	#ff7f00	South-eastern Asia
+FJ859028	#ff7f00	South-eastern Asia
+GQ398259	#ff7f00	South-eastern Asia
+GQ868641	#fdbf6f	South America
+EU596500	#b2df8a	Central America
+KJ830750	#6a3d9a	Western Asia
+GQ199892	#1f78b4	Caribbean
+GQ868558	#fdbf6f	South America
+KF041233	#cab2d6	Southern Asia
+EU482572	#1f78b4	Caribbean
+EU482670	#ff7f00	South-eastern Asia
+JX286520	#fdbf6f	South America
+AF276619	#33a02c	Eastern Asia
+FJ850072	#fdbf6f	South America
+GQ398263	#ff7f00	South-eastern Asia
+AF100462	#ff7f00	South-eastern Asia
+EU677142	#1f78b4	Caribbean
+GQ199894	#b2df8a	Central America
+EF105385	#a6cee3	Africa
+EU482693	#b2df8a	Central America
+JX669476	#fdbf6f	South America
+FJ882602	#cab2d6	Southern Asia
+FJ410237	#ff7f00	South-eastern Asia
+EU482701	#ff7f00	South-eastern Asia
+FJ196853	#33a02c	Eastern Asia
+GQ868631	#ff7f00	South-eastern Asia
+EU482652	#ff7f00	South-eastern Asia
+EF105383	#a6cee3	Africa
+EU920850	#1f78b4	Caribbean
+FJ639706	#ff7f00	South-eastern Asia
+GQ398282	#1f78b4	Caribbean
+EU482729	#1f78b4	Caribbean
+FJ205877	#ff7f00	South-eastern Asia
+GU131932	#ff7f00	South-eastern Asia
+JQ922549	#cab2d6	Southern Asia
+FM210202	#ff7f00	South-eastern Asia
+GU131927	#ff7f00	South-eastern Asia
+GQ398296	#1f78b4	Caribbean
+EU482699	#ff7f00	South-eastern Asia
+FM210211	#ff7f00	South-eastern Asia
+EU482658	#ff7f00	South-eastern Asia
+EU482661	#ff7f00	South-eastern Asia
+KC294222	#fdbf6f	South America
+FJ547064	#ff7f00	South-eastern Asia
+FJ639828	#ff7f00	South-eastern Asia
+GQ398284	#1f78b4	Caribbean
+EU677143	#1f78b4	Caribbean
+EU482645	#ff7f00	South-eastern Asia
+FM210235	#ff7f00	South-eastern Asia
+EU482451	#ff7f00	South-eastern Asia
+DQ181805	#ff7f00	South-eastern Asia
+M29095	#e31a1c	Oceania
+FJ432726	#ff7f00	South-eastern Asia
+GQ398285	#1f78b4	Caribbean
+KJ189308	#b2df8a	Central America
+EU920846	#fdbf6f	South America
+FJ850065	#b2df8a	Central America
+FJ898465	#fdbf6f	South America
+EU482669	#ff7f00	South-eastern Asia
+AY858036	#ff7f00	South-eastern Asia
+FJ850085	#fdbf6f	South America
+EU569708	#1f78b4	Caribbean
+EU677146	#1f78b4	Caribbean
+FJ467493	#ff7f00	South-eastern Asia
+FJ898449	#b2df8a	Central America
+HM582107	#e31a1c	Oceania
+EU482603	#b2df8a	Central America
+JX475906	#cab2d6	Southern Asia
+FJ882594	#b2df8a	Central America
+EU482776	#ff7f00	South-eastern Asia
+GQ868600	#1f78b4	Caribbean
+EU920828	#fdbf6f	South America
+GQ398302	#1f78b4	Caribbean
+EU920835	#fdbf6f	South America
+FJ547067	#ff7f00	South-eastern Asia
+FJ906957	#ff7f00	South-eastern Asia
+FM210218	#ff7f00	South-eastern Asia
+JF357906	#b2df8a	Central America
+FJ205885	#b2df8a	Central America
+EU920840	#fdbf6f	South America
+EU482679	#ff7f00	South-eastern Asia
+EU920849	#1f78b4	Caribbean
+JQ922550	#cab2d6	Southern Asia
+KF955364	#1f78b4	Caribbean
+GQ868620	#ff7f00	South-eastern Asia
+GQ398269	#1f78b4	Caribbean
+EU529701	#1f78b4	Caribbean
+FM210237	#ff7f00	South-eastern Asia
+EU482464	#ff7f00	South-eastern Asia
+KC294201	#fdbf6f	South America
+EU482705	#ff7f00	South-eastern Asia
+AF100468	#fdbf6f	South America
+FJ410223	#ff7f00	South-eastern Asia
+FM210227	#ff7f00	South-eastern Asia
+JQ922551	#cab2d6	Southern Asia
+AY037116	#e31a1c	Oceania
+FM210221	#ff7f00	South-eastern Asia
+KC131142	#33a02c	Eastern Asia
+FJ410291	#b2df8a	Central America
+JQ955624	#cab2d6	Southern Asia
+GQ868552	#fdbf6f	South America
+JX669477	#fdbf6f	South America
+EU482556	#1f78b4	Caribbean
+AF100461	#ff7f00	South-eastern Asia
+EU482545	#1f78b4	Caribbean
+GU131924	#ff7f00	South-eastern Asia
+FJ410259	#ff7f00	South-eastern Asia
+FJ898438	#b2df8a	Central America
+KF479233	#33a02c	Eastern Asia
+EU482605	#fdbf6f	South America
+GQ868622	#ff7f00	South-eastern Asia
+FJ850120	#b2df8a	Central America
+FM210217	#ff7f00	South-eastern Asia
+EF105388	#a6cee3	Africa
+JN819419	#fdbf6f	South America
+FM210243	#ff7f00	South-eastern Asia
+GQ199897	#b2df8a	Central America
+FJ744708	#b2df8a	Central America
+FJ898450	#1f78b4	Caribbean
+EU482664	#ff7f00	South-eastern Asia
+EU482649	#ff7f00	South-eastern Asia
+M20558	#1f78b4	Caribbean
+FJ639707	#ff7f00	South-eastern Asia
+EU482740	#1f78b4	Caribbean
+GQ398291	#1f78b4	Caribbean
+FJ639831	#ff7f00	South-eastern Asia
+GQ868638	#ff7f00	South-eastern Asia
+GU370051	#ff7f00	South-eastern Asia
+FJ744704	#b2df8a	Central America
+FJ639718	#ff7f00	South-eastern Asia
+EU482687	#b2df8a	Central America
+JN851130	#ff7f00	South-eastern Asia
+EU482541	#ff7f00	South-eastern Asia
+KJ189370	#b2df8a	Central America
+GQ868542	#ff7f00	South-eastern Asia
+HQ705625	#b2df8a	Central America
+EU482654	#ff7f00	South-eastern Asia
+EU482784	#ff7f00	South-eastern Asia
+EU687220	#fdbf6f	South America
+KJ189305	#fdbf6f	South America
+DQ181799	#ff7f00	South-eastern Asia
+EU569714	#1f78b4	Caribbean
+EU482762	#b2df8a	Central America
+FJ906961	#b2df8a	Central America
+GQ868592	#fdbf6f	South America
+FJ024452	#ff7f00	South-eastern Asia
+FJ024461	#ff7f00	South-eastern Asia
+AF208496	#1f78b4	Caribbean
+FJ196852	#33a02c	Eastern Asia

@@ -1,0 +1,114 @@
+import os
+
+# To run locally:
+# snakemake --snakefile Snakefile_acr --keep-going --cores 4 --config folder=.. --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~"
+
+# To visualise the pipeline
+# snakemake --snakefile Snakefile_acr --config folder=.. --dag | dot -Tsvg > pipeline_acr.svg
+
+localrules: all
+
+ruleorder: pastml_loc_genotype > pastml_loc
+
+folder = os.path.abspath(config["folder"])
+data_dir = os.path.join(folder, 'data')
+
+# choose one or more of the tree types below
+tree_types = ['raxml', 'fast', 'phyml']
+
+# The folder where the reconstructed ACR maps will be placed
+maps_dir = 'maps'
+
+model='F81'
+
+locs = ['Location']
+
+
+rule all:
+    input:
+        expand(os.path.join(data_dir, maps_dir, '{loc}', 'real', 'geo_map_{loc}_{type}_tree.dated.html'),
+        type=tree_types[:1], loc=locs),
+        expand(os.path.join(data_dir, maps_dir, '{loc}', 'resampled', '{n}', 'geo_map_{loc}_{type}_tree.dated.html'),
+        type=tree_types[:1], loc=locs, n=range(5)),
+
+        expand(os.path.join(data_dir, maps_dir, '{loc}', 'real', 'acr_map_{loc}_{type}_tree.dated.html'),
+        type=tree_types, loc=locs),
+        expand(os.path.join(data_dir, maps_dir, '{loc}', 'resampled', '{n}', 'acr_map_{loc}_{type}_tree.dated.html'),
+        type=tree_types, loc=locs, n=range(5)),
+
+        expand(os.path.join(data_dir, maps_dir, '{loc}.genotype', 'real', 'acr_map_{loc}.genotype_{type}_tree.dated.html'),
+        type=tree_types, loc=locs),
+        expand(os.path.join(data_dir, maps_dir, '{loc}.genotype', 'resampled', '{n}', 'acr_map_{loc}.genotype_{type}_tree.dated.html'),
+        type=tree_types, loc=locs, n=range(5)),
+
+rule pastml_loc_genotype:
+    '''
+    Reconstructs tree ancestral states with PASTML and visualises the result.
+    '''
+    input:
+        tree = os.path.join(data_dir, '{prefix}', '{tree}.nwk'),
+        data = os.path.join(data_dir, '{prefix}', 'metadata.tab'),
+    output:
+        map = os.path.join(data_dir, maps_dir, '{loc}.genotype', '{prefix}', 'acr_map_{loc}.genotype_{tree}.html'),
+        tree = os.path.join(data_dir, maps_dir, '{loc}.genotype', '{prefix}', 'acr_tree_{loc}.genotype_{tree}.html')
+    threads: 4
+    singularity: "docker://evolbioinfo/pastml:v1.9.1"
+    params:
+        mem = 4000,
+        name = 'pastml_{loc}_gt',
+        loc = '{loc}',
+        date_col = 'year',
+        wd = os.path.join(data_dir, 'pastml', '{loc}.genotype', '{prefix}', '{tree}')
+    shell:
+        """
+        pastml --tree {input.tree} --data {input.data} \
+        --html_compressed {output.map} --html {output.tree} --columns {params.loc} genotype  --name_column {params.loc} \
+        --date_column {params.date_col} -v --work_dir {params.wd}
+        """
+
+rule pastml_loc:
+    '''
+    Reconstructs tree ancestral states with PASTML and visualises the result.
+    '''
+    input:
+        tree = os.path.join(data_dir, '{prefix}', '{tree}.nwk'),
+        data = os.path.join(data_dir, '{prefix}', 'metadata.tab'),
+    output:
+        map = os.path.join(data_dir, maps_dir, '{loc}', '{prefix}', 'acr_map_{loc}_{tree}.html'),
+        tree = os.path.join(data_dir, maps_dir, '{loc}', '{prefix}', 'acr_tree_{loc}_{tree}.html')
+    threads: 4
+    singularity: "docker://evolbioinfo/pastml:v1.9.1"
+    params:
+        mem = 4000,
+        name = 'pastml_{loc}',
+        loc = '{loc}',
+        date_col = 'year',
+        wd = os.path.join(data_dir, 'pastml', '{loc}', '{prefix}', '{tree}')
+    shell:
+        """
+        pastml --tree {input.tree} --data {input.data} \
+        --html_compressed {output.map} --html {output.tree} --columns {params.loc} \
+        --date_column {params.date_col} -v --work_dir {params.wd}
+        """
+
+rule geomap:
+    '''
+    Reconstructs the geographical map coloured according to PastML categories.
+    '''
+    input:
+        tree = os.path.join(data_dir, '{prefix}', '{tree}.nwk'),
+        data = os.path.join(data_dir, '{prefix}', 'metadata.tab'),
+    output:
+        geo_map = os.path.join(data_dir, maps_dir, '{loc}', '{prefix}', 'geo_map_{loc}_{tree}.html'),
+    threads: 1
+    params:
+        mem = 4000,
+        name = 'geomap_{loc}',
+        loc = '{loc}',
+        country_col = 'Country'
+    singularity: "docker://evolbioinfo/pastml:v1.9.1"
+    shell:
+        """
+        python3 {folder}/py/get_geomap.py --tree {input.tree} --metadata {input.data} \
+        --geo_html {output.geo_map} --location_col {params.loc} --country_col {params.country_col}
+        """

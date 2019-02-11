@@ -1,0 +1,32 @@
+
+LEAST-SQUARE METHODS TO ESTIMATE RATES AND DATES - v0.3beta 
+
+
+Input files:
+  I                                 Input tree file : /home/azhukova/Pasteur/projects/pastml/examples/DENV2/data/resampled/0/raxml_tree.nwk
+  D                                 Input date file : /home/azhukova/Pasteur/projects/pastml/examples/DENV2/data/resampled/0/dates.tab
+  P                                  Partition file : No
+Output file:
+  O                                    Output file  : /home/azhukova/Pasteur/projects/pastml/examples/DENV2/data/resampled/0/raxml_tree.dated
+Parameters:
+  C                                With constraints : Yes
+  T                        Lower bound for the rate : 1.000e-10
+  V                                  With variances : Yes, use variances based on branches estimated by LSD
+  B                          Parameter of variances : 10
+  S                                 Sequence Length : 10188
+  R                               Estimate the root : Use fast method to search on all branches
+  W                         Given substitution rate : No
+  G                                 Given outgroups : No
+  N                               Multiple data set : No
+  F                    Compute confidence intervals : Yes, sampling 1000 times
+
+  H to print Help 
+  Y to accept or type a letter to change an option (Q = Exit) 
+Tree 1 rate 2.056e-04 , tMRCA 973.002320 , objective function 2.571811e+03
+Re-estimate using variances based on the branch lengths of the previous run ...
+rate 3.464e-04 , tMRCA 1366.606401 , objective function 5.068153e+03
+rate 3.464e-04 [3.252e-04 , 3.616e-04] , tMRCA 1366.606401 [1321.044479 , 1396.678049] , objective function 5.068153e+03
+
+
+*********************************************************
+Elapsed time: 14.93 seconds
