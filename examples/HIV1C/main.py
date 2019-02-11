@@ -4,8 +4,8 @@ import os
 from pastml.acr import pastml_pipeline
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
-TREE_NWK = os.path.join(DATA_DIR, 'best', 'phyml_tree.rooted.collapsed_dist_0.nwk')
-STATES_INPUT = os.path.join(DATA_DIR, 'metadata_loc.tab')
+TREE_NWK = os.path.join(DATA_DIR, 'best', 'pastml_phyml_tree.nwk')
+STATES_INPUT = os.path.join(DATA_DIR, 'metadata.tab')
 
 
 if '__main__' == __name__:
