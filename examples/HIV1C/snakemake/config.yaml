@@ -1,5 +1,0 @@
-folder: "/pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/"
-data_dir: 'data'
-fasta_la: 'HIV1_ALL_2017_pol_DNA.fasta'
-fasta_phylotype: 'HIV-1C.fasta'
-data_phylotype: 'HIV-1C.tab'

@@ -1,57 +1,11 @@
 
  oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-                                  ---  PhyML 3.3.20180621  ---                                             
-                              http://www.atgc-montpellier.fr/phyml                                          
-                             Copyright CNRS - Universite Montpellier                                 
+                                  ---  PhyML 20120412  ---                                             
+                            http://www.atgc-montpellier.fr/phyml                                          
+                         Copyright CNRS - Universite Montpellier II                                 
  oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
 
-. Sequence filename: 			phyml_alignment.nodrm.fa
-. Data set: 				#1
-. Tree topology search: 		SPRs
-. Initial tree: 			user tree (/pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/1/pars_tree.nwk)
-. Model of nucleotides substitution: 	GTR
-. Number of taxa: 			3639
-. Log-likelihood: 			-310368.93205
-. Unconstrained log-likelihood: 	-5911.42285
-. Composite log-likelihood: 		-4278289.29332
-. Parsimony: 				65713
-. Tree size: 				171.13687
-. Discrete gamma model: 		Yes
-  - Number of classes: 			6
-  - Gamma shape parameter: 		0.487
-  - Relative rate in class 1: 		0.01337 [freq=0.166667] 		
-  - Relative rate in class 2: 		0.10047 [freq=0.166667] 		
-  - Relative rate in class 3: 		0.29803 [freq=0.166667] 		
-  - Relative rate in class 4: 		0.66118 [freq=0.166667] 		
-  - Relative rate in class 5: 		1.35100 [freq=0.166667] 		
-  - Relative rate in class 6: 		3.57595 [freq=0.166667] 		
-. Nucleotides frequencies:
-  - f(A)=  0.44837
-  - f(C)=  0.16205
-  - f(G)=  0.18207
-  - f(T)=  0.20751
-. GTR relative rate parameters : 
-  A <-> C    1.87403
-  A <-> G    8.47070
-  A <-> T    0.90751
-  C <-> G    0.81883
-  C <-> T   11.35238
-  G <-> T    1.00000
-
-. Instantaneous rate matrix : 
-  [A---------C---------G---------T------]
-  -0.75021   0.11200   0.56877   0.06945  
-   0.30988  -1.23361   0.05498   0.86875  
-   1.40066   0.04894  -1.52613   0.07653  
-   0.15006   0.67845   0.06715  -0.89566  
-
-
-
-. Run ID:				none
-. Random seed:				239
-. Subtree patterns aliasing:		no
-. Version:				3.3.20180621
-. Time used:				378h56m44s (1364204 seconds)
+. Log-likelihood: 			-313161.84
 
  oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
  Suggested citations:
@@ -63,3 +17,4 @@
  "A simple, fast, and accurate algorithm to estimate large phylogenies by maximum likelihood"
  Systematic Biology. 2003. 52(5):696-704.
  oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+

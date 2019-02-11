@@ -23,5 +23,14 @@ if '__main__' == __name__:
     if bad_sequences:
         logging.error('Sequences {} have bad length'.format(bad_sequences))
         sequences = [seq for seq in sequences if len(seq.seq) == common_len]
-    count = SeqIO.write(sequences, params.output_fa, params.format)
+    if params.format == 'tnt':
+        with open(params.output_fa, 'w+') as tnt:
+            tnt.write("xread\n'Sequences'\n")
+            tnt.write('%d %d\n' % (len(sequences[0].seq), len(sequences)))
+            for seq in sequences:
+                tnt.write('%s %s\n' % (seq.id, seq.seq))
+            tnt.write(';\n')
+        count = len(sequences)
+    else:
+        count = SeqIO.write(sequences, params.output_fa, params.format)
     logging.info("Converted {} records to {}".format(count, params.format))
