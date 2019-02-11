@@ -1,0 +1,65 @@
+
+ oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+                                  ---  PhyML 3.3.20180621  ---                                             
+                              http://www.atgc-montpellier.fr/phyml                                          
+                             Copyright CNRS - Universite Montpellier                                 
+ oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+
+. Sequence filename: 			phml_alignment.norecombinants.nodrm.fa
+. Data set: 				#1
+. Tree topology search: 		SPRs
+. Initial tree: 			user tree (/pasteur/homes/azhukova/projects/pastml_atlas/examples/HIV1C/data/1/pars_tree.nwk)
+. Model of nucleotides substitution: 	GTR
+. Number of taxa: 			3638
+. Log-likelihood: 			-309642.65913
+. Unconstrained log-likelihood: 	-5888.63557
+. Composite log-likelihood: 		-4287770.53637
+. Parsimony: 				65597
+. Tree size: 				175.87302
+. Discrete gamma model: 		Yes
+  - Number of classes: 			6
+  - Gamma shape parameter: 		0.474
+  - Relative rate in class 1: 		0.01205 [freq=0.166667] 		
+  - Relative rate in class 2: 		0.09462 [freq=0.166667] 		
+  - Relative rate in class 3: 		0.28794 [freq=0.166667] 		
+  - Relative rate in class 4: 		0.64971 [freq=0.166667] 		
+  - Relative rate in class 5: 		1.34503 [freq=0.166667] 		
+  - Relative rate in class 6: 		3.61065 [freq=0.166667] 		
+. Nucleotides frequencies:
+  - f(A)=  0.46461
+  - f(C)=  0.16551
+  - f(G)=  0.18843
+  - f(T)=  0.18145
+. GTR relative rate parameters : 
+  A <-> C    1.61075
+  A <-> G    7.19336
+  A <-> T    0.92599
+  C <-> G    0.69267
+  C <-> T   11.71808
+  G <-> T    1.00000
+
+. Instantaneous rate matrix : 
+  [A---------C---------G---------T------]
+  -0.72216   0.10755   0.54682   0.06778  
+   0.30191  -1.21234   0.05265   0.85777  
+   1.34828   0.04625  -1.46773   0.07320  
+   0.17356   0.78244   0.07602  -1.03202  
+
+
+
+. Run ID:				none
+. Random seed:				239
+. Subtree patterns aliasing:		no
+. Version:				3.3.20180621
+. Time used:				346h58m32s (1249112 seconds)
+
+ oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+ Suggested citations:
+ S. Guindon, JF. Dufayard, V. Lefort, M. Anisimova, W. Hordijk, O. Gascuel
+ "New algorithms and methods to estimate maximum-likelihood phylogenies: assessing the performance of PhyML 3.0."
+ Systematic Biology. 2010. 59(3):307-321.
+
+ S. Guindon & O. Gascuel
+ "A simple, fast, and accurate algorithm to estimate large phylogenies by maximum likelihood"
+ Systematic Biology. 2003. 52(5):696-704.
+ oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
