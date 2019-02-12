@@ -19,7 +19,7 @@ if '__main__' == __name__:
     parser.add_argument('--model', required=False, type=str, default=F81)
     parser.add_argument('--prediction_method', required=False, type=str, default=MPPA)
     parser.add_argument('--date_column', required=False, type=str, default=None)
-    parser.add_argument('--tip_size_threshold', required=False, type=int, default=15)
+    parser.add_argument('--threshold', required=False, type=int, default=15)
     parser.add_argument('--parameters', required=False, type=str, default=None, nargs='*')
     parser.add_argument('--out_parameters', required=False, type=str, default=None, nargs='*')
     parser.add_argument('--out_data', required=False, type=str, default=None)
@@ -32,7 +32,7 @@ if '__main__' == __name__:
         pastml_pipeline(data=params.data, tree=tree, html_compressed=html,
                         prediction_method=params.prediction_method, model=params.model,
                         columns=params.columns, name_column=params.name_column, date_column=params.date_column,
-                        tip_size_threshold=params.tip_size_threshold,
+                        tip_size_threshold=params.threshold,
                         parameters=params.parameters, out_data=params.out_data, work_dir=work_dir,
                         verbose=params.verbose)
         if params.out_parameters:

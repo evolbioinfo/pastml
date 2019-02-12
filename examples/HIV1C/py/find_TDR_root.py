@@ -32,12 +32,23 @@ if '__main__' == __name__:
         if resistant == {'resistant'}:
             tdr_size = 1 if _.is_leaf() else sum(getattr(c, 'TDR_size', 0) for c in _.children)
         _.add_feature('TDR_size', tdr_size)
-        if tdr_size > max_tdr_size:
+        if tdr_size >= max_tdr_size:
             max_tdr_size = tdr_size
             tdr_root = _
 
     tdr_loc = getattr(tdr_root, loc, set())
-    while tdr_root.up and tdr_loc == getattr(tdr_root.up, loc, set()):
-        tdr_root = tdr_root.up
+    tdr_loc_root = tdr_root
+    while tdr_loc_root.up and tdr_loc == getattr(tdr_loc_root.up, loc, set()):
+        tdr_loc_root = tdr_loc_root.up
 
-    tdr_root.write(outfile=params.out_tree, format=3)
+    prev_loc_root = None
+    if not tdr_loc_root.is_root():
+        prev_loc_root = tdr_loc_root.up
+        prev_loc = getattr(prev_loc_root, loc, set())
+        while prev_loc_root.up and prev_loc == getattr(prev_loc_root.up, loc, set()):
+            prev_loc = prev_loc_root.up
+
+    if prev_loc_root and not prev_loc_root.is_root():
+        prev_loc_root.write(outfile=params.out_tree, format=3)
+    else:
+        tdr_loc_root.write(outfile=params.out_tree, format=3)

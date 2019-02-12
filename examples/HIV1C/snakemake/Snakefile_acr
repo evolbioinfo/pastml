@@ -4,11 +4,11 @@ import os
 # snakemake --snakefile Snakefile_acr --keep-going --cores 4 --config folder=.. --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~"
 
 # To visualise the pipeline
-# snakemake --snakefile Snakefile_acr --config folder=.. --dag | dot -Tsvg > pipeline_acr.svg
+# snakemake --snakefile Snakefile_acr --config folder=.. --dag | sfdp -Tsvg > pipeline_acr.svg
 
 
 localrules: all
-ruleorder: pastml_drm_loc_subtree > timed_pastml_drm > pastml_drm_loc > pastml_loc > pastml_drm
+ruleorder: acr_tdr_loc > acr_drm_timed > acr_drm_loc > acr_loc > acr_drm
 
 folder = os.path.abspath(config["folder"])
 data_dir = os.path.join(folder, 'data')
@@ -36,35 +36,37 @@ rule all:
         type=tree_types, loc=location_col),
 
         loc_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'Loc_{loc}', \
-        'map_best.tree_{type}.location_{loc}.html'), \
-        type=tree_types, loc=location_col),
+        'pastml_{type}_best_tree.html'), type=tree_types, loc=location_col),
 
-        drm_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'DRM_{DRM}', 'pastml_{type}_best_tree.html'), \
-        type=tree_types, DRM=DRMS),
+        drm_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'DRM_{drm}', 'pastml_{type}_best_tree.html'), \
+        type=tree_types, drm=DRMS),
 
-        drm_loc_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'DRM_{DRM}', 'Loc_{loc}', \
-        'pastml_{type}_best_tree.html'), type=tree_types, DRM=DRMS, loc=location_col),
+        drm_loc_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'DRM_{drm}', 'Loc_{loc}', \
+        'pastml_{type}_best_tree.html'), type=tree_types, drm=DRMS, loc=location_col),
 
-        drm_timed_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'DRM_{DRM}', 'best_timed', \
-        'pastml_{type}_tree.year_{r}.html'), r=YEARS, type=tree_types, DRM=DRMS),
+        drm_timed_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'DRM_{drm}', 'best_timed', \
+        'pastml_{type}_best_tree.year_{r}.html'), r=YEARS, type=tree_types, drm=DRMS),
 
-        TDR_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'DRM_{DRM}', 'Loc_{loc1}', 'pastml_{type}_best_subtree.TDR_loc_{loc}.html'), \
-        type=tree_types, DRM=DRMS, loc=location_col, loc1='Country')
+        TDR_maps = expand(os.path.join(data_dir, maps_dir, '{type}', 'DRM_{drm}', 'Loc_{loc1}', \
+        'pastml_{type}_best_subtree.TDR_loc_{loc}.html'), type=tree_types, drm=DRMS, loc=location_col, loc1='Country')
 
-rule timed_trees:
+
+rule acr_drm_timed:
     '''
-    Prunes a tree for a collections of years.
+    Reconstructs tree ancestral states with PASTML and visualises the result for a collections of years.
     '''
     input:
         tree = os.path.join(data_dir, '{n}', 'pastml_{type}_tree.nwk'),
-        data = metadata
+        data = metadata,
+        pars = os.path.join(data_dir, 'pastml_params', 'params.tree_{n}.type_{type}.drm_{drm}.csv')
     output:
-        trees = expand(os.path.join(data_dir, '{{n}}', 'pastml_{{type}}_tree.drm_{{drm}}.year_{r}.nwk'), r=YEARS)
-    threads: 1
+        trees = temp(expand(os.path.join(data_dir, '{{n}}', 'pastml_{{type}}_tree.drm_{{drm}}.year_{r}.nwk'), r=YEARS)),
+        maps = expand(os.path.join(data_dir, maps_dir, '{{type}}', 'DRM_{{drm}}', '{{n}}_timed', 'pastml_{{type}}_{{n}}_tree.year_{r}.html'), r=YEARS)
+    threads: 2
     params:
         mem = 1000,
-        name = 'time_tree',
         tree = os.path.join(data_dir, '{n}', 'pastml_{type}_tree.drm_{drm}.year_{}.nwk'),
+        name = 'timed_map_{drm}',
         drm = '{drm}',
         date_col = 'Year',
         qos = 'fast',
@@ -73,33 +75,12 @@ rule timed_trees:
         """
         python3 {folder}/py/timeline_tree.py --in_tree {input.tree} --metadata {input.data} \
         --out_tree_pattern {params.tree} --drm {params.drm} --date_column {params.date_col}
+
+        python3 {folder}/py/acr.py --trees {output.trees} --data {input.data} --htmls {output.maps} \
+        --columns {params.drm} --date_column {params.date_col} --parameters {input.pars} --threshold 12
         """
 
-rule timed_pastml_drm:
-    '''
-    Reconstructs tree ancestral states with PASTML and visualises the result for a collections of years.
-    '''
-    input:
-        trees = expand(os.path.join(data_dir, '{{n}}', 'pastml_{{type}}_tree.drm_{{drm}}.year_{r}.nwk'), r=YEARS),
-        data = metadata,
-        pars = os.path.join(data_dir, 'pastml', 'params.tree_{n}.type_{type}.drm_{drm}.csv')
-    output:
-        maps = expand(os.path.join(data_dir, maps_dir, '{{type}}', 'DRM_{{drm}}', '{{n}}_timed', 'pastml_{{type}}_tree.year_{r}.html'), r=YEARS)
-    threads: 2
-    params:
-        mem = 1000,
-        name = 'timed_map_{drm}',
-        drm = '{drm}',
-        date_col = 'Year',
-        qos = 'fast',
-    singularity: "docker://evolbioinfo/pastml:v1.9.1"
-    shell:
-        """
-        python3 {folder}/py/acr.py --trees {input.trees} --data {input.data} --htmls {output.maps} \
-        --columns {params.drm} --date_column {params.date_col} --parameters {input.pars}
-        """
-
-rule pastml_drm:
+rule acr_drm:
     '''
     Reconstructs tree ancestral states with PASTML and visualises the result.
     '''
@@ -107,42 +88,41 @@ rule pastml_drm:
         tree = os.path.join(data_dir, '{n}', 'pastml_{type}_tree.nwk'),
         data = metadata,
     output:
-        map = os.path.join(data_dir, maps_dir, '{type}', 'DRM_{DRM}', 'pastml_{type}_{n}_tree.html'),
-        pars = os.path.join(data_dir, 'pastml', 'params.tree_{n}.type_{type}.drm_{DRM}.csv')
+        map = os.path.join(data_dir, maps_dir, '{type}', 'DRM_{drm}', 'pastml_{type}_{n}_tree.html'),
+        pars = os.path.join(data_dir, 'pastml_params', 'params.tree_{n}.type_{type}.drm_{drm}.csv')
     threads: 2
     params:
         mem = 4000,
-        name = 'p_{n}_{DRM}',
+        name = 'p_{n}_{drm}',
         date_col = 'Year',
         qos = 'fast',
-        drm = '{DRM}',
-        work_dir = os.path.join(data_dir, 'pastml', 'drm_{DRM}', 'tree_{type}_{n}')
+        drm = '{drm}'
     singularity: "docker://evolbioinfo/pastml:v1.9.1"
     shell:
         """
          python3 {folder}/py/acr.py --trees {input.tree} --data {input.data} --htmls {output.map} \
         --columns {params.drm} --date_column {params.date_col} \
-        --out_parameters {output.pars} --work_dir {params.work_dir}
+        --out_parameters {output.pars}
         """
 
-rule pastml_drm_loc:
+rule acr_drm_loc:
     '''
     Reconstructs tree ancestral states with PASTML and visualises the result.
     '''
     input:
         tree = os.path.join(data_dir, '{n}', 'pastml_{type}_tree.nwk'),
         data = metadata,
-        loc_pars = os.path.join(data_dir, 'pastml', 'params.tree_{n}.type_{type}.loc_{loc}.csv'),
-        drm_pars = os.path.join(data_dir, 'pastml', 'params.tree_{n}.type_{type}.drm_{DRM}.csv'),
+        loc_pars = os.path.join(data_dir, 'pastml_params', 'params.tree_{n}.type_{type}.loc_{loc}.csv'),
+        drm_pars = os.path.join(data_dir, 'pastml_params', 'params.tree_{n}.type_{type}.drm_{drm}.csv'),
     output:
-        map = os.path.join(data_dir, maps_dir, '{type}', 'DRM_{DRM}', 'Loc_{loc}', 'pastml_{type}_{n}_tree.html'),
-        data = os.path.join(data_dir, 'pastml', 'pastml_{type}_{n}_tree_DRM_{DRM}_Loc_{loc}.tab'),
+        map = os.path.join(data_dir, maps_dir, '{type}', 'DRM_{drm}', 'Loc_{loc}', 'pastml_{type}_{n}_tree.html'),
+        data = os.path.join(data_dir, 'pastml_params', 'acr.tree_{n}.type_{type}.DRM_{drm}.Loc_{loc}.tab'),
     threads: 2
     params:
         mem = 4000,
-        name = 'pastml_{n}',
+        name = 'acr_{n}',
         date_col = 'Year',
-        drm = '{DRM}',
+        drm = '{drm}',
         loc = '{loc}',
         qos = 'fast'
     singularity: "docker://evolbioinfo/pastml:v1.9.1"
@@ -153,24 +133,24 @@ rule pastml_drm_loc:
         --parameters {input.loc_pars} {input.drm_pars} --out_data {output.data}
         """
 
-rule pastml_drm_loc_subtree:
+rule acr_tdr_loc:
     '''
     Reconstructs tree ancestral states with PASTML and visualises the result.
     '''
     input:
         tree = os.path.join(data_dir, '{n}', 'pastml_{type}_tree.nwk'),
-        states = os.path.join(data_dir, 'pastml', 'pastml_{type}_{n}_tree_DRM_{DRM}_Loc_{loc}.tab'),
+        states = os.path.join(data_dir, 'pastml_params', 'acr.tree_{n}.type_{type}.DRM_{drm}.Loc_{loc}.tab'),
         data = metadata,
-        drm_pars = os.path.join(data_dir, 'pastml', 'params.tree_{n}.type_{type}.drm_{DRM}.csv'),
+        drm_pars = os.path.join(data_dir, 'pastml_params', 'params.tree_{n}.type_{type}.drm_{drm}.csv'),
     output:
-        map = os.path.join(data_dir, maps_dir, '{type}', 'DRM_{DRM}', 'Loc_{loc1}', 'pastml_{type}_{n}_subtree.TDR_loc_{loc}.html'),
-        subtree = temp(os.path.join(data_dir, '{n}', 'pastml_{type}_subtree.drm_{DRM}.loc_{loc}.loc1_{loc1}.nwk'))
+        map = os.path.join(data_dir, maps_dir, '{type}', 'DRM_{drm}', 'Loc_{loc1}', 'pastml_{type}_{n}_subtree.TDR_loc_{loc}.html'),
+        subtree = temp(os.path.join(data_dir, '{n}', 'pastml_{type}_subtree.drm_{drm}.loc_{loc}.loc1_{loc1}.nwk'))
     threads: 2
     params:
         mem = 4000,
-        name = 'p_{n}_{DRM}_{loc1}',
+        name = 'p_{n}_{drm}_{loc1}',
         date_col = 'Year',
-        drm = '{DRM}',
+        drm = '{drm}',
         loc = '{loc}',
         loc1 = '{loc1}',
         qos = 'fast'
@@ -182,10 +162,10 @@ rule pastml_drm_loc_subtree:
 
         python3 {folder}/py/acr.py --trees {output.subtree} --data {input.data} --htmls {output.map} \
         --columns {params.drm} {params.loc1} --name_column {params.loc1} --date_column {params.date_col} \
-        --parameters {input.drm_pars}
+        --parameters {input.drm_pars} --threshold 12
         """
 
-rule pastml_loc:
+rule acr_loc:
     '''
     Reconstructs tree ancestral states with PASTML and visualises the result.
     '''
@@ -193,12 +173,12 @@ rule pastml_loc:
         tree = os.path.join(data_dir, '{n}', 'pastml_{type}_tree.nwk'),
         data = metadata
     output:
-        map = os.path.join(data_dir, maps_dir, '{type}', 'Loc_{loc}', 'map_{n}.tree_{type}.location_{loc}.html'),
-        pars = os.path.join(data_dir, 'pastml', 'params.tree_{n}.type_{type}.loc_{loc}.csv'),
+        map = os.path.join(data_dir, maps_dir, '{type}', 'Loc_{loc}', 'pastml_{type}_{n}_tree.html'),
+        pars = os.path.join(data_dir, 'pastml_params', 'params.tree_{n}.type_{type}.loc_{loc}.csv'),
     threads: 2
     params:
         mem = 4000,
-        name = 'pastml_{n}',
+        name = 'acr_{n}',
         loc = '{loc}',
         date_col = 'Year',
         qos = 'fast'
@@ -206,7 +186,7 @@ rule pastml_loc:
     shell:
         """
         python3 {folder}/py/acr.py --trees {input.tree} --data {input.data} --htmls {output.map} \
-        --columns {params.loc} --date_column {params.date_col} --out_parameters {output.pars} --verbose
+        --columns {params.loc} --date_column {params.date_col} --out_parameters {output.pars}
         """
 
 rule geomap:
@@ -214,14 +194,14 @@ rule geomap:
     Reconstructs the geographical map coloured according to PastML categories.
     '''
     input:
-        tree = os.path.join(data_dir, '{n}', 'pastml_{type}_{suffix}.nwk'),
+        tree = os.path.join(data_dir, '{n}', 'pastml_{type}_tree.nwk'),
         data = metadata
     output:
-        geo_map = os.path.join(data_dir, maps_dir, '{type}', 'Loc_{loc}', 'geo_map_{n}_{type}_{loc}_{suffix}.html'),
+        geo_map = os.path.join(data_dir, maps_dir, '{type}', 'Loc_{loc}', 'geo_map_{n}_{type}_{loc}_tree.html'),
     threads: 1
     params:
         mem = 4000,
-        name = 'pastml_{n}',
+        name = 'geomap_{type}',
         loc = '{loc}',
         country_col = 'Country',
         qos = 'fast'

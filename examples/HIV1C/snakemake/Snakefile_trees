@@ -275,8 +275,7 @@ rule nex2nwk:
     input:
         trees = os.path.join(data_dir, 'pars_trees.nex')
     output:
-        expand(os.path.join(data_dir, '{n}', 'pars_tree.nwk'), n=range(n)),
-        log = os.path.join(data_dir, 'pars_trees.log')
+        expand(os.path.join(data_dir, '{n}', 'pars_tree.nwk'), n=range(n))
     params:
         mem = 1000,
         tree_pattern = os.path.join(data_dir, '%s', 'pars_tree.nwk'),
@@ -284,7 +283,7 @@ rule nex2nwk:
         qos = 'fast'
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
-    shell: "python3 {folder}/py/nex2nwk.py --trees {input.trees} --pattern {params.tree_pattern} --log {output.log}"
+    shell: "python3 {folder}/py/nex2nwk.py --trees {input.trees} --pattern {params.tree_pattern}"
 
 
 rule fasttree:
