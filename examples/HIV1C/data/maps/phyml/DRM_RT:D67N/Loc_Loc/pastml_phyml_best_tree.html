@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html>
+<head>
+<!--<link href="style.css" rel="stylesheet" />-->
+<style>
+body {
+  font-family: helvetica,serif;
+  font-size: 14px;
+}
+
+#cy {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 10;
+  background-color: #FFFFFF;
+}
+
+h1 {
+  opacity: 0.5;
+  font-size: 1em;
+}
+
+.floating {
+    max-width: 30%;
+    width: 120px;
+    float: right;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+}
+
+.cy-button {
+    background-color: #555555;
+    border: none;
+    color: white;
+    padding: 6px 0px;
+    width: 100%;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 3px 10px 0 rgba(0,0,0,0.19);
+}
+
+a.cy-button:link, a.cy-button:visited, a.cy-button:hover {
+    color: white;
+    text-decoration: none;
+}
+
+
+.slidertext {
+    width: 100%;
+    color: #555555;
+    border: none;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+}
+
+.slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 15px;
+    text-align: center;
+    border-radius: 5px;
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.7;
+    -webkit-transition: .2s;
+    transition: opacity .2s;
+    margin: 10px 0px;
+    display: inline-block;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 3px 10px 0 rgba(0,0,0,0.19);
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: #555555;
+    cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: #555555;
+    cursor: pointer;
+}
+
+@media all and (max-width: 600px) {
+    .buttontext {
+        display: none;
+    }
+}
+
+
+</style>
+<meta charset=utf-8 />
+<meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
+<title>pastml_phyml_best_tree</title>
+    <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js/v3.2.3/dist/cytoscape.min.js"></script>
+    <script src="https://cdn.rawgit.com/cpettitt/dagre/v0.7.4/dist/dagre.min.js"></script>
+    <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-dagre/1.5.0/cytoscape-dagre.js"></script>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.0/jquery.qtip.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.0/jquery.qtip.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-qtip/2.7.0/cytoscape-qtip.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"/>
+<meta http-Equiv="Cache-Control" Content="no-cache" />
+<meta http-Equiv="Pragma" Content="no-cache" />
+<meta http-Equiv="Expires" Content="0" />
+</head>
+<body>
+<div id="fullscreenDiv">
+<div id="cy"></div>
+<div class="floating">
+    <a class="cy-button" href="#" id="fit" onclick="fit()"><span class="glyphicon glyphicon-resize-full"></span><span class="buttontext">  Fit screen</span></a>
+    <a class="cy-button" href="#" id="reset" onclick="resetLayout()"><span class="glyphicon glyphicon-picture"></span><span class="buttontext">  Layout</span></a>
+    <a class="cy-button" href="#" id="downloader" onclick="toImage()" download="pastml_phyml_best_tree.jpg">
+        <span class="glyphicon glyphicon-save"></span><span class="buttontext">  Save (jpg)</span></a>
+    <!--<a class="cy-button" href="#" id="downloader-json" onclick="toJson()" download="pastml_phyml_best_tree.json">-->
+        <!--<span class="glyphicon glyphicon-save"></span><span class="buttontext">  Save (json)</span></a>-->
+    <a class="cy-button" href="#" id="fullscreen" onclick="toggleFullScreen()"><span id="fsspan" class="glyphicon glyphicon-fullscreen"></span><span id="fstext" class="buttontext">  Full screen</span></a>
+    
+<div class="slidecontainer">
+  <input type="range" min="0" max="5" value="5" class="slider" id="myRange" step="1">
+  <div class="slidertext">Time: <span id="demo"></span></div>
+</div>
+</div></div>
+<!-- Load appplication code at the end to ensure DOM is loaded -->
+<script type="text/javascript">
+var layoutOptions = {
+    name: 'dagre',
+    nodesep: 10, // the separation between adjacent nodes in the same rank
+    edgeSep: 10, // the separation between adjacent edges in the same rank
+    rankSep: 80, // the separation between adjacent ranks
+    rankDir: 'TB', // 'TB' for top to bottom flow, 'LR' for left to right,
+    ranker: 'longest-path', // Type of algorithm to assign a rank to each node in the input graph. Possible values: 'network-simplex', 'tight-tree' or 'longest-path'
+    minLen: function( edge ){ return edge.data('minLen') | 0; }, // number of ranks to keep between the source and target of the edge
+
+    // general layout options
+    fit: true, // whether to fit to viewport
+    padding: 1, // fit padding
+    spacingFactor: undefined, // Applies a multiplicative factor (>0) to expand or compress the overall area that the nodes take up
+    nodeDimensionsIncludeLabels: true, // whether labels should be included in determining the space used by a node
+    animate: false, // whether to transition the node positions
+    animateFilter: function( node, i ){ return true; }, // whether to animate specific nodes when animation is on; non-animated nodes immediately go to their final positions
+    animationDuration: 500, // duration of animation in ms if enabled
+    animationEasing: undefined, // easing of animation if enabled
+    boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
+    transform: function( node, pos ){ return pos; }, // a function that applies a transform to the final node position
+    ready: function(){}, // on layoutready
+    stop: function(){} // on layoutstop
+  };
+
+var cy = cytoscape({
+  container: document.getElementById('cy'),
+
+  style: cytoscape.stylesheet()
+    .selector('node')
+      .css({
+        'width': 300,
+        'height': 300,
+        'content': '',
+        'shape': 'ellipse',
+        'pie-size': '100%',
+        'background-color': '#909090',
+        'color': '#383838',
+        'text-opacity': 1,
+        'text-valign': 'center',
+        'text-halign': 'center',
+        'font-size': 80,
+        'text-halign' : 'center',
+        'text-valign' : 'center',
+        'min-zoomed-font-size': 12,
+        'text-background-color' : '#ffffff',
+        'text-background-shape' : 'roundrectangle',
+        'text-background-opacity': .3,
+        'text-background-padding' : 1,
+      })
+    .selector('node[node_name]')
+      .css({
+        'content': 'data(node_name)',
+      })
+    .selector('node[tip]')
+      .css({
+        'width': 400,
+        'height': 400,
+        'font-size': 100,
+      })
+    .selector('node[unresolved]')
+      .css({
+        'shape': 'octagon',
+        'pie-size': '92%',
+        'width': 500,
+        'height': 500,
+        'font-size': 125,
+      })
+    .selector('node[node_size]')
+      .css({
+        'width': 'data(node_size)',
+        'height': 'data(node_size)',
+      })
+    .selector('node[node_fontsize]')
+      .css({
+        'font-size': 'data(node_fontsize)',
+      })
+    
+    .selector(".Loc-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#ffffff",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".LocAsia-RTD67Nresistant")
+        .css({
+        
+                'pie-1-background-color': "#a6cee3",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#d95f02",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".LocAsia-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#a6cee3",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".LocCentralAfrica-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#1f78b4",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".LocCentralAmerica-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#b2df8a",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".LocEastAfrica-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#33a02c",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".LocEurope-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#fb9a99",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".LocHornofAfrica-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#e31a1c",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".LocSouthAfrica-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#ff7f00",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".LocSouthAmerica-RTD67N")
+        .css({
+        
+                'pie-1-background-color': "#cab2d6",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#ffffff",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".LocSouthAmerica-RTD67Nresistant")
+        .css({
+        
+                'pie-1-background-color': "#cab2d6",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#d95f02",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".LocSouthAmerica-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#cab2d6",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".LocSouthernAfricaexSA-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#6a3d9a",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".LocWestAfrica-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#ffff99",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector('edge')
+      .css({
+        'width': 50,
+        'font-size': 80,
+        'color': 'black',
+        'content': '',
+        'curve-style': 'bezier',
+        'target-arrow-shape': 'triangle',
+        'target-arrow-color': '#909090',
+        'opacity': 0.8,
+        'text-opacity': 1,
+        'line-color': '#909090',
+        'text-background-color' : '#ffffff',
+        'text-background-shape' : 'roundrectangle',
+        'text-background-opacity': 1,
+        'text-background-padding' : 4,
+        'min-zoomed-font-size': 10,
+      })
+    .selector('edge[edge_meta]')
+      .css({
+        'line-color': '#383838',
+        'target-arrow-color': '#383838',
+      })
+    .selector('edge[edge_name]')
+      .css({
+        'content': 'data(edge_name)',
+      })
+    .selector('edge[edge_size]')
+      .css({
+        'width': 'data(edge_size)',
+        'font-size': 'data(edge_size)',
+      })
+    .selector(':selected')
+      .css({
+        'background-color': 'black',
+        'line-color': 'black',
+        'target-arrow-color': 'black',
+        'source-arrow-color': 'black',
+        'pie-size': '60%',
+        'opacity': 1
+      })
+    .selector('.faded')
+      .css({
+        'opacity': 0.25,
+        'text-opacity': 0
+      }),
+
+  elements: {'nodes': [{'data': {'node_in_tips_0': ' 0', 'date': 0, 'node_size_0': 133, 'node_size_3': 1036, 'node_size_1': 275, 'node_fontsize_3': 175, 'node_name_2': 'Central Africa 5', 'node_name_1': 'Central Africa 3', 'node_fontsize': 239, 'node_all_tips_3': ' 1510', 'node_name_5': 'Central Africa 914', 'node_fontsize_5': 239, 'node_name_4': 'Central Africa 911', 'node_size': 1600, 'node_in_tips_1': ' 3', 'node_all_tips_4': ' 3552', 'node_all_tips_0': ' 2', 'node_in_tips_2': ' 5', 'node_name_3': 'Central Africa 103', 'node_fontsize_2': 95, 'node_name': 'Central Africa 914', 'node_size_5': 1600, 'node_in_tips': ' 914', 'node_in_tips_3': ' 103', 'node_fontsize_1': 88, 'node_root_id': 'ROOT', 'node_all_tips': ' 3619', 'node_fontsize_0': 80, 'node_all_tips_2': ' 89', 'node_size_4': 1599, 'node_all_tips_5': ' 3619', 'node_name_0': 'Central Africa 0', 'node_fontsize_4': 239, 'node_all_tips_1': ' 18', 'node_in_tips_4': ' 911', 'node_in_tips_5': ' 914', 'node_size_2': 336, 'id': 0, 'tooltip': 'Loc: Central Africa<br>RTD67N: sensitive'}, 'classes': 'LocCentralAfrica-RTD67Nsensitive'}, {'data': {'date': 2, 'node_size_0': 133, 'node_size_3': 307, 'node_size_1': 133, 'node_fontsize_3': 92, 'node_name_2': 'Southern Africa ex SA 1-4', 'node_name_1': 'Southern Africa ex SA 0', 'node_meta_4': 1, 'node_fontsize': 92, 'node_all_tips_3': ' 1-4', 'node_name_5': 'Southern Africa ex SA 1-4', 'node_fontsize_5': 92, 'node_name_4': 'Southern Africa ex SA 1-4', 'node_size': 307, 'node_all_tips_4': ' 1-4', 'node_in_tips_2': ' 1-4', 'node_meta_3': 1, 'node_name_3': 'Southern Africa ex SA 1-4', 'node_fontsize_2': 92, 'node_name': 'Southern Africa ex SA 1-4', 'node_size_5': 307, 'node_in_tips': ' 1-4', 'node_meta': 1, 'node_in_tips_3': ' 1-4', 'node_meta_5': 1, 'node_fontsize_1': 80, 'node_root_id': 'AF443075', 'node_all_tips': ' 1-4', 'node_meta_2': 1, 'node_all_tips_2': ' 1-4', 'node_size_4': 307, 'node_fontsize_0': 80, 'node_all_tips_5': ' 1-4', 'node_name_0': 'Southern Africa ex SA 0', 'node_fontsize_4': 92, 'node_in_tips_4': ' 1-4', 'node_in_tips_5': ' 1-4', 'node_size_2': 307, 'id': 1, 'tip': 1, 'tooltip': 'Loc: Southern Africa ex SA<br>RTD67N: sensitive'}, 'classes': 'LocSouthernAfricaexSA-RTD67Nsensitive'}, {'data': {'date': 2, 'node_size_0': 133, 'node_size_3': 275, 'node_size_1': 133, 'node_fontsize_3': 88, 'node_name_2': 'Europe 1', 'node_name_1': 'Europe 0', 'node_meta_4': 1, 'node_fontsize': 88, 'node_all_tips_3': ' 1-3', 'node_name_5': 'Europe 1-3', 'node_fontsize_5': 88, 'node_name_4': 'Europe 1-3', 'node_size': 275, 'node_all_tips_4': ' 1-3', 'node_in_tips_2': ' 1', 'node_meta_3': 1, 'node_name_3': 'Europe 1-3', 'node_fontsize_2': 80, 'node_name': 'Europe 1-3', 'node_size_5': 275, 'node_in_tips': ' 1-3', 'node_meta': 1, 'node_in_tips_3': ' 1-3', 'node_meta_5': 1, 'node_fontsize_1': 80, 'node_root_id': 'GQ848120', 'node_all_tips': ' 1-3', 'node_meta_2': 1, 'node_all_tips_2': ' 1', 'node_size_4': 275, 'node_fontsize_0': 80, 'node_all_tips_5': ' 1-3', 'node_name_0': 'Europe 0', 'node_fontsize_4': 88, 'node_in_tips_4': ' 1-3', 'node_in_tips_5': ' 1-3', 'node_size_2': 200, 'id': 2, 'tip': 1, 'tooltip': 'Loc: Europe<br>RTD67N: sensitive'}, 'classes': 'LocEurope-RTD67Nsensitive'}, {'data': {'date': 1, 'node_size_0': 133, 'node_size_3': 336, 'node_size_1': 200, 'node_fontsize_3': 95, 'node_name_2': 'South Africa 1', 'node_name_1': 'South Africa 1', 'node_meta_4': 1, 'node_fontsize': 104, 'node_all_tips_3': ' 1-5', 'node_name_5': 'South Africa 1-8', 'node_fontsize_5': 104, 'node_name_4': 'South Africa 1-8', 'node_size': 411, 'node_all_tips_4': ' 1-8', 'node_in_tips_2': ' 1', 'node_in_tips_1': ' 1', 'node_meta_3': 1, 'node_name_3': 'South Africa 1-5', 'node_fontsize_2': 80, 'node_name': 'South Africa 1-8', 'node_size_5': 411, 'node_in_tips': ' 1-8', 'node_meta': 1, 'node_in_tips_3': ' 1-5', 'node_meta_5': 1, 'node_fontsize_1': 80, 'node_root_id': 'JN188292', 'node_all_tips': ' 1-8', 'node_fontsize_0': 80, 'node_all_tips_2': ' 1', 'node_size_4': 411, 'node_all_tips_5': ' 1-8', 'node_name_0': 'South Africa 0', 'node_fontsize_4': 104, 'node_all_tips_1': ' 1', 'node_in_tips_4': ' 1-8', 'node_in_tips_5': ' 1-8', 'node_size_2': 200, 'id': 3, 'tip': 1, 'tooltip': 'Loc: South Africa<br>RTD67N: sensitive'}, 'classes': 'LocSouthAfrica-RTD67Nsensitive'}, {'data': {'date': 2, 'node_size_0': 266, 'node_size_3': 266, 'node_size_1': 266, 'node_fontsize_3': 80, 'node_name_2': ' 0', 'node_name_1': ' 0', 'node_fontsize': 80, 'node_all_tips_3': ' 79', 'node_name_5': ' 0', 'node_fontsize_5': 80, 'node_name_4': ' 0', 'node_size': 266, 'node_all_tips_4': ' 139', 'unresolved': 1, 'node_in_tips_2': ' 0', 'node_name_3': ' 0', 'node_fontsize_2': 80, 'node_name': ' 0', 'node_size_5': 266, 'node_in_tips': ' 0', 'node_in_tips_3': ' 0', 'node_fontsize_1': 80, 'node_root_id': 'node_1519', 'node_all_tips': ' 140', 'node_fontsize_0': 80, 'node_all_tips_2': ' 7', 'node_size_4': 266, 'node_all_tips_5': ' 140', 'node_name_0': ' 0', 'node_fontsize_4': 80, 'node_in_tips_4': ' 0', 'node_in_tips_5': ' 0', 'node_size_2': 266, 'id': 4, 'tooltip': 'Loc: Central Africa or South Africa<br>RTD67N: sensitive'}, 'classes': 'Loc-RTD67Nsensitive'}, {'data': {'date': 2, 'node_size_0': 133, 'node_size_3': 411, 'node_size_1': 133, 'node_fontsize_3': 104, 'node_name_2': 'South Africa 0', 'node_name_1': 'South Africa 0', 'node_fontsize': 113, 'node_all_tips_3': ' 34', 'node_name_5': 'South Africa 12', 'node_fontsize_5': 113, 'node_name_4': 'South Africa 12', 'node_size': 490, 'node_all_tips_4': ' 49', 'node_in_tips_2': ' 0', 'node_name_3': 'South Africa 8', 'node_fontsize_2': 80, 'node_name': 'South Africa 12', 'node_size_5': 490, 'node_in_tips': ' 12', 'node_in_tips_3': ' 8', 'node_fontsize_1': 80, 'node_root_id': 'node_180', 'node_all_tips': ' 49', 'node_fontsize_0': 80, 'node_all_tips_2': ' 3', 'node_size_4': 490, 'node_all_tips_5': ' 49', 'node_name_0': 'South Africa 0', 'node_fontsize_4': 113, 'node_in_tips_4': ' 12', 'node_in_tips_5': ' 12', 'node_size_2': 133, 'id': 5, 'tooltip': 'Loc: South Africa<br>RTD67N: sensitive'}, 'classes': 'LocSouthAfrica-RTD67Nsensitive'}, {'data': {'date': 3, 'node_size_0': 266, 'node_size_3': 266, 'node_size_1': 266, 'node_fontsize_3': 80, 'node_name_2': ' 0', 'node_name_1': ' 0', 'node_fontsize': 80, 'node_all_tips_3': ' 13', 'node_name_5': ' 0', 'node_fontsize_5': 80, 'node_name_4': ' 0', 'node_size': 266, 'node_all_tips_4': ' 24', 'unresolved': 1, 'node_in_tips_2': ' 0', 'node_name_3': ' 0', 'node_fontsize_2': 80, 'node_name': ' 0', 'node_size_5': 266, 'node_in_tips': ' 0', 'node_in_tips_3': ' 0', 'node_fontsize_1': 80, 'node_root_id': 'node_1970', 'node_all_tips': ' 25', 'node_fontsize_0': 80, 'node_all_tips_2': ' 1', 'node_size_4': 266, 'node_all_tips_5': ' 25', 'node_name_0': ' 0', 'node_fontsize_4': 80, 'node_in_tips_4': ' 0', 'node_in_tips_5': ' 0', 'node_size_2': 266, 'id': 6, 'tooltip': 'Loc: Central Africa or Europe or Southern Africa ex SA<br>RTD67N: sensitive'}, 'classes': 'Loc-RTD67Nsensitive'}, {'data': {'date': 3, 'node_size_0': 266, 'node_size_3': 266, 'node_size_1': 266, 'node_fontsize_3': 80, 'node_name_2': ' 0', 'node_name_1': ' 0', 'node_fontsize': 80, 'node_all_tips_3': ' 50', 'node_name_5': ' 0', 'node_fontsize_5': 80, 'node_name_4': ' 0', 'node_size': 266, 'node_all_tips_4': ' 71', 'unresolved': 1, 'node_name_3': ' 0', 'node_fontsize_2': 80, 'node_name': ' 0', 'node_size_5': 266, 'node_in_tips': ' 0', 'node_in_tips_3': ' 0', 'node_fontsize_1': 80, 'node_root_id': 'node_2426', 'node_all_tips': ' 71', 'node_fontsize_0': 80, 'node_size_4': 266, 'node_all_tips_5': ' 71', 'node_name_0': ' 0', 'node_fontsize_4': 80, 'node_in_tips_4': ' 0', 'node_in_tips_5': ' 0', 'node_size_2': 266, 'id': 7, 'tooltip': 'Loc: South Africa or Southern Africa ex SA<br>RTD67N: sensitive'}, 'classes': 'Loc-RTD67Nsensitive'}, {'data': {'date': 2, 'node_size_0': 133, 'node_size_3': 1082, 'node_size_1': 133, 'node_fontsize_3': 180, 'node_name_2': 'South Africa 1', 'node_name_1': 'South Africa 0', 'node_fontsize': 194, 'node_all_tips_3': ' 131', 'node_name_5': 'South Africa 192', 'node_fontsize_5': 194, 'node_name_4': 'South Africa 191', 'node_size': 1203, 'node_all_tips_4': ' 205', 'node_in_tips_2': ' 1', 'node_name_3': 'South Africa 122', 'node_fontsize_2': 80, 'node_name': 'South Africa 192', 'node_size_5': 1203, 'node_in_tips': ' 192', 'node_in_tips_3': ' 122', 'node_fontsize_1': 80, 'node_root_id': 'node_2657', 'node_all_tips': ' 208', 'node_fontsize_0': 80, 'node_all_tips_2': ' 1', 'node_size_4': 1202, 'node_all_tips_5': ' 208', 'node_name_0': 'South Africa 0', 'node_fontsize_4': 194, 'node_in_tips_4': ' 191', 'node_in_tips_5': ' 192', 'node_size_2': 200, 'id': 8, 'tip': 1, 'tooltip': 'Loc: South Africa<br>RTD67N: sensitive'}, 'classes': 'LocSouthAfrica-RTD67Nsensitive'}, {'data': {'date': 2, 'node_size_0': 133, 'node_size_3': 862, 'node_size_1': 133, 'node_fontsize_3': 155, 'node_name_2': 'South Africa 1', 'node_name_1': 'South Africa 0', 'node_meta_4': 1, 'node_fontsize': 167, 'node_all_tips_3': ' 16-56', 'node_name_5': 'South Africa 21-78', 'node_fontsize_5': 167, 'node_name_4': 'South Africa 20-78', 'node_size': 961, 'node_all_tips_4': ' 21-82', 'node_in_tips_2': ' 1', 'node_meta_3': 1, 'node_name_3': 'South Africa 15-54', 'node_fontsize_2': 80, 'node_name': 'South Africa 21-78', 'node_size_5': 961, 'node_in_tips': ' 21-78', 'node_meta': 1, 'node_in_tips_3': ' 15-54', 'node_meta_5': 1, 'node_fontsize_1': 80, 'node_root_id': 'node_2936', 'node_all_tips': ' 22-83', 'node_fontsize_0': 80, 'node_all_tips_2': ' 1', 'node_size_4': 961, 'node_all_tips_5': ' 22-83', 'node_name_0': 'South Africa 0', 'node_fontsize_4': 167, 'node_in_tips_4': ' 20-78', 'node_in_tips_5': ' 21-78', 'node_size_2': 200, 'id': 9, 'tip': 1, 'tooltip': 'Loc: South Africa<br>RTD67N: sensitive'}, 'classes': 'LocSouthAfrica-RTD67Nsensitive'}, {'data': {'node_in_tips_0': ' 0', 'date': 0, 'node_size_0': 133, 'node_size_3': 997, 'node_size_1': 239, 'node_fontsize_3': 171, 'node_name_2': 'East Africa 7', 'node_name_1': 'East Africa 2', 'node_fontsize': 184, 'node_all_tips_3': ' 274', 'node_name_5': 'East Africa 136', 'node_fontsize_5': 184, 'node_name_4': 'East Africa 136', 'node_size': 1111, 'node_in_tips_1': ' 2', 'node_all_tips_4': ' 604', 'node_all_tips_0': ' 2', 'node_in_tips_2': ' 7', 'node_name_3': 'East Africa 89', 'node_fontsize_2': 101, 'node_name': 'East Africa 136', 'node_size_5': 1111, 'node_in_tips': ' 136', 'node_in_tips_3': ' 89', 'node_fontsize_1': 84, 'node_root_id': 'node_3600', 'node_all_tips': ' 624', 'node_fontsize_0': 80, 'node_all_tips_2': ' 19', 'node_size_4': 1111, 'node_all_tips_5': ' 624', 'node_name_0': 'East Africa 0', 'node_fontsize_4': 184, 'node_all_tips_1': ' 9', 'node_in_tips_4': ' 136', 'node_in_tips_5': ' 136', 'node_size_2': 388, 'id': 10, 'tooltip': 'Loc: East Africa<br>RTD67N: sensitive'}, 'classes': 'LocEastAfrica-RTD67Nsensitive'}, {'data': {'date': 2, 'node_size_0': 133, 'node_size_3': 731, 'node_size_1': 133, 'node_fontsize_3': 140, 'node_name_2': 'Asia 7', 'node_name_1': 'Asia 0', 'node_fontsize': 212, 'node_all_tips_3': ' 45', 'node_name_5': 'Asia 344', 'node_fontsize_5': 212, 'node_name_4': 'Asia 327', 'node_size': 1356, 'node_all_tips_4': ' 376', 'node_in_tips_2': ' 7', 'node_name_3': 'Asia 33', 'node_fontsize_2': 101, 'node_name': 'Asia 344', 'node_size_5': 1356, 'node_in_tips': ' 344', 'node_in_tips_3': ' 33', 'node_fontsize_1': 80, 'node_root_id': 'node_634', 'node_all_tips': ' 395', 'node_fontsize_0': 80, 'node_all_tips_2': ' 7', 'node_size_4': 1343, 'node_all_tips_5': ' 395', 'node_name_0': 'Asia 0', 'node_fontsize_4': 210, 'node_in_tips_4': ' 327', 'node_in_tips_5': ' 344', 'node_size_2': 388, 'id': 11, 'tooltip': 'Loc: Asia<br>RTD67N: sensitive'}, 'classes': 'LocAsia-RTD67Nsensitive'}, {'data': {'date': 2, 'node_size_0': 133, 'node_size_3': 275, 'node_size_1': 133, 'node_fontsize_3': 88, 'node_name_2': 'East Africa 1', 'node_name_1': 'East Africa 0', 'node_meta_4': 1, 'node_fontsize': 95, 'node_all_tips_3': ' 1-3', 'node_name_5': 'East Africa 1-5', 'node_fontsize_5': 95, 'node_name_4': 'East Africa 1-5', 'node_size': 336, 'node_all_tips_4': ' 1-5', 'node_in_tips_2': ' 1', 'node_meta_3': 1, 'node_name_3': 'East Africa 1-3', 'node_fontsize_2': 80, 'node_name': 'East Africa 1-5', 'node_size_5': 336, 'node_in_tips': ' 1-5', 'node_meta': 1, 'node_in_tips_3': ' 1-3', 'node_meta_5': 1, 'node_fontsize_1': 80, 'node_root_id': 'node_694', 'node_all_tips': ' 1-5', 'node_meta_2': 1, 'node_all_tips_2': ' 1', 'node_size_4': 336, 'node_fontsize_0': 80, 'node_all_tips_5': ' 1-5', 'node_name_0': 'East Africa 0', 'node_fontsize_4': 95, 'node_in_tips_4': ' 1-5', 'node_in_tips_5': ' 1-5', 'node_size_2': 200, 'id': 12, 'tip': 1, 'tooltip': 'Loc: East Africa<br>RTD67N: sensitive'}, 'classes': 'LocEastAfrica-RTD67Nsensitive'}, {'data': {'date': 2, 'node_size_0': 266, 'node_size_3': 266, 'node_size_1': 266, 'node_fontsize_3': 80, 'node_name_2': ' 0', 'node_name_1': ' 0', 'node_fontsize': 80, 'node_all_tips_3': ' 1-11', 'node_name_5': ' 0', 'node_fontsize_5': 80, 'node_name_4': ' 0', 'node_size': 266, 'node_all_tips_4': ' 2-11', 'unresolved': 1, 'node_in_tips_2': ' 0', 'node_name_3': ' 0', 'node_fontsize_2': 80, 'node_name': ' 0', 'node_size_5': 266, 'node_in_tips': ' 0', 'node_meta': 1, 'node_in_tips_3': ' 0', 'node_fontsize_1': 80, 'node_root_id': 'node_86', 'node_all_tips': ' 2-11', 'node_fontsize_0': 80, 'node_all_tips_2': ' 3', 'node_size_4': 266, 'node_all_tips_5': ' 2-11', 'node_name_0': ' 0', 'node_fontsize_4': 80, 'node_in_tips_4': ' 0', 'node_in_tips_5': ' 0', 'node_size_2': 266, 'id': 13, 'tooltip': 'Loc: Central Africa or South Africa or Southern Africa ex SA<br>RTD67N: sensitive'}, 'classes': 'Loc-RTD67Nsensitive'}, {'data': {'date': 1, 'node_size_0': 133, 'node_size_3': 723, 'node_size_1': 200, 'node_fontsize_3': 139, 'node_name_2': 'Horn of Africa 3', 'node_name_1': 'Horn of Africa 1', 'node_fontsize': 148, 'node_all_tips_3': ' 53', 'node_name_5': 'Horn of Africa 43', 'node_fontsize_5': 148, 'node_name_4': 'Horn of Africa 43', 'node_size': 801, 'node_in_tips_1': ' 1', 'node_all_tips_4': ' 90', 'node_in_tips_2': ' 3', 'node_name_3': 'Horn of Africa 32', 'node_fontsize_2': 88, 'node_name': 'Horn of Africa 43', 'node_size_5': 801, 'node_in_tips': ' 43', 'node_in_tips_3': ' 32', 'node_fontsize_1': 80, 'node_root_id': 'node_881', 'node_all_tips': ' 97', 'node_fontsize_0': 80, 'node_all_tips_2': ' 3', 'node_size_4': 801, 'node_all_tips_5': ' 97', 'node_name_0': 'Horn of Africa 0', 'node_fontsize_4': 148, 'node_all_tips_1': ' 1', 'node_in_tips_4': ' 43', 'node_in_tips_5': ' 43', 'node_size_2': 275, 'id': 14, 'tooltip': 'Loc: Horn of Africa<br>RTD67N: sensitive'}, 'classes': 'LocHornofAfrica-RTD67Nsensitive'}, {'data': {'date': 1, 'node_size_0': 133, 'node_size_3': 307, 'node_size_1': 200, 'node_fontsize_3': 92, 'node_name_2': 'West Africa 2', 'node_name_1': 'West Africa 1', 'node_fontsize': 140, 'node_all_tips_3': ' 4', 'node_name_5': 'West Africa 33', 'node_fontsize_5': 140, 'node_name_4': 'West Africa 33', 'node_size': 731, 'node_in_tips_1': ' 1', 'node_all_tips_4': ' 33', 'node_in_tips_2': ' 2', 'node_name_3': 'West Africa 4', 'node_fontsize_2': 84, 'node_name': 'West Africa 33', 'node_size_5': 731, 'node_in_tips': ' 33', 'node_in_tips_3': ' 4', 'node_fontsize_1': 80, 'node_root_id': 'node_947', 'node_all_tips': ' 33', 'node_fontsize_0': 80, 'node_all_tips_2': ' 2', 'node_size_4': 731, 'node_all_tips_5': ' 33', 'node_name_0': 'West Africa 0', 'node_fontsize_4': 140, 'node_all_tips_1': ' 1', 'node_in_tips_4': ' 33', 'node_in_tips_5': ' 33', 'node_size_2': 239, 'id': 15, 'tip': 1, 'tooltip': 'Loc: West Africa<br>RTD67N: sensitive'}, 'classes': 'LocWestAfrica-RTD67Nsensitive'}, {'data': {'date': 2, 'node_size_0': 133, 'node_size_3': 411, 'node_size_1': 133, 'node_fontsize_3': 104, 'node_name_2': 'Central Africa 0', 'node_name_1': 'Central Africa 0', 'node_fontsize': 144, 'node_all_tips_3': ' 53', 'node_name_5': 'Central Africa 38', 'node_fontsize_5': 144, 'node_name_4': 'Central Africa 37', 'node_size': 768, 'node_all_tips_4': ' 96', 'node_in_tips_2': ' 0', 'node_name_3': 'Central Africa 8', 'node_fontsize_2': 80, 'node_name': 'Central Africa 38', 'node_size_5': 768, 'node_in_tips': ' 38', 'node_in_tips_3': ' 8', 'node_fontsize_1': 80, 'node_root_id': 'node_1476', 'node_all_tips': ' 97', 'node_fontsize_0': 80, 'node_all_tips_2': ' 6', 'node_size_4': 761, 'node_all_tips_5': ' 97', 'node_name_0': 'Central Africa 0', 'node_fontsize_4': 144, 'node_in_tips_4': ' 37', 'node_in_tips_5': ' 38', 'node_size_2': 133, 'id': 16, 'tooltip': 'Loc: Central Africa<br>RTD67N: sensitive'}, 'classes': 'LocCentralAfrica-RTD67Nsensitive'}, {'data': {'date': 3, 'node_size_0': 133, 'node_size_3': 453, 'node_size_1': 133, 'node_fontsize_3': 108, 'node_name_2': 'South Africa 0', 'node_name_1': 'South Africa 0', 'node_fontsize': 124, 'node_all_tips_3': ' 21', 'node_name_5': 'South Africa 19', 'node_fontsize_5': 124, 'node_name_4': 'South Africa 19', 'node_size': 593, 'node_all_tips_4': ' 37', 'node_in_tips_2': ' 0', 'node_name_3': 'South Africa 10', 'node_fontsize_2': 80, 'node_name': 'South Africa 19', 'node_size_5': 593, 'node_in_tips': ' 19', 'node_in_tips_3': ' 10', 'node_fontsize_1': 80, 'node_root_id': 'node_1512', 'node_all_tips': ' 37', 'node_fontsize_0': 80, 'node_all_tips_2': ' 1', 'node_size_4': 593, 'node_all_tips_5': ' 37', 'node_name_0': 'South Africa 0', 'node_fontsize_4': 124, 'node_in_tips_4': ' 19', 'node_in_tips_5': ' 19', 'node_size_2': 133, 'id': 17, 'tip': 1, 'tooltip': 'Loc: South Africa<br>RTD67N: sensitive'}, 'classes': 'LocSouthAfrica-RTD67Nsensitive'}, {'data': {'date': 2, 'node_size_0': 133, 'node_size_3': 553, 'node_size_1': 133, 'node_fontsize_3': 120, 'node_name_2': 'Southern Africa ex SA 3', 'node_name_1': 'Southern Africa ex SA 0', 'node_fontsize': 120, 'node_all_tips_3': ' 23', 'node_name_5': 'Southern Africa ex SA 16', 'node_fontsize_5': 120, 'node_name_4': 'Southern Africa ex SA 16', 'node_size': 553, 'node_all_tips_4': ' 31', 'node_in_tips_2': ' 3', 'node_name_3': 'Southern Africa ex SA 16', 'node_fontsize_2': 88, 'node_name': 'Southern Africa ex SA 16', 'node_size_5': 553, 'node_in_tips': ' 16', 'node_in_tips_3': ' 16', 'node_fontsize_1': 80, 'node_root_id': 'node_164', 'node_all_tips': ' 31', 'node_fontsize_0': 80, 'node_all_tips_2': ' 3', 'node_size_4': 553, 'node_all_tips_5': ' 31', 'node_name_0': 'Southern Africa ex SA 0', 'node_fontsize_4': 120, 'node_in_tips_4': ' 16', 'node_in_tips_5': ' 16', 'node_size_2': 275, 'id': 18, 'tooltip': 'Loc: Southern Africa ex SA<br>RTD67N: sensitive'}, 'classes': 'LocSouthernAfricaexSA-RTD67Nsensitive'}, {'data': {'date': 3, 'node_size_0': 133, 'node_size_3': 336, 'node_size_1': 133, 'node_fontsize_3': 95, 'node_name_2': 'Europe 0', 'node_name_1': 'Europe 0', 'node_fontsize': 116, 'node_all_tips_3': ' 11', 'node_name_5': 'Europe 14', 'node_fontsize_5': 116, 'node_name_4': 'Europe 13', 'node_size': 523, 'node_all_tips_4': ' 21', 'node_in_tips_2': ' 0', 'node_name_3': 'Europe 5', 'node_fontsize_2': 80, 'node_name': 'Europe 14', 'node_size_5': 523, 'node_in_tips': ' 14', 'node_in_tips_3': ' 5', 'node_fontsize_1': 80, 'node_root_id': 'node_1969', 'node_all_tips': ' 22', 'node_fontsize_0': 80, 'node_all_tips_2': ' 1', 'node_size_4': 507, 'node_all_tips_5': ' 22', 'node_name_0': 'Europe 0', 'node_fontsize_4': 115, 'node_in_tips_4': ' 13', 'node_in_tips_5': ' 14', 'node_size_2': 133, 'id': 19, 'tip': 1, 'tooltip': 'Loc: Europe<br>RTD67N: sensitive'}, 'classes': 'LocEurope-RTD67Nsensitive'}, {'data': {'date': 3, 'node_size_0': 133, 'node_size_3': 580, 'node_size_1': 133, 'node_fontsize_3': 123, 'node_name_2': 'Southern Africa ex SA 0', 'node_name_1': 'Southern Africa ex SA 0', 'node_fontsize': 124, 'node_all_tips_3': ' 27', 'node_name_5': 'Southern Africa ex SA 19', 'node_fontsize_5': 124, 'node_name_4': 'Southern Africa ex SA 19', 'node_size': 593, 'node_all_tips_4': ' 33', 'node_name_3': 'Southern Africa ex SA 18', 'node_fontsize_2': 80, 'node_name': 'Southern Africa ex SA 19', 'node_size_5': 593, 'node_in_tips': ' 19', 'node_in_tips_3': ' 18', 'node_fontsize_1': 80, 'node_root_id': 'node_2388', 'node_all_tips': ' 33', 'node_fontsize_0': 80, 'node_size_4': 593, 'node_all_tips_5': ' 33', 'node_name_0': 'Southern Africa ex SA 0', 'node_fontsize_4': 124, 'node_in_tips_4': ' 19', 'node_in_tips_5': ' 19', 'node_size_2': 133, 'id': 20, 'tooltip': 'Loc: Southern Africa ex SA<br>RTD67N: sensitive'}, 'classes': 'LocSouthernAfricaexSA-RTD67Nsensitive'}, {'data': {'date': 3, 'node_size_0': 133, 'node_size_3': 239, 'node_size_1': 133, 'node_fontsize_3': 84, 'node_name_2': 'Europe 0', 'node_name_1': 'Europe 0', 'node_meta_4': 1, 'node_fontsize': 84, 'node_all_tips_3': ' 1-2', 'node_name_5': 'Europe 1-2', 'node_fontsize_5': 84, 'node_name_4': 'Europe 1-2', 'node_size': 239, 'node_all_tips_4': ' 1-2', 'node_meta_3': 1, 'node_name_3': 'Europe 1-2', 'node_fontsize_2': 80, 'node_name': 'Europe 1-2', 'node_size_5': 239, 'node_in_tips': ' 1-2', 'node_meta': 1, 'node_in_tips_3': ' 1-2', 'node_meta_5': 1, 'node_fontsize_1': 80, 'node_root_id': 'GQ400585', 'node_all_tips': ' 1-2', 'node_fontsize_0': 80, 'node_size_4': 239, 'node_all_tips_5': ' 1-2', 'node_name_0': 'Europe 0', 'node_fontsize_4': 84, 'node_in_tips_4': ' 1-2', 'node_in_tips_5': ' 1-2', 'node_size_2': 133, 'id': 21, 'tip': 1, 'tooltip': 'Loc: Europe<br>RTD67N: sensitive'}, 'classes': 'LocEurope-RTD67Nsensitive'}, {'data': {'node_in_tips_0': ' 0', 'date': 0, 'node_size_0': 266, 'node_size_3': 266, 'node_size_1': 266, 'node_fontsize_3': 80, 'node_name_2': ' 0', 'node_name_1': ' 0', 'node_fontsize': 80, 'node_all_tips_3': ' 90', 'node_name_5': ' 0', 'node_fontsize_5': 80, 'node_name_4': ' 0', 'node_size': 266, 'node_in_tips_1': ' 0', 'node_all_tips_4': ' 115', 'node_all_tips_0': ' 2', 'unresolved': 1, 'node_in_tips_2': ' 0', 'node_name_3': ' 0', 'node_fontsize_2': 80, 'node_name': ' 0', 'node_size_5': 266, 'node_in_tips': ' 0', 'node_in_tips_3': ' 0', 'node_fontsize_1': 80, 'node_root_id': 'node_3244', 'node_all_tips': ' 123', 'node_fontsize_0': 80, 'node_all_tips_2': ' 9', 'node_size_4': 266, 'node_all_tips_5': ' 123', 'node_name_0': ' 0', 'node_fontsize_4': 80, 'node_all_tips_1': ' 7', 'node_in_tips_4': ' 0', 'node_in_tips_5': ' 0', 'node_size_2': 266, 'id': 22, 'tooltip': 'Loc: East Africa or Horn of Africa<br>RTD67N: sensitive'}, 'classes': 'Loc-RTD67Nsensitive'}, {'data': {'date': 3, 'node_size_0': 133, 'node_size_3': 200, 'node_size_1': 133, 'node_fontsize_3': 80, 'node_name_2': 'Europe 0', 'node_name_1': 'Europe 0', 'node_fontsize': 92, 'node_all_tips_3': ' 22', 'node_name_5': 'Europe 4', 'node_fontsize_5': 92, 'node_name_4': 'Europe 3', 'node_size': 307, 'node_all_tips_4': ' 31', 'node_name_3': 'Europe 1', 'node_fontsize_2': 80, 'node_name': 'Europe 4', 'node_size_5': 307, 'node_in_tips': ' 4', 'node_in_tips_3': ' 1', 'node_fontsize_1': 80, 'node_root_id': 'node_3299', 'node_all_tips': ' 32', 'node_fontsize_0': 80, 'node_size_4': 275, 'node_all_tips_5': ' 32', 'node_name_0': 'Europe 0', 'node_fontsize_4': 88, 'node_in_tips_4': ' 3', 'node_in_tips_5': ' 4', 'node_size_2': 133, 'id': 23, 'tooltip': 'Loc: Europe<br>RTD67N: sensitive'}, 'classes': 'LocEurope-RTD67Nsensitive'}, {'data': {'date': 2, 'node_size_0': 133, 'node_size_3': 698, 'node_size_1': 133, 'node_fontsize_3': 136, 'node_name_2': 'South America 1', 'node_name_1': 'South America 0', 'node_fontsize': 192, 'node_all_tips_3': ' 39', 'node_name_5': 'South America 178', 'node_fontsize_5': 192, 'node_name_4': 'South America 171', 'node_size': 1183, 'node_all_tips_4': ' 253', 'node_in_tips_2': ' 1', 'node_name_3': 'South America 29', 'node_fontsize_2': 80, 'node_name': 'South America 178', 'node_size_5': 1183, 'node_in_tips': ' 178', 'node_in_tips_3': ' 29', 'node_fontsize_1': 80, 'node_root_id': 'node_3598', 'node_all_tips': ' 262', 'node_fontsize_0': 80, 'node_all_tips_2': ' 1', 'node_size_4': 1172, 'node_all_tips_5': ' 262', 'node_name_0': 'South America 0', 'node_fontsize_4': 191, 'node_in_tips_4': ' 171', 'node_in_tips_5': ' 178', 'node_size_2': 200, 'id': 24, 'tooltip': 'Loc: South America<br>RTD67N: sensitive'}, 'classes': 'LocSouthAmerica-RTD67Nsensitive'}, {'data': {'date': 4, 'node_size_0': 133, 'node_size_3': 133, 'node_size_1': 133, 'node_fontsize_3': 80, 'node_name_2': 'Asia 0', 'node_name_1': 'Asia 0', 'node_meta_4': 1, 'node_fontsize': 88, 'node_name_5': 'Asia 1-3', 'node_fontsize_5': 88, 'node_name_4': 'Asia 1-3', 'node_size': 275, 'node_all_tips_4': ' 1-3', 'node_name_3': 'Asia 0', 'node_fontsize_2': 80, 'node_name': 'Asia 1-3', 'node_size_5': 275, 'node_in_tips': ' 1-3', 'node_meta': 1, 'node_meta_5': 1, 'node_fontsize_1': 80, 'node_root_id': 'EU781842', 'node_all_tips': ' 1-3', 'node_fontsize_0': 80, 'node_size_4': 275, 'node_all_tips_5': ' 1-3', 'node_name_0': 'Asia 0', 'node_fontsize_4': 88, 'node_in_tips_4': ' 1-3', 'node_in_tips_5': ' 1-3', 'node_size_2': 133, 'id': 25, 'tip': 1, 'tooltip': 'Loc: Asia<br>RTD67N: resistant'}, 'classes': 'LocAsia-RTD67Nresistant'}, {'data': {'date': 2, 'node_size_0': 133, 'node_size_3': 388, 'node_size_1': 133, 'node_fontsize_3': 101, 'node_name_2': 'Southern Africa ex SA 3', 'node_name_1': 'Southern Africa ex SA 0', 'node_fontsize': 101, 'node_all_tips_3': ' 7', 'node_name_5': 'Southern Africa ex SA 7', 'node_fontsize_5': 101, 'node_name_4': 'Southern Africa ex SA 7', 'node_size': 388, 'node_all_tips_4': ' 7', 'node_in_tips_2': ' 3', 'node_name_3': 'Southern Africa ex SA 7', 'node_fontsize_2': 88, 'node_name': 'Southern Africa ex SA 7', 'node_size_5': 388, 'node_in_tips': ' 7', 'node_in_tips_3': ' 7', 'node_fontsize_1': 80, 'node_root_id': 'node_85', 'node_all_tips': ' 7', 'node_fontsize_0': 80, 'node_all_tips_2': ' 3', 'node_size_4': 388, 'node_all_tips_5': ' 7', 'node_name_0': 'Southern Africa ex SA 0', 'node_fontsize_4': 101, 'node_in_tips_4': ' 7', 'node_in_tips_5': ' 7', 'node_size_2': 275, 'id': 26, 'tip': 1, 'tooltip': 'Loc: Southern Africa ex SA<br>RTD67N: sensitive'}, 'classes': 'LocSouthernAfricaexSA-RTD67Nsensitive'}, {'data': {'date': 3, 'node_size_0': 133, 'node_size_3': 239, 'node_size_1': 133, 'node_fontsize_3': 84, 'node_name_2': 'Europe 0', 'node_name_1': 'Europe 0', 'node_meta_4': 1, 'node_fontsize': 88, 'node_all_tips_3': ' 1-2', 'node_name_5': 'Europe 1-3', 'node_fontsize_5': 88, 'node_name_4': 'Europe 1-3', 'node_size': 275, 'node_all_tips_4': ' 1-3', 'node_meta_3': 1, 'node_name_3': 'Europe 1-2', 'node_fontsize_2': 80, 'node_name': 'Europe 1-3', 'node_size_5': 275, 'node_in_tips': ' 1-3', 'node_meta': 1, 'node_in_tips_3': ' 1-2', 'node_meta_5': 1, 'node_fontsize_1': 80, 'node_root_id': 'node_799', 'node_all_tips': ' 1-3', 'node_fontsize_0': 80, 'node_size_4': 275, 'node_all_tips_5': ' 1-3', 'node_name_0': 'Europe 0', 'node_fontsize_4': 88, 'node_in_tips_4': ' 1-3', 'node_in_tips_5': ' 1-3', 'node_size_2': 133, 'id': 27, 'tip': 1, 'tooltip': 'Loc: Europe<br>RTD67N: sensitive'}, 'classes': 'LocEurope-RTD67Nsensitive'}, {'data': {'date': 2, 'node_size_0': 133, 'node_size_3': 605, 'node_size_1': 133, 'node_fontsize_3': 126, 'node_name_2': 'Southern Africa ex SA 6', 'node_name_1': 'Southern Africa ex SA 0', 'node_fontsize': 126, 'node_all_tips_3': ' 24', 'node_name_5': 'Southern Africa ex SA 20', 'node_fontsize_5': 126, 'node_name_4': 'Southern Africa ex SA 20', 'node_size': 605, 'node_all_tips_4': ' 28', 'node_in_tips_2': ' 6', 'node_name_3': 'Southern Africa ex SA 20', 'node_fontsize_2': 98, 'node_name': 'Southern Africa ex SA 20', 'node_size_5': 605, 'node_in_tips': ' 20', 'node_in_tips_3': ' 20', 'node_fontsize_1': 80, 'node_root_id': 'node_1421', 'node_all_tips': ' 28', 'node_fontsize_0': 80, 'node_all_tips_2': ' 6', 'node_size_4': 605, 'node_all_tips_5': ' 28', 'node_name_0': 'Southern Africa ex SA 0', 'node_fontsize_4': 126, 'node_in_tips_4': ' 20', 'node_in_tips_5': ' 20', 'node_size_2': 363, 'id': 28, 'tip': 1, 'tooltip': 'Loc: Southern Africa ex SA<br>RTD67N: sensitive'}, 'classes': 'LocSouthernAfricaexSA-RTD67Nsensitive'}, {'data': {'date': 3, 'node_size_0': 133, 'node_size_3': 200, 'node_size_1': 133, 'node_fontsize_3': 80, 'node_name_2': 'South Africa 0', 'node_name_1': 'South Africa 0', 'node_meta_4': 1, 'node_fontsize': 92, 'node_all_tips_3': ' 1', 'node_name_5': 'South Africa 1-4', 'node_fontsize_5': 92, 'node_name_4': 'South Africa 1-4', 'node_size': 307, 'node_all_tips_4': ' 1-4', 'node_meta_3': 1, 'node_name_3': 'South Africa 1', 'node_fontsize_2': 80, 'node_name': 'South Africa 1-4', 'node_size_5': 307, 'node_in_tips': ' 1-4', 'node_meta': 1, 'node_in_tips_3': ' 1', 'node_meta_5': 1, 'node_fontsize_1': 80, 'node_root_id': 'FJ199563', 'node_all_tips': ' 1-4', 'node_fontsize_0': 80, 'node_size_4': 307, 'node_all_tips_5': ' 1-4', 'node_name_0': 'South Africa 0', 'node_fontsize_4': 92, 'node_in_tips_4': ' 1-4', 'node_in_tips_5': ' 1-4', 'node_size_2': 133, 'id': 29, 'tip': 1, 'tooltip': 'Loc: South Africa<br>RTD67N: sensitive'}, 'classes': 'LocSouthAfrica-RTD67Nsensitive'}, {'data': {'date': 3, 'node_size_0': 133, 'node_size_3': 363, 'node_size_1': 133, 'node_fontsize_3': 98, 'node_name_2': 'South Africa 0', 'node_name_1': 'South Africa 0', 'node_meta_4': 1, 'node_fontsize': 98, 'node_all_tips_3': ' 1-6', 'node_name_5': 'South Africa 1-6', 'node_fontsize_5': 98, 'node_name_4': 'South Africa 1-6', 'node_size': 363, 'node_all_tips_4': ' 1-6', 'node_meta_3': 1, 'node_name_3': 'South Africa 1-6', 'node_fontsize_2': 80, 'node_name': 'South Africa 1-6', 'node_size_5': 363, 'node_in_tips': ' 1-6', 'node_meta': 1, 'node_in_tips_3': ' 1-6', 'node_meta_5': 1, 'node_fontsize_1': 80, 'node_root_id': 'node_2372', 'node_all_tips': ' 1-6', 'node_fontsize_0': 80, 'node_size_4': 363, 'node_all_tips_5': ' 1-6', 'node_name_0': 'South Africa 0', 'node_fontsize_4': 98, 'node_in_tips_4': ' 1-6', 'node_in_tips_5': ' 1-6', 'node_size_2': 133, 'id': 30, 'tip': 1, 'tooltip': 'Loc: South Africa<br>RTD67N: sensitive'}, 'classes': 'LocSouthAfrica-RTD67Nsensitive'}, {'data': {'date': 3, 'node_size_0': 133, 'node_size_3': 507, 'node_size_1': 133, 'node_fontsize_3': 115, 'node_name_2': 'Central America 0', 'node_name_1': 'Central America 0', 'node_fontsize': 116, 'node_all_tips_3': ' 14', 'node_name_5': 'Central America 14', 'node_fontsize_5': 116, 'node_name_4': 'Central America 14', 'node_size': 523, 'node_all_tips_4': ' 15', 'node_name_3': 'Central America 13', 'node_fontsize_2': 80, 'node_name': 'Central America 14', 'node_size_5': 523, 'node_in_tips': ' 14', 'node_in_tips_3': ' 13', 'node_fontsize_1': 80, 'node_root_id': 'node_3139', 'node_all_tips': ' 15', 'node_fontsize_0': 80, 'node_size_4': 523, 'node_all_tips_5': ' 15', 'node_name_0': 'Central America 0', 'node_fontsize_4': 116, 'node_in_tips_4': ' 14', 'node_in_tips_5': ' 14', 'node_size_2': 133, 'id': 31, 'tip': 1, 'tooltip': 'Loc: Central America<br>RTD67N: sensitive'}, 'classes': 'LocCentralAmerica-RTD67Nsensitive'}, {'data': {'node_in_tips_0': ' 2', 'date': 0, 'node_size_0': 239, 'node_size_3': 807, 'node_size_1': 388, 'node_fontsize_3': 149, 'node_name_2': 'Horn of Africa 8', 'node_name_1': 'Horn of Africa 7', 'node_fontsize': 152, 'node_all_tips_3': ' 70', 'node_name_5': 'Horn of Africa 49', 'node_fontsize_5': 152, 'node_name_4': 'Horn of Africa 48', 'node_size': 835, 'node_in_tips_1': ' 7', 'node_all_tips_4': ' 90', 'node_all_tips_0': ' 2', 'node_in_tips_2': ' 8', 'node_name_3': 'Horn of Africa 44', 'node_fontsize_2': 104, 'node_name': 'Horn of Africa 49', 'node_size_5': 835, 'node_in_tips': ' 49', 'node_in_tips_3': ' 44', 'node_fontsize_1': 101, 'node_root_id': 'node_3242', 'node_all_tips': ' 97', 'node_fontsize_0': 84, 'node_all_tips_2': ' 9', 'node_size_4': 830, 'node_all_tips_5': ' 97', 'node_name_0': 'Horn of Africa 2', 'node_fontsize_4': 152, 'node_all_tips_1': ' 7', 'node_in_tips_4': ' 48', 'node_in_tips_5': ' 49', 'node_size_2': 411, 'id': 32, 'tooltip': 'Loc: Horn of Africa<br>RTD67N: sensitive'}, 'classes': 'LocHornofAfrica-RTD67Nsensitive'}, {'data': {'date': 3, 'node_size_0': 133, 'node_size_3': 553, 'node_size_1': 133, 'node_fontsize_3': 120, 'node_name_2': 'Horn of Africa 0', 'node_name_1': 'Horn of Africa 0', 'node_fontsize': 123, 'node_all_tips_3': ' 18', 'node_name_5': 'Horn of Africa 18', 'node_fontsize_5': 123, 'node_name_4': 'Horn of Africa 18', 'node_size': 580, 'node_all_tips_4': ' 22', 'node_name_3': 'Horn of Africa 16', 'node_fontsize_2': 80, 'node_name': 'Horn of Africa 18', 'node_size_5': 580, 'node_in_tips': ' 18', 'node_in_tips_3': ' 16', 'node_fontsize_1': 80, 'node_root_id': 'node_3295', 'node_all_tips': ' 22', 'node_fontsize_0': 80, 'node_size_4': 580, 'node_all_tips_5': ' 22', 'node_name_0': 'Horn of Africa 0', 'node_fontsize_4': 123, 'node_in_tips_4': ' 18', 'node_in_tips_5': ' 18', 'node_size_2': 133, 'id': 33, 'tip': 1, 'tooltip': 'Loc: Horn of Africa<br>RTD67N: sensitive'}, 'classes': 'LocHornofAfrica-RTD67Nsensitive'}, {'data': {'date': 3, 'node_size_0': 133, 'node_size_3': 200, 'node_size_1': 133, 'node_fontsize_3': 80, 'node_name_2': 'South America 0', 'node_name_1': 'South America 0', 'node_meta_4': 1, 'node_fontsize': 80, 'node_all_tips_3': ' 1', 'node_name_5': 'South America 1', 'node_fontsize_5': 80, 'node_name_4': 'South America 1', 'node_size': 200, 'node_all_tips_4': ' 1', 'node_meta_3': 1, 'node_name_3': 'South America 1', 'node_fontsize_2': 80, 'node_name': 'South America 1', 'node_size_5': 200, 'node_in_tips': ' 1', 'node_meta': 1, 'node_in_tips_3': ' 1', 'node_meta_5': 1, 'node_fontsize_1': 80, 'node_root_id': 'AF286228', 'node_all_tips': ' 1', 'node_fontsize_0': 80, 'node_size_4': 200, 'node_all_tips_5': ' 1', 'node_name_0': 'South America 0', 'node_fontsize_4': 80, 'node_in_tips_4': ' 1', 'node_in_tips_5': ' 1', 'node_size_2': 133, 'id': 34, 'tip': 1, 'tooltip': 'Loc: South America<br>RTD67N: resistant'}, 'classes': 'LocSouthAmerica-RTD67Nresistant'}, {'data': {'date': 3, 'node_size_0': 266, 'node_size_3': 266, 'node_size_1': 266, 'node_fontsize_3': 80, 'node_name_2': 'South America 0', 'node_name_1': 'South America 0', 'node_fontsize': 80, 'node_all_tips_3': ' 4', 'node_name_5': 'South America 0', 'node_fontsize_5': 80, 'node_name_4': 'South America 0', 'node_size': 266, 'node_all_tips_4': ' 26', 'unresolved': 1, 'node_name_3': 'South America 0', 'node_fontsize_2': 80, 'node_name': 'South America 0', 'node_size_5': 266, 'node_in_tips': ' 0', 'node_in_tips_3': ' 0', 'node_fontsize_1': 80, 'node_root_id': 'node_3583', 'node_all_tips': ' 27', 'node_fontsize_0': 80, 'node_size_4': 266, 'node_all_tips_5': ' 27', 'node_name_0': 'South America 0', 'node_fontsize_4': 80, 'node_in_tips_4': ' 0', 'node_in_tips_5': ' 0', 'node_size_2': 266, 'id': 35, 'tooltip': 'Loc: South America<br>RTD67N: resistant or sensitive'}, 'classes': 'LocSouthAmerica-RTD67N'}, {'data': {'date': 3, 'node_size_0': 133, 'node_size_3': 239, 'node_size_1': 133, 'node_fontsize_3': 84, 'node_name_2': 'Europe 0', 'node_name_1': 'Europe 0', 'node_meta_4': 1, 'node_fontsize': 92, 'node_all_tips_3': ' 1-2', 'node_name_5': 'Europe 1-4', 'node_fontsize_5': 92, 'node_name_4': 'Europe 1-4', 'node_size': 307, 'node_all_tips_4': ' 1-4', 'node_meta_3': 1, 'node_name_3': 'Europe 1-2', 'node_fontsize_2': 80, 'node_name': 'Europe 1-4', 'node_size_5': 307, 'node_in_tips': ' 1-4', 'node_meta': 1, 'node_in_tips_3': ' 1-2', 'node_meta_5': 1, 'node_fontsize_1': 80, 'node_root_id': 'node_3149', 'node_all_tips': ' 1-4', 'node_fontsize_0': 80, 'node_size_4': 307, 'node_all_tips_5': ' 1-4', 'node_name_0': 'Europe 0', 'node_fontsize_4': 92, 'node_in_tips_4': ' 1-4', 'node_in_tips_5': ' 1-4', 'node_size_2': 133, 'id': 36, 'tip': 1, 'tooltip': 'Loc: Europe<br>RTD67N: sensitive'}, 'classes': 'LocEurope-RTD67Nsensitive'}, {'data': {'date': 3, 'node_size_0': 133, 'node_size_3': 200, 'node_size_1': 133, 'node_fontsize_3': 80, 'node_name_2': 'South America 0', 'node_name_1': 'South America 0', 'node_meta_4': 1, 'node_fontsize': 98, 'node_all_tips_3': ' 1', 'node_name_5': 'South America 1-6', 'node_fontsize_5': 98, 'node_name_4': 'South America 1-6', 'node_size': 363, 'node_all_tips_4': ' 1-6', 'node_meta_3': 1, 'node_name_3': 'South America 1', 'node_fontsize_2': 80, 'node_name': 'South America 1-6', 'node_size_5': 363, 'node_in_tips': ' 1-6', 'node_meta': 1, 'node_in_tips_3': ' 1', 'node_meta_5': 1, 'node_fontsize_1': 80, 'node_root_id': 'AY213521', 'node_all_tips': ' 1-6', 'node_fontsize_0': 80, 'node_size_4': 363, 'node_all_tips_5': ' 1-6', 'node_name_0': 'South America 0', 'node_fontsize_4': 98, 'node_in_tips_4': ' 1-6', 'node_in_tips_5': ' 1-6', 'node_size_2': 133, 'id': 37, 'tip': 1, 'tooltip': 'Loc: South America<br>RTD67N: sensitive'}, 'classes': 'LocSouthAmerica-RTD67Nsensitive'}], 'edges': [{'data': {'source': 0, 'target': 1, 'date': 2, 'edge_name_4': '116', 'edge_meta_5': 1, 'edge_name_2': '4', 'edge_name': '116', 'edge_meta_4': 1, 'edge_size_4': 149, 'edge_size_5': 149, 'edge_size_3': 147, 'edge_name_3': '107', 'edge_meta': 1, 'edge_meta_2': 1, 'edge_meta_3': 1, 'edge_name_5': '116', 'edge_size_2': 79, 'edge_size': 149}}, {'data': {'source': 0, 'target': 2, 'date': 2, 'edge_name_4': '67', 'edge_meta_5': 1, 'edge_name_2': '2', 'edge_name': '69', 'edge_meta_4': 1, 'edge_size_4': 137, 'edge_size_5': 138, 'edge_size_3': 127, 'edge_name_3': '41', 'edge_meta': 1, 'edge_meta_2': 1, 'edge_meta_3': 1, 'edge_name_5': '69', 'edge_size_2': 64, 'edge_size': 138}}, {'data': {'source': 0, 'target': 3, 'edge_size_1': 50, 'date': 1, 'edge_name_4': '117', 'edge_meta_5': 1, 'edge_name_2': '', 'edge_name': '119', 'edge_meta_4': 1, 'edge_size_4': 149, 'edge_size_5': 150, 'edge_size_3': 140, 'edge_name_3': '77', 'edge_meta': 1, 'edge_meta_3': 1, 'edge_name_5': '119', 'edge_name_1': '', 'edge_size_2': 50, 'edge_size': 150}}, {'data': {'source': 0, 'target': 4, 'date': 2, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size_2': 50, 'edge_size': 50}}, {'data': {'source': 0, 'target': 5, 'date': 2, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size_2': 50, 'edge_size': 50}}, {'data': {'source': 0, 'target': 6, 'date': 3, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size_2': 50, 'edge_size': 50}}, {'data': {'source': 0, 'target': 7, 'date': 3, 'edge_name_4': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size': 50}}, {'data': {'source': 0, 'target': 8, 'date': 2, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size_2': 50, 'edge_size': 50}}, {'data': {'source': 0, 'target': 9, 'date': 2, 'edge_name_4': '4', 'edge_meta_5': 1, 'edge_name_2': '', 'edge_name': '4', 'edge_meta_4': 1, 'edge_size_5': 79, 'edge_size_3': 79, 'edge_name_3': '4', 'edge_meta': 1, 'edge_size_4': 79, 'edge_meta_3': 1, 'edge_name_5': '4', 'edge_size_2': 50, 'edge_size': 79}}, {'data': {'source': 0, 'target': 10, 'edge_size_1': 50, 'date': 0, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_0': '', 'edge_name_5': '', 'edge_name_1': '', 'edge_size_2': 50, 'edge_size': 50, 'edge_size_0': 50}}, {'data': {'source': 0, 'target': 11, 'date': 2, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size_2': 50, 'edge_size': 50}}, {'data': {'source': 0, 'target': 12, 'date': 2, 'edge_name_4': '42', 'edge_meta_5': 1, 'edge_name_2': '3', 'edge_name': '42', 'edge_meta_4': 1, 'edge_size_5': 128, 'edge_size_3': 112, 'edge_name_3': '20', 'edge_meta': 1, 'edge_meta_2': 1, 'edge_size_4': 128, 'edge_meta_3': 1, 'edge_name_5': '42', 'edge_size_2': 72, 'edge_size': 128}}, {'data': {'source': 0, 'target': 13, 'date': 2, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '3', 'edge_size_4': 50, 'edge_size_5': 50, 'edge_size_3': 50, 'edge_name_3': '', 'edge_meta': 1, 'edge_name_5': '', 'edge_size_2': 50, 'edge_size': 72}}, {'data': {'source': 0, 'target': 14, 'edge_size_1': 50, 'date': 1, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_name_1': '', 'edge_size_2': 50, 'edge_size': 50}}, {'data': {'source': 0, 'target': 15, 'edge_size_1': 50, 'date': 1, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_name_1': '', 'edge_size_2': 50, 'edge_size': 50}}, {'data': {'source': 4, 'target': 16, 'date': 2, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size_2': 50, 'edge_size': 50}}, {'data': {'source': 4, 'target': 17, 'date': 3, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size_2': 50, 'edge_size': 50}}, {'data': {'source': 5, 'target': 18, 'date': 2, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size_2': 50, 'edge_size': 50}}, {'data': {'source': 6, 'target': 19, 'date': 3, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size_2': 50, 'edge_size': 50}}, {'data': {'source': 7, 'target': 20, 'date': 3, 'edge_name_4': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size': 50}}, {'data': {'source': 10, 'target': 21, 'date': 3, 'edge_name_4': '20', 'edge_meta_5': 1, 'edge_name': '21', 'edge_meta_4': 1, 'edge_size_4': 112, 'edge_size_5': 113, 'edge_size_3': 100, 'edge_name_3': '11', 'edge_meta': 1, 'edge_meta_3': 1, 'edge_name_5': '21', 'edge_size': 113}}, {'data': {'source': 10, 'target': 22, 'edge_size_1': 50, 'date': 0, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_0': '', 'edge_name_5': '', 'edge_name_1': '', 'edge_size_2': 50, 'edge_size': 50, 'edge_size_0': 50}}, {'data': {'source': 10, 'target': 23, 'date': 3, 'edge_name_4': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size': 50}}, {'data': {'source': 10, 'target': 24, 'date': 2, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size_2': 50, 'edge_size': 50}}, {'data': {'source': 11, 'target': 25, 'date': 4, 'edge_name_4': '19', 'edge_meta_5': 1, 'edge_name': '19', 'edge_meta_4': 1, 'edge_size_4': 111, 'edge_size_5': 111, 'edge_meta': 1, 'edge_name_5': '19', 'edge_size': 111, 'edge_color': '#a6cee3'}}, {'data': {'source': 13, 'target': 26, 'date': 2, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size_2': 50, 'edge_size': 50}}, {'data': {'source': 14, 'target': 27, 'date': 3, 'edge_name_4': '22', 'edge_meta_5': 1, 'edge_name': '26', 'edge_meta_4': 1, 'edge_size_5': 118, 'edge_size_3': 101, 'edge_name_3': '12', 'edge_meta': 1, 'edge_size_4': 114, 'edge_meta_3': 1, 'edge_name_5': '26', 'edge_size': 118}}, {'data': {'source': 16, 'target': 28, 'date': 2, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size_2': 50, 'edge_size': 50}}, {'data': {'source': 18, 'target': 29, 'date': 3, 'edge_name_4': '11', 'edge_meta_5': 1, 'edge_name': '11', 'edge_meta_4': 1, 'edge_size_4': 100, 'edge_size_5': 100, 'edge_size_3': 90, 'edge_name_3': '7', 'edge_meta': 1, 'edge_meta_3': 1, 'edge_name_5': '11', 'edge_size': 100}}, {'data': {'source': 20, 'target': 30, 'date': 3, 'edge_name_4': '7', 'edge_meta_5': 1, 'edge_name': '7', 'edge_meta_4': 1, 'edge_size_5': 90, 'edge_size_3': 72, 'edge_name_3': '3', 'edge_meta': 1, 'edge_size_4': 90, 'edge_meta_3': 1, 'edge_name_5': '7', 'edge_size': 90}}, {'data': {'source': 22, 'target': 31, 'date': 3, 'edge_name_4': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size': 50}}, {'data': {'source': 22, 'target': 32, 'edge_size_1': 50, 'date': 0, 'edge_name_4': '', 'edge_name_2': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_0': '', 'edge_name_5': '', 'edge_name_1': '', 'edge_size_2': 50, 'edge_size': 50, 'edge_size_0': 50}}, {'data': {'source': 23, 'target': 33, 'date': 3, 'edge_name_4': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size': 50}}, {'data': {'source': 24, 'target': 34, 'date': 3, 'edge_name_4': '19', 'edge_meta_5': 1, 'edge_name': '19', 'edge_meta_4': 1, 'edge_size_4': 111, 'edge_size_5': 111, 'edge_size_3': 64, 'edge_name_3': '2', 'edge_meta': 1, 'edge_meta_3': 1, 'edge_name_5': '19', 'edge_size': 111, 'edge_color': '#cab2d6'}}, {'data': {'source': 24, 'target': 35, 'date': 3, 'edge_name_4': '', 'edge_name': '', 'edge_size_4': 50, 'edge_size_3': 50, 'edge_size_5': 50, 'edge_name_3': '', 'edge_name_5': '', 'edge_size': 50, 'edge_color': '#cab2d6'}}, {'data': {'source': 32, 'target': 36, 'date': 3, 'edge_name_4': '18', 'edge_meta_5': 1, 'edge_name': '18', 'edge_meta_4': 1, 'edge_size_5': 110, 'edge_size_3': 100, 'edge_name_3': '11', 'edge_meta': 1, 'edge_size_4': 110, 'edge_meta_3': 1, 'edge_name_5': '18', 'edge_size': 110}}, {'data': {'source': 35, 'target': 37, 'date': 3, 'edge_name_4': '7', 'edge_meta_5': 1, 'edge_name': '8', 'edge_meta_4': 1, 'edge_size_4': 90, 'edge_size_5': 93, 'edge_size_3': 64, 'edge_name_3': '2', 'edge_meta': 1, 'edge_meta_3': 1, 'edge_name_5': '8', 'edge_size': 93, 'edge_color': '#cab2d6'}}]},
+
+  layout: layoutOptions,
+
+  ready: function(){
+    window.cy = this;
+  }
+});
+
+function addQtips() {
+    cy.filter(function(ele, i, eles) {
+        return ele.isNode() && ele.data('tooltip') !== undefined;
+    } ).qtip({
+        content: function(){
+                var tooltip = this.data('tooltip');
+                tooltip += '<br>id' + (this.data('node_meta') !== undefined ? 's: ': ': ') + this.data('node_root_id')
+                + (this.data('node_meta') !== undefined ? ', ...': '');
+                tooltip += '<br>tips inside: ' + this.data('node_in_tips');
+                tooltip += '<br>total tips in the subtree: ' + this.data('node_all_tips');
+                return tooltip;
+            },
+        show: {event: 'mouseover'},
+        hide: {event: 'mouseout'},
+        style: {
+                classes: 'qtip-bootstrap',
+        },
+        position: {
+            at: 'center center',
+        }
+    });
+}
+
+cy.minZoom(.01);
+cy.maxZoom(20);
+addQtips();
+
+
+function toImage(){
+    document.getElementById("downloader").href = cy.jpg({ full: false, quality: 1.0, scale: 2}).replace(/^data:image\/[^;]/, 'data:application/octet-stream');
+}
+
+function fit() {
+    cy.fit();
+}
+
+function resetLayout() {
+    cy.layout(layoutOptions).run();
+}
+
+var years = ['1986', '1991.8', '1997.6', '2003.4', '2009.2', '2015'];
+var slider = document.getElementById("myRange");
+if (slider !== null) {
+    var output = document.getElementById("demo");
+    output.innerHTML = years[slider.value]; // Display the default slider value
+
+    // Update the current slider value (each time you drag the slider handle)
+    var removed = cy.collection();
+
+    slider.oninput = function() {
+        output.innerHTML = years[this.value];
+        removed.restore();
+        removed = cy.remove("[date>" + this.value + "]");
+        var list = cy.$("");
+        for (var i=0, ele; ele = list[i]; i++) {
+            if (ele.data('node_name_' + this.value) !== undefined) {
+                ele.data('node_name', ele.data('node_name_' + this.value));
+            }
+            if (ele.data('node_fontsize_' + this.value) !== undefined) {
+                ele.data('node_fontsize', ele.data('node_fontsize_' + this.value));
+            }
+            if (ele.data('node_in_tips_' + this.value) !== undefined) {
+                ele.data('node_in_tips', ele.data('node_in_tips_' + this.value));
+            }
+            if (ele.data('node_all_tips_' + this.value) !== undefined) {
+                ele.data('node_all_tips', ele.data('node_all_tips_' + this.value));
+            }
+            if (ele.data('node_size_' + this.value) !== undefined) {
+                ele.data('node_size', ele.data('node_size_' + this.value));
+            }
+            if (ele.data('edge_name_' + this.value) !== undefined) {
+                ele.data('edge_name', ele.data('edge_name_' + this.value));
+            }
+            if (ele.data('edge_size_' + this.value) !== undefined) {
+                ele.data('edge_size', ele.data('edge_size_' + this.value));
+            }
+            if (ele.data('edge_meta_' + this.value) !== undefined) {
+                ele.data('edge_meta', ele.data('edge_meta_' + this.value))
+            } else if (ele.data('edge_meta') !== undefined) {
+                ele.removeData('edge_meta');
+                cy.remove(ele);
+                cy.add(ele);
+            }
+            if (ele.data('node_meta_' + this.value) !== undefined) {
+                ele.data('node_meta', ele.data('node_meta_' + this.value));
+            } else if (ele.data('node_meta') !== undefined) {
+                ele.removeData('node_meta');
+            }
+        }
+    }
+}
+
+function toggleFullScreen() {
+  var elem = document.getElementById("fullscreenDiv");
+  if ((document.fullScreenElement && document.fullScreenElement !== null) ||
+   (!document.mozFullScreen && !document.webkitIsFullScreen)) {
+    if (elem.requestFullScreen) {
+      elem.requestFullScreen();
+    } else if (elem.mozRequestFullScreen) {
+      elem.mozRequestFullScreen();
+    } else if (elem.webkitRequestFullScreen) {
+      elem.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+    }
+    document.getElementById("fsspan").className = "glyphicon glyphicon-resize-small"
+    document.getElementById("fstext").innerHTML = "  Exit full screen"
+  } else {
+    if (document.cancelFullScreen) {
+      document.cancelFullScreen();
+    } else if (document.mozCancelFullScreen) {
+      document.mozCancelFullScreen();
+    } else if (document.webkitCancelFullScreen) {
+      document.webkitCancelFullScreen();
+    }
+    document.getElementById("fsspan").className = "glyphicon glyphicon-fullscreen"
+    document.getElementById("fstext").innerHTML = "  Full screen"
+  }
+}</script>
+</body>
+</html>

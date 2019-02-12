@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html>
+<head>
+<!--<link href="style.css" rel="stylesheet" />-->
+<style>
+body {
+  font-family: helvetica,serif;
+  font-size: 14px;
+}
+
+#cy {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 10;
+  background-color: #FFFFFF;
+}
+
+h1 {
+  opacity: 0.5;
+  font-size: 1em;
+}
+
+.floating {
+    max-width: 30%;
+    width: 120px;
+    float: right;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+}
+
+.cy-button {
+    background-color: #555555;
+    border: none;
+    color: white;
+    padding: 6px 0px;
+    width: 100%;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 3px 10px 0 rgba(0,0,0,0.19);
+}
+
+a.cy-button:link, a.cy-button:visited, a.cy-button:hover {
+    color: white;
+    text-decoration: none;
+}
+
+
+.slidertext {
+    width: 100%;
+    color: #555555;
+    border: none;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+}
+
+.slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 15px;
+    text-align: center;
+    border-radius: 5px;
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.7;
+    -webkit-transition: .2s;
+    transition: opacity .2s;
+    margin: 10px 0px;
+    display: inline-block;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 3px 10px 0 rgba(0,0,0,0.19);
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: #555555;
+    cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: #555555;
+    cursor: pointer;
+}
+
+@media all and (max-width: 600px) {
+    .buttontext {
+        display: none;
+    }
+}
+
+
+</style>
+<meta charset=utf-8 />
+<meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
+<title>pastml_phyml_best_subtree.TDR_loc_Loc</title>
+    <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js/v3.2.3/dist/cytoscape.min.js"></script>
+    <script src="https://cdn.rawgit.com/cpettitt/dagre/v0.7.4/dist/dagre.min.js"></script>
+    <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-dagre/1.5.0/cytoscape-dagre.js"></script>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.0/jquery.qtip.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.0/jquery.qtip.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-qtip/2.7.0/cytoscape-qtip.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"/>
+<meta http-Equiv="Cache-Control" Content="no-cache" />
+<meta http-Equiv="Pragma" Content="no-cache" />
+<meta http-Equiv="Expires" Content="0" />
+</head>
+<body>
+<div id="fullscreenDiv">
+<div id="cy"></div>
+<div class="floating">
+    <a class="cy-button" href="#" id="fit" onclick="fit()"><span class="glyphicon glyphicon-resize-full"></span><span class="buttontext">  Fit screen</span></a>
+    <a class="cy-button" href="#" id="reset" onclick="resetLayout()"><span class="glyphicon glyphicon-picture"></span><span class="buttontext">  Layout</span></a>
+    <a class="cy-button" href="#" id="downloader" onclick="toImage()" download="pastml_phyml_best_subtree.TDR_loc_Loc.jpg">
+        <span class="glyphicon glyphicon-save"></span><span class="buttontext">  Save (jpg)</span></a>
+    <!--<a class="cy-button" href="#" id="downloader-json" onclick="toJson()" download="pastml_phyml_best_subtree.TDR_loc_Loc.json">-->
+        <!--<span class="glyphicon glyphicon-save"></span><span class="buttontext">  Save (json)</span></a>-->
+    <a class="cy-button" href="#" id="fullscreen" onclick="toggleFullScreen()"><span id="fsspan" class="glyphicon glyphicon-fullscreen"></span><span id="fstext" class="buttontext">  Full screen</span></a>
+    
+<div class="slidecontainer">
+  <input type="range" min="0" max="5" value="5" class="slider" id="myRange" step="1">
+  <div class="slidertext">Time: <span id="demo"></span></div>
+</div>
+</div></div>
+<!-- Load appplication code at the end to ensure DOM is loaded -->
+<script type="text/javascript">
+var layoutOptions = {
+    name: 'dagre',
+    nodesep: 10, // the separation between adjacent nodes in the same rank
+    edgeSep: 10, // the separation between adjacent edges in the same rank
+    rankSep: 80, // the separation between adjacent ranks
+    rankDir: 'TB', // 'TB' for top to bottom flow, 'LR' for left to right,
+    ranker: 'longest-path', // Type of algorithm to assign a rank to each node in the input graph. Possible values: 'network-simplex', 'tight-tree' or 'longest-path'
+    minLen: function( edge ){ return edge.data('minLen') | 0; }, // number of ranks to keep between the source and target of the edge
+
+    // general layout options
+    fit: true, // whether to fit to viewport
+    padding: 1, // fit padding
+    spacingFactor: undefined, // Applies a multiplicative factor (>0) to expand or compress the overall area that the nodes take up
+    nodeDimensionsIncludeLabels: true, // whether labels should be included in determining the space used by a node
+    animate: false, // whether to transition the node positions
+    animateFilter: function( node, i ){ return true; }, // whether to animate specific nodes when animation is on; non-animated nodes immediately go to their final positions
+    animationDuration: 500, // duration of animation in ms if enabled
+    animationEasing: undefined, // easing of animation if enabled
+    boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
+    transform: function( node, pos ){ return pos; }, // a function that applies a transform to the final node position
+    ready: function(){}, // on layoutready
+    stop: function(){} // on layoutstop
+  };
+
+var cy = cytoscape({
+  container: document.getElementById('cy'),
+
+  style: cytoscape.stylesheet()
+    .selector('node')
+      .css({
+        'width': 300,
+        'height': 300,
+        'content': '',
+        'shape': 'ellipse',
+        'pie-size': '100%',
+        'background-color': '#909090',
+        'color': '#383838',
+        'text-opacity': 1,
+        'text-valign': 'center',
+        'text-halign': 'center',
+        'font-size': 80,
+        'text-halign' : 'center',
+        'text-valign' : 'center',
+        'min-zoomed-font-size': 12,
+        'text-background-color' : '#ffffff',
+        'text-background-shape' : 'roundrectangle',
+        'text-background-opacity': .3,
+        'text-background-padding' : 1,
+      })
+    .selector('node[node_name]')
+      .css({
+        'content': 'data(node_name)',
+      })
+    .selector('node[tip]')
+      .css({
+        'width': 400,
+        'height': 400,
+        'font-size': 100,
+      })
+    .selector('node[unresolved]')
+      .css({
+        'shape': 'octagon',
+        'pie-size': '92%',
+        'width': 500,
+        'height': 500,
+        'font-size': 125,
+      })
+    .selector('node[node_size]')
+      .css({
+        'width': 'data(node_size)',
+        'height': 'data(node_size)',
+      })
+    .selector('node[node_fontsize]')
+      .css({
+        'font-size': 'data(node_fontsize)',
+      })
+    
+    .selector(".Country-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#ffffff",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryArgentina-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#cc7866",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryBelgium-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#cc8b66",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryBrazil-RTD67N")
+        .css({
+        
+                'pie-1-background-color': "#cc9d66",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#ffffff",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryBrazil-RTD67Nresistant")
+        .css({
+        
+                'pie-1-background-color': "#cc9d66",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#d95f02",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryBrazil-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#cc9d66",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryBurundi-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#ccb066",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryCuba-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#ccc266",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryDemocraticRepublicoftheCongo-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#c2cc66",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryEthiopia-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#78cc66",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryRomania-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#6678cc",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountrySpain-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#8b66cc",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountrySudan-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#9d66cc",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountrySweden-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#b066cc",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryUganda-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#c266cc",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryUnitedRepublicofTanzania-RTD67Nsensitive")
+        .css({
+        
+                'pie-1-background-color': "#cc66b0",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector('edge')
+      .css({
+        'width': 50,
+        'font-size': 80,
+        'color': 'black',
+        'content': '',
+        'curve-style': 'bezier',
+        'target-arrow-shape': 'triangle',
+        'target-arrow-color': '#909090',
+        'opacity': 0.8,
+        'text-opacity': 1,
+        'line-color': '#909090',
+        'text-background-color' : '#ffffff',
+        'text-background-shape' : 'roundrectangle',
+        'text-background-opacity': 1,
+        'text-background-padding' : 4,
+        'min-zoomed-font-size': 10,
+      })
+    .selector('edge[edge_meta]')
+      .css({
+        'line-color': '#383838',
+        'target-arrow-color': '#383838',
+      })
+    .selector('edge[edge_name]')
+      .css({
+        'content': 'data(edge_name)',
+      })
+    .selector('edge[edge_size]')
+      .css({
+        'width': 'data(edge_size)',
+        'font-size': 'data(edge_size)',
+      })
+    .selector(':selected')
+      .css({
+        'background-color': 'black',
+        'line-color': 'black',
+        'target-arrow-color': 'black',
+        'source-arrow-color': 'black',
+        'pie-size': '60%',
+        'opacity': 1
+      })
+    .selector('.faded')
+      .css({
+        'opacity': 0.25,
+        'text-opacity': 0
+      }),
+
+  elements: {'nodes': [{'data': {'node_name_3': 'Burundi 85', 'node_all_tips': ' 615', 'node_fontsize_5': 209, 'node_in_tips_5': ' 85', 'node_in_tips_2': ' 0', 'node_in_tips_0': ' 0', 'node_fontsize': 209, 'node_size_1': 133, 'node_in_tips_3': ' 85', 'node_name_0': 'Burundi 0', 'node_fontsize_4': 209, 'node_in_tips_4': ' 85', 'node_in_tips': ' 85', 'node_name': 'Burundi 85', 'node_name_4': 'Burundi 85', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Burundi 0', 'date': 0, 'node_all_tips_2': ' 19', 'node_all_tips_0': ' 2', 'node_fontsize_0': 80, 'node_in_tips_1': ' 0', 'node_size_5': 1330, 'node_name_5': 'Burundi 85', 'node_fontsize_1': 80, 'node_size_3': 1330, 'node_size': 1330, 'node_all_tips_3': ' 268', 'node_all_tips_5': ' 615', 'node_root_id': 'node_3599', 'node_all_tips_4': ' 596', 'node_all_tips_1': ' 9', 'node_name_2': 'Burundi 0', 'node_size_0': 133, 'node_fontsize_3': 209, 'node_size_4': 1330, 'id': 0, 'tooltip': 'Country: Burundi<br>RTD67N: sensitive'}, 'classes': 'CountryBurundi-RTD67Nsensitive'}, {'data': {'node_name_3': 'Ethiopia 1', 'node_all_tips': ' 1', 'node_fontsize_5': 80, 'node_in_tips_5': ' 1', 'node_meta': 1, 'node_fontsize': 80, 'node_size_1': 133, 'node_in_tips_3': ' 1', 'node_name_0': 'Ethiopia 0', 'node_fontsize_4': 80, 'node_in_tips_4': ' 1', 'node_in_tips': ' 1', 'node_name': 'Ethiopia 1', 'node_name_4': 'Ethiopia 1', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Ethiopia 0', 'date': 3, 'node_fontsize_0': 80, 'node_meta_3': 1, 'node_size_5': 200, 'node_name_5': 'Ethiopia 1', 'node_fontsize_1': 80, 'node_size_3': 200, 'node_size': 200, 'node_all_tips_3': ' 1', 'node_all_tips_5': ' 1', 'node_root_id': 'AB285795', 'node_all_tips_4': ' 1', 'node_name_2': 'Ethiopia 0', 'node_size_0': 133, 'node_meta_4': 1, 'node_meta_5': 1, 'node_fontsize_3': 80, 'node_size_4': 200, 'id': 1, 'tip': 1, 'tooltip': 'Country: Ethiopia<br>RTD67N: sensitive'}, 'classes': 'CountryEthiopia-RTD67Nsensitive'}, {'data': {'node_name_3': 'Democratic Republic of the Congo 1', 'node_all_tips': ' 1', 'node_fontsize_5': 80, 'node_in_tips_5': ' 1', 'node_meta': 1, 'node_fontsize': 80, 'node_size_1': 133, 'node_in_tips_3': ' 1', 'node_name_0': 'Democratic Republic of the Congo 0', 'node_fontsize_4': 80, 'node_in_tips_4': ' 1', 'node_in_tips': ' 1', 'node_name': 'Democratic Republic of the Congo 1', 'node_name_4': 'Democratic Republic of the Congo 1', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Democratic Republic of the Congo 0', 'date': 3, 'node_fontsize_0': 80, 'node_meta_3': 1, 'node_size_5': 200, 'node_name_5': 'Democratic Republic of the Congo 1', 'node_fontsize_1': 80, 'node_size_3': 200, 'node_size': 200, 'node_all_tips_3': ' 1', 'node_all_tips_5': ' 1', 'node_root_id': 'AM041050', 'node_all_tips_4': ' 1', 'node_name_2': 'Democratic Republic of the Congo 0', 'node_size_0': 133, 'node_meta_4': 1, 'node_meta_5': 1, 'node_fontsize_3': 80, 'node_size_4': 200, 'id': 2, 'tip': 1, 'tooltip': 'Country: Democratic Republic of the Congo<br>RTD67N: sensitive'}, 'classes': 'CountryDemocraticRepublicoftheCongo-RTD67Nsensitive'}, {'data': {'node_name_3': 'Belgium 1', 'node_all_tips': ' 1', 'node_fontsize_5': 80, 'node_in_tips_5': ' 1', 'node_meta': 1, 'node_fontsize': 80, 'node_size_1': 133, 'node_in_tips_3': ' 1', 'node_name_0': 'Belgium 0', 'node_fontsize_4': 80, 'node_in_tips_4': ' 1', 'node_in_tips': ' 1', 'node_name': 'Belgium 1', 'node_name_4': 'Belgium 1', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Belgium 0', 'date': 3, 'node_fontsize_0': 80, 'node_meta_3': 1, 'node_size_5': 200, 'node_name_5': 'Belgium 1', 'node_fontsize_1': 80, 'node_size_3': 200, 'node_size': 200, 'node_all_tips_3': ' 1', 'node_all_tips_5': ' 1', 'node_root_id': 'EU248348', 'node_all_tips_4': ' 1', 'node_name_2': 'Belgium 0', 'node_size_0': 133, 'node_meta_4': 1, 'node_meta_5': 1, 'node_fontsize_3': 80, 'node_size_4': 200, 'id': 3, 'tip': 1, 'tooltip': 'Country: Belgium<br>RTD67N: sensitive'}, 'classes': 'CountryBelgium-RTD67Nsensitive'}, {'data': {'node_name_3': 'United Republic of Tanzania 0', 'node_all_tips': ' 1', 'node_fontsize_5': 80, 'node_in_tips_5': ' 1', 'node_meta': 1, 'node_fontsize': 80, 'node_size_1': 133, 'node_name_0': 'United Republic of Tanzania 0', 'node_fontsize_4': 80, 'node_in_tips_4': ' 1', 'node_in_tips': ' 1', 'node_name': 'United Republic of Tanzania 1', 'node_name_4': 'United Republic of Tanzania 1', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'United Republic of Tanzania 0', 'date': 4, 'node_fontsize_0': 80, 'node_size_5': 200, 'node_name_5': 'United Republic of Tanzania 1', 'node_fontsize_1': 80, 'node_size_3': 133, 'node_size': 200, 'node_all_tips_5': ' 1', 'node_root_id': 'EU251845', 'node_all_tips_4': ' 1', 'node_name_2': 'United Republic of Tanzania 0', 'node_size_0': 133, 'node_meta_4': 1, 'node_meta_5': 1, 'node_fontsize_3': 80, 'node_size_4': 200, 'id': 4, 'tip': 1, 'tooltip': 'Country: United Republic of Tanzania<br>RTD67N: sensitive'}, 'classes': 'CountryUnitedRepublicofTanzania-RTD67Nsensitive'}, {'data': {'node_name_3': 'Sweden 1', 'node_all_tips': ' 1-2', 'node_fontsize_5': 86, 'node_in_tips_5': ' 1-2', 'node_meta': 1, 'node_fontsize': 86, 'node_size_1': 133, 'node_in_tips_3': ' 1', 'node_name_0': 'Sweden 0', 'node_fontsize_4': 86, 'node_in_tips_4': ' 1-2', 'node_in_tips': ' 1-2', 'node_name': 'Sweden 1-2', 'node_name_4': 'Sweden 1-2', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Sweden 0', 'date': 3, 'node_fontsize_0': 80, 'node_size_5': 257, 'node_name_5': 'Sweden 1-2', 'node_fontsize_1': 80, 'node_size_3': 200, 'node_size': 257, 'node_all_tips_3': ' 1', 'node_all_tips_5': ' 1-2', 'node_root_id': 'GQ400585', 'node_all_tips_4': ' 1-2', 'node_name_2': 'Sweden 0', 'node_size_0': 133, 'node_meta_4': 1, 'node_meta_5': 1, 'node_fontsize_3': 80, 'node_size_4': 257, 'id': 5, 'tip': 1, 'tooltip': 'Country: Sweden<br>RTD67N: sensitive'}, 'classes': 'CountrySweden-RTD67Nsensitive'}, {'data': {'node_name_3': 'Romania 0', 'node_all_tips': ' 5', 'node_fontsize_5': 97, 'node_in_tips_5': ' 4', 'node_fontsize': 97, 'node_size_1': 133, 'node_name_0': 'Romania 0', 'node_fontsize_4': 97, 'node_in_tips_4': ' 4', 'node_in_tips': ' 4', 'node_name': 'Romania 4', 'node_name_4': 'Romania 4', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Romania 0', 'date': 4, 'node_fontsize_0': 80, 'node_size_5': 354, 'node_name_5': 'Romania 4', 'node_fontsize_1': 80, 'node_size_3': 133, 'node_size': 354, 'node_all_tips_5': ' 5', 'node_root_id': 'node_2989', 'node_all_tips_4': ' 5', 'node_name_2': 'Romania 0', 'node_size_0': 133, 'node_fontsize_3': 80, 'node_size_4': 354, 'id': 6, 'tip': 1, 'tooltip': 'Country: Romania<br>RTD67N: sensitive'}, 'classes': 'CountryRomania-RTD67Nsensitive'}, {'data': {'node_name_3': 'United Republic of Tanzania 0', 'node_all_tips': ' 47', 'node_fontsize_5': 167, 'node_in_tips_5': ' 33', 'node_in_tips_2': ' 0', 'node_fontsize': 167, 'node_size_1': 133, 'node_in_tips_3': ' 0', 'node_name_0': 'United Republic of Tanzania 0', 'node_fontsize_4': 167, 'node_in_tips_4': ' 33', 'node_in_tips': ' 33', 'node_name': 'United Republic of Tanzania 33', 'node_name_4': 'United Republic of Tanzania 33', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'United Republic of Tanzania 0', 'date': 2, 'node_all_tips_2': ' 3', 'node_fontsize_0': 80, 'node_in_tips_1': ' 0', 'node_size_5': 965, 'node_name_5': 'United Republic of Tanzania 33', 'node_fontsize_1': 80, 'node_size_3': 133, 'node_size': 965, 'node_all_tips_3': ' 7', 'node_all_tips_5': ' 47', 'node_root_id': 'node_3089', 'node_all_tips_4': ' 47', 'node_all_tips_1': ' 1', 'node_name_2': 'United Republic of Tanzania 0', 'node_size_0': 133, 'node_fontsize_3': 80, 'node_size_4': 965, 'id': 7, 'tooltip': 'Country: United Republic of Tanzania<br>RTD67N: sensitive'}, 'classes': 'CountryUnitedRepublicofTanzania-RTD67Nsensitive'}, {'data': {'node_name_3': 'Cuba 13', 'node_all_tips': ' 15', 'node_fontsize_5': 133, 'node_in_tips_5': ' 14', 'node_fontsize': 133, 'node_size_1': 133, 'node_in_tips_3': ' 13', 'node_name_0': 'Cuba 0', 'node_fontsize_4': 133, 'node_in_tips_4': ' 14', 'node_in_tips': ' 14', 'node_name': 'Cuba 14', 'node_name_4': 'Cuba 14', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Cuba 0', 'date': 3, 'node_fontsize_0': 80, 'node_size_5': 666, 'node_name_5': 'Cuba 14', 'node_fontsize_1': 80, 'node_size_3': 643, 'node_size': 666, 'node_all_tips_3': ' 14', 'node_all_tips_5': ' 15', 'node_root_id': 'node_3139', 'node_all_tips_4': ' 15', 'node_name_2': 'Cuba 0', 'node_size_0': 133, 'node_fontsize_3': 130, 'node_size_4': 666, 'id': 8, 'tip': 1, 'tooltip': 'Country: Cuba<br>RTD67N: sensitive'}, 'classes': 'CountryCuba-RTD67Nsensitive'}, {'data': {'node_name_3': 'Ethiopia 36', 'node_all_tips': ' 97', 'node_fontsize_5': 175, 'node_in_tips_5': ' 40', 'node_in_tips_2': ' 7', 'node_in_tips_0': ' 2', 'node_fontsize': 175, 'node_size_1': 436, 'node_in_tips_3': ' 36', 'node_name_0': 'Ethiopia 2', 'node_fontsize_4': 175, 'node_in_tips_4': ' 40', 'node_in_tips': ' 40', 'node_name': 'Ethiopia 40', 'node_name_4': 'Ethiopia 40', 'node_size_2': 471, 'node_fontsize_2': 111, 'node_name_1': 'Ethiopia 6', 'date': 0, 'node_all_tips_2': ' 9', 'node_all_tips_0': ' 2', 'node_fontsize_0': 86, 'node_in_tips_1': ' 6', 'node_size_5': 1038, 'node_name_5': 'Ethiopia 40', 'node_fontsize_1': 106, 'node_size_3': 998, 'node_size': 1038, 'node_all_tips_3': ' 70', 'node_all_tips_5': ' 97', 'node_root_id': 'node_3242', 'node_all_tips_4': ' 90', 'node_all_tips_1': ' 7', 'node_name_2': 'Ethiopia 7', 'node_size_0': 257, 'node_fontsize_3': 171, 'node_size_4': 1038, 'id': 9, 'tooltip': 'Country: Ethiopia<br>RTD67N: sensitive'}, 'classes': 'CountryEthiopia-RTD67Nsensitive'}, {'data': {'node_name_3': 'Uganda 4', 'node_all_tips': ' 8', 'node_fontsize_5': 111, 'node_in_tips_5': ' 7', 'node_in_tips_2': ' 3', 'node_fontsize': 111, 'node_size_1': 200, 'node_in_tips_3': ' 4', 'node_name_0': 'Uganda 0', 'node_fontsize_4': 111, 'node_in_tips_4': ' 7', 'node_in_tips': ' 7', 'node_name': 'Uganda 7', 'node_name_4': 'Uganda 7', 'node_size_2': 308, 'node_fontsize_2': 92, 'node_name_1': 'Uganda 1', 'date': 1, 'node_all_tips_2': ' 3', 'node_fontsize_0': 80, 'node_in_tips_1': ' 1', 'node_size_5': 471, 'node_name_5': 'Uganda 7', 'node_fontsize_1': 80, 'node_size_3': 354, 'node_size': 471, 'node_all_tips_3': ' 4', 'node_all_tips_5': ' 8', 'node_root_id': 'node_3264', 'node_all_tips_4': ' 8', 'node_all_tips_1': ' 1', 'node_name_2': 'Uganda 3', 'node_size_0': 133, 'node_fontsize_3': 97, 'node_size_4': 471, 'id': 10, 'tip': 1, 'tooltip': 'Country: Uganda<br>RTD67N: sensitive'}, 'classes': 'CountryUganda-RTD67Nsensitive'}, {'data': {'node_name_3': ' 0', 'node_all_tips': ' 30', 'node_fontsize_5': 80, 'node_in_tips_5': ' 0', 'node_fontsize': 80, 'node_size_1': 266, 'node_in_tips_3': ' 0', 'node_name_0': ' 0', 'node_fontsize_4': 80, 'node_in_tips_4': ' 0', 'node_in_tips': ' 0', 'node_name': ' 0', 'node_name_4': ' 0', 'node_size_2': 266, 'node_fontsize_2': 80, 'node_name_1': ' 0', 'date': 3, 'node_fontsize_0': 80, 'node_size_5': 266, 'node_name_5': ' 0', 'node_fontsize_1': 80, 'node_size_3': 266, 'node_size': 266, 'node_all_tips_3': ' 21', 'node_all_tips_5': ' 30', 'node_root_id': 'node_3297', 'node_all_tips_4': ' 29', 'node_name_2': ' 0', 'node_size_0': 266, 'unresolved': 1, 'node_fontsize_3': 80, 'node_size_4': 266, 'id': 11, 'tooltip': 'Country: Burundi or Ethiopia or Sweden<br>RTD67N: sensitive'}, 'classes': 'Country-RTD67Nsensitive'}, {'data': {'node_name_3': 'Brazil 22', 'node_all_tips': ' 262', 'node_fontsize_5': 240, 'node_in_tips_5': ' 170', 'node_in_tips_2': ' 1', 'node_fontsize': 240, 'node_size_1': 133, 'node_in_tips_3': ' 22', 'node_name_0': 'Brazil 0', 'node_fontsize_4': 238, 'node_in_tips_4': ' 163', 'node_in_tips': ' 170', 'node_name': 'Brazil 170', 'node_name_4': 'Brazil 163', 'node_size_2': 200, 'node_fontsize_2': 80, 'node_name_1': 'Brazil 0', 'date': 2, 'node_all_tips_2': ' 1', 'node_fontsize_0': 80, 'node_size_5': 1600, 'node_name_5': 'Brazil 170', 'node_fontsize_1': 80, 'node_size_3': 818, 'node_size': 1600, 'node_all_tips_3': ' 39', 'node_all_tips_5': ' 262', 'node_root_id': 'node_3598', 'node_all_tips_4': ' 253', 'node_name_2': 'Brazil 1', 'node_size_0': 133, 'node_fontsize_3': 150, 'node_size_4': 1583, 'id': 12, 'tooltip': 'Country: Brazil<br>RTD67N: sensitive'}, 'classes': 'CountryBrazil-RTD67Nsensitive'}, {'data': {'node_name_3': 'Uganda 1', 'node_meta_2': 1, 'node_all_tips': ' 1', 'node_fontsize_5': 80, 'node_in_tips_5': ' 1', 'node_meta': 1, 'node_in_tips_2': ' 1', 'node_fontsize': 80, 'node_size_1': 133, 'node_in_tips_3': ' 1', 'node_name_0': 'Uganda 0', 'node_fontsize_4': 80, 'node_in_tips_4': ' 1', 'node_in_tips': ' 1', 'node_name': 'Uganda 1', 'node_name_4': 'Uganda 1', 'node_size_2': 200, 'node_fontsize_2': 80, 'node_name_1': 'Uganda 0', 'date': 2, 'node_all_tips_2': ' 1', 'node_fontsize_0': 80, 'node_meta_3': 1, 'node_size_5': 200, 'node_name_5': 'Uganda 1', 'node_fontsize_1': 80, 'node_size_3': 200, 'node_size': 200, 'node_all_tips_3': ' 1', 'node_all_tips_5': ' 1', 'node_root_id': 'AY435285', 'node_all_tips_4': ' 1', 'node_name_2': 'Uganda 1', 'node_size_0': 133, 'node_meta_4': 1, 'node_meta_5': 1, 'node_fontsize_3': 80, 'node_size_4': 200, 'id': 13, 'tip': 1, 'tooltip': 'Country: Uganda<br>RTD67N: sensitive'}, 'classes': 'CountryUganda-RTD67Nsensitive'}, {'data': {'node_name_3': 'Sudan 1-2', 'node_all_tips': ' 1-2', 'node_fontsize_5': 86, 'node_in_tips_5': ' 1-2', 'node_meta': 1, 'node_fontsize': 86, 'node_size_1': 133, 'node_in_tips_3': ' 1-2', 'node_name_0': 'Sudan 0', 'node_fontsize_4': 86, 'node_in_tips_4': ' 1-2', 'node_in_tips': ' 1-2', 'node_name': 'Sudan 1-2', 'node_name_4': 'Sudan 1-2', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Sudan 0', 'date': 3, 'node_fontsize_0': 80, 'node_meta_3': 1, 'node_size_5': 257, 'node_name_5': 'Sudan 1-2', 'node_fontsize_1': 80, 'node_size_3': 257, 'node_size': 257, 'node_all_tips_3': ' 1-2', 'node_all_tips_5': ' 1-2', 'node_root_id': 'AY102486', 'node_all_tips_4': ' 1-2', 'node_name_2': 'Sudan 0', 'node_size_0': 133, 'node_meta_4': 1, 'node_meta_5': 1, 'node_fontsize_3': 86, 'node_size_4': 257, 'id': 14, 'tip': 1, 'tooltip': 'Country: Sudan<br>RTD67N: sensitive'}, 'classes': 'CountrySudan-RTD67Nsensitive'}, {'data': {'node_name_3': 'Sweden 1', 'node_all_tips': ' 1-2', 'node_fontsize_5': 86, 'node_in_tips_5': ' 1-2', 'node_meta': 1, 'node_fontsize': 86, 'node_size_1': 133, 'node_in_tips_3': ' 1', 'node_name_0': 'Sweden 0', 'node_fontsize_4': 86, 'node_in_tips_4': ' 1-2', 'node_in_tips': ' 1-2', 'node_name': 'Sweden 1-2', 'node_name_4': 'Sweden 1-2', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Sweden 0', 'date': 3, 'node_fontsize_0': 80, 'node_meta_3': 1, 'node_size_5': 257, 'node_name_5': 'Sweden 1-2', 'node_fontsize_1': 80, 'node_size_3': 200, 'node_size': 257, 'node_all_tips_3': ' 1', 'node_all_tips_5': ' 1-2', 'node_root_id': 'GQ400816', 'node_all_tips_4': ' 1-2', 'node_name_2': 'Sweden 0', 'node_size_0': 133, 'node_meta_4': 1, 'node_meta_5': 1, 'node_fontsize_3': 80, 'node_size_4': 257, 'id': 15, 'tip': 1, 'tooltip': 'Country: Sweden<br>RTD67N: sensitive'}, 'classes': 'CountrySweden-RTD67Nsensitive'}, {'data': {'node_name_3': 'Ethiopia 13', 'node_all_tips': ' 23', 'node_fontsize_5': 135, 'node_in_tips_5': ' 15', 'node_fontsize': 135, 'node_size_1': 133, 'node_in_tips_3': ' 13', 'node_name_0': 'Ethiopia 0', 'node_fontsize_4': 135, 'node_in_tips_4': ' 15', 'node_in_tips': ' 15', 'node_name': 'Ethiopia 15', 'node_name_4': 'Ethiopia 15', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Ethiopia 0', 'date': 3, 'node_fontsize_0': 80, 'node_size_5': 688, 'node_name_5': 'Ethiopia 15', 'node_fontsize_1': 80, 'node_size_3': 643, 'node_size': 688, 'node_all_tips_3': ' 18', 'node_all_tips_5': ' 23', 'node_root_id': 'node_3296', 'node_all_tips_4': ' 23', 'node_name_2': 'Ethiopia 0', 'node_size_0': 133, 'node_fontsize_3': 130, 'node_size_4': 688, 'id': 16, 'tip': 1, 'tooltip': 'Country: Ethiopia<br>RTD67N: sensitive'}, 'classes': 'CountryEthiopia-RTD67Nsensitive'}, {'data': {'node_name_3': 'Brazil 1', 'node_all_tips': ' 1-9', 'node_fontsize_5': 106, 'node_in_tips_5': ' 1-6', 'node_meta': 1, 'node_fontsize': 106, 'node_size_1': 133, 'node_in_tips_3': ' 1', 'node_name_0': 'Brazil 0', 'node_fontsize_4': 106, 'node_in_tips_4': ' 1-6', 'node_in_tips': ' 1-6', 'node_name': 'Brazil 1-6', 'node_name_4': 'Brazil 1-6', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Brazil 0', 'date': 3, 'node_fontsize_0': 80, 'node_meta_3': 1, 'node_size_5': 436, 'node_name_5': 'Brazil 1-6', 'node_fontsize_1': 80, 'node_size_3': 200, 'node_size': 436, 'node_all_tips_3': ' 1', 'node_all_tips_5': ' 1-9', 'node_root_id': 'AF286228', 'node_all_tips_4': ' 1-9', 'node_name_2': 'Brazil 0', 'node_size_0': 133, 'node_meta_4': 1, 'node_meta_5': 1, 'node_fontsize_3': 80, 'node_size_4': 436, 'id': 17, 'tip': 1, 'tooltip': 'Country: Brazil<br>RTD67N: resistant'}, 'classes': 'CountryBrazil-RTD67Nresistant'}, {'data': {'node_name_3': 'Argentina 1-2', 'node_all_tips': ' 1-2', 'node_fontsize_5': 86, 'node_in_tips_5': ' 1-2', 'node_meta': 1, 'node_fontsize': 86, 'node_size_1': 133, 'node_in_tips_3': ' 1-2', 'node_name_0': 'Argentina 0', 'node_fontsize_4': 86, 'node_in_tips_4': ' 1-2', 'node_in_tips': ' 1-2', 'node_name': 'Argentina 1-2', 'node_name_4': 'Argentina 1-2', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Argentina 0', 'date': 3, 'node_fontsize_0': 80, 'node_meta_3': 1, 'node_size_5': 257, 'node_name_5': 'Argentina 1-2', 'node_fontsize_1': 80, 'node_size_3': 257, 'node_size': 257, 'node_all_tips_3': ' 1-2', 'node_all_tips_5': ' 1-2', 'node_root_id': 'AY563171', 'node_all_tips_4': ' 1-2', 'node_name_2': 'Argentina 0', 'node_size_0': 133, 'node_meta_4': 1, 'node_meta_5': 1, 'node_fontsize_3': 86, 'node_size_4': 257, 'id': 18, 'tip': 1, 'tooltip': 'Country: Argentina<br>RTD67N: sensitive'}, 'classes': 'CountryArgentina-RTD67Nsensitive'}, {'data': {'node_name_3': 'Spain 0', 'node_all_tips': ' 1-3', 'node_fontsize_5': 92, 'node_in_tips_5': ' 1-3', 'node_meta': 1, 'node_fontsize': 92, 'node_size_1': 133, 'node_name_0': 'Spain 0', 'node_fontsize_4': 92, 'node_in_tips_4': ' 1-3', 'node_in_tips': ' 1-3', 'node_name': 'Spain 1-3', 'node_name_4': 'Spain 1-3', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Spain 0', 'date': 4, 'node_fontsize_0': 80, 'node_size_5': 308, 'node_name_5': 'Spain 1-3', 'node_fontsize_1': 80, 'node_size_3': 133, 'node_size': 308, 'node_all_tips_5': ' 1-3', 'node_root_id': 'node_3371', 'node_all_tips_4': ' 1-3', 'node_name_2': 'Spain 0', 'node_size_0': 133, 'node_meta_4': 1, 'node_meta_5': 1, 'node_fontsize_3': 80, 'node_size_4': 308, 'id': 19, 'tip': 1, 'tooltip': 'Country: Spain<br>RTD67N: sensitive'}, 'classes': 'CountrySpain-RTD67Nsensitive'}, {'data': {'node_name_3': 'Brazil 1', 'node_all_tips': ' 12', 'node_fontsize_5': 114, 'node_in_tips_5': ' 8', 'node_fontsize': 114, 'node_size_1': 133, 'node_in_tips_3': ' 1', 'node_name_0': 'Brazil 0', 'node_fontsize_4': 114, 'node_in_tips_4': ' 8', 'node_in_tips': ' 8', 'node_name': 'Brazil 8', 'node_name_4': 'Brazil 8', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Brazil 0', 'date': 3, 'node_fontsize_0': 80, 'node_size_5': 505, 'node_name_5': 'Brazil 8', 'node_fontsize_1': 80, 'node_size_3': 200, 'node_size': 505, 'node_all_tips_3': ' 1', 'node_all_tips_5': ' 12', 'node_root_id': 'node_3420', 'node_all_tips_4': ' 12', 'node_name_2': 'Brazil 0', 'node_size_0': 133, 'node_fontsize_3': 80, 'node_size_4': 505, 'id': 20, 'tooltip': 'Country: Brazil<br>RTD67N: resistant'}, 'classes': 'CountryBrazil-RTD67Nresistant'}, {'data': {'node_name_3': 'Brazil 0', 'node_all_tips': ' 27', 'node_fontsize_5': 80, 'node_in_tips_5': ' 0', 'node_fontsize': 80, 'node_size_1': 266, 'node_in_tips_3': ' 0', 'node_name_0': 'Brazil 0', 'node_fontsize_4': 80, 'node_in_tips_4': ' 0', 'node_in_tips': ' 0', 'node_name': 'Brazil 0', 'node_name_4': 'Brazil 0', 'node_size_2': 266, 'node_fontsize_2': 80, 'node_name_1': 'Brazil 0', 'date': 3, 'node_fontsize_0': 80, 'node_size_5': 266, 'node_name_5': 'Brazil 0', 'node_fontsize_1': 80, 'node_size_3': 266, 'node_size': 266, 'node_all_tips_3': ' 4', 'node_all_tips_5': ' 27', 'node_root_id': 'node_3583', 'node_all_tips_4': ' 26', 'node_name_2': 'Brazil 0', 'node_size_0': 266, 'unresolved': 1, 'node_fontsize_3': 80, 'node_size_4': 266, 'id': 21, 'tooltip': 'Country: Brazil<br>RTD67N: resistant or sensitive'}, 'classes': 'CountryBrazil-RTD67N'}, {'data': {'node_name_3': 'Brazil 0', 'node_all_tips': ' 1', 'node_fontsize_5': 80, 'node_in_tips_5': ' 1', 'node_meta': 1, 'node_fontsize': 80, 'node_size_1': 133, 'node_name_0': 'Brazil 0', 'node_fontsize_4': 80, 'node_in_tips_4': ' 1', 'node_in_tips': ' 1', 'node_name': 'Brazil 1', 'node_name_4': 'Brazil 1', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Brazil 0', 'date': 4, 'node_fontsize_0': 80, 'node_size_5': 200, 'node_name_5': 'Brazil 1', 'node_fontsize_1': 80, 'node_size_3': 133, 'node_size': 200, 'node_all_tips_5': ' 1', 'node_root_id': 'GQ401315', 'node_all_tips_4': ' 1', 'node_name_2': 'Brazil 0', 'node_size_0': 133, 'node_meta_4': 1, 'node_meta_5': 1, 'node_fontsize_3': 80, 'node_size_4': 200, 'id': 22, 'tip': 1, 'tooltip': 'Country: Brazil<br>RTD67N: sensitive'}, 'classes': 'CountryBrazil-RTD67Nsensitive'}, {'data': {'node_name_3': 'Brazil 1', 'node_all_tips': ' 1-6', 'node_fontsize_5': 106, 'node_in_tips_5': ' 1-6', 'node_meta': 1, 'node_fontsize': 106, 'node_size_1': 133, 'node_in_tips_3': ' 1', 'node_name_0': 'Brazil 0', 'node_fontsize_4': 106, 'node_in_tips_4': ' 1-6', 'node_in_tips': ' 1-6', 'node_name': 'Brazil 1-6', 'node_name_4': 'Brazil 1-6', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Brazil 0', 'date': 3, 'node_fontsize_0': 80, 'node_meta_3': 1, 'node_size_5': 436, 'node_name_5': 'Brazil 1-6', 'node_fontsize_1': 80, 'node_size_3': 200, 'node_size': 436, 'node_all_tips_3': ' 1', 'node_all_tips_5': ' 1-6', 'node_root_id': 'AY213521', 'node_all_tips_4': ' 1-6', 'node_name_2': 'Brazil 0', 'node_size_0': 133, 'node_meta_4': 1, 'node_meta_5': 1, 'node_fontsize_3': 80, 'node_size_4': 436, 'id': 23, 'tip': 1, 'tooltip': 'Country: Brazil<br>RTD67N: sensitive'}, 'classes': 'CountryBrazil-RTD67Nsensitive'}, {'data': {'node_name_3': 'Brazil 1', 'node_all_tips': ' 3-5', 'node_fontsize_5': 97, 'node_in_tips_5': ' 2-4', 'node_meta': 1, 'node_fontsize': 97, 'node_size_1': 133, 'node_in_tips_3': ' 1', 'node_name_0': 'Brazil 0', 'node_fontsize_4': 97, 'node_in_tips_4': ' 2-4', 'node_in_tips': ' 2-4', 'node_name': 'Brazil 2-4', 'node_name_4': 'Brazil 2-4', 'node_size_2': 133, 'node_fontsize_2': 80, 'node_name_1': 'Brazil 0', 'date': 3, 'node_fontsize_0': 80, 'node_meta_3': 1, 'node_size_5': 354, 'node_name_5': 'Brazil 2-4', 'node_fontsize_1': 80, 'node_size_3': 200, 'node_size': 354, 'node_all_tips_3': ' 1', 'node_all_tips_5': ' 3-5', 'node_root_id': 'node_3568', 'node_all_tips_4': ' 3-5', 'node_name_2': 'Brazil 0', 'node_size_0': 133, 'node_meta_4': 1, 'node_meta_5': 1, 'node_fontsize_3': 80, 'node_size_4': 354, 'id': 24, 'tip': 1, 'tooltip': 'Country: Brazil<br>RTD67N: resistant'}, 'classes': 'CountryBrazil-RTD67Nresistant'}], 'edges': [{'data': {'source': 0, 'target': 1, 'edge_meta_3': 1, 'edge_size_5': 81, 'date': 3, 'edge_name_3': '5', 'edge_name': '7', 'edge_meta_4': 1, 'edge_name_4': '7', 'edge_size_4': 81, 'edge_meta_5': 1, 'edge_name_5': '7', 'edge_meta': 1, 'edge_size_3': 71, 'edge_size': 81}}, {'data': {'source': 0, 'target': 2, 'edge_meta_3': 1, 'edge_size_5': 65, 'date': 3, 'edge_name_3': '2', 'edge_name': '4', 'edge_meta_4': 1, 'edge_name_4': '4', 'edge_size_4': 65, 'edge_meta_5': 1, 'edge_name_5': '4', 'edge_meta': 1, 'edge_size_3': 55, 'edge_size': 65}}, {'data': {'source': 0, 'target': 3, 'edge_meta_3': 1, 'edge_size_5': 65, 'date': 3, 'edge_name_3': '4', 'edge_name': '4', 'edge_meta_4': 1, 'edge_name_4': '4', 'edge_size_4': 65, 'edge_meta_5': 1, 'edge_name_5': '4', 'edge_meta': 1, 'edge_size_3': 65, 'edge_size': 65}}, {'data': {'source': 0, 'target': 4, 'edge_size_5': 76, 'date': 4, 'edge_name': '6', 'edge_meta_4': 1, 'edge_name_4': '6', 'edge_size_4': 76, 'edge_meta_5': 1, 'edge_name_5': '6', 'edge_meta': 1, 'edge_size': 76}}, {'data': {'source': 0, 'target': 5, 'edge_size_5': 86, 'date': 3, 'edge_name_3': '', 'edge_name': '8', 'edge_meta_4': 1, 'edge_name_4': '6', 'edge_size_4': 76, 'edge_meta_5': 1, 'edge_name_5': '8', 'edge_meta': 1, 'edge_size_3': 50, 'edge_size': 86}}, {'data': {'source': 0, 'target': 6, 'edge_size_5': 50, 'date': 4, 'edge_name': '', 'edge_name_4': '', 'edge_size_4': 50, 'edge_name_5': '', 'edge_size': 50}}, {'data': {'source': 0, 'target': 7, 'edge_name_2': '', 'edge_name_1': '', 'edge_size_5': 50, 'date': 2, 'edge_size_1': 50, 'edge_name_3': '', 'edge_size_2': 50, 'edge_name': '', 'edge_name_4': '', 'edge_size_4': 50, 'edge_name_5': '', 'edge_size_3': 50, 'edge_size': 50}}, {'data': {'source': 0, 'target': 8, 'edge_size_5': 50, 'date': 3, 'edge_name_3': '', 'edge_name': '', 'edge_name_4': '', 'edge_size_4': 50, 'edge_name_5': '', 'edge_size_3': 50, 'edge_size': 50}}, {'data': {'source': 0, 'target': 9, 'edge_name_2': '', 'edge_name_0': '', 'edge_name_1': '', 'edge_size_5': 50, 'date': 0, 'edge_size_1': 50, 'edge_name_3': '', 'edge_size_2': 50, 'edge_name': '', 'edge_name_4': '', 'edge_size_4': 50, 'edge_size_0': 50, 'edge_name_5': '', 'edge_size_3': 50, 'edge_size': 50}}, {'data': {'source': 0, 'target': 10, 'edge_name_2': '', 'edge_name_1': '', 'edge_size_5': 50, 'date': 1, 'edge_size_1': 50, 'edge_name_3': '', 'edge_size_2': 50, 'edge_name': '', 'edge_name_4': '', 'edge_size_4': 50, 'edge_name_5': '', 'edge_size_3': 50, 'edge_size': 50}}, {'data': {'source': 0, 'target': 11, 'edge_size_5': 50, 'date': 3, 'edge_name_3': '', 'edge_name': '', 'edge_name_4': '', 'edge_size_4': 50, 'edge_name_5': '', 'edge_size_3': 50, 'edge_size': 50}}, {'data': {'source': 0, 'target': 12, 'edge_name_2': '', 'edge_size_5': 50, 'date': 2, 'edge_name_3': '', 'edge_size_2': 50, 'edge_name': '', 'edge_name_4': '', 'edge_size_4': 50, 'edge_name_5': '', 'edge_size_3': 50, 'edge_size': 50}}, {'data': {'source': 7, 'target': 13, 'edge_meta_3': 1, 'edge_name_2': '2', 'edge_size_5': 65, 'date': 2, 'edge_name_3': '2', 'edge_size_2': 55, 'edge_name': '4', 'edge_meta_4': 1, 'edge_meta_2': 1, 'edge_name_4': '4', 'edge_size_4': 65, 'edge_meta_5': 1, 'edge_name_5': '4', 'edge_meta': 1, 'edge_size_3': 55, 'edge_size': 65}}, {'data': {'source': 9, 'target': 14, 'edge_meta_3': 1, 'edge_size_5': 60, 'date': 3, 'edge_name_3': '3', 'edge_name': '3', 'edge_meta_4': 1, 'edge_name_4': '3', 'edge_size_4': 60, 'edge_meta_5': 1, 'edge_name_5': '3', 'edge_meta': 1, 'edge_size_3': 60, 'edge_size': 60}}, {'data': {'source': 9, 'target': 15, 'edge_meta_3': 1, 'edge_size_5': 113, 'date': 3, 'edge_name_3': '5', 'edge_name': '13', 'edge_meta_4': 1, 'edge_name_4': '10', 'edge_size_4': 97, 'edge_meta_5': 1, 'edge_name_5': '13', 'edge_meta': 1, 'edge_size_3': 71, 'edge_size': 113}}, {'data': {'source': 11, 'target': 16, 'edge_size_5': 50, 'date': 3, 'edge_name_3': '', 'edge_name': '', 'edge_name_4': '', 'edge_size_4': 50, 'edge_name_5': '', 'edge_size_3': 50, 'edge_size': 50}}, {'data': {'source': 12, 'target': 17, 'edge_meta_3': 1, 'edge_size_5': 150, 'date': 3, 'edge_name_3': '2', 'edge_name': '20', 'edge_meta_4': 1, 'edge_name_4': '20', 'edge_size_4': 150, 'edge_color': '#cc9d66', 'edge_meta_5': 1, 'edge_name_5': '20', 'edge_meta': 1, 'edge_size_3': 55, 'edge_size': 150}}, {'data': {'source': 12, 'target': 18, 'edge_meta_3': 1, 'edge_size_5': 71, 'date': 3, 'edge_name_3': '4', 'edge_name': '5', 'edge_meta_4': 1, 'edge_name_4': '5', 'edge_size_4': 71, 'edge_meta_5': 1, 'edge_name_5': '5', 'edge_meta': 1, 'edge_size_3': 65, 'edge_size': 71}}, {'data': {'source': 12, 'target': 19, 'edge_size_5': 60, 'date': 4, 'edge_name': '3', 'edge_meta_4': 1, 'edge_name_4': '2', 'edge_size_4': 55, 'edge_meta_5': 1, 'edge_name_5': '3', 'edge_meta': 1, 'edge_size': 60}}, {'data': {'source': 12, 'target': 20, 'edge_size_5': 50, 'date': 3, 'edge_name_3': '', 'edge_name': '', 'edge_name_4': '', 'edge_size_4': 50, 'edge_color': '#cc9d66', 'edge_name_5': '', 'edge_size_3': 50, 'edge_size': 50}}, {'data': {'source': 12, 'target': 21, 'edge_size_5': 50, 'date': 3, 'edge_name_3': '', 'edge_name': '', 'edge_name_4': '', 'edge_size_4': 50, 'edge_color': '#cc9d66', 'edge_name_5': '', 'edge_size_3': 50, 'edge_size': 50}}, {'data': {'source': 20, 'target': 22, 'edge_size_5': 65, 'date': 4, 'edge_name': '4', 'edge_meta_4': 1, 'edge_name_4': '4', 'edge_size_4': 65, 'edge_color': '#cc9d66', 'edge_meta_5': 1, 'edge_name_5': '4', 'edge_meta': 1, 'edge_size': 65}}, {'data': {'source': 21, 'target': 23, 'edge_meta_3': 1, 'edge_size_5': 81, 'date': 3, 'edge_name_3': '2', 'edge_name': '7', 'edge_meta_4': 1, 'edge_name_4': '6', 'edge_size_4': 76, 'edge_color': '#cc9d66', 'edge_meta_5': 1, 'edge_name_5': '7', 'edge_meta': 1, 'edge_size_3': 55, 'edge_size': 81}}, {'data': {'source': 21, 'target': 24, 'edge_meta_3': 1, 'edge_size_5': 55, 'date': 3, 'edge_name_3': '2', 'edge_name': '2', 'edge_meta_4': 1, 'edge_name_4': '2', 'edge_size_4': 55, 'edge_color': '#cc9d66', 'edge_meta_5': 1, 'edge_name_5': '2', 'edge_meta': 1, 'edge_size_3': 55, 'edge_size': 55}}]},
+
+  layout: layoutOptions,
+
+  ready: function(){
+    window.cy = this;
+  }
+});
+
+function addQtips() {
+    cy.filter(function(ele, i, eles) {
+        return ele.isNode() && ele.data('tooltip') !== undefined;
+    } ).qtip({
+        content: function(){
+                var tooltip = this.data('tooltip');
+                tooltip += '<br>id' + (this.data('node_meta') !== undefined ? 's: ': ': ') + this.data('node_root_id')
+                + (this.data('node_meta') !== undefined ? ', ...': '');
+                tooltip += '<br>tips inside: ' + this.data('node_in_tips');
+                tooltip += '<br>total tips in the subtree: ' + this.data('node_all_tips');
+                return tooltip;
+            },
+        show: {event: 'mouseover'},
+        hide: {event: 'mouseout'},
+        style: {
+                classes: 'qtip-bootstrap',
+        },
+        position: {
+            at: 'center center',
+        }
+    });
+}
+
+cy.minZoom(.01);
+cy.maxZoom(20);
+addQtips();
+
+
+function toImage(){
+    document.getElementById("downloader").href = cy.jpg({ full: false, quality: 1.0, scale: 2}).replace(/^data:image\/[^;]/, 'data:application/octet-stream');
+}
+
+function fit() {
+    cy.fit();
+}
+
+function resetLayout() {
+    cy.layout(layoutOptions).run();
+}
+
+var years = ['1986', '1991.8', '1997.6', '2003.4', '2009.2', '2015'];
+var slider = document.getElementById("myRange");
+if (slider !== null) {
+    var output = document.getElementById("demo");
+    output.innerHTML = years[slider.value]; // Display the default slider value
+
+    // Update the current slider value (each time you drag the slider handle)
+    var removed = cy.collection();
+
+    slider.oninput = function() {
+        output.innerHTML = years[this.value];
+        removed.restore();
+        removed = cy.remove("[date>" + this.value + "]");
+        var list = cy.$("");
+        for (var i=0, ele; ele = list[i]; i++) {
+            if (ele.data('node_name_' + this.value) !== undefined) {
+                ele.data('node_name', ele.data('node_name_' + this.value));
+            }
+            if (ele.data('node_fontsize_' + this.value) !== undefined) {
+                ele.data('node_fontsize', ele.data('node_fontsize_' + this.value));
+            }
+            if (ele.data('node_in_tips_' + this.value) !== undefined) {
+                ele.data('node_in_tips', ele.data('node_in_tips_' + this.value));
+            }
+            if (ele.data('node_all_tips_' + this.value) !== undefined) {
+                ele.data('node_all_tips', ele.data('node_all_tips_' + this.value));
+            }
+            if (ele.data('node_size_' + this.value) !== undefined) {
+                ele.data('node_size', ele.data('node_size_' + this.value));
+            }
+            if (ele.data('edge_name_' + this.value) !== undefined) {
+                ele.data('edge_name', ele.data('edge_name_' + this.value));
+            }
+            if (ele.data('edge_size_' + this.value) !== undefined) {
+                ele.data('edge_size', ele.data('edge_size_' + this.value));
+            }
+            if (ele.data('edge_meta_' + this.value) !== undefined) {
+                ele.data('edge_meta', ele.data('edge_meta_' + this.value))
+            } else if (ele.data('edge_meta') !== undefined) {
+                ele.removeData('edge_meta');
+                cy.remove(ele);
+                cy.add(ele);
+            }
+            if (ele.data('node_meta_' + this.value) !== undefined) {
+                ele.data('node_meta', ele.data('node_meta_' + this.value));
+            } else if (ele.data('node_meta') !== undefined) {
+                ele.removeData('node_meta');
+            }
+        }
+    }
+}
+
+function toggleFullScreen() {
+  var elem = document.getElementById("fullscreenDiv");
+  if ((document.fullScreenElement && document.fullScreenElement !== null) ||
+   (!document.mozFullScreen && !document.webkitIsFullScreen)) {
+    if (elem.requestFullScreen) {
+      elem.requestFullScreen();
+    } else if (elem.mozRequestFullScreen) {
+      elem.mozRequestFullScreen();
+    } else if (elem.webkitRequestFullScreen) {
+      elem.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+    }
+    document.getElementById("fsspan").className = "glyphicon glyphicon-resize-small"
+    document.getElementById("fstext").innerHTML = "  Exit full screen"
+  } else {
+    if (document.cancelFullScreen) {
+      document.cancelFullScreen();
+    } else if (document.mozCancelFullScreen) {
+      document.mozCancelFullScreen();
+    } else if (document.webkitCancelFullScreen) {
+      document.webkitCancelFullScreen();
+    }
+    document.getElementById("fsspan").className = "glyphicon glyphicon-fullscreen"
+    document.getElementById("fstext").innerHTML = "  Full screen"
+  }
+}</script>
+</body>
+</html>
