@@ -4,7 +4,7 @@ import os
 # snakemake --snakefile Snakefile_acr --keep-going --cores 4 --config folder=.. --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~"
 
 # To visualise the pipeline
-# snakemake --snakefile Snakefile_acr --config folder=.. --dag | dot -Tsvg > pipeline_acr.svg
+# snakemake --snakefile Snakefile_acr --config folder=.. --dag | sfdp -Tsvg > pipeline_acr.svg
 
 localrules: all
 
@@ -26,10 +26,8 @@ locs = ['Location']
 
 rule all:
     input:
-        expand(os.path.join(data_dir, maps_dir, '{loc}', 'real', 'geo_map_{loc}_{type}_tree.dated.html'),
-        type=tree_types[:1], loc=locs),
-        expand(os.path.join(data_dir, maps_dir, '{loc}', 'resampled', '{n}', 'geo_map_{loc}_{type}_tree.dated.html'),
-        type=tree_types[:1], loc=locs, n=range(5)),
+        expand(os.path.join(data_dir, maps_dir, '{loc}', 'real', 'geo_map_{loc}.html'), loc=locs),
+        expand(os.path.join(data_dir, maps_dir, '{loc}', 'resampled', '{n}', 'geo_map_{loc}.html'), loc=locs, n=range(5)),
 
         expand(os.path.join(data_dir, maps_dir, '{loc}', 'real', 'acr_map_{loc}_{type}_tree.dated.html'),
         type=tree_types, loc=locs),
@@ -96,10 +94,9 @@ rule geomap:
     Reconstructs the geographical map coloured according to PastML categories.
     '''
     input:
-        tree = os.path.join(data_dir, '{prefix}', '{tree}.nwk'),
         data = os.path.join(data_dir, '{prefix}', 'metadata.tab'),
     output:
-        geo_map = os.path.join(data_dir, maps_dir, '{loc}', '{prefix}', 'geo_map_{loc}_{tree}.html'),
+        geo_map = os.path.join(data_dir, maps_dir, '{loc}', '{prefix}', 'geo_map_{loc}.html'),
     threads: 1
     params:
         mem = 4000,
@@ -109,6 +106,5 @@ rule geomap:
     singularity: "docker://evolbioinfo/pastml:v1.9.1"
     shell:
         """
-        python3 {folder}/py/get_geomap.py --tree {input.tree} --metadata {input.data} \
-        --geo_html {output.geo_map} --location_col {params.loc} --country_col {params.country_col}
+        geomap --data {input.data} --html {output.geo_map} --location {params.loc} --country {params.country_col}
         """

@@ -208,6 +208,6 @@ rule geomap:
     singularity: "docker://evolbioinfo/pastml:v1.9.1"
     shell:
         """
-        python3 {folder}/py/get_geomap.py --tree {input.tree} --metadata {input.data} \
-        --geo_html {output.geo_map} --location_col {params.loc} --country_col {params.country_col}
+        geomap --data {input.data} --html {output.geo_map} --location {params.loc} --country {params.country_col} \
+        --tree {input.tree}
         """

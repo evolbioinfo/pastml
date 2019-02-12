@@ -41,7 +41,9 @@ def main():
                                   type=str)
 
     tree_group = parser.add_argument_group('tree-related arguments')
-    tree_group.add_argument('-t', '--tree', help="the input tree in newick format.", type=str, required=True)
+    tree_group.add_argument('-t', '--tree', help="the input tree in newick format "
+                                                 "(to only consider ids present in the tree).",
+                            type=str, required=False, default=None)
 
     out_group = parser.add_argument_group('output-related arguments')
     out_group.add_argument('-o', '--html', required=False, default=None, type=str,
@@ -51,7 +53,7 @@ def main():
     generate_map(**vars(params))
 
 
-def generate_map(data, country, location, tree, html, data_sep='\t', id_index=0):
+def generate_map(data, country, location, html, tree=None, data_sep='\t', id_index=0):
     df = pd.read_table(data, sep=data_sep, header=0, index_col=id_index)
     if country not in df.columns:
         raise ValueError('The country column {} not found among the annotation columns: {}.'
@@ -59,7 +61,8 @@ def generate_map(data, country, location, tree, html, data_sep='\t', id_index=0)
     if location not in df.columns:
         raise ValueError('The location column {} not found among the annotation columns: {}.'
                          .format(location, df.columns))
-    df = df[np.in1d(df.index.astype(np.str), [_.name for _ in read_tree(tree)])]
+    if tree:
+        df = df[np.in1d(df.index.astype(np.str), [_.name for _ in read_tree(tree)])]
     df.sort_values(by=[location], inplace=True, na_position='last')
     ddf = df.drop_duplicates(subset=[country], inplace=False, keep='first')
     country2location = {c: l for c, l in zip(ddf[country], ddf[location]) if not pd.isnull(c) and not pd.isnull(l)}

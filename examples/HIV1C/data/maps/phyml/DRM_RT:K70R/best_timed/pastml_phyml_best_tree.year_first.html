@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-<!--<link href="style.css" rel="stylesheet" />-->
 <style>
 body {
   font-family: helvetica,serif;
@@ -113,15 +112,15 @@ a.cy-button:link, a.cy-button:visited, a.cy-button:hover {
 <meta charset=utf-8 />
 <meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
 <title>pastml_phyml_best_tree.year_first</title>
-    <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js/v3.2.3/dist/cytoscape.min.js"></script>
-    <script src="https://cdn.rawgit.com/cpettitt/dagre/v0.7.4/dist/dagre.min.js"></script>
-    <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-dagre/1.5.0/cytoscape-dagre.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/dagre.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape-dagre.js"></script>
 
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.0/jquery.qtip.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.0/jquery.qtip.min.css" rel="stylesheet" type="text/css" />
-    <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-qtip/2.7.0/cytoscape-qtip.js"></script>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"/>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/jquery.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/jquery.qtip.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape-qtip.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://pastml.pasteur.fr/static/css/jquery.qtip.min.css"/>
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"/>
 <meta http-Equiv="Cache-Control" Content="no-cache" />
 <meta http-Equiv="Pragma" Content="no-cache" />
 <meta http-Equiv="Expires" Content="0" />
@@ -130,13 +129,18 @@ a.cy-button:link, a.cy-button:visited, a.cy-button:hover {
 <div id="fullscreenDiv">
 <div id="cy"></div>
 <div class="floating">
-    <a class="cy-button" href="#" id="fit" onclick="fit()"><span class="glyphicon glyphicon-resize-full"></span><span class="buttontext">  Fit screen</span></a>
-    <a class="cy-button" href="#" id="reset" onclick="resetLayout()"><span class="glyphicon glyphicon-picture"></span><span class="buttontext">  Layout</span></a>
+    <a class="cy-button" href="#" id="fit" onclick="fit()">
+        <span class="glyphicon glyphicon-resize-full"></span><span class="buttontext">  Fit screen</span>
+    </a>
+    <a class="cy-button" href="#" id="reset" onclick="resetLayout()">
+        <span class="glyphicon glyphicon-picture"></span><span class="buttontext">  Layout</span>
+    </a>
     <a class="cy-button" href="#" id="downloader" onclick="toImage()" download="pastml_phyml_best_tree.year_first.jpg">
-        <span class="glyphicon glyphicon-save"></span><span class="buttontext">  Save (jpg)</span></a>
-    <!--<a class="cy-button" href="#" id="downloader-json" onclick="toJson()" download="pastml_phyml_best_tree.year_first.json">-->
-        <!--<span class="glyphicon glyphicon-save"></span><span class="buttontext">  Save (json)</span></a>-->
-    <a class="cy-button" href="#" id="fullscreen" onclick="toggleFullScreen()"><span id="fsspan" class="glyphicon glyphicon-fullscreen"></span><span id="fstext" class="buttontext">  Full screen</span></a>
+        <span class="glyphicon glyphicon-save"></span><span class="buttontext">  Save (jpg)</span>
+    </a>
+    <a class="cy-button" href="#" id="fullscreen" onclick="toggleFullScreen()">
+        <span id="fsspan" class="glyphicon glyphicon-fullscreen"></span><span id="fstext" class="buttontext">  Full screen</span>
+    </a>
     
 <div class="slidecontainer">
   <input type="range" min="0" max="5" value="5" class="slider" id="myRange" step="1">
@@ -152,7 +156,7 @@ var layoutOptions = {
     rankSep: 80, // the separation between adjacent ranks
     rankDir: 'TB', // 'TB' for top to bottom flow, 'LR' for left to right,
     ranker: 'longest-path', // Type of algorithm to assign a rank to each node in the input graph. Possible values: 'network-simplex', 'tight-tree' or 'longest-path'
-    minLen: function( edge ){ return edge.data('minLen') | 0; }, // number of ranks to keep between the source and target of the edge
+    minLen: 1, // number of ranks to keep between the source and target of the edge
 
     // general layout options
     fit: true, // whether to fit to viewport
@@ -222,18 +226,18 @@ var cy = cytoscape({
         'font-size': 'data(node_fontsize)',
       })
     
-    .selector(".resistant")
-        .css({
-        
-                'pie-1-background-color': "#d95f02",
-                'pie-1-background-size': '100.0\%',
-            
-        })
-    
     .selector(".sensitive")
         .css({
         
                 'pie-1-background-color': "#1b9e77",
+                'pie-1-background-size': '100.0\%',
+            
+        })
+    
+    .selector(".resistant")
+        .css({
+        
+                'pie-1-background-color': "#d95f02",
                 'pie-1-background-size': '100.0\%',
             
         })
@@ -285,7 +289,7 @@ var cy = cytoscape({
         'text-opacity': 0
       }),
 
-  elements: {'nodes': [{'data': {'node_all_tips': ' 70', 'node_fontsize_5': 240, 'node_in_tips_4': ' 28', 'node_all_tips_4': ' 28', 'node_fontsize_3': 153, 'node_all_tips_2': ' 16', 'node_fontsize_1': 116, 'node_all_tips_1': ' 7', 'node_name_5': 'sensitive 69', 'node_size_0': 279, 'node_in_tips_3': ' 19', 'node_size_5': 1600, 'node_name_4': 'sensitive 28', 'node_fontsize_4': 173, 'node_fontsize_0': 89, 'node_in_tips_0': ' 2', 'node_size_1': 515, 'node_size_4': 1022, 'node_in_tips_1': ' 7', 'node_root_id': 'ROOT', 'node_fontsize_2': 145, 'node_size_2': 774, 'node_name_1': 'sensitive 7', 'node_all_tips_5': ' 70', 'node_name_0': 'sensitive 2', 'node_in_tips_5': ' 69', 'node_all_tips_3': ' 19', 'node_in_tips': ' 69', 'node_name': 'sensitive 69', 'node_size': 1600, 'node_all_tips_0': ' 2', 'node_name_3': 'sensitive 19', 'node_fontsize': 240, 'node_in_tips_2': ' 16', 'date': 0, 'node_size_3': 843, 'node_name_2': 'sensitive 16', 'id': 0, 'tooltip': 'RTK70R: sensitive'}, 'classes': 'sensitive'}, {'data': {'node_all_tips': ' 1', 'node_fontsize_5': 80, 'node_fontsize_3': 80, 'node_fontsize_1': 80, 'node_name_5': 'resistant 1', 'node_size_0': 133, 'node_size_5': 200, 'node_name_4': 'resistant 0', 'node_fontsize_4': 80, 'node_fontsize_0': 80, 'node_size_1': 133, 'node_size_4': 133, 'node_root_id': 'AY749170', 'node_fontsize_2': 80, 'node_size_2': 133, 'node_name_1': 'resistant 0', 'node_all_tips_5': ' 1', 'node_name_0': 'resistant 0', 'node_in_tips_5': ' 1', 'node_in_tips': ' 1', 'node_name': 'resistant 1', 'node_size': 200, 'node_name_3': 'resistant 0', 'node_fontsize': 80, 'date': 5, 'node_size_3': 133, 'node_name_2': 'resistant 0', 'id': 1, 'tip': 1, 'tooltip': 'RTK70R: resistant'}, 'classes': 'resistant'}], 'edges': [{'data': {'source': 0, 'target': 1, 'edge_size': 50, 'edge_name': '', 'edge_name_5': '', 'edge_size_5': 50, 'date': 5}}]},
+  elements: {'edges': [{'data': {'edge_name_5': '', 'edge_size': 50, 'edge_name': '', 'date': 5, 'source': 0, 'edge_size_5': 50, 'target': 1}}], 'nodes': [{'classes': 'sensitive', 'data': {'tooltip': 'RTK70R: sensitive', 'node_size_0': 279, 'id': 0, 'node_all_tips_2': ' 16', 'node_size': 1600, 'node_fontsize_2': 145, 'node_fontsize': 240, 'node_name_3': 'sensitive 19', 'node_name': 'sensitive 69', 'node_name_1': 'sensitive 7', 'node_size_2': 774, 'node_in_tips_4': ' 28', 'date': 0, 'node_name_4': 'sensitive 28', 'node_in_tips_3': ' 19', 'node_fontsize_4': 173, 'node_all_tips_1': ' 7', 'node_fontsize_3': 153, 'node_root_id': 'AB023804_AF110981', 'node_all_tips_0': ' 2', 'node_name_5': 'sensitive 69', 'node_all_tips_5': ' 70', 'node_fontsize_1': 116, 'node_size_4': 1022, 'node_size_3': 843, 'node_all_tips_4': ' 28', 'node_all_tips': ' 70', 'node_all_tips_3': ' 19', 'node_fontsize_0': 89, 'node_size_1': 515, 'node_in_tips_1': ' 7', 'node_name_0': 'sensitive 2', 'node_in_tips': ' 69', 'node_in_tips_2': ' 16', 'node_in_tips_0': ' 2', 'node_name_2': 'sensitive 16', 'node_fontsize_5': 240, 'node_size_5': 1600, 'node_in_tips_5': ' 69'}}, {'classes': 'resistant', 'data': {'tooltip': 'RTK70R: resistant', 'node_size_0': 133, 'id': 1, 'node_fontsize_2': 80, 'node_fontsize': 80, 'node_name_3': 'resistant 0', 'node_name': 'resistant 1', 'node_name_1': 'resistant 0', 'node_size_2': 133, 'date': 5, 'node_name_4': 'resistant 0', 'node_fontsize_3': 80, 'node_fontsize_4': 80, 'node_all_tips_5': ' 1', 'node_root_id': 'AY749170', 'node_name_5': 'resistant 1', 'tip': 1, 'node_fontsize_1': 80, 'node_size_4': 133, 'node_size_3': 133, 'node_all_tips': ' 1', 'node_fontsize_0': 80, 'node_size': 200, 'node_name_0': 'resistant 0', 'node_in_tips': ' 1', 'node_size_1': 133, 'node_name_2': 'resistant 0', 'node_fontsize_5': 80, 'node_size_5': 200, 'node_in_tips_5': ' 1'}}]},
 
   layout: layoutOptions,
 
@@ -317,7 +321,7 @@ function addQtips() {
     });
 }
 
-cy.minZoom(.01);
+cy.minZoom(.001);
 cy.maxZoom(20);
 addQtips();
 

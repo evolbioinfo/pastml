@@ -154,14 +154,11 @@ def _tree2json(tree, column2states, name_feature, node2tooltip, years=None, is_c
     node2id = {tree: 0}
     i = 1
 
-    n2sort_name = {}
-    for node in tree.traverse('preorder'):
-        if node.is_root():
-            n2sort_name[node] = (node.name,)
-        else:
-            n2sort_name[node] = (*n2sort_name[node.up], node.name)
+    sort_key = lambda n: (get_column_value_str(n, name_feature, format_list=True, list_value='<unresolved>')
+                          if name_feature else '',
+                          *(get_column_value_str(n, column, format_list=True, list_value='<unresolved>')
+                            for column in column2states.keys()), -getattr(n, NODE_SIZE, 0), n.name)
 
-    sort_key = lambda n: n2sort_name[n]
     while not todo.empty():
         n = todo.get_nowait()
         for c in sorted(n.children, key=sort_key):

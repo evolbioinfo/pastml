@@ -26,6 +26,7 @@ setup(
     entry_points={
             'console_scripts': [
                 'pastml = pastml.acr:main',
+                'geomap = pastml.visualisation.generate_geomap:main'
             ]
     },
 )
