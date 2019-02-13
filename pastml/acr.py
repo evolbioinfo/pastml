@@ -446,7 +446,7 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
         annotate_depth(root)
         if not date_column:
             for tip in root:
-                date = getattr(tip, DEPTH)
+                date = round(getattr(tip, DEPTH), 4)
                 tip.add_feature(DATE, date)
                 min_date = min(min_date, date) if min_date is not None else date
                 max_date = max(max_date, date) if max_date is not None else date

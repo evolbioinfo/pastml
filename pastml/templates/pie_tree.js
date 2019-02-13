@@ -147,6 +147,7 @@ function addQtips() {
                 + (this.data('node_meta') !== undefined ? ', ...': '');
                 tooltip += '<br>tips inside: ' + this.data('node_in_tips');
                 tooltip += '<br>total tips in the subtree: ' + this.data('node_all_tips');
+                tooltip += '<br>internal nodes inside: ' + this.data('node_in_ns');
                 return tooltip;
             },
         show: {event: 'mouseover'},
@@ -200,6 +201,9 @@ if (slider !== null) {
             }
             if (ele.data('node_in_tips_' + this.value) !== undefined) {
                 ele.data('node_in_tips', ele.data('node_in_tips_' + this.value));
+            }
+            if (ele.data('node_in_ns_' + this.value) !== undefined) {
+                ele.data('node_in_ns', ele.data('node_in_ns_' + this.value));
             }
             if (ele.data('node_all_tips_' + this.value) !== undefined) {
                 ele.data('node_all_tips', ele.data('node_all_tips_' + this.value));

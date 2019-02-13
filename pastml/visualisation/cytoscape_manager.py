@@ -7,7 +7,7 @@ from jinja2 import Environment, PackageLoader
 
 from pastml.visualisation.colour_generator import get_enough_colours, WHITE
 from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, sum_len_values, TIPS_INSIDE, TIPS_BELOW, \
-    REASONABLE_NUMBER_OF_TIPS, compress_tree
+    REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE
 from pastml.tree import DATE, DEPTH, LEVEL
 
 TIP_LIMIT = 1000
@@ -69,16 +69,22 @@ def get_scaling_function(y_m, y_M, x_m, x_M):
     return lambda _: int(k * _ + b)
 
 
-def set_cyto_features_compressed(n, tips_inside, tips_below, size_scaling, e_size_scaling, font_scaling, transform_size,
+def set_cyto_features_compressed(n, tips_inside, tips_below, internal_nodes_inside,
+                                 size_scaling, e_size_scaling, font_scaling, transform_size,
                                  transform_e_size, state, suffix=''):
     min_n_tips = min(sum_len_values(_) for _ in tips_inside) if tips_inside else 0
     max_n_tips = max(sum_len_values(_) for _ in tips_inside) if tips_inside else 0
+
+    min_n_ns = min(sum_len_values(_) for _ in internal_nodes_inside) if internal_nodes_inside else 0
+    max_n_ns = max(sum_len_values(_) for _ in internal_nodes_inside) if internal_nodes_inside else 0
 
     min_n_tips_below = min(sum_len_values(_) for _ in tips_below) if tips_below else 0
     max_n_tips_below = max(sum_len_values(_) for _ in tips_below) if tips_below else 0
 
     tips_inside_str = ' {}'.format('{}-{}'.format(min_n_tips, max_n_tips) if min_n_tips != max_n_tips else min_n_tips) \
         if max_n_tips > 0 else ' 0'
+    internal_ns_inside_str = ' {}'.format('{}-{}'.format(min_n_ns, max_n_ns) if min_n_ns != max_n_ns else min_n_ns) \
+        if max_n_ns > 0 else ' 0'
     tips_below_str = ' {}'.format('{}-{}'.format(min_n_tips_below, max_n_tips_below)
                                   if min_n_tips_below != max_n_tips_below else min_n_tips_below) \
         if max_n_tips_below > 0 else ' 0'
@@ -92,9 +98,10 @@ def set_cyto_features_compressed(n, tips_inside, tips_below, size_scaling, e_siz
 
     if max_n_tips > 0 or max_n_tips_below > 0:
         n.add_feature('node_{}{}'.format(TIPS_INSIDE, suffix), tips_inside_str)
+        n.add_feature('node_{}{}'.format(INTERNAL_NODES_INSIDE, suffix), internal_ns_inside_str)
         n.add_feature('node_{}{}'.format(TIPS_BELOW, suffix), tips_below_str)
 
-        edge_size = max(len(tips_inside), 1)
+        edge_size = max(len(tips_below), 1)
         if edge_size > 1:
             n.add_feature('edge_meta{}'.format(suffix), 1)
             n.add_feature('node_meta{}'.format(suffix), 1)
@@ -116,26 +123,26 @@ def _tree2json(tree, column2states, name_feature, node2tooltip, years=None, is_c
         n.add_feature('node_root_id', n.name)
 
         if is_compressed:
-            tips_inside, tips_below = getattr(n, TIPS_INSIDE, []), getattr(n, TIPS_BELOW, [])
-            if isinstance(tips_inside, dict):
-                tips_inside = [tips_inside]
-            if isinstance(tips_below, dict):
-                tips_below = [tips_below]
-
-            set_cyto_features_compressed(n, tips_inside, tips_below, size_scaling, e_size_scaling, font_scaling,
+            tips_inside, tips_below, internal_nodes_inside = getattr(n, TIPS_INSIDE, []), getattr(n, TIPS_BELOW, []), \
+                                                             getattr(n, INTERNAL_NODES_INSIDE, [])
+            set_cyto_features_compressed(n, tips_inside, tips_below, internal_nodes_inside,
+                                         size_scaling, e_size_scaling, font_scaling,
                                          transform_size, transform_e_size, state)
 
             if years and len(years) > 1:
                 i = len(years) - 1
                 while i >= 0:
                     suffix = '_{}'.format(i)
-                    tips_inside = [e for e in
-                                   ({k: _ for (k, _) in year2tips.items() if k <= i} for year2tips in tips_inside)
-                                   if e]
-                    tips_below = [e for e in
-                                  ({k: _ for (k, _) in year2tips.items() if k <= i} for year2tips in tips_below)
-                                  if e]
-                    set_cyto_features_compressed(n, tips_inside, tips_below, size_scaling, e_size_scaling, font_scaling,
+                    tips_inside = \
+                        [e for e in ({k: _ for (k, _) in year2tips.items() if k <= i}
+                                     for year2tips in tips_inside) if e]
+                    internal_nodes_inside = \
+                        [e for e in ({k: _ for (k, _) in year2tips.items() if k <= i}
+                                     for year2tips in internal_nodes_inside) if e]
+                    tips_below = \
+                        [e for e in ({k: _ for (k, _) in year2tips.items() if k <= i} for year2tips in tips_below) if e]
+                    set_cyto_features_compressed(n, tips_inside, tips_below, internal_nodes_inside,
+                                                 size_scaling, e_size_scaling, font_scaling,
                                                  transform_size, transform_e_size, state, suffix=suffix)
                     i -= 1
         else:
