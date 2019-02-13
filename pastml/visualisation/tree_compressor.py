@@ -60,17 +60,18 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
                 res *= len(getattr(n, TIPS_INSIDE))
             return res
 
-        tip_sizes = [get_tsize(_) for _ in tree]
-        if len(tip_sizes) > tip_size_threshold:
+        while True:
+            tip_sizes = [get_tsize(_) for _ in tree]
+            if len(tip_sizes) <= tip_size_threshold:
+                break
             threshold = sorted(tip_sizes)[-tip_size_threshold]
+            if min(tip_sizes) >= threshold:
+                break
             logging.getLogger('pastml').debug('Set tip size threshold to {} (the size of the {}-th largest tip).'
                                               .format(threshold, tip_size_threshold))
-            if min(tip_sizes) >= threshold:
-                logging.getLogger('pastml').debug('No tips to trim with this threshold.'.format(threshold))
-            else:
-                remove_small_tips(tree, to_be_removed=lambda _: get_tsize(_) < threshold)
-                remove_mediators(tree, columns)
-                collapse_horizontally(tree, columns, get_bin)
+            remove_small_tips(tree, to_be_removed=lambda _: get_tsize(_) < threshold)
+            remove_mediators(tree, columns)
+            collapse_horizontally(tree, columns, get_bin)
     return tree
 
 
@@ -113,9 +114,9 @@ def collapse_horizontally(tree, columns, tips2bin):
             child.add_feature(DATE, min(getattr(_, DATE, 0) for _ in children))
             if child in config_cache:
                 config_cache[child] = (len(getattr(child, TIPS_INSIDE)), config_cache[child][1])
-
-    logging.getLogger('pastml').debug(
-        'Collapsed {} sets of equivalent configurations horizontally.'.format(collapsed_configurations))
+    if collapsed_configurations:
+        logging.getLogger('pastml').debug(
+            'Collapsed {} sets of equivalent configurations horizontally.'.format(collapsed_configurations))
 
 
 def remove_small_tips(tree, to_be_removed):
@@ -171,8 +172,9 @@ def collapse_vertically(tree, columns):
                 for grandchild in grandchildren:
                     n.add_child(grandchild)
                 num_collapsed += 1
-    logging.getLogger('pastml').debug('Collapsed vertically {} internal nodes where there was no state change.'
-                                      .format(num_collapsed))
+    if num_collapsed:
+        logging.getLogger('pastml').debug('Collapsed vertically {} internal nodes without state change.'
+                                          .format(num_collapsed))
 
 
 def remove_mediators(tree, columns):
