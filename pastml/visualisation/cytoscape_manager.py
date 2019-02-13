@@ -164,7 +164,8 @@ def _tree2json(tree, column2states, name_feature, node2tooltip, years=None, is_c
     sort_key = lambda n: (get_column_value_str(n, name_feature, format_list=True, list_value='<unresolved>')
                           if name_feature else '',
                           *(get_column_value_str(n, column, format_list=True, list_value='<unresolved>')
-                            for column in column2states.keys()), -getattr(n, NODE_SIZE, 0), n.name)
+                            for column in column2states.keys()), -getattr(n, NODE_SIZE, 0), -getattr(n, EDGE_SIZE, 1),
+                          n.name)
 
     while not todo.empty():
         n = todo.get_nowait()

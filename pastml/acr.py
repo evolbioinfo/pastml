@@ -10,7 +10,7 @@ from pastml.ml import SCALING_FACTOR, MODEL, FREQUENCIES, MARGINAL_PROBABILITIES
     ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method
 from pastml.models.hky import KAPPA, HKY_STATES, HKY
 from pastml.models.jtt import JTT_STATES, JTT
-from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name
+from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, NUM_SCENARIOS
 from pastml.annotation import preannotate_tree, get_tree_stats
 from pastml.visualisation.cytoscape_manager import visualize
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
@@ -106,7 +106,10 @@ def _serialize_acr(args):
         f.write('parameter\tvalue\n')
         for name in sorted(acr_result.keys()):
             if name not in [FREQUENCIES, STATES, MARGINAL_PROBABILITIES]:
-                f.write('{}\t{}\n'.format(name, acr_result[name]))
+                if NUM_SCENARIOS == name:
+                    f.write('{}\t{:g}\n'.format(name, acr_result[name]))
+                else:
+                    f.write('{}\t{}\n'.format(name, acr_result[name]))
         if is_ml(acr_result[METHOD]):
             for state, freq in zip(acr_result[STATES], acr_result[FREQUENCIES]):
                 f.write('{}\t{}\n'.format(state, freq))
@@ -337,8 +340,9 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     :param date_column: (optional) name of the annotation table column that contains tip dates,
         if specified it is used to add a time slider to the visualisation.
     :type date_column: str
-    :param tip_size_threshold: (optional, by default is 15) remove the tips of size less than threshold-th largest tip
-        from the compressed map (set to 1e10 to keep all). The larger it is the less tips will be trimmed.
+    :param tip_size_threshold: (optional, by default is 15) recursively remove the tips
+        of size less than threshold-th largest tip from the compressed map (set to 1e10 to keep all).
+        The larger it is the less tips will be trimmed.
     :type tip_size_threshold: int
 
     :param out_data: path to the output annotation file with the reconstructed ancestral character states.
@@ -640,7 +644,7 @@ def main():
                                 "if specified it is used to add a time slider to the visualisation.",
                            type=str)
     vis_group.add_argument('--tip_size_threshold', type=int, default=REASONABLE_NUMBER_OF_TIPS,
-                           help="remove the tips of size less than threshold-th largest tip"
+                           help="recursively remove the tips of size less than threshold-th largest tip"
                                 "from the compressed map (set to 1e10 to keep all tips). "
                                 "The larger it is the less tips will be trimmed.")
 
@@ -659,7 +663,7 @@ def main():
 
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="print information on the progress of the analysis")
-    parser.add_argument('--version', action='version', version='%(prog)s 1.9.1')
+    parser.add_argument('--version', action='version', version='%(prog)s 1.9.2')
 
     params = parser.parse_args()
 

@@ -63,10 +63,14 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
         tip_sizes = [get_tsize(_) for _ in tree]
         if len(tip_sizes) > tip_size_threshold:
             threshold = sorted(tip_sizes)[-tip_size_threshold]
-            logging.getLogger('pastml').debug('Set tip size threshold to {}.'.format(threshold))
-            remove_small_tips(tree, to_be_removed=lambda _: get_tsize(_) < threshold)
-            remove_mediators(tree, columns)
-            collapse_horizontally(tree, columns, get_bin)
+            logging.getLogger('pastml').debug('Set tip size threshold to {} (the size of the {}-th largest tip).'
+                                              .format(threshold, tip_size_threshold))
+            if min(tip_sizes) >= threshold:
+                logging.getLogger('pastml').debug('No tips to trim with this threshold.'.format(threshold))
+            else:
+                remove_small_tips(tree, to_be_removed=lambda _: get_tsize(_) < threshold)
+                remove_mediators(tree, columns)
+                collapse_horizontally(tree, columns, get_bin)
     return tree
 
 
