@@ -23,21 +23,24 @@ model='F81'
 
 locs = ['Location']
 
+# Forcing or not the JOINT state for MPPA prediction
+joint = ['forced_joint', 'no_forced_joint']
+
 
 rule all:
     input:
         expand(os.path.join(data_dir, maps_dir, '{loc}', 'real', 'geo_map_{loc}.html'), loc=locs),
         expand(os.path.join(data_dir, maps_dir, '{loc}', 'resampled', '{n}', 'geo_map_{loc}.html'), loc=locs, n=range(5)),
 
-        expand(os.path.join(data_dir, maps_dir, '{loc}', 'real', 'acr_map_{loc}_{type}_tree.dated.html'),
-        type=tree_types, loc=locs),
-        expand(os.path.join(data_dir, maps_dir, '{loc}', 'resampled', '{n}', 'acr_map_{loc}_{type}_tree.dated.html'),
-        type=tree_types, loc=locs, n=range(5)),
+        expand(os.path.join(data_dir, maps_dir, '{loc}', 'real', 'acr_map_{loc}_{type}_tree.dated.{joint}.html'),
+        type=tree_types, loc=locs, joint=joint),
+        expand(os.path.join(data_dir, maps_dir, '{loc}', 'resampled', '{n}', 'acr_map_{loc}_{type}_tree.dated.{joint}.html'),
+        type=tree_types, loc=locs, n=range(5), joint=joint),
 
-        expand(os.path.join(data_dir, maps_dir, '{loc}.genotype', 'real', 'acr_map_{loc}.genotype_{type}_tree.dated.html'),
-        type=tree_types, loc=locs),
-        expand(os.path.join(data_dir, maps_dir, '{loc}.genotype', 'resampled', '{n}', 'acr_map_{loc}.genotype_{type}_tree.dated.html'),
-        type=tree_types, loc=locs, n=range(5)),
+        expand(os.path.join(data_dir, maps_dir, '{loc}.genotype', 'real', 'acr_map_{loc}.genotype_{type}_tree.dated.{joint}.html'),
+        type=tree_types, loc=locs, joint=joint),
+        expand(os.path.join(data_dir, maps_dir, '{loc}.genotype', 'resampled', '{n}', 'acr_map_{loc}.genotype_{type}_tree.dated.{joint}.html'),
+        type=tree_types, loc=locs, n=range(5), joint=joint),
 
 rule pastml_loc_genotype:
     '''
@@ -46,10 +49,10 @@ rule pastml_loc_genotype:
     input:
         tree = os.path.join(data_dir, '{prefix}', '{tree}.nwk'),
         data = os.path.join(data_dir, '{prefix}', 'metadata.tab'),
-        param = os.path.join(data_dir, 'pastml', '{loc}', '{prefix}', '{tree}', 'params.character_{loc}.method_MPPA.model_F81.tab')
+        param = os.path.join(data_dir, 'pastml', '{loc}', '{prefix}', '{tree}.{joint}', 'params.character_{loc}.method_MPPA.model_F81.tab')
     output:
-        map = os.path.join(data_dir, maps_dir, '{loc}.genotype', '{prefix}', 'acr_map_{loc}.genotype_{tree}.html'),
-        tree = os.path.join(data_dir, maps_dir, '{loc}.genotype', '{prefix}', 'acr_tree_{loc}.genotype_{tree}.html')
+        map = os.path.join(data_dir, maps_dir, '{loc}.genotype', '{prefix}', 'acr_map_{loc}.genotype_{tree}.{joint}.html'),
+        tree = os.path.join(data_dir, maps_dir, '{loc}.genotype', '{prefix}', 'acr_tree_{loc}.genotype_{tree}.{joint}.html')
     threads: 3
     singularity: "docker://evolbioinfo/pastml:v1.9.3"
     params:
@@ -57,12 +60,19 @@ rule pastml_loc_genotype:
         name = 'pastml_{loc}_gt',
         loc = '{loc}',
         date_col = 'year',
-        wd = os.path.join(data_dir, 'pastml', '{loc}.genotype', '{prefix}', '{tree}')
+        wd = os.path.join(data_dir, 'pastml', '{loc}.genotype', '{prefix}', '{tree}'),
+        joint = "{joint}"
     shell:
         """
+        if [ "{params.joint}" == "no_forced_joint" ]; then
+            fj="--no_forced_joint"
+        else
+            fj=""
+        fi
+
         pastml --tree {input.tree} --data {input.data} \
         --html_compressed {output.map} --html {output.tree} --columns {params.loc} genotype  --name_column {params.loc} \
-        --date_column {params.date_col} -v --work_dir {params.wd} --parameters {input.param}
+        --date_column {params.date_col} -v --work_dir {params.wd} --parameters {input.param} $fj
         """
 
 rule pastml_loc:
@@ -73,9 +83,9 @@ rule pastml_loc:
         tree = os.path.join(data_dir, '{prefix}', '{tree}.nwk'),
         data = os.path.join(data_dir, '{prefix}', 'metadata.tab'),
     output:
-        map = os.path.join(data_dir, maps_dir, '{loc}', '{prefix}', 'acr_map_{loc}_{tree}.html'),
-        tree = os.path.join(data_dir, maps_dir, '{loc}', '{prefix}', 'acr_tree_{loc}_{tree}.html'),
-        param = os.path.join(data_dir, 'pastml', '{loc}', '{prefix}', '{tree}', 'params.character_{loc}.method_MPPA.model_F81.tab')
+        map = os.path.join(data_dir, maps_dir, '{loc}', '{prefix}', 'acr_map_{loc}_{tree}.{joint}.html'),
+        tree = os.path.join(data_dir, maps_dir, '{loc}', '{prefix}', 'acr_tree_{loc}_{tree}.{joint}.html'),
+        param = os.path.join(data_dir, 'pastml', '{loc}', '{prefix}', '{tree}.{joint}', 'params.character_{loc}.method_MPPA.model_F81.tab')
     threads: 2
     singularity: "docker://evolbioinfo/pastml:v1.9.3"
     params:
@@ -83,12 +93,19 @@ rule pastml_loc:
         name = 'pastml_{loc}',
         loc = '{loc}',
         date_col = 'year',
-        wd = os.path.join(data_dir, 'pastml', '{loc}', '{prefix}', '{tree}')
+        wd = os.path.join(data_dir, 'pastml', '{loc}', '{prefix}', '{tree}.{joint}'),
+        joint = "{joint}"
     shell:
         """
+        if [ "{params.joint}" == "no_forced_joint" ]; then
+            fj="--no_forced_joint"
+        else
+            fj=""
+        fi
+
         pastml --tree {input.tree} --data {input.data} \
         --html_compressed {output.map} --html {output.tree} --columns {params.loc} \
-        --date_column {params.date_col} -v --work_dir {params.wd}
+        --date_column {params.date_col} -v --work_dir {params.wd} $fj
         """
 
 rule geomap:

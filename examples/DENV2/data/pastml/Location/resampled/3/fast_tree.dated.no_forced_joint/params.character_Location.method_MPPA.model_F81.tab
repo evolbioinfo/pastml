@@ -1,0 +1,26 @@
+parameter	value
+character	Location
+log_likelihood	-146.3843599565219
+log_likelihood_restricted_JOINT	-153.7072502912838
+log_likelihood_restricted_MAP	-154.54046153540193
+log_likelihood_restricted_MPPA	-148.3050173442793
+method	MPPA
+model	F81
+num_nodes	670
+num_scenarios	13440
+num_states_per_node_avg	1.0298507462686568
+num_tips	356
+num_unresolved_nodes	9
+percentage_of_unresolved_nodes	1.3432835820895523
+scaling_factor	0.00736692099452049
+state_changes_per_avg_branch	0.06571430804313304
+Africa	0.054871209413024605
+Caribbean	0.07055923930863123
+Central America	0.05841645853741719
+Eastern Asia	0.22407041562262137
+Europe	0.028272031069009433
+Oceania	0.11590365911605935
+South America	0.23924942554407144
+South-eastern Asia	0.09786502086723438
+Southern Asia	0.07542810917431547
+Western Asia	0.03536443134761551
