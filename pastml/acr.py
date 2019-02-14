@@ -34,7 +34,7 @@ def _parse_pastml_parameters(params, states):
             raise ValueError('The specified parameter file ({}) does not exist.'
                              .format(params))
         try:
-            param_dict = pd.read_table(params, header=0, index_col=0)
+            param_dict = pd.read_csv(params, header=0, index_col=0, sep='\t')
             if 'value' not in param_dict.columns:
                 raise ValueError('Could not find the "value" column in the parameter file {}. '
                                  'It should be a tab-delimited file with two columns, '
@@ -424,9 +424,9 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
     logger = logging.getLogger('pastml')
     logger.debug('\n=============INPUT DATA VALIDATION=============')
     root = read_tree(tree_nwk)
-    logger.debug('Read the tree {}{}.'.format(root.name, tree_nwk))
+    logger.debug('Read the tree {}.'.format(tree_nwk))
 
-    df = pd.read_table(data, sep=data_sep, index_col=id_index, header=0, dtype=str)
+    df = pd.read_csv(data, sep=data_sep, index_col=id_index, header=0, dtype=str)
     logger.debug('Read the annotation file {}.'.format(data))
 
     # As the date column is only used for visualisation if there is no visualisation we are not gonna validate it

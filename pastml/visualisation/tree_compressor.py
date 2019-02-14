@@ -66,6 +66,9 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
                 break
             threshold = sorted(tip_sizes)[-tip_size_threshold]
             if min(tip_sizes) >= threshold:
+                logging.getLogger('pastml')\
+                    .debug('No tip is smaller than the threshold ({}, the size of the {}-th largest tip).'
+                           .format(threshold, tip_size_threshold))
                 break
             logging.getLogger('pastml').debug('Set tip size threshold to {} (the size of the {}-th largest tip).'
                                               .format(threshold, tip_size_threshold))

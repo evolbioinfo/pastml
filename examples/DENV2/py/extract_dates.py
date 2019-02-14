@@ -13,7 +13,7 @@ if '__main__' == __name__:
     parser.add_argument('--random_date_files', type=str, nargs='*', default=[])
     params = parser.parse_args()
 
-    date_df = pd.read_table(params.data, index_col=0)[[params.date_col]]
+    date_df = pd.read_csv(params.data, index_col=0, sep='\t')[[params.date_col]]
     date_df.fillna(params.c_tip, inplace=True)
 
     if params.dates:

@@ -34,7 +34,7 @@ if '__main__' == __name__:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S",
                         filename=None)
 
-    DRMS = list(pd.read_table(params.input_data, index_col=0).columns)
+    DRMS = list(pd.read_csv(params.input_data, index_col=0, sep='\t').columns)
     pos = sorted({params.PR_start_pos + int(re.findall('\d+', _)[0]) for _ in DRMS if 'PR:' in _}) \
           + sorted({params.RT_start_pos + int(re.findall('\d+', _)[0]) for _ in DRMS if 'RT:' in _})
 

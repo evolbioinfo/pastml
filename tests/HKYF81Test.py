@@ -19,7 +19,7 @@ TREE_NWK_JC = os.path.join(DATA_DIR, 'tree.152taxa.sf_0.5.A_0.25.C_0.25.G_0.25.T
 STATES_INPUT_JC = os.path.join(DATA_DIR, 'tree.152taxa.sf_0.5.A_0.25.C_0.25.G_0.25.T_0.25.pastml.tab')
 
 feature = 'ACR'
-df = pd.read_table(STATES_INPUT, index_col=0, header=0)[[feature]]
+df = pd.read_csv(STATES_INPUT, index_col=0, header=0, sep='\t')[[feature]]
 acr_result_f81 = acr(read_tree(TREE_NWK), df, prediction_method=MPPA, model=F81)[0]
 
 tree = read_tree(TREE_NWK)

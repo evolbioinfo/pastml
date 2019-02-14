@@ -85,7 +85,7 @@ if '__main__' == __name__:
     tr = read_tree(params.input_tree)
 
     for group in params.ids:
-        ids = set(pd.read_table(group, index_col=0, header=None).index.map(str))
+        ids = set(pd.read_csv(group, index_col=0, header=None, sep='\t').index.map(str))
         out_ids, in_ids = None, None
         if params.ingroup:
             in_ids = ids

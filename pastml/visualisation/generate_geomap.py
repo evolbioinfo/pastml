@@ -54,7 +54,7 @@ def main():
 
 
 def generate_map(data, country, location, html, tree=None, data_sep='\t', id_index=0):
-    df = pd.read_table(data, sep=data_sep, header=0, index_col=id_index)
+    df = pd.read_csv(data, sep=data_sep, header=0, index_col=id_index)
     if country not in df.columns:
         raise ValueError('The country column {} not found among the annotation columns: {}.'
                          .format(country, df.columns))

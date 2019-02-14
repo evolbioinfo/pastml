@@ -19,7 +19,7 @@ if '__main__' == __name__:
     drm = col_name2cat(params.drm)
     loc = col_name2cat(params.loc)
 
-    df = pd.read_table(params.states, header=0, index_col=0)[[drm, loc]]
+    df = pd.read_csv(params.states, header=0, index_col=0, sep='\t')[[drm, loc]]
     df.index = df.index.map(str)
     tree = read_tree(params.tree)
     preannotate_tree(df, tree)

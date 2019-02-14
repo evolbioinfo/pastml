@@ -15,7 +15,7 @@ if '__main__' == __name__:
     parser.add_argument('--date_column', required=True, type=str)
     params = parser.parse_args()
 
-    df = pd.read_table(params.metadata, header=0, index_col=0)
+    df = pd.read_csv(params.metadata, header=0, index_col=0, sep='\t')
     df.index = df.index.map(str)
     tree = read_tree(params.in_tree)
     df = df[np.in1d(df.index, [n.name for n in tree.iter_leaves()])]

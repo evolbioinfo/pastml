@@ -14,7 +14,7 @@ if '__main__' == __name__:
 
     logging.basicConfig(level=logging.INFO, format='%(asctime)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
 
-    df = pd.read_table(params.input_data, index_col=0)
+    df = pd.read_csv(params.input_data, index_col=0, sep='\t')
     df = df[df[params.col_name] == params.col_value]
     logging.info('Extracted %d ids matching the specified criteria' % len(df))
     with open(params.output_data, 'w+') as f:

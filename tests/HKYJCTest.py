@@ -17,10 +17,10 @@ TREE_NWK = os.path.join(DATA_DIR, 'tree.152taxa.sf_0.5.A_0.25.C_0.25.G_0.25.T_0.
 STATES_INPUT = os.path.join(DATA_DIR, 'tree.152taxa.sf_0.5.A_0.25.C_0.25.G_0.25.T_0.25.pastml.tab')
 
 feature = 'ACR'
-acr_result_f81 = acr(read_tree(TREE_NWK), pd.read_table(STATES_INPUT, index_col=0, header=0)[[feature]],
+acr_result_f81 = acr(read_tree(TREE_NWK), pd.read_csv(STATES_INPUT, index_col=0, header=0, sep='\t')[[feature]],
                      prediction_method=MPPA, model=JC)[0]
 
-df = pd.read_table(STATES_INPUT, index_col=0, header=0)[[feature]]
+df = pd.read_csv(STATES_INPUT, index_col=0, header=0, sep='\t')[[feature]]
 tree = read_tree(TREE_NWK)
 acr_result_hky = acr(tree, df, prediction_method=MPPA, model=HKY,
                      column2parameters={feature: {KAPPA: 1, 'A': .25, 'T': .25, 'C': .25, 'G': .25}})[0]

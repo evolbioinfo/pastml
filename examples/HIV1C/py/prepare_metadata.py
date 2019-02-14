@@ -56,8 +56,8 @@ if '__main__' == __name__:
     parser.add_argument('--output_data', required=True, type=str)
     params = parser.parse_args()
 
-    df = pd.read_table(params.drm_tab, index_col=0, header=0)
-    df = df.join(pd.read_table(params.input_data, index_col=0, header=0), how='outer')
+    df = pd.read_csv(params.drm_tab, index_col=0, header=0, sep='\t')
+    df = df.join(pd.read_csv(params.input_data, index_col=0, header=0, sep='\t'), how='outer')
 
     # Add Location info
     countries = df['Country Code'].unique()

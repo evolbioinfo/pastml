@@ -12,7 +12,7 @@ TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')
 STATES_INPUT = os.path.join(DATA_DIR, 'copy_states.tab')
 
 feature = 'Country'
-df = pd.read_table(STATES_INPUT, index_col=0, header=0)[[feature]]
+df = pd.read_csv(STATES_INPUT, index_col=0, header=0, sep='\t')[[feature]]
 tree = read_tree(TREE_NWK)
 collapse_zero_branches(tree)
 acr_result = acr(tree, df, prediction_method=COPY)[0]
