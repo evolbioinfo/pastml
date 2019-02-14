@@ -23,7 +23,7 @@ if '__main__' == __name__:
     first_year = min([_ for _ in res_df[params.date_column].unique() if not pd.isnull(_)])
     last_year = max([_ for _ in df[params.date_column].unique() if not pd.isnull(_)])
 
-    for year, label in zip((last_year, last_year - 10, first_year), ('last', 'mid', 'first')):
+    for year, label in zip((last_year - 10, first_year), ('mid', 'first')):
         tree = remove_certain_leaves(tree, to_remove=lambda node: pd.isnull(df.loc[node.name, params.date_column])
                                                                   or df.loc[node.name, params.date_column] > year)
         tree.write(outfile=params.out_tree_pattern.format(label), format=3)
