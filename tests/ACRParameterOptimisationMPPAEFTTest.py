@@ -24,10 +24,13 @@ def reroot_tree_randomly():
     other_children = list(rerooted_tree.children[1:])
     old_root_child.up = None
     for child in other_children:
+        child.up = None
         old_root_child.add_child(child, dist=old_root_child_dist + child.dist)
     old_root_child.set_outgroup(new_root)
-    print('Rerooted tree on the branch of {}'.format(new_root.name))
     new_root = new_root.up
+    for _ in new_root.traverse():
+        if not _.name:
+            _.name = 'unknown'
     return new_root
 
 
