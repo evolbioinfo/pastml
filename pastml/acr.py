@@ -19,6 +19,7 @@ from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN
     get_default_mp_method
 from pastml.tree import read_tree, name_tree, date_tips, collapse_zero_branches, DATE, annotate_depth, DEPTH
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
+from pastml.visualisation.itol_manager import generate_itol_annotations
 
 COPY = 'COPY'
 
@@ -402,6 +403,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     async_result = None
     pool = None
     if work_dir:
+        generate_itol_annotations(root, column2states, work_dir)
         pool = ThreadPool()
         new_tree = os.path.join(work_dir, get_named_tree_file(tree))
         root.write(outfile=new_tree, format_root_node=True, format=3)
