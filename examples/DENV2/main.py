@@ -14,4 +14,4 @@ if '__main__' == __name__:
     character = 'Location'
     pastml_pipeline(data=STATES_INPUT, tree=TREE_NWK,
                     html_compressed=os.path.join(DATA_DIR, 'maps', 'map_{}.html'.format(character)),
-                    verbose=True, columns=[character], date_column='year')
+                    verbose=True, columns=[character], date_column='year', work_dir=os.path.join(DATA_DIR, 'pastml'))

@@ -33,7 +33,7 @@ location_col = 'Loc'
 YEARS = ['mid', 'first']
 
 # Forcing or not the JOINT state for MPPA prediction
-joint = ['forced_joint', 'no_forced_joint']
+joint = ['no_forced_joint', 'forced_joint']
 
 rule all:
     input:
@@ -84,7 +84,7 @@ rule acr_drm_timed:
         --out_tree_pattern {params.tree} --drm {params.drm} --date_column {params.date_col}
 
         python3 {folder}/py/acr.py --trees {output.trees} --data {input.data} --htmls {output.maps} \
-        --columns {params.drm} --date_column {params.date_col} --parameters {input.pars} --threshold 12 \
+        --columns {params.drm} --date_column {params.date_col} --parameters {input.pars} --threshold 10 \
         --joint_option {params.joint}
         """
 
@@ -111,7 +111,7 @@ rule acr_drm:
         """
          python3 {folder}/py/acr.py --trees {input.tree} --data {input.data} --htmls {output.map} \
         --columns {params.drm} --date_column {params.date_col}  --out_parameters {output.pars}  \
-        --joint_option {params.joint} --threshold 12
+        --joint_option {params.joint} --threshold 10
         """
 
 rule acr_drm_loc:
@@ -141,7 +141,7 @@ rule acr_drm_loc:
         python3 {folder}/py/acr.py --trees {input.tree} --data {input.data} --htmls {output.map} \
         --columns {params.loc} {params.drm} --name_column {params.loc} --date_col {params.date_col} \
         --parameters {input.loc_pars} {input.drm_pars} --out_data {output.data}  \
-        --joint_option {params.joint} --threshold 12
+        --joint_option {params.joint} --threshold 10
         """
 
 rule acr_tdr_loc:
@@ -155,7 +155,7 @@ rule acr_tdr_loc:
         drm_pars = os.path.join(data_dir, params_dir, 'params.tree_{n}.type_{type}.drm_{drm}.{joint}.tab'),
     output:
         map = os.path.join(data_dir, maps_dir, '{type}', 'DRM_{drm}', 'pastml_{type}_{n}_subtree.TDR_loc_{loc}.loc1_{loc1}.{joint}.html'),
-        subtree = temp(os.path.join(data_dir, '{n}', 'pastml_{type}_subtree.drm_{drm}.loc_{loc}.loc1_{loc1}.{joint}.nwk'))
+        subtree = os.path.join(data_dir, '{n}', 'pastml_{type}_subtree.drm_{drm}.loc_{loc}.loc1_{loc1}.{joint}.nwk')
     threads: 2
     params:
         mem = 4000,
@@ -174,7 +174,7 @@ rule acr_tdr_loc:
 
         python3 {folder}/py/acr.py --trees {output.subtree} --data {input.data} --htmls {output.map} \
         --columns {params.drm} {params.loc1} --name_column {params.loc1} --date_column {params.date_col} \
-        --parameters {input.drm_pars} --joint_option {params.joint} --threshold 12 --verbose
+        --parameters {input.drm_pars} --joint_option {params.joint} --threshold 10
         """
 
 rule acr_loc:
@@ -200,7 +200,7 @@ rule acr_loc:
         """
         python3 {folder}/py/acr.py --trees {input.tree} --data {input.data} --htmls {output.map} \
         --columns {params.loc} --date_column {params.date_col} --out_parameters {output.pars} \
-        --joint_option {params.joint} --threshold 12
+        --joint_option {params.joint} --threshold 10
         """
 
 rule geomap:

@@ -12,6 +12,8 @@ if '__main__' == __name__:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%H:%M:%S',)
 
     mutation = 'RT:M184V'
-    pastml_pipeline(data=STATES_INPUT, tree=TREE_NWK,
+    pastml_pipeline(data=STATES_INPUT,
+                    tree=TREE_NWK,
                     html_compressed=os.path.join(DATA_DIR, 'maps', 'map_{}.html'.format(mutation)),
-                    verbose=True, columns=[mutation])
+                    verbose=True, columns=[mutation], work_dir=os.path.join(DATA_DIR, 'pastml'),
+                    tip_size_threshold=15)
