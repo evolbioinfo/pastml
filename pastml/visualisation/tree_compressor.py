@@ -51,30 +51,33 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
     if len(tree) > tip_size_threshold:
         for n in tree.traverse():
             n.add_feature(NUM_TIPS_INSIDE, sum(sum_len_values(_) for _ in getattr(n, TIPS_INSIDE))
-                          / len(getattr(n, TIPS_INSIDE)))
+                          / len(getattr(n, TIPS_BELOW)))
+
+        for n in tree.traverse('preorder'):
+            multiplier = (getattr(n.up, 'multiplier') if n.up else 1) * len(getattr(n, TIPS_BELOW))
+            n.add_feature('multiplier', multiplier)
 
         def get_tsize(n):
-            res = getattr(n, NUM_TIPS_INSIDE) * len(getattr(n, TIPS_INSIDE))
-            while n.up:
-                n = n.up
-                res *= len(getattr(n, TIPS_INSIDE))
-            return res
+            return getattr(n, NUM_TIPS_INSIDE) * getattr(n, 'multiplier')
 
-        while True:
-            tip_sizes = [get_tsize(_) for _ in tree]
-            if len(tip_sizes) <= tip_size_threshold:
-                break
+        tip_sizes = []
+        for n in tree.traverse('postorder'):
+            children_bs = 0 if not n.children else max(get_tsize(_) for _ in n.children)
+            bs = get_tsize(n)
+            if not n.is_root() and bs > children_bs:
+                tip_sizes.append(bs)
+        if len(tip_sizes) > tip_size_threshold:
             threshold = sorted(tip_sizes)[-tip_size_threshold]
             if min(tip_sizes) >= threshold:
                 logging.getLogger('pastml')\
                     .debug('No tip is smaller than the threshold ({}, the size of the {}-th largest tip).'
                            .format(threshold, tip_size_threshold))
-                break
-            logging.getLogger('pastml').debug('Set tip size threshold to {} (the size of the {}-th largest tip).'
-                                              .format(threshold, tip_size_threshold))
-            remove_small_tips(tree, to_be_removed=lambda _: get_tsize(_) < threshold)
-            remove_mediators(tree, columns)
-            collapse_horizontally(tree, columns, get_bin)
+            else:
+                logging.getLogger('pastml').debug('Set tip size threshold to {} (the size of the {}-th largest tip).'
+                                                  .format(threshold, tip_size_threshold))
+                remove_small_tips(tree, to_be_removed=lambda _: get_tsize(_) < threshold)
+                remove_mediators(tree, columns)
+                collapse_horizontally(tree, columns, get_bin)
     return tree
 
 
