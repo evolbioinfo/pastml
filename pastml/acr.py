@@ -51,8 +51,8 @@ def _parse_pastml_parameters(params, states):
     frequencies_specified = set(states) & set(params.keys())
     if frequencies_specified:
         if len(frequencies_specified) < len(states):
-            logger.error('Frequency parameters are specified ({}), but not for all of the states ({}), '
-                         'ignoring them.'.format(', '.join(sorted(frequencies_specified)), ', '.join(states)))
+            logger.error('Some frequency parameters are specified, but missing the following states: {}, '
+                         'ignoring specified frequencies.'.format(', '.join(set(states) - frequencies_specified)))
         else:
             frequencies = np.array([params[state] for state in states])
             try:
@@ -398,7 +398,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     if work_dir and not out_data:
         out_data = os.path.join(work_dir, get_combined_ancestral_state_file(columns=columns))
     if out_data:
-        _serialize_predicted_states(columns, out_data, root)
+        state_df = _serialize_predicted_states(columns, out_data, root)
 
     # a meta-method would have added a suffix to the name feature
     if html_compressed and name_column and name_column not in column2states:
@@ -406,14 +406,15 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         name_column = ml_name_column if ml_name_column in column2states \
             else get_personalized_feature_name(name_column, get_default_mp_method())
 
-    async_result = None
+    async_result, itol_result = None, None
     pool = None
     if work_dir:
-        generate_itol_annotations(root, column2states, work_dir)
         pool = ThreadPool()
         new_tree = os.path.join(work_dir, get_named_tree_file(tree))
         root.write(outfile=new_tree, format_root_node=True, format=3)
         async_result = pool.map_async(func=_serialize_acr, iterable=((acr_res, work_dir) for acr_res in acr_results))
+        itol_result = pool.apply_async(func=generate_itol_annotations,
+                                       args=(column2states, work_dir, acr_results, state_df))
 
     if html or html_compressed:
         logger.debug('\n=============VISUALISATION=====================')
@@ -423,6 +424,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
 
     if async_result:
         async_result.wait()
+        itol_result.wait()
         pool.close()
     return root
 
@@ -528,15 +530,20 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
 
 
 def _serialize_predicted_states(columns, out_data, root):
+    ids, data = [], []
     # Not using DataFrames to speed up document writing
     with open(out_data, 'w+') as f:
         f.write('node\t{}\n'.format('\t'.join(columns)))
         for node in root.traverse():
+            vs = [node.dist]
             column2values = {}
             for column in columns:
                 value = getattr(node, column, set())
+                vs.append(value)
                 if value:
                     column2values[column] = sorted(value, reverse=True)
+            data.append(vs)
+            ids.append(node.name)
             while column2values:
                 f.write('{}'.format(node.name))
                 for column in columns:
@@ -550,6 +557,7 @@ def _serialize_predicted_states(columns, out_data, root):
                     f.write('\t{}'.format(value))
                 f.write('\n')
     logging.getLogger('pastml').debug('Serialized reconstructed states to {}.'.format(out_data))
+    return pd.DataFrame(index=ids, data=data, columns=['dist'] + columns)
 
 
 def _set_up_pastml_logger(verbose):
