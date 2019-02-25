@@ -17,7 +17,7 @@ from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, 
     get_pastml_marginal_prob_file
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
     get_default_mp_method
-from pastml.tree import read_tree, name_tree, date_tips, collapse_zero_branches, DATE, annotate_depth, DEPTH
+from pastml.tree import read_tree, name_tree, collapse_zero_branches, annotate_depth, DEPTH, date2years
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 from pastml.visualisation.itol_manager import generate_itol_annotations
 
@@ -367,11 +367,17 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     if work_dir:
         os.makedirs(work_dir, exist_ok=True)
 
-    root, df, years, name_column = _validate_input(columns, data, data_sep, date_column, html, html_compressed,
-                                                   id_index, name_column, tree,
-                                                   copy_only=COPY == prediction_method
-                                                             or (isinstance(prediction_method, list)
-                                                                 and all(COPY == _ for _ in prediction_method)))
+    root, df, years, tip2date, name_column = _validate_input(columns, data, data_sep, date_column, html,
+                                                             html_compressed,
+                                                             id_index, name_column, tree,
+                                                             copy_only=COPY == prediction_method
+                                                                       or (isinstance(prediction_method, list)
+                                                                           and all(
+                                                                         COPY == _ for _ in prediction_method)))
+
+    if not date_column:
+        date_column = 'Dist. to root'
+
     if parameters:
         if isinstance(parameters, str):
             parameters = [parameters]
@@ -412,8 +418,8 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     if html or html_compressed:
         logger.debug('\n=============VISUALISATION=====================')
         visualize(root, column2states=column2states,
-                  html=html, html_compressed=html_compressed, years=years,
-                  name_column=name_column, tip_size_threshold=tip_size_threshold)
+                  html=html, html_compressed=html_compressed, years=years, tip2date=tip2date,
+                  name_column=name_column, tip_size_threshold=tip_size_threshold, date_column=date_column)
 
     if async_result:
         async_result.wait()
@@ -429,12 +435,12 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
     logger.debug('Read the tree {}.'.format(tree_nwk))
 
     df = pd.read_csv(data, sep=data_sep, index_col=id_index, header=0, dtype=str)
+    df.index = df.index.map(str)
     logger.debug('Read the annotation file {}.'.format(data))
 
     # As the date column is only used for visualisation if there is no visualisation we are not gonna validate it
-    years = []
+    years, tip2date = [], {}
     if html_compressed or html:
-        min_date, max_date = None, None
         if date_column:
             if date_column not in df.columns:
                 raise ValueError('The date column "{}" not found among the annotation columns: {}.'
@@ -447,15 +453,18 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
                 except ValueError:
                     raise ValueError('Could not infer the date format for column "{}", please check it.'
                                      .format(date_column))
-            min_date, max_date = date_tips(root, df[date_column])
-            logger.debug("Extracted tip dates: they vary between {} and {}.".format(min_date, max_date))
+
+            tip2date = df.loc[[_.name for _ in root], date_column].apply(date2years).to_dict()
+            if not tip2date:
+                raise ValueError('Could not find any dates for the tree tips in column {}, please check it.'
+                                 .format(date_column))
         annotate_depth(root)
         if not date_column:
-            for tip in root:
-                date = round(getattr(tip, DEPTH), 4)
-                tip.add_feature(DATE, date)
-                min_date = min(min_date, date) if min_date is not None else date
-                max_date = max(max_date, date) if max_date is not None else date
+            tip2date = {tip.name: round(getattr(tip, DEPTH), 4) for tip in root}
+        min_date = min(tip2date.values())
+        max_date = max(tip2date.values())
+        logger.debug("Extracted tip {}: they vary between {} and {}."
+                     .format('dates' if date_column else 'distances', min_date, max_date))
 
         step = (max_date - min_date) / 5
         years = [min_date]
@@ -474,7 +483,6 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
                                      'is' if len(unknown_columns) == 1 else 'are',
                                      _quote(df.columns)))
 
-    df.index = df.index.map(str)
     node_names = {n.name for n in root.traverse() if n.name}
     df_index_names = set(df.index)
     df = df.loc[node_names & df_index_names, :]
@@ -516,7 +524,7 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
                          'PASTML cannot infer ancestral states for a tree with too many tip states.'
                          .format(percentage_unique.idxmax(), 100 * max_unique_percentage))
     logger.debug('Finished input validation.')
-    return root, df, years, name_column
+    return root, df, years, tip2date, name_column
 
 
 def _serialize_predicted_states(columns, out_data, root):

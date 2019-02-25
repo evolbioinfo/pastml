@@ -31,39 +31,6 @@ def date2years(d):
         return None
 
 
-def date_tips(tree, date_df=None):
-    """
-    Adds dates to the tips as 'date' attribute.
-
-    :param tree: ete3.Tree
-    :param date_df: a pandas.Series with tip ids as indices and dates as values
-    :return: void, modifies the initial tree
-    """
-    min_date, max_date = None, None
-    if date_df is not None:
-        date_df.index = date_df.index.map(str)
-        dated_tips, undated_tips = [], []
-        for tip in tree:
-            if tip.name in date_df.index:
-                date = date2years(date_df.loc[tip.name])
-                if date is not None:
-                    tip.add_feature(DATE, date)
-                    dated_tips.append(tip)
-                    min_date = min(min_date, date) if min_date is not None else date
-                    max_date = max(max_date, date) if max_date is not None else date
-                else:
-                    undated_tips.append(tip)
-            else:
-                undated_tips.append(tip)
-
-        if len(dated_tips) < len(undated_tips):
-            for tip in dated_tips:
-                tip.del_feature(DATE)
-            raise ValueError('Too few dates are provided (only {:.2f}% of tips are dated)!'
-                             .format(100 * len(dated_tips) / (len(dated_tips) + len(undated_tips))))
-    return min_date, max_date
-
-
 def annotate_depth(tree, depth_feature=DEPTH, level_feature=LEVEL):
     for node in tree.traverse('preorder'):
         if node.is_root():
