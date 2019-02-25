@@ -150,7 +150,8 @@ function addQtips() {
         return ele.isNode() && ele.data('tooltip') !== undefined;
     } ).qtip({
         content: function(){
-                return this.data('tooltip') + '<br>id: ' + this.data('node_root_id');
+                return '<br><div style="overflow: auto;"><span style="white-space:nowrap;">'
+                + this.data('tooltip') + '</span></div>'; + '<br>id: ' + this.data('node_root_id');
             },
         show: {event: 'mouseover'},
         hide: {event: 'mouseout'},

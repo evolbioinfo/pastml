@@ -142,7 +142,7 @@ function addQtips() {
         return ele.isNode() && ele.data('tooltip') !== undefined;
     } ).qtip({
         content: function(){
-                var tooltip = this.data('tooltip');
+                var tooltip = '<br><div style="overflow: auto;"><span style="white-space:nowrap;">' + this.data('tooltip') + '</span></div>';
                 if (this.data('node_meta') !== undefined) {
                     tooltip += '<br><div style="overflow: auto;"><span style="white-space:nowrap;">ids: ' + this.data('node_names') + '</span></div>';
                 } else {
