@@ -414,7 +414,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         root.write(outfile=new_tree, format_root_node=True, format=3)
         async_result = pool.map_async(func=_serialize_acr, iterable=((acr_res, work_dir) for acr_res in acr_results))
         itol_result = pool.apply_async(func=generate_itol_annotations,
-                                       args=(column2states, work_dir, acr_results, state_df))
+                                       args=(column2states, work_dir, acr_results, state_df, date_column, tip2date))
 
     if html or html_compressed:
         logger.debug('\n=============VISUALISATION=====================')
@@ -681,7 +681,7 @@ def main():
 
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="print information on the progress of the analysis")
-    parser.add_argument('--version', action='version', version='%(prog)s 1.9.4')
+    parser.add_argument('--version', action='version', version='%(prog)s 1.9.5')
 
     params = parser.parse_args()
 
