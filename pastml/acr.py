@@ -498,7 +498,7 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
         raise ValueError('Your tree tip names (e.g. {}) do not correspond to annotation id column values (e.g. {}). '
                          'Check your annotation file.'
                          .format(', '.join(tip_name_representatives),
-                                 ', '.join(df_index_names[: min(len(df_index_names), 3)])))
+                                 ', '.join(list(df_index_names)[: min(len(df_index_names), 3)])))
     logger.debug('Checked that tip names correspond to annotation file index.')
 
     if columns:
@@ -681,7 +681,7 @@ def main():
 
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="print information on the progress of the analysis")
-    parser.add_argument('--version', action='version', version='%(prog)s 1.9.5')
+    parser.add_argument('--version', action='version', version='%(prog)s 1.9.6')
 
     params = parser.parse_args()
 
