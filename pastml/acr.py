@@ -396,7 +396,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
 
     columns = sorted(column2states.keys())
     if work_dir and not out_data:
-        out_data = os.path.join(work_dir, get_combined_ancestral_state_file(columns=columns))
+        out_data = os.path.join(work_dir, get_combined_ancestral_state_file())
     if out_data:
         state_df = _serialize_predicted_states(columns, out_data, root)
 
@@ -681,7 +681,7 @@ def main():
 
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="print information on the progress of the analysis")
-    parser.add_argument('--version', action='version', version='%(prog)s 1.9.6')
+    parser.add_argument('--version', action='version', version='%(prog)s 1.9.7')
 
     params = parser.parse_args()
 
