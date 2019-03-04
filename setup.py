@@ -16,13 +16,13 @@ setup(
         'Topic :: Software Development',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-    version='1.9.7',
+    version='1.9.8',
     description='Ancestral character reconstruction and visualisation for rooted phylogenetic trees.',
     author='Anna Zhukova',
     author_email='anna.zhukova@pasteur.fr',
     url='https://github.com/evolbioinfo/pastml',
     keywords=['PASTML', 'visualisation', 'phylogeny', 'ancestral character reconstruction'],
-    install_requires=['ete3', 'pandas', 'numpy', 'jinja2', 'scipy'],
+    install_requires=['ete3', 'pandas', 'numpy', 'jinja2', 'scipy', 'itolapi'],
     entry_points={
             'console_scripts': [
                 'pastml = pastml.acr:main',

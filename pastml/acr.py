@@ -1,5 +1,6 @@
 import logging
 import os
+import warnings
 from multiprocessing.pool import ThreadPool
 
 import numpy as np
@@ -14,12 +15,14 @@ from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_pers
 from pastml.annotation import preannotate_tree, get_tree_stats
 from pastml.visualisation.cytoscape_manager import visualize
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
-    get_pastml_marginal_prob_file
+    get_pastml_marginal_prob_file, get_pastml_work_dir
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
     get_default_mp_method
 from pastml.tree import read_tree, name_tree, collapse_zero_branches, annotate_depth, DEPTH, date2years
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 from pastml.visualisation.itol_manager import generate_itol_annotations
+
+warnings.filterwarnings("ignore", append=True)
 
 COPY = 'COPY'
 
@@ -190,8 +193,7 @@ def reconstruct_ancestral_states(tree, character, states, prediction_method=MPPA
                      .format(prediction_method, ', '.join(ML_METHODS), ', '.join(MP_METHODS), COPY))
 
 
-def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None,
-        force_joint=True):
+def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None, force_joint=True):
     """
     Reconstructs ancestral states for the given tree and
     all the characters specified as columns of the given annotation dataframe.
@@ -215,6 +217,9 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None,
         or pastml.ml.SCALING_FACTOR (then the value should be the scaling factor for three branches,
         e.g. set to 1 to keep the original branches). Could also be in a form {column: path_to_param_file}.
     :type column2parameters: dict
+    :param force_joint: (optional, default is True) whether the JOINT state should be added to the MPPA prediction
+        even when not selected by the Brier score
+    :type force_joint: bool
 
     :return: list of ACR result dictionaries, one per character.
     :rtype: list(dict)
@@ -273,7 +278,8 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                     columns=None, prediction_method=MPPA, model=F81, parameters=None,
                     name_column=None, date_column=None, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS,
                     out_data=None, html_compressed=None, html=None, work_dir=None,
-                    verbose=False, no_forced_joint=False):
+                    verbose=False, no_forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
+                    itol_tree_name=None):
     """
     Applies PASTML to the given tree with the specified states and visualizes the result (as html maps).
 
@@ -354,26 +360,32 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     :type html: str
     :param work_dir: (optional) path to the folder where pastml parameter, named tree
         and marginal probability (for marginal ML methods (pastml.ml.MPPA, pastml.ml.MAP) only) files are to be stored.
-        If the specified folder does not exist, it will be created.
+        Default is <path_to_input_file>/<input_file_name>_pastml. If the folder does not exist, it will be created.
     :type work_dir: str
 
     :param verbose: (optional, default is False) print information on the progress of the analysis.
     :type verbose: bool
 
+    :param upload_to_itol: (optional, default is False) whether the annotated tree should be uploaded to iTOL
+        (https://itol.embl.de/)
+    :type upload_to_itol: bool
+    :param itol_id: (optional) iTOL user batch upload ID that enables uploading to your iTOL account
+        (see https://itol.embl.de/help.cgi#batch). If not specified, the tree will not be associated to any account.
+    :type itol_id: str
+    :param itol_project: (optional) iTOL project the annotated tree should be uploaded to
+        (must exist, and itol_id must be specified). If not specified, the tree will not be associated to any project.
+    :type itol_project: str
+    :param itol_tree_name: (optional) name for the tree uploaded to iTOL.
+    :type itol_tree_name: str
+
     :return: void
     """
     logger = _set_up_pastml_logger(verbose)
 
-    if work_dir:
-        os.makedirs(work_dir, exist_ok=True)
-
-    root, df, years, tip2date, name_column = _validate_input(columns, data, data_sep, date_column, html,
-                                                             html_compressed,
-                                                             id_index, name_column, tree,
-                                                             copy_only=COPY == prediction_method
-                                                                       or (isinstance(prediction_method, list)
-                                                                           and all(
-                                                                         COPY == _ for _ in prediction_method)))
+    root, df, years, tip2date, name_column = \
+        _validate_input(columns, data, data_sep, date_column, html, html_compressed, id_index, name_column, tree,
+                        copy_only=COPY == prediction_method or (isinstance(prediction_method, list)
+                                                                and all(COPY == _ for _ in prediction_method)))
 
     if not date_column:
         date_column = 'Dist. to root'
@@ -390,15 +402,17 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     else:
         parameters = {}
 
+    if not work_dir:
+        work_dir = get_pastml_work_dir(tree)
+    os.makedirs(work_dir, exist_ok=True)
+
     acr_results = acr(root, df, prediction_method=prediction_method, model=model, column2parameters=parameters,
                       force_joint=not no_forced_joint)
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
 
-    columns = sorted(column2states.keys())
-    if work_dir and not out_data:
+    if not out_data:
         out_data = os.path.join(work_dir, get_combined_ancestral_state_file())
-    if out_data:
-        state_df = _serialize_predicted_states(columns, out_data, root)
+    state_df = _serialize_predicted_states(sorted(column2states.keys()), out_data, root)
 
     # a meta-method would have added a suffix to the name feature
     if html_compressed and name_column and name_column not in column2states:
@@ -406,15 +420,16 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         name_column = ml_name_column if ml_name_column in column2states \
             else get_personalized_feature_name(name_column, get_default_mp_method())
 
-    async_result, itol_result = None, None
-    pool = None
-    if work_dir:
-        pool = ThreadPool()
-        new_tree = os.path.join(work_dir, get_named_tree_file(tree))
-        root.write(outfile=new_tree, format_root_node=True, format=3)
-        async_result = pool.map_async(func=_serialize_acr, iterable=((acr_res, work_dir) for acr_res in acr_results))
+    itol_result = None
+    pool = ThreadPool()
+    new_tree = os.path.join(work_dir, get_named_tree_file(tree))
+    root.write(outfile=new_tree, format_root_node=True, format=3)
+    async_result = pool.map_async(func=_serialize_acr, iterable=((acr_res, work_dir) for acr_res in acr_results))
+    if upload_to_itol:
         itol_result = pool.apply_async(func=generate_itol_annotations,
-                                       args=(column2states, work_dir, acr_results, state_df, date_column, tip2date))
+                                       args=(column2states, work_dir, acr_results, state_df, date_column, tip2date,
+                                             new_tree, itol_id, itol_project,
+                                             itol_tree_name))
 
     if html or html_compressed:
         logger.debug('\n=============VISUALISATION=====================')
@@ -422,10 +437,11 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                   html=html, html_compressed=html_compressed, years=years, tip2date=tip2date,
                   name_column=name_column, tip_size_threshold=tip_size_threshold, date_column=date_column)
 
-    if async_result:
-        async_result.wait()
+    async_result.wait()
+    if itol_result:
         itol_result.wait()
-        pool.close()
+    pool.close()
+
     return root
 
 
@@ -484,11 +500,14 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
                                      _quote(unknown_columns),
                                      'is' if len(unknown_columns) == 1 else 'are',
                                      _quote(df.columns)))
+        df = df[columns]
+
+    df.columns = [col_name2cat(column) for column in df.columns]
 
     node_names = {n.name for n in root.traverse() if n.name}
     df_index_names = set(df.index)
-    df = df.loc[node_names & df_index_names, :]
-    if not df.shape[0]:
+    filtered_df = df.loc[node_names & df_index_names, :]
+    if not filtered_df.shape[0]:
         tip_name_representatives = []
         for _ in root.iter_leaves():
             if len(tip_name_representatives) < 3:
@@ -501,9 +520,6 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
                                  ', '.join(list(df_index_names)[: min(len(df_index_names), 3)])))
     logger.debug('Checked that tip names correspond to annotation file index.')
 
-    if columns:
-        df = df[columns]
-    df.columns = [col_name2cat(column) for column in df.columns]
     if html_compressed and name_column:
         name_column = col_name2cat(name_column)
         if name_column not in df.columns:
@@ -512,16 +528,16 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
     elif len(df.columns) == 1:
         name_column = df.columns[0]
 
-    percentage_unknown = df.isnull().sum(axis=0) / df.shape[0]
+    percentage_unknown = filtered_df.isnull().sum(axis=0) / filtered_df.shape[0]
     max_unknown_percentage = percentage_unknown.max()
     if max_unknown_percentage >= (.9 if not copy_only else 1):
         raise ValueError('{:.1f}% of tip annotations for column "{}" are unknown, '
                          'not enough data to infer ancestral states. '
                          'Check your annotation file and if its id column corresponds to the tree tip names.'
                          .format(max_unknown_percentage * 100, percentage_unknown.idxmax()))
-    percentage_unique = df.nunique() / df.count()
+    percentage_unique = filtered_df.nunique() / filtered_df.count()
     max_unique_percentage = percentage_unique.max()
-    if df.count()[0] > 100 and max_unique_percentage > .5:
+    if filtered_df.count()[0] > 100 and max_unique_percentage > .5:
         raise ValueError('The column "{}" seem to contain non-categorical data: {:.1f}% of values are unique. '
                          'PASTML cannot infer ancestral states for a tree with too many tip states.'
                          .format(percentage_unique.idxmax(), 100 * max_unique_percentage))
@@ -672,16 +688,31 @@ def main():
     out_group.add_argument('--work_dir', required=False, default=None, type=str,
                            help="path to the folder where pastml parameter, named tree "
                                 "and marginal probability (for marginal ML methods ({}) only) files are to be stored. "
-                                "If the specified folder does not exist, it will be created."
+                                "Default is <path_to_input_file>/<input_file_name>_pastml. "
+                                "If the folder does not exist, it will be created."
                            .format(', '.join(MARGINAL_ML_METHODS)))
     out_group.add_argument('-p', '--html_compressed', required=False, default=None, type=str,
                            help="path to the output compressed map visualisation file (html).")
     out_group.add_argument('-l', '--html', required=False, default=None, type=str,
                            help="path to the output full tree visualisation file (html).")
+    out_group.add_argument('-v', '--verbose', action='store_true',
+                           help="print information on the progress of the analysis (to console)")
 
-    parser.add_argument('-v', '--verbose', action='store_true',
-                        help="print information on the progress of the analysis")
-    parser.add_argument('--version', action='version', version='%(prog)s 1.9.7')
+    parser.add_argument('--version', action='version', version='%(prog)s 1.9.8')
+
+    itol_group = parser.add_argument_group('iTOL-related arguments')
+    itol_group.add_argument('--upload_to_itol', action='store_true',
+                            help="upload the ACR annotated tree to iTOL (https://itol.embl.de/)")
+    itol_group.add_argument('--itol_id', required=False, default=None, type=str,
+                            help="iTOL user batch upload ID that enables uploading to your iTOL account "
+                                 "(see https://itol.embl.de/help.cgi#batch). "
+                                 "If not specified, the tree will not be associated to any account.")
+    itol_group.add_argument('--itol_project', required=False, default=None, type=str,
+                            help="iTOL project the annotated tree should be associated with "
+                                 "(must exist, and --itol_id must be specified). "
+                                 "If not specified, the tree will not be associated with any project.")
+    itol_group.add_argument('--itol_tree_name', required=False, default=None, type=str,
+                            help="name for the tree uploaded to iTOL.")
 
     params = parser.parse_args()
 

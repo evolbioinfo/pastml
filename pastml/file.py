@@ -3,6 +3,8 @@ import os
 from pastml import col_name2cat
 from pastml.ml import is_ml, is_marginal
 
+PASTML_WORK_DIR = '{tree}_pastml'
+
 COMBINED_ANCESTRAL_STATE_TAB = 'combined_ancestral_states.tab'
 NAMED_TREE_NWK = 'named.tree_{tree}'
 
@@ -35,6 +37,16 @@ def get_combined_ancestral_state_file():
     :return: str, filename
     """
     return COMBINED_ANCESTRAL_STATE_TAB
+
+
+def get_pastml_work_dir(tree):
+    """
+    Get the pastml work dir path.
+
+    :param tree: str, path to the input tree.
+    :return: str, filename
+    """
+    return PASTML_WORK_DIR.format(tree=os.path.splitext(tree)[0])
 
 
 def get_named_tree_file(tree):

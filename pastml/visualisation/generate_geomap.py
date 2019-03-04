@@ -61,16 +61,18 @@ def generate_map(data, country, location, html, tree=None, data_sep='\t', id_ind
     if location not in df.columns:
         raise ValueError('The location column {} not found among the annotation columns: {}.'
                          .format(location, df.columns))
-    if tree:
-        df = df[np.in1d(df.index.astype(np.str), [_.name for _ in read_tree(tree)])]
     df.sort_values(by=[location], inplace=True, na_position='last')
     ddf = df.drop_duplicates(subset=[country], inplace=False, keep='first')
     country2location = {c: l for c, l in zip(ddf[country], ddf[location]) if not pd.isnull(c) and not pd.isnull(l)}
+    if tree:
+        df = df[np.in1d(df.index.astype(np.str), [_.name for _ in read_tree(tree)])]
+    unique_countries = {_ for _ in df[country].unique() if not pd.isnull(_)}
     if ISO_EXISTS:
         country2iso = {_: Country.get_iso2_from_iso3(iso) for (_, iso) in
-                       ((_, Country.get_iso3_country_code_fuzzy(_)[0]) for _ in country2location.keys()) if iso}
+                       ((_, Country.get_iso3_country_code_fuzzy(_)[0]) for _ in country2location.keys())
+                       if iso and _ in unique_countries}
     else:
-        country2iso = {_: escape(_) for _ in country2location.keys()}
+        country2iso = {_: escape(_) for _ in country2location.keys() if _ in unique_countries}
     iso2num = {iso: len(df[df[country] == c]) for c, iso in country2iso.items()}
     iso2loc = {iso: country2location[c] for c, iso in country2iso.items()}
     iso2loc_num = {iso: len(df[df[location] == loc]) for iso, loc in iso2loc.items()}
