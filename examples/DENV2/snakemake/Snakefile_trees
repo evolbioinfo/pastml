@@ -19,31 +19,9 @@ tree_types = ['raxml', 'fast', 'phyml']
 
 rule all:
     input:
-        os.path.join(data_dir, 'real', 'iTOL', 'iTOL_colorstrip-genotype.txt'),
-        expand(os.path.join(data_dir, 'resampled', '{n}', 'iTOL', 'iTOL_colorstrip-genotype.txt'), n=range(5)),
-
         expand(os.path.join(data_dir, 'real', '{type}_tree.dated.nwk'), type=tree_types),
         expand(os.path.join(data_dir, 'resampled', '{n}', '{type}_tree.dated.nwk'), type=tree_types, n=range(5)),
-
         distances = expand(os.path.join(data_dir, 'real', 'distances_all_trees.tab'))
-
-
-rule table2itol:
-    '''
-    Extracts itol metadata
-    '''
-    input:
-        data = os.path.join(data_dir, '{prefix}', 'metadata.tab')
-    output:
-        os.path.join(data_dir, '{prefix}', 'iTOL', 'iTOL_colorstrip-genotype.txt')
-    singularity:
-        "docker://evolbioinfo/table2itol:latest"
-    params:
-        mem = 2000,
-        name = 'loc_metadata',
-        wd = os.path.join(data_dir, '{prefix}', 'iTOL')
-    threads: 1
-    shell: "table2itol.R -i accession {input.data} -D {params.wd}"
 
 rule fasttree:
     '''
