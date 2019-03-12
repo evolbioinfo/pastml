@@ -698,7 +698,7 @@ def main():
     out_group.add_argument('-v', '--verbose', action='store_true',
                            help="print information on the progress of the analysis (to console)")
 
-    parser.add_argument('--version', action='version', version='%(prog)s 1.9.8')
+    parser.add_argument('--version', action='version', version='%(prog)s 1.9.9')
 
     itol_group = parser.add_argument_group('iTOL-related arguments')
     itol_group.add_argument('--upload_to_itol', action='store_true',
