@@ -24,18 +24,15 @@ locs = ['Location']
 
 rule all:
     input:
-        expand(os.path.join(data_dir, maps_dir, '{loc}', 'real', 'geo_map_{loc}.html'), loc=locs),
-        expand(os.path.join(data_dir, maps_dir, '{loc}', 'resampled', '{n}', 'geo_map_{loc}.html'), loc=locs, n=range(5)),
+        expand(os.path.join(data_dir, maps_dir, 'real', 'geo_map_{loc}.html'), loc=locs),
+        expand(os.path.join(data_dir, maps_dir, 'resampled', '{n}', 'geo_map_{loc}.html'), loc=locs, n=range(5)),
 
-        expand(os.path.join(data_dir, maps_dir, '{loc}', 'real', 'acr_map_{loc}_{type}_tree.dated.html'),
-        type=tree_types, loc=locs),
-        expand(os.path.join(data_dir, maps_dir, '{loc}', 'resampled', '{n}', 'acr_map_{loc}_{type}_tree.dated.html'),
-        type=tree_types, loc=locs, n=range(5)),
+        expand(os.path.join(data_dir, maps_dir, 'real', 'acr_map_{loc}_{type}_tree.dated.html'), type=tree_types, loc=locs),
+        expand(os.path.join(data_dir, maps_dir, 'resampled', '{n}', 'acr_map_{loc}_{type}_tree.dated.html'),
+        type=['raxml'], loc=locs, n=range(5)),
 
-        expand(os.path.join(data_dir, maps_dir, '{loc}.genotype', 'real', 'acr_map_{loc}.genotype_{type}_tree.dated.html'),
-        type=tree_types, loc=locs),
-        expand(os.path.join(data_dir, maps_dir, '{loc}.genotype', 'resampled', '{n}', 'acr_map_{loc}.genotype_{type}_tree.dated.html'),
-        type=tree_types, loc=locs, n=range(5)),
+        expand(os.path.join(data_dir, maps_dir, 'real', 'acr_map_{loc}.genotype_{type}_tree.dated.html'),
+        type=['raxml'], loc=locs),
 
 rule pastml_loc_genotype:
     '''
@@ -44,10 +41,10 @@ rule pastml_loc_genotype:
     input:
         tree = os.path.join(data_dir, '{prefix}', '{tree}.nwk'),
         data = os.path.join(data_dir, '{prefix}', 'metadata.tab'),
-        param = os.path.join(data_dir, 'pastml', '{loc}', '{prefix}', '{tree}', 'params.character_{loc}.method_MPPA.model_F81.tab')
+        param = os.path.join(data_dir, 'pastml', '{prefix}', '{tree}', 'params.character_{loc}.method_MPPA.model_F81.tab')
     output:
-        map = os.path.join(data_dir, maps_dir, '{loc}.genotype', '{prefix}', 'acr_map_{loc}.genotype_{tree}.html'),
-        tree = os.path.join(data_dir, maps_dir, '{loc}.genotype', '{prefix}', 'acr_tree_{loc}.genotype_{tree}.html')
+        map = os.path.join(data_dir, maps_dir, '{prefix}', 'acr_map_{loc}.genotype_{tree}.html'),
+        tree = os.path.join(data_dir, maps_dir, '{prefix}', 'acr_tree_{loc}.genotype_{tree}.html')
     threads: 3
     singularity: "docker://evolbioinfo/pastml:v1.9.8"
     params:
@@ -55,14 +52,16 @@ rule pastml_loc_genotype:
         name = 'pastml_{loc}_gt',
         loc = '{loc}',
         date_col = 'year',
-        wd = os.path.join(data_dir, 'pastml', '{loc}.genotype', '{prefix}', '{tree}'),
-        tree = "{tree}"
+        wd = os.path.join(data_dir, 'pastml', '{prefix}', '{tree}'),
+        tree = "{tree}",
+        qos = "fast",
+        prefix = "{prefix}"
     shell:
         """
         pastml --tree {input.tree} --data {input.data} \
         --html_compressed {output.map} --html {output.tree} --columns {params.loc} genotype  --name_column {params.loc} \
         --date_column {params.date_col} -v --work_dir {params.wd} --parameters {input.param} \
-        --upload_to_itol --itol_id ZxuhG2okfKLQnsgd5xAEGQ --itol_project DENV2 --itol_tree_name {params.tree}
+        --upload_to_itol --itol_tree_name {params.tree}_{params.prefix} --itol_id ZxuhG2okfKLQnsgd5xAEGQ --itol_project DENV2
         """
 
 rule pastml_loc:
@@ -73,9 +72,9 @@ rule pastml_loc:
         tree = os.path.join(data_dir, '{prefix}', '{tree}.nwk'),
         data = os.path.join(data_dir, '{prefix}', 'metadata.tab'),
     output:
-        map = os.path.join(data_dir, maps_dir, '{loc}', '{prefix}', 'acr_map_{loc}_{tree}.html'),
-        tree = os.path.join(data_dir, maps_dir, '{loc}', '{prefix}', 'acr_tree_{loc}_{tree}.html'),
-        param = os.path.join(data_dir, 'pastml', '{loc}', '{prefix}', '{tree}', 'params.character_{loc}.method_MPPA.model_F81.tab')
+        map = os.path.join(data_dir, maps_dir, '{prefix}', 'acr_map_{loc,(Location|Country)}_{tree}.html'),
+        tree = os.path.join(data_dir, maps_dir, '{prefix}', 'acr_tree_{loc}_{tree}.html'),
+        param = os.path.join(data_dir, 'pastml', '{prefix}', '{tree}', 'params.character_{loc}.method_MPPA.model_F81.tab')
     threads: 2
     singularity: "docker://evolbioinfo/pastml:v1.9.8"
     params:
@@ -83,7 +82,8 @@ rule pastml_loc:
         name = 'pastml_{loc}',
         loc = '{loc}',
         date_col = 'year',
-        wd = os.path.join(data_dir, 'pastml', '{loc}', '{prefix}', '{tree}'),
+        wd = os.path.join(data_dir, 'pastml', '{prefix}', '{tree}'),
+        qos = "fast",
     shell:
         """
         pastml --tree {input.tree} --data {input.data} \
@@ -98,13 +98,14 @@ rule geomap:
     input:
         data = os.path.join(data_dir, '{prefix}', 'metadata.tab'),
     output:
-        geo_map = os.path.join(data_dir, maps_dir, '{loc}', '{prefix}', 'geo_map_{loc}.html'),
+        geo_map = os.path.join(data_dir, maps_dir, '{prefix}', 'geo_map_{loc}.html'),
     threads: 1
     params:
         mem = 4000,
         name = 'geomap_{loc}',
         loc = '{loc}',
-        country_col = 'Country'
+        country_col = 'Country',
+        qos = "fast"
     singularity: "docker://evolbioinfo/pastml:v1.9.8"
     shell:
         """
