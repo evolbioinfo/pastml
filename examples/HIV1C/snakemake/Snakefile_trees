@@ -8,7 +8,7 @@ import os
 
 
 localrules: all, drm_data, tnt
-ruleorder: phyml > fasttree > best_tree
+ruleorder: phyml
 
 folder = os.path.abspath(config["folder"])
 data_dir = os.path.join(folder, 'data')
@@ -19,12 +19,10 @@ data_phy = os.path.join(data_dir, 'HIV-1C.tab')
 # Number of different tree topologies to be analysed
 n=5
 
-# choose one or more of the tree types below
-tree_types = ['fast', 'phyml']
+tree_types = ['phyml']
 
 rule all:
     input:
-        dists = expand(os.path.join(data_dir, 'distances_{type}_trees.tab'), type=tree_types),
         drm_prevalence = os.path.join(data_dir, 'prevalence.tab'),
         best_trees = expand(os.path.join(data_dir, 'best', 'pastml_{type}_tree.nwk'), type=tree_types),
         metadata = os.path.join(data_dir, 'metadata.tab')
@@ -285,26 +283,6 @@ rule nex2nwk:
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell: "python3 {folder}/py/nex2nwk.py --trees {input.trees} --pattern {params.tree_pattern}"
 
-
-rule fasttree:
-    '''
-    Reconstructs a tree with FastTree.
-    '''
-    input:
-        aln = os.path.join(data_dir, 'aln.nodrm.fa'),
-        tree = os.path.join(data_dir, '{n}', 'pars_tree.nwk')
-    output:
-        tree = os.path.join(data_dir, '{n}', 'fast_tree.nwk'),
-        log = os.path.join(data_dir, '{n}', 'fast_tree.log')
-    threads: 12
-    singularity: "docker://evolbioinfo/fasttree:v2.1.10"
-    params:
-        mem = 8000,
-        name='fast_{n}',
-        qos = 'normal'
-    shell: "FastTree -gamma -nt -gtr -cat 6 -slow -intree {input.tree} -log {output.log} < {input.aln} > {output.tree}"
-
-
 rule phyml:
     '''
     Reconstructs a tree with PhyML.
@@ -360,7 +338,7 @@ rule root:
         tree = os.path.join(data_dir, '{tree}.nwk'),
         ids = [os.path.join(data_dir, 'ids_C.txt')]
     output:
-        tree = os.path.join(data_dir, '{tree}.rooted.nwk')
+        tree = temp(os.path.join(data_dir, '{tree}.rooted.nwk'))
     threads: 1
     params:
         mem = 500,
@@ -376,7 +354,7 @@ rule collapse:
     input:
         tree = os.path.join(data_dir, '{tree}.nwk'),
     output:
-        tree = os.path.join(data_dir, '{tree}.collapsed_{feature}_{threshold}.nwk'),
+        tree = temp(os.path.join(data_dir, '{tree}.collapsed_{feature}_{threshold}.nwk')),
     threads: 1
     params:
         mem = 500,
@@ -430,66 +408,6 @@ rule best_tree:
         python3 {folder}/py/get_best_tree.py --trees {input.trees} --logs {input.logs} \
         --out_tree {output.tree} --out_log {output.log} --type {params.type}
         """
-
-rule compare_trees:
-    '''
-    Calculates RF and quantet distances between the trees.
-    '''
-    input:
-        trees = os.path.join(data_dir, '{trees}.nwk'),
-        names = os.path.join(data_dir, '{trees}.names'),
-        qt = os.path.join(data_dir, 'distances_{trees}.quartet.tab'),
-    output:
-        log = os.path.join(data_dir, 'distances_{trees}.tab')
-    threads: int(n * (n - 1) / 2)
-    params:
-        mem = 10000,
-        name = 'dist_{trees}',
-        qos = 'fast'
-    singularity: "docker://evolbioinfo/python-evol:v3.6"
-    shell:
-        """
-        python3 {folder}/py/compare_trees.py --trees {input.trees} --labels {input.names} \
-        --output {output.log} --qt {input.qt}
-        """
-
-rule merge_nwk_same_type:
-    '''
-    Merge multiple one-tree newick files into one multiple-tree newick file.
-    '''
-    input:
-        trees = expand(os.path.join(data_dir, '{n}', '{{type}}_tree.nwk'), n=range(n))
-    output:
-        trees = os.path.join(data_dir, '{type}_trees.nwk'),
-        names = os.path.join(data_dir, '{type}_trees.names')
-    params:
-        mem = 1000,
-        name = 'merge_nwk',
-        qos = 'fast',
-        names = '\t'.join(str(_) for _ in range(n))
-    threads: 1
-    shell:
-        """
-        ls {input.trees} | xargs cat >> {output.trees}
-        echo "{params.names}" >> {output.names}
-        """
-
-rule quartet_dists:
-    '''
-    Calculates quartet distances with tqDist.
-    '''
-    input:
-        trees = os.path.join(data_dir, '{trees}.nwk')
-    output:
-        log = temp(os.path.join(data_dir, 'distances_{trees}.quartet.tab')),
-    threads: 1
-    singularity: "docker://evolbioinfo/tqdist:v1.0.1"
-    params:
-        mem = 8000,
-        name = 'tqdist_{trees}',
-        qos = 'fast'
-    shell: "all_pairs_quartet_dist {input} {output}"
-
 
 rule prevalence:
     '''
