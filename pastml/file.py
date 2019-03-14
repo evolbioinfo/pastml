@@ -1,6 +1,6 @@
 import os
 
-from parsimony import is_meta_mp, get_default_mp_method
+from pastml.parsimony import is_meta_mp, get_default_mp_method
 from pastml import col_name2cat, get_personalized_feature_name
 from pastml.ml import is_ml, is_marginal, is_meta_ml, get_default_ml_method
 
