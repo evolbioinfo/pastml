@@ -1,17 +1,20 @@
-# pastml
+# PastML
 
-__PastML__ is a python3 module that provides fast methods for Ancestral Character Reconstruction (ACR) and visualisation
-on rooted phylogenetic trees.
+__PastML__ provides fast methods for Ancestral Character Reconstruction (ACR) and visualisation
+on rooted phylogenetic trees. Given a rooted tree and its node annotations, it can either visualise them as-is, 
+or infer ancestral node states based on the tip states, with a selection of maximum likelihood and parsimonious methods. 
+The result is then visualised as a zoomable html map.
 
-Given a rooted tree and its node annotations, it can either visualise them as-is, 
-or infer ancestral node states based on the tip states. The states can then be visualised as different colours on the tree nodes. 
-To simplify the visualization of large trees, we compress tree parts with to state changes. 
+#### Article
+
+Ishikawa SA, Zhukova A, Iwasaki W, Gascuel O (2018) __A Fast Likelihood Method to Reconstruct and Visualize Ancestral Scenarios__ [[bioRxiv]](https://doi.org/10.1101/379529).
+
+## How it works
 
 For detailed description of the ACR methods, and visualization procedure used in __PastML__ please visit our [help page](https://pastml.pasteur.fr/help).
 
-# Article
-
-Ishikawa SA, Zhukova A, Iwasaki W, Gascuel O (2018) __A Fast Likelihood Method to Reconstruct and Visualize Ancestral Scenarios__ [[bioRxiv]](https://doi.org/10.1101/379529).
+## Try it online
+Try __PastML__ at [pastml.pasteur.fr](https://pastml.pasteur.fr)
 
 # Input data
 As an input, one needs to provide a **rooted** phylogenetical tree in [newick](https://en.wikipedia.org/wiki/Newick_format) format,
@@ -36,10 +39,7 @@ id | Country
 02GRAY0303 | Greece
 97YUAF9960 | EastEurope
 
-# Try it online
-Try it at [pastml.pasteur.fr](https://pastml.pasteur.fr)
-
-# Run it on your computer
+# Installation
 
 There are 3 alternative ways to run __pastml__ on your computer: with [docker](https://www.docker.com/community-edition), [singularity](https://www.sylabs.io/singularity/) or in python3.
 
@@ -63,7 +63,7 @@ This will produce a file Albanian_map.html in the Downloads folder,
 that can be viewed with a browser.
 
 
-### Help
+#### Help
 
 To see advanced options, run
 ```bash
@@ -90,7 +90,7 @@ This will produce a file Albanian_map.html in the Downloads folder,
 that can be viewed with a browser.
 
 
-### Help
+#### Help
 
 To see advanced options, run
 ```bash
@@ -160,7 +160,7 @@ pastml --tree ~/Downloads/Albanian.tree.152tax.tre --data ~/Downloads/data.txt -
 This will produce a file Albanian_map.html in the Downloads folder, 
 that can be viewed with a browser.
 
-### Help
+#### Help
 
 To see advanced options, run:
 ```bash
