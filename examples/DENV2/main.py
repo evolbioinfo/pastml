@@ -1,6 +1,6 @@
 import os
 
-from ml import ML
+from pastml.ml import ML
 from pastml.acr import pastml_pipeline
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
