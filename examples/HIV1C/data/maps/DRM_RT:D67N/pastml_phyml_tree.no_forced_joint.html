@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+  font-family: helvetica,serif;
+  font-size: 14px;
+}
+
+#cy {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 10;
+  background-color: #FFFFFF;
+}
+
+h1 {
+  opacity: 0.5;
+  font-size: 1em;
+}
+
+.floating {
+    max-width: 30%;
+    width: 120px;
+    float: right;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+}
+
+.cy-button {
+    background-color: #555555;
+    border: none;
+    color: white;
+    padding: 6px 0px;
+    width: 100%;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 3px 10px 0 rgba(0,0,0,0.19);
+}
+
+a.cy-button:link, a.cy-button:visited, a.cy-button:hover {
+    color: white;
+    text-decoration: none;
+}
+
+
+.slidertext {
+    width: 100%;
+    color: #555555;
+    border: none;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+}
+
+.slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 15px;
+    text-align: center;
+    border-radius: 5px;
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.7;
+    -webkit-transition: .2s;
+    transition: opacity .2s;
+    margin: 10px 0px;
+    display: inline-block;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 3px 10px 0 rgba(0,0,0,0.19);
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: #555555;
+    cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: #555555;
+    cursor: pointer;
+}
+
+@media all and (max-width: 600px) {
+    .buttontext {
+        display: none;
+    }
+}
+
+
+</style>
+<meta charset=utf-8 />
+<meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
+<title>pastml_phyml_tree.no_forced_joint</title>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/dagre.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape-dagre.js"></script>
+
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/jquery.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/jquery.qtip.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape-qtip.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://pastml.pasteur.fr/static/css/jquery.qtip.min.css"/>
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"/>
+<meta http-Equiv="Cache-Control" Content="no-cache" />
+<meta http-Equiv="Pragma" Content="no-cache" />
+<meta http-Equiv="Expires" Content="0" />
+</head>
+<body>
+<div id="fullscreenDiv">
+<div id="cy"></div>
+<div class="floating">
+    <a class="cy-button" href="#" id="fit" onclick="fit()">
+        <span class="glyphicon glyphicon-resize-full"></span><span class="buttontext">  Fit screen</span>
+    </a>
+    <a class="cy-button" href="#" id="reset" onclick="resetLayout()">
+        <span class="glyphicon glyphicon-picture"></span><span class="buttontext">  Layout</span>
+    </a>
+    <a class="cy-button" href="#" id="downloader" onclick="toImage()" download="pastml_phyml_tree.no_forced_joint.jpg">
+        <span class="glyphicon glyphicon-save"></span><span class="buttontext">  Save (jpg)</span>
+    </a>
+    <a class="cy-button" href="#" id="fullscreen" onclick="toggleFullScreen()">
+        <span id="fsspan" class="glyphicon glyphicon-fullscreen"></span><span id="fstext" class="buttontext">  Full screen</span>
+    </a>
+    
+<div class="slidecontainer">
+  <input type="range" min="0" max="5" value="5" class="slider" id="myRange" step="1">
+  <div class="slidertext">Year: <span id="demo"></span></div>
+</div>
+</div></div>
+<!-- Load appplication code at the end to ensure DOM is loaded -->
+<script type="text/javascript">
+var layoutOptions = {
+    name: 'dagre',
+    nodesep: 10, // the separation between adjacent nodes in the same rank
+    edgeSep: 10, // the separation between adjacent edges in the same rank
+    rankSep: 80, // the separation between adjacent ranks
+    rankDir: 'TB', // 'TB' for top to bottom flow, 'LR' for left to right,
+    ranker: 'longest-path', // Type of algorithm to assign a rank to each node in the input graph. Possible values: 'network-simplex', 'tight-tree' or 'longest-path'
+    minLen: 1, // number of ranks to keep between the source and target of the edge
+
+    // general layout options
+    fit: true, // whether to fit to viewport
+    padding: 1, // fit padding
+    spacingFactor: undefined, // Applies a multiplicative factor (>0) to expand or compress the overall area that the nodes take up
+    nodeDimensionsIncludeLabels: true, // whether labels should be included in determining the space used by a node
+    animate: false, // whether to transition the node positions
+    animateFilter: function( node, i ){ return true; }, // whether to animate specific nodes when animation is on; non-animated nodes immediately go to their final positions
+    animationDuration: 500, // duration of animation in ms if enabled
+    animationEasing: undefined, // easing of animation if enabled
+    boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
+    transform: function( node, pos ){ return pos; }, // a function that applies a transform to the final node position
+    ready: function(){}, // on layoutready
+    stop: function(){} // on layoutstop
+  };
+
+var cy = cytoscape({
+  container: document.getElementById('cy'),
+
+  style: cytoscape.stylesheet()
+    .selector('node')
+      .css({
+        'width': 300,
+        'height': 300,
+        'content': '',
+        'shape': 'ellipse',
+        'pie-size': '100%',
+        'background-color': '#909090',
+        'color': '#383838',
+        'text-opacity': 1,
+        'text-valign': 'center',
+        'text-halign': 'center',
+        'font-size': 80,
+        'text-halign' : 'center',
+        'text-valign' : 'center',
+        'min-zoomed-font-size': 12,
+        'text-background-color' : '#ffffff',
+        'text-background-shape' : 'roundrectangle',
+        'text-background-opacity': .3,
+        'text-background-padding' : 1,
+      })
+    .selector('node[node_name]')
+      .css({
+        'content': 'data(node_name)',
+      })
+    .selector('node[tip]')
+      .css({
+        'width': 400,
+        'height': 400,
+        'font-size': 100,
+      })
+    .selector('node[unresolved]')
+      .css({
+        'shape': 'octagon',
+        'pie-size': '92%',
+        'width': 500,
+        'height': 500,
+        'font-size': 125,
+      })
+    .selector('node[node_size]')
+      .css({
+        'width': 'data(node_size)',
+        'height': 'data(node_size)',
+      })
+    .selector('node[node_fontsize]')
+      .css({
+        'font-size': 'data(node_fontsize)',
+      })
+    
+    .selector(".resistant")
+        .css({
+        
+                'pie-1-background-color': "#d95f02",
+                'pie-1-background-size': '100.0\%',
+            
+        })
+    
+    .selector(".resistant-sensitive")
+        .css({
+        
+                'pie-1-background-color': "#d95f02",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".sensitive")
+        .css({
+        
+                'pie-1-background-color': "#1b9e77",
+                'pie-1-background-size': '100.0\%',
+            
+        })
+    
+    .selector('edge')
+      .css({
+        'width': 50,
+        'font-size': 80,
+        'color': 'black',
+        'content': '',
+        'curve-style': 'bezier',
+        'target-arrow-shape': 'triangle',
+        'target-arrow-color': '#909090',
+        'opacity': 0.8,
+        'text-opacity': 1,
+        'line-color': '#909090',
+        'text-background-color' : '#ffffff',
+        'text-background-shape' : 'roundrectangle',
+        'text-background-opacity': 1,
+        'text-background-padding' : 4,
+        'min-zoomed-font-size': 10,
+      })
+    .selector('edge[edge_meta]')
+      .css({
+        'line-color': '#383838',
+        'target-arrow-color': '#383838',
+      })
+    .selector('edge[edge_name]')
+      .css({
+        'content': 'data(edge_name)',
+      })
+    .selector('edge[edge_size]')
+      .css({
+        'width': 'data(edge_size)',
+        'font-size': 'data(edge_size)',
+      })
+    .selector(':selected')
+      .css({
+        'background-color': 'black',
+        'line-color': 'black',
+        'target-arrow-color': 'black',
+        'source-arrow-color': 'black',
+        'pie-size': '60%',
+        'opacity': 1
+      })
+    .selector('.faded')
+      .css({
+        'opacity': 0.25,
+        'text-opacity': 0
+      }),
+
+  elements: {'nodes': [{'data': {'node_all_tips_4': ' 3552', 'node_all_tips_0': ' 2', 'node_names_2': 'ROOT', 'node_fontsize_1': 115, 'node_all_tips_2': ' 89', 'node_fontsize_0': 83, 'node_all_tips_5': ' 3614', 'node_fontsize_3': 221, 'node_in_ns_1': ' 182', 'node_names_5': 'ROOT', 'node_in_ns_5': ' 3546', 'node_size_3': 1438, 'node_name_2': 'sensitive 88', 'node_all_tips_1': ' 18', 'date': 0, 'node_size_5': 1599, 'node_in_tips_3': ' 1457', 'node_in_tips_4': ' 3384', 'node_name_5': 'sensitive 3445', 'node_names_3': 'ROOT', 'node_in_ns': ' 3546', 'node_in_ns_0': ' 43', 'node_fontsize_4': 239, 'node_size_4': 1596, 'node_all_tips_3': ' 1510', 'node_in_ns_3': ' 2650', 'node_name_1': 'sensitive 18', 'node_fontsize': 240, 'node_names': 'ROOT', 'node_size_1': 512, 'node_fontsize_5': 239, 'node_in_tips_0': ' 2', 'node_names_0': 'ROOT', 'node_in_tips_2': ' 88', 'node_names_1': 'ROOT', 'node_size_2': 850, 'node_name_4': 'sensitive 3384', 'node_in_tips_5': ' 3445', 'node_in_tips_1': ' 18', 'node_all_tips': ' 3619', 'node_size': 1600, 'node_in_ns_4': ' 3543', 'node_name_0': 'sensitive 2', 'node_name': 'sensitive 3450', 'node_fontsize_2': 154, 'node_in_ns_2': ' 536', 'node_names_4': 'ROOT', 'node_size_0': 232, 'node_in_tips': ' 3450', 'node_name_3': 'sensitive 1457', 'id': 0, 'tooltip': 'RTD67N: sensitive'}, 'classes': 'sensitive'}, {'data': {'node_all_tips_4': ' 12', 'node_all_tips_5': ' 12', 'node_fontsize_3': 80, 'node_names_5': 'node_3420', 'node_in_ns_5': ' 11', 'node_size_3': 200, 'date': 3, 'node_size_5': 373, 'node_in_tips_3': ' 1', 'node_in_tips_4': ' 8', 'node_name_5': 'resistant 8', 'node_names_3': 'node_3420', 'node_in_ns': ' 11', 'node_fontsize_4': 99, 'node_size_4': 373, 'node_all_tips_3': ' 1', 'node_in_ns_3': ' 5', 'node_fontsize': 99, 'node_names': 'node_3420', 'node_fontsize_5': 99, 'node_name_4': 'resistant 8', 'node_in_tips_5': ' 8', 'node_all_tips': ' 12', 'node_size': 373, 'node_in_ns_4': ' 11', 'node_name': 'resistant 8', 'node_names_4': 'node_3420', 'node_in_tips': ' 8', 'node_name_3': 'resistant 1', 'id': 1, 'tooltip': 'RTD67N: resistant'}, 'classes': 'resistant'}, {'data': {'node_all_tips_4': ' 9', 'node_all_tips_5': ' 9', 'node_names_5': 'node_3398', 'node_in_ns_5': ' 8', 'date': 4, 'node_size_5': 334, 'node_in_tips_4': ' 6', 'node_name_5': 'resistant 6', 'node_in_ns': ' 8', 'node_fontsize_4': 95, 'node_size_4': 334, 'node_fontsize': 95, 'node_names': 'node_3398', 'node_fontsize_5': 95, 'node_name_4': 'resistant 6', 'node_in_tips_5': ' 6', 'node_all_tips': ' 9', 'node_size': 334, 'node_in_ns_4': ' 8', 'node_name': 'resistant 6', 'node_names_4': 'node_3398', 'node_in_tips': ' 6', 'id': 2, 'tooltip': 'RTD67N: resistant'}, 'classes': 'resistant'}, {'data': {'node_all_tips_4': ' 1-3', 'node_names_2': 'node_1245', 'node_all_tips_2': ' 1', 'node_meta_5': 1, 'node_all_tips_5': ' 1-3', 'node_fontsize_3': 83, 'node_names_5': 'AF286228, AJ270550, AY589870, AY589872, AY589875, AY589877, AY589879, AY589880, AY589882, AY589886, AY589891, AY589893, AY589894, AY589900, AY589901, AY589912, AY589918, AY589925, AY589928, AY589935, AY727522, DQ112986, DQ113348, DQ113379, DQ826620, DQ826631, DQ826657, DQ826658, DQ826665, DQ877803, DQ878136, DQ878365, DQ879070, EF186965, EF186968, EF186969, EF186970, EF186978, EF186979, EF186982, EF186986, EF186988, EU158875, EU781839, EU781842, EU781843, EU854479, EU854553, EU856363, FJ445708, FJ591180, FJ591190, FJ591317, FJ591344, FJ591376, FJ591381, FJ591402, FJ591441, FJ591444, FJ591506, FJ591527, FJ591541, FJ591551, FJ591574, FJ591594, FJ591648, FJ591954, FJ907466, GQ241122, GU324882, HE588157, HE588158, HM191527, HM191531, HM191536, HQ456667, HQ456669, HQ843636, MF373132, node_1245, node_1792, node_184, node_1858, node_2411, node_289, node_309, node_3300, node_551, node_612, node_98', 'node_in_ns_5': ' 0-2', 'node_size_3': 232, 'node_name_2': 'resistant 1', 'date': 2, 'node_size_5': 261, 'node_in_tips_3': ' 1-2', 'node_in_tips_4': ' 1-3', 'node_name_5': 'resistant 1-3', 'node_names_3': 'AF286228, AJ270550, AY589870, AY589872, AY589875, AY589877, AY589879, AY589880, AY589882, AY589886, AY589891, AY589893, AY589894, AY589900, AY589901, AY589912, AY589918, AY589925, AY589928, AY589935, DQ112986, DQ113348, DQ113379, DQ877803, DQ878136, DQ878365, DQ879070, FJ445708, FJ591954, HE588157, HE588158, node_1245, node_1792, node_1858, node_2411, node_3300, node_98', 'node_in_ns': ' 0-2', 'node_fontsize_4': 87, 'node_size_4': 261, 'node_all_tips_3': ' 1-2', 'node_in_ns_3': ' 0-1', 'node_fontsize': 87, 'node_names': 'AF286228, AJ270550, AY589870, AY589872, AY589875, AY589877, AY589879, AY589880, AY589882, AY589886, AY589891, AY589893, AY589894, AY589900, AY589901, AY589912, AY589918, AY589925, AY589928, AY589935, AY727522, DQ112986, DQ113348, DQ113379, DQ826620, DQ826631, DQ826657, DQ826658, DQ826665, DQ877803, DQ878136, DQ878365, DQ879070, EF186965, EF186968, EF186969, EF186970, EF186978, EF186979, EF186982, EF186986, EF186988, EU158875, EU781839, EU781842, EU781843, EU854479, EU854553, EU856363, FJ445708, FJ591180, FJ591190, FJ591317, FJ591344, FJ591376, FJ591381, FJ591402, FJ591441, FJ591444, FJ591506, FJ591527, FJ591541, FJ591551, FJ591574, FJ591594, FJ591648, FJ591954, FJ907466, GQ241122, GU324882, HE588157, HE588158, HM191527, HM191531, HM191536, HQ456667, HQ456669, HQ843636, MF373132, node_1245, node_1792, node_184, node_1858, node_2411, node_289, node_309, node_3300, node_551, node_612, node_98', 'node_fontsize_5': 87, 'node_in_tips_2': ' 1', 'node_meta_3': 1, 'node_size_2': 200, 'node_name_4': 'resistant 1-3', 'node_in_tips_5': ' 1-3', 'node_all_tips': ' 1-3', 'node_size': 261, 'node_in_ns_4': ' 0-2', 'node_meta_4': 1, 'node_name': 'resistant 1-3', 'node_meta': 1, 'node_fontsize_2': 80, 'node_in_ns_2': ' 1', 'node_names_4': 'AF286228, AJ270550, AY589870, AY589872, AY589875, AY589877, AY589879, AY589880, AY589882, AY589886, AY589891, AY589893, AY589894, AY589900, AY589901, AY589912, AY589918, AY589925, AY589928, AY589935, AY727522, DQ112986, DQ113348, DQ113379, DQ826620, DQ826631, DQ826657, DQ826658, DQ826665, DQ877803, DQ878136, DQ878365, DQ879070, EF186965, EF186968, EF186969, EF186970, EF186978, EF186979, EF186982, EF186986, EF186988, EU158875, EU781839, EU781842, EU781843, EU854479, EU854553, EU856363, FJ445708, FJ591180, FJ591190, FJ591317, FJ591344, FJ591376, FJ591381, FJ591402, FJ591441, FJ591444, FJ591506, FJ591527, FJ591541, FJ591551, FJ591574, FJ591594, FJ591648, FJ591954, FJ907466, GQ241122, GU324882, HE588157, HE588158, HM191527, HM191531, HM191536, HQ456667, HQ456669, HQ843636, MF373132, node_1245, node_1792, node_184, node_1858, node_2411, node_289, node_309, node_3300, node_551, node_612, node_98', 'node_in_tips': ' 1-3', 'node_name_3': 'resistant 1-2', 'id': 3, 'tip': 1, 'tooltip': 'RTD67N: resistant'}, 'classes': 'resistant'}, {'data': {'node_all_tips_4': ' 2', 'node_meta_5': 1, 'node_all_tips_5': ' 2', 'node_fontsize_3': 80, 'node_names_5': 'node_1951, node_554, node_587', 'node_in_ns_5': ' 1', 'node_size_3': 266, 'date': 3, 'node_size_5': 266, 'node_in_tips_3': ' 0', 'node_in_tips_4': ' 0', 'node_name_5': ' 0', 'node_names_3': 'node_1951, node_554, node_587', 'node_in_ns': ' 1', 'node_fontsize_4': 80, 'node_size_4': 266, 'node_all_tips_3': ' 1-2', 'node_in_ns_3': ' 1', 'node_fontsize': 80, 'node_names': 'node_1951, node_554, node_587', 'node_fontsize_5': 80, 'node_meta_3': 1, 'node_name_4': ' 0', 'node_in_tips_5': ' 0', 'node_all_tips': ' 2', 'node_size': 266, 'node_in_ns_4': ' 1', 'node_meta_4': 1, 'node_name': ' 0', 'node_meta': 1, 'node_names_4': 'node_1951, node_554, node_587', 'unresolved': 1, 'node_in_tips': ' 0', 'node_name_3': ' 0', 'id': 4, 'tooltip': 'RTD67N: resistant or sensitive'}, 'classes': 'resistant-sensitive'}, {'data': {'node_all_tips_4': ' 26', 'node_all_tips_5': ' 27', 'node_fontsize_3': 80, 'node_names_5': 'node_3583', 'node_in_ns_5': ' 12', 'node_size_3': 266, 'date': 3, 'node_size_5': 266, 'node_in_tips_3': ' 0', 'node_in_tips_4': ' 0', 'node_name_5': ' 0', 'node_names_3': 'node_3583', 'node_in_ns': ' 12', 'node_fontsize_4': 80, 'node_size_4': 266, 'node_all_tips_3': ' 4', 'node_in_ns_3': ' 9', 'node_fontsize': 80, 'node_names': 'node_3583', 'node_fontsize_5': 80, 'node_name_4': ' 0', 'node_in_tips_5': ' 0', 'node_all_tips': ' 27', 'node_size': 266, 'node_in_ns_4': ' 12', 'node_name': ' 0', 'node_names_4': 'node_3583', 'unresolved': 1, 'node_in_tips': ' 0', 'node_name_3': ' 0', 'id': 5, 'tooltip': 'RTD67N: resistant or sensitive'}, 'classes': 'resistant-sensitive'}, {'data': {'node_all_tips_4': ' 1', 'node_meta_5': 1, 'node_all_tips_5': ' 1', 'node_names_5': 'FJ591331, FJ591342, FJ591393, GQ401315', 'node_in_ns_5': ' 0', 'date': 4, 'node_size_5': 200, 'node_in_tips_4': ' 1', 'node_name_5': 'sensitive 1', 'node_in_ns': ' 0', 'node_fontsize_4': 80, 'node_size_4': 200, 'node_fontsize': 80, 'node_names': 'FJ591331, FJ591342, FJ591393, GQ401315', 'node_fontsize_5': 80, 'node_name_4': 'sensitive 1', 'node_in_tips_5': ' 1', 'node_all_tips': ' 1', 'node_size': 200, 'node_in_ns_4': ' 0', 'node_meta_4': 1, 'node_name': 'sensitive 1', 'node_meta': 1, 'node_names_4': 'FJ591331, FJ591342, FJ591393, GQ401315', 'node_in_tips': ' 1', 'id': 6, 'tip': 1, 'tooltip': 'RTD67N: sensitive'}, 'classes': 'sensitive'}, {'data': {'node_all_tips_4': ' 1', 'node_meta_5': 1, 'node_all_tips_5': ' 1', 'node_names_5': 'FJ591268, FJ591423, GQ401303', 'node_in_ns_5': ' 0', 'date': 4, 'node_size_5': 200, 'node_in_tips_4': ' 1', 'node_name_5': 'sensitive 1', 'node_in_ns': ' 0', 'node_fontsize_4': 80, 'node_size_4': 200, 'node_fontsize': 80, 'node_names': 'FJ591268, FJ591423, GQ401303', 'node_fontsize_5': 80, 'node_name_4': 'sensitive 1', 'node_in_tips_5': ' 1', 'node_all_tips': ' 1', 'node_size': 200, 'node_in_ns_4': ' 0', 'node_meta_4': 1, 'node_name': 'sensitive 1', 'node_meta': 1, 'node_names_4': 'FJ591268, FJ591423, GQ401303', 'node_in_tips': ' 1', 'id': 7, 'tip': 1, 'tooltip': 'RTD67N: sensitive'}, 'classes': 'sensitive'}, {'data': {'node_all_tips_4': ' 1', 'node_all_tips_5': ' 1', 'node_fontsize_3': 80, 'node_names_5': 'AY694256', 'node_in_ns_5': ' 0', 'node_size_3': 200, 'date': 3, 'node_size_5': 200, 'node_in_tips_3': ' 1', 'node_in_tips_4': ' 1', 'node_name_5': 'resistant 1', 'node_names_3': 'AY694256', 'node_in_ns': ' 0', 'node_fontsize_4': 80, 'node_size_4': 200, 'node_all_tips_3': ' 1', 'node_in_ns_3': ' 0', 'node_fontsize': 80, 'node_names': 'AY694256', 'node_fontsize_5': 80, 'node_name_4': 'resistant 1', 'node_in_tips_5': ' 1', 'node_all_tips': ' 1', 'node_size': 200, 'node_in_ns_4': ' 0', 'node_name': 'resistant 1', 'node_names_4': 'AY694256', 'node_in_tips': ' 1', 'node_name_3': 'resistant 1', 'id': 8, 'tip': 1, 'tooltip': 'RTD67N: resistant'}, 'classes': 'resistant'}, {'data': {'node_all_tips_4': ' 1', 'node_all_tips_5': ' 1', 'node_names_5': 'EU106120', 'node_in_ns_5': ' 0', 'date': 4, 'node_size_5': 200, 'node_in_tips_4': ' 1', 'node_name_5': 'sensitive 1', 'node_in_ns': ' 0', 'node_fontsize_4': 80, 'node_size_4': 200, 'node_fontsize': 80, 'node_names': 'EU106120', 'node_fontsize_5': 80, 'node_name_4': 'sensitive 1', 'node_in_tips_5': ' 1', 'node_all_tips': ' 1', 'node_size': 200, 'node_in_ns_4': ' 0', 'node_name': 'sensitive 1', 'node_names_4': 'EU106120', 'node_in_tips': ' 1', 'id': 9, 'tip': 1, 'tooltip': 'RTD67N: sensitive'}, 'classes': 'sensitive'}, {'data': {'node_all_tips_4': ' 1-5', 'node_meta_5': 1, 'node_all_tips_5': ' 1-5', 'node_fontsize_3': 80, 'node_names_5': 'FJ591389, FJ591430, FJ591466, node_3568, node_3573', 'node_in_ns_5': ' 0-4', 'node_size_3': 200, 'date': 3, 'node_size_5': 288, 'node_in_tips_3': ' 1', 'node_in_tips_4': ' 1-4', 'node_name_5': 'resistant 1-4', 'node_names_3': 'node_3568, node_3573', 'node_in_ns': ' 0-4', 'node_fontsize_4': 90, 'node_size_4': 288, 'node_all_tips_3': ' 1', 'node_in_ns_3': ' 2', 'node_fontsize': 90, 'node_names': 'FJ591389, FJ591430, FJ591466, node_3568, node_3573', 'node_fontsize_5': 90, 'node_meta_3': 1, 'node_name_4': 'resistant 1-4', 'node_in_tips_5': ' 1-4', 'node_all_tips': ' 1-5', 'node_size': 288, 'node_in_ns_4': ' 0-4', 'node_meta_4': 1, 'node_name': 'resistant 1-4', 'node_meta': 1, 'node_names_4': 'FJ591389, FJ591430, FJ591466, node_3568, node_3573', 'node_in_tips': ' 1-4', 'node_name_3': 'resistant 1', 'id': 10, 'tip': 1, 'tooltip': 'RTD67N: resistant'}, 'classes': 'resistant'}, {'data': {'node_all_tips_4': ' 1-6', 'node_meta_5': 1, 'node_all_tips_5': ' 1-6', 'node_fontsize_3': 80, 'node_names_5': 'AY213521, DQ344011, DQ518527, HM025475, KT427810, node_3562, node_3576, node_3579', 'node_in_ns_5': ' 0-5', 'node_size_3': 200, 'date': 3, 'node_size_5': 334, 'node_in_tips_3': ' 1', 'node_in_tips_4': ' 1-6', 'node_name_5': 'sensitive 1-6', 'node_names_3': 'AY213521, DQ344011', 'node_in_ns': ' 0-5', 'node_fontsize_4': 95, 'node_size_4': 334, 'node_all_tips_3': ' 1', 'node_in_ns_3': ' 0', 'node_fontsize': 95, 'node_names': 'AY213521, DQ344011, DQ518527, HM025475, KT427810, node_3562, node_3576, node_3579', 'node_fontsize_5': 95, 'node_meta_3': 1, 'node_name_4': 'sensitive 1-6', 'node_in_tips_5': ' 1-6', 'node_all_tips': ' 1-6', 'node_size': 334, 'node_in_ns_4': ' 0-5', 'node_meta_4': 1, 'node_name': 'sensitive 1-6', 'node_meta': 1, 'node_names_4': 'AY213521, DQ344011, DQ518527, HM025475, node_3562, node_3576, node_3579', 'node_in_tips': ' 1-6', 'node_name_3': 'sensitive 1', 'id': 11, 'tip': 1, 'tooltip': 'RTD67N: sensitive'}, 'classes': 'sensitive'}], 'edges': [{'data': {'source': 0, 'target': 1, 'edge_name_3': '', 'edge_size_3': 50, 'date': 3, 'edge_name': '', 'edge_name_4': '', 'edge_name_5': '', 'edge_size_4': 50, 'edge_size_5': 50, 'edge_size': 50}}, {'data': {'source': 0, 'target': 2, 'date': 4, 'edge_name': '', 'edge_name_4': '', 'edge_name_5': '', 'edge_size_4': 50, 'edge_size_5': 50, 'edge_size': 50}}, {'data': {'source': 0, 'target': 3, 'edge_meta_5': 1, 'edge_name_3': '37', 'edge_size_3': 90, 'edge_meta_3': 1, 'edge_meta': 1, 'date': 2, 'edge_name': '90', 'edge_name_4': '90', 'edge_meta_4': 1, 'edge_size_2': 50, 'edge_name_5': '90', 'edge_size_4': 150, 'edge_size_5': 150, 'edge_size': 150, 'edge_name_2': ''}}, {'data': {'source': 0, 'target': 4, 'edge_meta_5': 1, 'edge_name_3': '3', 'edge_size_3': 52, 'edge_meta_3': 1, 'edge_meta': 1, 'date': 3, 'edge_name': '3', 'edge_name_4': '3', 'edge_meta_4': 1, 'edge_name_5': '3', 'edge_size_4': 52, 'edge_size_5': 52, 'edge_size': 52}}, {'data': {'source': 0, 'target': 5, 'edge_name_3': '', 'edge_size_3': 50, 'date': 3, 'edge_name': '', 'edge_name_4': '', 'edge_name_5': '', 'edge_size_4': 50, 'edge_size_5': 50, 'edge_size': 50}}, {'data': {'source': 1, 'target': 6, 'edge_meta_5': 1, 'edge_meta': 1, 'date': 4, 'edge_name': '4', 'edge_name_4': '4', 'edge_meta_4': 1, 'edge_name_5': '4', 'edge_size_4': 53, 'edge_size_5': 53, 'edge_size': 53}}, {'data': {'source': 2, 'target': 7, 'edge_meta_5': 1, 'edge_meta': 1, 'date': 4, 'edge_name': '3', 'edge_name_4': '3', 'edge_meta_4': 1, 'edge_name_5': '3', 'edge_size_4': 52, 'edge_size_5': 52, 'edge_size': 52}}, {'data': {'source': 4, 'target': 8, 'edge_name_3': '', 'edge_size_3': 50, 'date': 3, 'edge_name': '', 'edge_name_4': '', 'edge_name_5': '', 'edge_size_4': 50, 'edge_size_5': 50, 'edge_size': 50}}, {'data': {'source': 4, 'target': 9, 'date': 4, 'edge_name': '', 'edge_name_4': '', 'edge_name_5': '', 'edge_size_4': 50, 'edge_size_5': 50, 'edge_size': 50}}, {'data': {'source': 5, 'target': 10, 'edge_meta_5': 1, 'edge_name_3': '2', 'edge_size_3': 51, 'edge_meta_3': 1, 'edge_meta': 1, 'date': 3, 'edge_name': '5', 'edge_name_4': '5', 'edge_meta_4': 1, 'edge_name_5': '5', 'edge_size_4': 54, 'edge_size_5': 54, 'edge_size': 54}}, {'data': {'source': 5, 'target': 11, 'edge_meta_5': 1, 'edge_name_3': '2', 'edge_size_3': 51, 'edge_meta_3': 1, 'edge_meta': 1, 'date': 3, 'edge_name': '8', 'edge_name_4': '7', 'edge_meta_4': 1, 'edge_name_5': '8', 'edge_size_4': 56, 'edge_size_5': 57, 'edge_size': 57}}]},
+
+  layout: layoutOptions,
+
+  ready: function(){
+    window.cy = this;
+  }
+});
+
+function addQtips() {
+    cy.filter(function(ele, i, eles) {
+        return ele.isNode() && ele.data('tooltip') !== undefined;
+    } ).qtip({
+        content: function(){
+                var tooltip = '<br><div style="overflow: auto;"><span style="white-space:nowrap;">' + this.data('tooltip') + '</span></div>';
+                if (this.data('node_meta') !== undefined) {
+                    tooltip += '<br><div style="overflow: auto;"><span style="white-space:nowrap;">ids: ' + this.data('node_names') + '</span></div>';
+                } else {
+                    tooltip += '<br>id: ' + this.data('node_names') + '<br>';
+                }
+                tooltip += '<br>tips inside: ' + this.data('node_in_tips');
+                tooltip += '<br>total tips in the subtree: ' + this.data('node_all_tips');
+                tooltip += '<br>internal nodes inside: ' + this.data('node_in_ns');
+                return tooltip;
+            },
+        show: {event: 'mouseover'},
+        hide: {event: 'mouseout'},
+        style: {classes: 'qtip-bootstrap'},
+        position: {at: 'center bottom'}
+    });
+}
+
+cy.minZoom(.001);
+cy.maxZoom(20);
+addQtips();
+
+
+function toImage(){
+    document.getElementById("downloader").href = cy.jpg({ full: false, quality: 1.0, scale: 2}).replace(/^data:image\/[^;]/, 'data:application/octet-stream');
+}
+
+function fit() {
+    cy.fit();
+}
+
+function resetLayout() {
+    cy.layout(layoutOptions).run();
+}
+
+var years = ['1986', '1991.8', '1997.6', '2003.4', '2009.2', '2015'];
+var slider = document.getElementById("myRange");
+if (slider !== null) {
+    var output = document.getElementById("demo");
+    output.innerHTML = years[slider.value]; // Display the default slider value
+
+    // Update the current slider value (each time you drag the slider handle)
+    var removed = cy.collection();
+
+    slider.oninput = function() {
+        output.innerHTML = years[this.value];
+        removed.restore();
+        removed = cy.remove("[date>" + this.value + "]");
+        var list = cy.$("");
+        for (var i=0, ele; ele = list[i]; i++) {
+            if (ele.data('node_name_' + this.value) !== undefined) {
+                ele.data('node_name', ele.data('node_name_' + this.value));
+            }
+            if (ele.data('node_names_' + this.value) !== undefined) {
+                ele.data('node_names', ele.data('node_names_' + this.value));
+            }
+            if (ele.data('node_fontsize_' + this.value) !== undefined) {
+                ele.data('node_fontsize', ele.data('node_fontsize_' + this.value));
+            }
+            if (ele.data('node_in_tips_' + this.value) !== undefined) {
+                ele.data('node_in_tips', ele.data('node_in_tips_' + this.value));
+            }
+            if (ele.data('node_in_ns_' + this.value) !== undefined) {
+                ele.data('node_in_ns', ele.data('node_in_ns_' + this.value));
+            }
+            if (ele.data('node_all_tips_' + this.value) !== undefined) {
+                ele.data('node_all_tips', ele.data('node_all_tips_' + this.value));
+            }
+            if (ele.data('node_size_' + this.value) !== undefined) {
+                ele.data('node_size', ele.data('node_size_' + this.value));
+            }
+            if (ele.data('edge_name_' + this.value) !== undefined) {
+                ele.data('edge_name', ele.data('edge_name_' + this.value));
+            }
+            if (ele.data('edge_size_' + this.value) !== undefined) {
+                ele.data('edge_size', ele.data('edge_size_' + this.value));
+            }
+            if (ele.data('edge_meta_' + this.value) !== undefined) {
+                ele.data('edge_meta', ele.data('edge_meta_' + this.value))
+            } else if (ele.data('edge_meta') !== undefined) {
+                ele.removeData('edge_meta');
+                cy.remove(ele);
+                cy.add(ele);
+            }
+            if (ele.data('node_meta_' + this.value) !== undefined) {
+                ele.data('node_meta', ele.data('node_meta_' + this.value));
+            } else if (ele.data('node_meta') !== undefined) {
+                ele.removeData('node_meta');
+            }
+        }
+    }
+}
+
+function toggleFullScreen() {
+  var elem = document.getElementById("fullscreenDiv");
+  if ((document.fullScreenElement && document.fullScreenElement !== null) ||
+   (!document.mozFullScreen && !document.webkitIsFullScreen)) {
+    if (elem.requestFullScreen) {
+      elem.requestFullScreen();
+    } else if (elem.mozRequestFullScreen) {
+      elem.mozRequestFullScreen();
+    } else if (elem.webkitRequestFullScreen) {
+      elem.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+    }
+    document.getElementById("fsspan").className = "glyphicon glyphicon-resize-small"
+    document.getElementById("fstext").innerHTML = "  Exit full screen"
+  } else {
+    if (document.cancelFullScreen) {
+      document.cancelFullScreen();
+    } else if (document.mozCancelFullScreen) {
+      document.mozCancelFullScreen();
+    } else if (document.webkitCancelFullScreen) {
+      document.webkitCancelFullScreen();
+    }
+    document.getElementById("fsspan").className = "glyphicon glyphicon-fullscreen"
+    document.getElementById("fstext").innerHTML = "  Full screen"
+  }
+}</script>
+</body>
+</html>

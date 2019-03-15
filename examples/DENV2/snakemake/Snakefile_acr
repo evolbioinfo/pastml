@@ -61,7 +61,7 @@ rule pastml_loc_genotype:
         pastml --tree {input.tree} --data {input.data} \
         --html_compressed {output.map} --html {output.tree} --columns {params.loc} genotype  --name_column {params.loc} \
         --date_column {params.date_col} -v --work_dir {params.wd} --parameters {input.param} \
-        --upload_to_itol --itol_tree_name {params.tree}_{params.prefix} --itol_id ZxuhG2okfKLQnsgd5xAEGQ --itol_project DENV2
+        --upload_to_itol --itol_tree_name {params.tree}_{params.prefix}
         """
 
 rule pastml_loc:
