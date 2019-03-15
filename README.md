@@ -3,14 +3,15 @@
 __PastML__ is a python3 module that provides fast methods for Ancestral Character Reconstruction (ACR) and visualisation
 on rooted phylogenetic trees.
 
-Given a tree and its node annotations, it can either visualise them as-is, 
-or infer ancestral node states based on the tip states. 
+Given a rooted tree and its node annotations, it can either visualise them as-is, 
+or infer ancestral node states based on the tip states. The states can then be visualised as different colours on the tree nodes. 
+To simplify the visualization of large trees, we compress tree parts with to state changes. 
 
-The states are visualised as different colours on the tree nodes using [Cytoscape.js](http://js.cytoscape.org/)
+For detailed description of the ACR methods, and visualization procedure used in __PastML__ please visit our [help page](https://pastml.pasteur.fr/help).
 
 # Article
 
-For a detailed description of __pastml__: see Ishikawa SA, Zhukova A, Iwasaki W, Gascuel O (2018) __A Fast Likelihood Method to Reconstruct and Visualize Ancestral Scenarios__ [[bioRxiv]](https://doi.org/10.1101/379529).
+Ishikawa SA, Zhukova A, Iwasaki W, Gascuel O (2018) __A Fast Likelihood Method to Reconstruct and Visualize Ancestral Scenarios__ [[bioRxiv]](https://doi.org/10.1101/379529).
 
 # Input data
 As an input, one needs to provide a **rooted** phylogenetical tree in [newick](https://en.wikipedia.org/wiki/Newick_format) format,
@@ -40,7 +41,7 @@ Try it at [pastml.pasteur.fr](https://pastml.pasteur.fr)
 
 # Run it on your computer
 
-There are 2 alternative ways to run __pastml__ on your computer: with [docker](https://www.docker.com/community-edition), or in python3.
+There are 3 alternative ways to run __pastml__ on your computer: with [docker](https://www.docker.com/community-edition), [singularity](https://www.sylabs.io/singularity/) or in python3.
 
 ## Run with docker
 
@@ -48,14 +49,14 @@ There are 2 alternative ways to run __pastml__ on your computer: with [docker](h
 Once [docker](https://www.docker.com/community-edition) is installed, run the following command:
 
 ```bash
-docker run -v <path_to_the_folder_containing_the_tree_and_the_annotations>:/data:rw -t evolbioinfo/pastml --tree /data/<tree_file> --data /data/<annotation_file> --data_sep <separator_eg_comma> --columns <one_or_more_column_names> --html_compressed /data/<map_name>
+docker run -v <path_to_the_folder_containing_the_tree_and_the_annotations>:/data:rw -t evolbioinfo/pastml --tree /data/<tree_file.nwk> --data /data/<annotation_file.csv> --data_sep <separator_eg_,> --columns <column1 column2 ...> --html_compressed /data/<output_map.html>
 ```
 
 For example, to reconstruct and visualise the ancestral Country states for Albanian data, 
 one needs to run the following command:
 
 ```bash
-docker run -v ~/Downloads:/data:rw -t evolbioinfo/pastml --tree /data/Albanian.tree.152tax.tre --data /data/data.txt --data_sep , --columns Country --html_compressed /data/Albanian_map.html 
+docker run -v ~/Downloads:/data:rw -t evolbioinfo/pastml --tree /data/Albanian.tree.152tax.tre --data /data/data.txt --columns Country --html_compressed /data/Albanian_map.html --data_sep , 
 ```
 
 This will produce a file Albanian_map.html in the Downloads folder, 
@@ -67,6 +68,33 @@ that can be viewed with a browser.
 To see advanced options, run
 ```bash
 docker run -t evolbioinfo/pastml -h
+```
+
+## Run with singularity
+
+### Basic usage
+Once [singularity](https://www.sylabs.io/guides/2.6/user-guide/quick_start.html#quick-installation-steps) is installed, run the following command:
+
+```bash
+singularity run docker://evolbioinfo/pastml --tree <path/to/tree_file.nwk> --data <path/to/annotation_file.csv> --columns <column1 column2 ...> --html_compressed <path/to/output/map.html> --data_sep <separator_eg_,>
+```
+
+For example, to reconstruct and visualise the ancestral Country states for Albanian data, 
+one needs to run the following command:
+
+```bash
+singularity run docker://evolbioinfo/pastml --tree ~/Downloads/Albanian.tree.152tax.tre --data ~/Downloads/data.txt --columns Country --html_compressed ~/Downloads/Albanian_map.html --data_sep , 
+```
+
+This will produce a file Albanian_map.html in the Downloads folder, 
+that can be viewed with a browser.
+
+
+### Help
+
+To see advanced options, run
+```bash
+singularity run docker://evolbioinfo/pastml -h
 ```
 
 ## Run in python3
@@ -119,14 +147,14 @@ source activate pastmlenv
 To run __pastml__:
 
 ```bash
-pastml --tree <path/to/tree_file.nwk> --data <path/to/annotation_file.tab> --columns <one_or_more_column_names> --html_compressed <path/to/output/map.html> --data_sep <separator_eg_comma>
+pastml --tree <path/to/tree_file.nwk> --data <path/to/annotation_file.csv> --columns <column1 column2 ...> --html_compressed <path/to/output/map.html> --data_sep <separator_eg_,>
 ```
 
 For example, to reconstruct and visualise the ancestral Country states for Albanian data, 
 one needs to run the following command:
 
 ```bash
-pastml --tree ~/Downloads/Albanian.tree.152tax.tre --data ~/Downloads/data.txt --data_sep , --columns Country --html_compressed ~/Downloads/Albanian_map.html 
+pastml --tree ~/Downloads/Albanian.tree.152tax.tre --data ~/Downloads/data.txt --columns Country --html_compressed ~/Downloads/Albanian_map.html --data_sep , 
 ```
 
 This will produce a file Albanian_map.html in the Downloads folder, 
