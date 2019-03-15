@@ -1,0 +1,10 @@
+parameter	value
+character	Country_ACCTRAN
+method	ACCTRAN
+num_nodes	277
+num_scenarios	4
+num_states_per_node_avg	1.0072202166064983
+num_tips	154
+num_unresolved_nodes	2
+percentage_of_unresolved_nodes	0.7220216606498195
+steps	32

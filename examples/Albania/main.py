@@ -15,31 +15,36 @@ if '__main__' == __name__:
     pastml_pipeline(data=STATES_INPUT, tree=TREE_NWK,
                     html=os.path.join(DATA_DIR, 'trees', 'Albanian_tree_initial.html'),
                     data_sep=',', verbose=True, prediction_method=COPY,
-                    work_dir=os.path.join(DATA_DIR, 'pastml', 'initial'),
-                    upload_to_itol=True, itol_tree_name='initial')
+                    work_dir=os.path.join(DATA_DIR, 'pastml', 'initial'))
     # Copy states
     pastml_pipeline(data=STATES_COPY, tree=TREE_NWK,
                     html=os.path.join(DATA_DIR, 'trees', 'Albanian_tree_{}.html'.format(COPY)),
                     html_compressed=os.path.join(DATA_DIR, 'maps', 'Albanian_map_{}.html'.format(COPY)),
                     data_sep=',', verbose=True, prediction_method=COPY,
                     columns='Country',
-                    work_dir=os.path.join(DATA_DIR, 'pastml', COPY),
-                    upload_to_itol=True, itol_tree_name='copy')
+                    work_dir=os.path.join(DATA_DIR, 'pastml', COPY))
     # ACR with ML (meta-)methods
     for model in (F81, JC, EFT):
-        for method in (JOINT, MPPA, MAP, ML, ALL):
+        for method in (JOINT, MPPA, MAP, ML):
             pastml_pipeline(data=STATES_INPUT, tree=TREE_NWK,
                             html_compressed=os.path.join(DATA_DIR, 'maps',
                                                          'Albanian_map_{}_{}.html'.format(method, model)),
                             html=os.path.join(DATA_DIR, 'trees', 'Albanian_tree_{}_{}.html'.format(method, model)),
                             data_sep=',', model=model, verbose=True, prediction_method=method,
-                            work_dir=os.path.join(DATA_DIR, 'pastml', method, model),
-                            upload_to_itol=True, itol_tree_name='{}_{}'.format(method, model))
+                            work_dir=os.path.join(DATA_DIR, 'pastml', method, model))
     # ACR with MP (meta-)methods
     for method in (DOWNPASS, ACCTRAN, DELTRAN, MP):
         pastml_pipeline(data=STATES_INPUT, tree=TREE_NWK,
                         html_compressed=os.path.join(DATA_DIR, 'maps', 'Albanian_map_{}.html'.format(method)),
                         html=os.path.join(DATA_DIR, 'trees', 'Albanian_tree_{}.html'.format(method)),
                         data_sep=',', verbose=True, prediction_method=method,
-                        work_dir=os.path.join(DATA_DIR, 'pastml', method),
-                        upload_to_itol=True, itol_tree_name=method)
+                        work_dir=os.path.join(DATA_DIR, 'pastml', method))
+    # ACR with ALL meta-method
+    for model in (F81, JC, EFT):
+        pastml_pipeline(data=STATES_INPUT, tree=TREE_NWK,
+                        html_compressed=os.path.join(DATA_DIR, 'maps',
+                                                     'Albanian_map_ALL_{}.html'.format(model)),
+                        html=os.path.join(DATA_DIR, 'trees', 'Albanian_tree_ALL_{}.html'.format(model)),
+                        data_sep=',', model=model, verbose=True, prediction_method=ALL,
+                        work_dir=os.path.join(DATA_DIR, 'pastml', ALL, model),
+                        upload_to_itol=True, itol_tree_name='{}'.format(model))

@@ -1,0 +1,10 @@
+parameter	value
+character	Country
+method	DOWNPASS
+num_nodes	277
+num_scenarios	248832
+num_states_per_node_avg	1.0794223826714802
+num_tips	154
+num_unresolved_nodes	13
+percentage_of_unresolved_nodes	4.693140794223827
+steps	32

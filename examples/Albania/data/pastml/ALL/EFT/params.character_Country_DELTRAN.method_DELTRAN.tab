@@ -1,0 +1,10 @@
+parameter	value
+character	Country_DELTRAN
+method	DELTRAN
+num_nodes	277
+num_scenarios	2
+num_states_per_node_avg	1.0036101083032491
+num_tips	154
+num_unresolved_nodes	1
+percentage_of_unresolved_nodes	0.36101083032490977
+steps	32

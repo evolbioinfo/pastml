@@ -1,0 +1,15 @@
+parameter	value
+character	Country
+log_likelihood	-110.17768809698588
+log_likelihood_restricted_MAP	-114.47964764088529
+method	MAP
+model	F81
+num_nodes	277
+num_tips	154
+scaling_factor	3.841426345930135
+state_changes_per_avg_branch	0.10670341514252082
+Africa	0.08158968411159408
+Albania	0.028329878847654387
+EastEurope	0.0808895662096555
+Greece	0.36520836635747195
+WestEurope	0.443982504473624
