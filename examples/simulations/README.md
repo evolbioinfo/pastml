@@ -29,7 +29,8 @@ When the setting is incorrect (e.g. kappa=4 or kappa=0.25), the models try to co
 ### Running the pipelines
 
 From the snakemake folder, run the Snakefile pipeline:
-    ```bash
-    snakemake --keep-going --config folder=.. --use-singularity --singularity-args "--home ~"
-    ```
-    ![pipeline](snakemake/pipeline.svg)
+
+```bash
+snakemake --keep-going --config folder=.. --use-singularity --singularity-args "--home ~"
+```
+![pipeline](snakemake/pipeline.svg)
