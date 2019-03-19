@@ -107,7 +107,7 @@ examples/simulations/pdfs*
 examples/simulations/trees
 
 .snakemake
-snakemake/logs/
+examples/*/snakemake/logs/
 
 .idea
 
