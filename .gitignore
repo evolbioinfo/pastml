@@ -101,3 +101,13 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+examples/simulations/sf_*
+examples/simulations/pdfs*
+examples/simulations/trees
+
+.snakemake
+snakemake/logs/
+
+.idea
+
