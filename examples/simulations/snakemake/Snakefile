@@ -1,0 +1,166 @@
+import os
+
+# To run locally:
+# snakemake --keep-going --cores 4 --config folder=.. --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~"
+
+# To run on tars:
+# module load conda && source /local/gensoft2/exe/conda/3.19.0/conda/bin/activate snakemake && module load singularity && mkdir logs
+# snakemake --config folder='/pasteur/homes/azhukova/projects/pastml_atlas/examples/simulations' --keep-going --cores 1 --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~" --cluster "sbatch -c {threads} -o logs/{params.name}.log -e logs/{params.name}.log --mem {params.mem} -A bioevo -p dedicated,common --qos={params.qos} -J {params.name}" --jobs 300
+# on bioevo:
+# snakemake --config folder='/pasteur/homes/azhukova/projects/pastml_atlas/examples/simulations' --keep-going --cores 1 --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~" --cluster "sbatch -c {threads} -o logs/{params.name}.log -e logs/{params.name}.log --mem {params.mem} -p bioevo --qos=bioevo -A bioevo -J {params.name}" --jobs 300
+
+# To visualise the pipeline
+# snakemake --config folder=.. --dag | sfdp -Tsvg > pipeline.svg
+
+localrules: all
+ruleorder: boxplots > metrics > acr > name_tree > seqgen
+
+folder = os.path.abspath(config["folder"])
+tree_dir = os.path.join(folder, 'trees')
+
+sfs = [0.1, 0.5, 1]
+kappas = [.25, 1, 4]
+
+rule all:
+    input:
+        expand(os.path.join(folder, 'tree_yule_{n}.params_sf_{SF}.kappa_{k}.A_{A}.C_{C}.G_{G}.T_{T}.model_{model}.{ext}'),
+        SF=sfs, k=kappas, A=.6, C=.15, G=.2, T=.05, param=['scaling_factor', 'A', 'G', 'C', 'T'], n=250, model=['JC', 'F81', 'HKY'], ext=['pdf', 'log']),
+        expand(os.path.join(folder, 'tree_yule_{n}.params_sf_{SF}.kappa_{k}.A_{A}.C_{C}.G_{G}.T_{T}.model_{model}.{ext}'),
+        SF=sfs, k=kappas, A=.25, C=.25, G=.25, T=.25, param=['scaling_factor', 'A', 'G', 'C', 'T'], n=250, model=['JC', 'F81', 'HKY'], ext=['pdf', 'log']),
+
+
+rule yuletree:
+    '''
+    Generates a tree.
+    '''
+    output:
+        tree = temp(os.path.join(tree_dir, 'yule_{n}.trep_{s}.nwk')),
+    params:
+        mem = 1000,
+        name = 'yule_tips_{n}.trep_{s}',
+        qos = 'fast',
+        n = '{n}',
+    threads: 1
+    singularity: "docker://evolbioinfo/gotree:v0.3.0b"
+    shell: "gotree generate yuletree -r -l {params.n} | gotree brlen setrand -m 1 -o {output.tree}"
+
+
+rule seqgen:
+    '''
+    Generates sequences.
+    '''
+    input:
+        tree = os.path.join(tree_dir, '{tree}.nwk')
+    output:
+        log = temp(os.path.join(folder, 'sf_{SF}.kappa_{k}.A_{A}.C_{C}.G_{G}.T_{T}', '{tree}.srep_{n}.tab'))
+    params:
+        mem = 1000,
+        name = 'sg.sf_{SF}.kappa_{k}.A_{A}.C_{C}.G_{G}.T_{T}',
+        sf = '{SF}',
+        a = '{A}',
+        c = '{C}',
+        g = '{G}',
+        t = '{T}',
+        k = '{k}',
+        qos = 'fast',
+        tstv = lambda wildcards: float(wildcards.k) * (float(wildcards.A) * float(wildcards.G) + float(wildcards.T) * float(wildcards.C))
+                               / ((float(wildcards.A) + float(wildcards.G)) * (float(wildcards.C) + float(wildcards.T)))
+    threads: 1
+    singularity: "docker://evolbioinfo/seq-gen:v1.3.4"
+    shell:
+        """
+        seq-gen -m HKY -l 1 -s {params.sf} -f {params.a} {params.c} {params.g} {params.t} -t {params.tstv} \
+        -wa -op {input.tree} > {output.log}
+        """
+
+rule name_tree:
+    '''
+    Reconstructs sequences.
+    '''
+    input:
+        tree = os.path.join(tree_dir, '{tree}.nwk'),
+    output:
+        tree = os.path.join(tree_dir, 'named.{tree}.nwk'),
+    params:
+        mem = 1000,
+        name = 'name',
+        qos = 'fast',
+    threads: 1
+    singularity: "docker://evolbioinfo/pastml:v1.9.8"
+    shell: "python3 {folder}/py/name_tree.py --input_tree {input.tree} --output_tree {output.tree}"
+
+rule acr:
+    '''
+    Reconstructs sequences.
+    '''
+    input:
+        tree = os.path.join(tree_dir, 'named.{tree}.nwk'),
+        log = os.path.join(folder, '{params}', '{tree}.srep_{n}.tab')
+    output:
+        log = temp(os.path.join(folder, '{params}', 'pastml.{tree}.srep_{n}.model_{model}.tab')),
+        acr = os.path.join(folder, '{params}', 'acr', '{tree}.srep_{n}.model_{model}.tab'),
+        mp = os.path.join(folder, '{params}', 'mp', '{tree}.srep_{n}.model_{model}.tab'),
+        ps = os.path.join(folder, '{params}', 'pastml', '{tree}.srep_{n}.model_{model}.tab'),
+    params:
+        mem = 1000,
+        name = 'acr',
+        qos = 'fast',
+        wd = os.path.join(folder, '{params}', 'pastml', '{tree}.srep_{n}.model_{model}'),
+        model = '{model}'
+    threads: 3
+    singularity: "docker://evolbioinfo/pastml:v1.9.8"
+    shell:
+        """
+        python3 {folder}/py/prepare_annotation.py --output_tab {output.log} \
+        --input_tree {input.tree} --input_log {input.log}
+
+        pastml -t {input.tree} -d {output.log} --work_dir {params.wd} \
+        --prediction_method COPY ML --columns Real ACR --model {params.model}
+
+        mv {params.wd}/combined_ancestral_states.tab {output.acr}
+        mv {params.wd}/marginal_probabilities.character_ACR_MPPA.model_{params.model}.tab {output.mp}
+        mv {params.wd}/params.character_ACR_MPPA.method_MPPA.model_{params.model}.tab {output.ps}
+        rm -rf {params.wd}
+        """
+
+
+rule metrics:
+    '''
+    Calculate mean parameters from simulations.
+    '''
+    input:
+        ps = expand(os.path.join(folder, '{{params}}', 'pastml', '{{tree}}.trep_{rt}.srep_{rs}.model_{{model}}.tab'), rt=range(10), rs=range(10))
+    output:
+        log = os.path.join(folder, 'tree_{tree}.params_{params}.model_{model}.log'),
+    params:
+        name = 'metrics',
+        mem = 1000,
+        qos = 'fast',
+    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    shell: "python3 {folder}/py/read_params.py --input_params {input.ps} --output_log {output.log}"
+
+rule boxplots:
+    '''
+    Boxplot parameters from simulations.
+    '''
+    input:
+        ps = expand(os.path.join(folder, 'sf_{{SF}}.kappa_{{k}}.A_{{A}}.C_{{C}}.G_{{G}}.T_{{T}}', 'pastml', '{{tree}}.trep_{rt}.srep_{rs}.model_{{model}}.tab'), rt=range(10), rs=range(10))
+    output:
+        pdf = os.path.join(folder, 'tree_{tree}.params_sf_{SF}.kappa_{k}.A_{A}.C_{C}.G_{G}.T_{T}.model_{model}.pdf'),
+    params:
+        name = 'boxplot',
+        mem = 1000,
+        sf = '{SF}',
+        a = '{A}',
+        c = '{C}',
+        g = '{G}',
+        t = '{T}',
+        k = '{k}',
+        model = '{model}',
+        qos = 'fast',
+    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    shell:
+        """
+        python3 {folder}/py/boxplot_params.py --input_params {input.ps} --output_pdf {output.pdf} --sf {params.sf} \
+        --kappa {params.k} --A {params.a} --C {params.c} --G {params.g} --T {params.t} --model {params.model}
+        """
