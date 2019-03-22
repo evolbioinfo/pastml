@@ -22,7 +22,8 @@ rule all:
         expand(os.path.join(data_dir, 'real', '{type}_tree.dated.nwk'), type=tree_types),
         expand(os.path.join(data_dir, 'resampled', '{n}', '{type}_tree.dated.nwk'), type=['raxml'], n=range(5)),
         distances = expand(os.path.join(data_dir, 'real', 'distances_all_trees.tab')),
-        resampled_distances = expand(os.path.join(data_dir, 'resampled', 'distances_raxml_trees.tab'))
+        resampled_distances = expand(os.path.join(data_dir, 'resampled', 'distances_raxml_trees.tab')),
+        resampled_distances_vs_real = expand(os.path.join(data_dir, 'resampled', 'distances_raxml_trees_vs_real.tab'))
 
 rule fasttree:
     '''
@@ -231,6 +232,28 @@ rule merge_resampled_trees:
         echo "{params.names}" >> {output.names}
         """
 
+rule merge_resampled_real_trees:
+    '''
+    Prune resampled trees to their common tip subset and write them to a file.
+    '''
+    input:
+        tree1 = os.path.join(data_dir, 'real', '{type}_tree.nwk'),
+        tree2 = os.path.join(data_dir, 'resampled', '{j}', '{type}_tree.nwk'),
+    output:
+        trees = temp(os.path.join(data_dir, 'resampled', '{type}_trees_real_{j,[0-4]}.nwk')),
+        names = temp(os.path.join(data_dir, 'resampled', '{type}_trees_real_{j}.names'))
+    params:
+        mem = 1000,
+        name = 'merge_real_{j}',
+        names = 'real\t{j}'
+    threads: 1
+    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    shell:
+        """
+        python3 {folder}/py/prune_trees.py --trees {input.tree1} {input.tree2} --output {output.trees}
+        echo "{params.names}" >> {output.names}
+        """
+
 rule quartet_dists:
     '''
     Calculates quartet distances with tqDist.
@@ -260,6 +283,25 @@ rule combine_resampled_tree_comparisons:
     params:
         mem = 1000,
         name = 'all_resampled_trees_{type}'
+    threads: 1
+    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    shell:
+        """
+        python3 {folder}/py/merger.py --input_data {input.logs} --output_data {output.log}
+        rm -rf {input.logs}
+        """
+
+rule combine_resampled_real_tree_comparisons:
+    '''
+    Prune resampled trees to their common tip subset and write them to a file.
+    '''
+    input:
+        logs = expand(os.path.join(data_dir, 'resampled', 'distances_{{type}}_trees_real_{i}.tab'), i=range(5))
+    output:
+        log = os.path.join(data_dir, 'resampled', 'distances_{type}_trees_vs_real.tab'),
+    params:
+        mem = 1000,
+        name = 'resampled_trees_vs_real_{type}'
     threads: 1
     singularity: "docker://evolbioinfo/python-evol:v3.6"
     shell:
