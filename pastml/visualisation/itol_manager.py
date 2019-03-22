@@ -79,7 +79,8 @@ def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
                              method='{}{}'.format(acr_result[METHOD],
                                                   ('+{}'.format(acr_result[MODEL]) if MODEL in acr_result else ''))))
         col_df = state_df[state_df[column].apply(len) == 1]
-        col_df['itol_colour'] = col_df[column].apply(lambda _: value2colour[next(iter(_))])
+        col_df['itol_label'] = col_df[column].apply(lambda _: next(iter(_)))
+        col_df['itol_colour'] = col_df['itol_label'].apply(lambda _: value2colour[_])
         col_df[['itol_type', 'itol_node', 'itol_colour', 'itol_size', 'itol_style']].to_csv(style_file, sep='\t',
                                                                                             header=False, mode='a')
         annotation_files.append(style_file)
@@ -90,7 +91,7 @@ def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
             csf.write(COLORSTRIP_FILE_HEADER_TEMPLATE.format(column=column, colours='\t'.join(colours),
                                                              states='\t'.join(states),
                                                              shapes='\t'.join(['1'] * len(states))))
-        col_df[['itol_colour', column]].to_csv(colorstrip_file, sep='\t', header=False, mode='a')
+        col_df[['itol_colour', 'itol_label']].to_csv(colorstrip_file, sep='\t', header=False, mode='a')
         annotation_files.append(colorstrip_file)
         logging.getLogger('pastml').debug('Generated iTol colorstrip file for {}: {}.'.format(column, colorstrip_file))
 
