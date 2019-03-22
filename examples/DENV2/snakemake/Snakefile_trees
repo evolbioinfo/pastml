@@ -20,8 +20,9 @@ tree_types = ['raxml', 'fast', 'phyml']
 rule all:
     input:
         expand(os.path.join(data_dir, 'real', '{type}_tree.dated.nwk'), type=tree_types),
-        expand(os.path.join(data_dir, 'resampled', '{n}', '{type}_tree.dated.nwk'), type=tree_types, n=range(5)),
-        distances = expand(os.path.join(data_dir, 'real', 'distances_all_trees.tab'))
+        expand(os.path.join(data_dir, 'resampled', '{n}', '{type}_tree.dated.nwk'), type=['raxml'], n=range(5)),
+        distances = expand(os.path.join(data_dir, 'real', 'distances_all_trees.tab')),
+        resampled_distances = expand(os.path.join(data_dir, 'resampled', 'distances_all_raxml_trees.tab'))
 
 rule fasttree:
     '''
@@ -205,6 +206,27 @@ rule merge_nwk:
     shell:
         """
         ls {input.trees} | xargs cat >> {output.trees}
+        echo "{params.names}" >> {output.names}
+        """
+
+rule merge_resampled_trees:
+    '''
+    Prune resampled trees to their common tip subset and write them to a file.
+    '''
+    input:
+        trees = expand(os.path.join(data_dir, 'resampled', '{i}', '{{type}}_tree.nwk'), i=range(5))
+    output:
+        trees = os.path.join(data_dir, 'resampled', 'all_{type}_trees.nwk'),
+        names = os.path.join(data_dir, 'resampled', 'all_{type}_trees.names')
+    params:
+        mem = 1000,
+        name = 'all_resampled_trees_{type}',
+        names = '\t'.join(str(_) for _ in range(5))
+    threads: 1
+    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    shell:
+        """
+        python3 {folder}/py/prune_trees.py --trees {input.trees} --output {output.trees}
         echo "{params.names}" >> {output.names}
         """
 

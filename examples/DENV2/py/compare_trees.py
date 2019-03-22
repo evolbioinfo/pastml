@@ -28,7 +28,9 @@ if '__main__' == __name__:
     logging.info('Read {} trees'.format(n))
     tri = np.zeros((n, n))
     tri[np.tril_indices(n, 0)] = np.fromfile(params.qt, dtype=float, sep='\t')
-    tri /= comb(len(trees[0]), 4)
+    total_quartets = 2 * np.ones(tri.shape) * comb(len(trees[0]), 4)
+    total_quartets -= tri
+    tri /= total_quartets
 
     def compare(args):
         i, j = args
