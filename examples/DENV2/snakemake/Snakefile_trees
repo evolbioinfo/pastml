@@ -219,7 +219,7 @@ rule merge_resampled_trees:
         tree2 = os.path.join(data_dir, 'resampled', '{j}', '{type}_tree.nwk'),
     output:
         trees = temp(os.path.join(data_dir, 'resampled', '{type}_trees_{i,[0-4]}_{j,[0-4]}.nwk')),
-        names = temp(os.path.join(data_dir, 'resampled', '{type}_trees_{i}_{j}.names'))
+        names = temp(os.path.join(data_dir, 'resampled', '{type}_trees_{i,[0-4]}_{j,[0-4]}.names'))
     params:
         mem = 1000,
         name = 'merge_{i}_{j}',
@@ -241,7 +241,7 @@ rule merge_resampled_real_trees:
         tree2 = os.path.join(data_dir, 'resampled', '{j}', '{type}_tree.nwk'),
     output:
         trees = temp(os.path.join(data_dir, 'resampled', '{type}_trees_real_{j,[0-4]}.nwk')),
-        names = temp(os.path.join(data_dir, 'resampled', '{type}_trees_real_{j}.names'))
+        names = temp(os.path.join(data_dir, 'resampled', '{type}_trees_real_{j,[0-4]}.names'))
     params:
         mem = 1000,
         name = 'merge_real_{j}',
