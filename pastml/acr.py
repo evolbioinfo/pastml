@@ -453,10 +453,13 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
     logger = logging.getLogger('pastml')
     logger.debug('\n=============INPUT DATA VALIDATION=============')
     root = read_tree(tree_nwk)
+    num_neg = 0
     for _ in root.traverse():
         if _.dist < 0:
-            logger.warning('Input tree contains negative branches: we put them to zero.')
+            num_neg += 1
             _.dist = 0
+    if num_neg:
+        logger.warning('Input tree contained {} negative branches: we put them to zero.'.format(num_neg))
     logger.debug('Read the tree {}.'.format(tree_nwk))
 
     df = pd.read_csv(data, sep=data_sep, index_col=id_index, header=0, dtype=str)
@@ -705,7 +708,7 @@ def main():
     out_group.add_argument('-v', '--verbose', action='store_true',
                            help="print information on the progress of the analysis (to console)")
 
-    parser.add_argument('--version', action='version', version='%(prog)s 1.9.12')
+    parser.add_argument('--version', action='version', version='%(prog)s 1.9.13')
 
     itol_group = parser.add_argument_group('iTOL-related arguments')
     itol_group.add_argument('--upload_to_itol', action='store_true',
