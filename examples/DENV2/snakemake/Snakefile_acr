@@ -32,7 +32,9 @@ rule all:
         type=['raxml'], loc=locs, n=range(5)),
 
         expand(os.path.join(data_dir, maps_dir, 'real', 'acr_map_{loc}.genotype_{type}_tree.dated.html'),
-        type=['raxml'], loc=locs),
+        type=tree_types, loc=locs),
+        expand(os.path.join(data_dir, maps_dir, 'resampled', '{n}', 'acr_map_{loc}.genotype_{type}_tree.dated.html'),
+        type=['raxml'], loc=locs, n=range(5)),
 
 rule pastml_loc_genotype:
     '''
