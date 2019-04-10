@@ -51,6 +51,7 @@ def _parse_pastml_parameters(params, states):
                              'should be a tab-delimited file with two columns, '
                              'the first one containing parameter names, '
                              'and the second, named "value", containing parameter values.'.format(params))
+    params = {str(k.encode('ASCII', 'replace').decode()): v for (k, v) in params}
     frequencies_specified = set(states) & set(params.keys())
     if frequencies_specified:
         if len(frequencies_specified) < len(states):
@@ -224,6 +225,8 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None, for
     :return: list of ACR result dictionaries, one per character.
     :rtype: list(dict)
     """
+    for c in df.columns:
+        df[c] = df[c].apply(lambda _: '' if pd.isna(_) else _.encode('ASCII', 'replace').decode())
     columns = preannotate_tree(df, tree)
     name_tree(tree)
     collapse_zero_branches(tree, features_to_be_merged=df.columns)
@@ -450,6 +453,10 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
     logger = logging.getLogger('pastml')
     logger.debug('\n=============INPUT DATA VALIDATION=============')
     root = read_tree(tree_nwk)
+    for _ in root.traverse():
+        if _.dist < 0:
+            logger.warning('Input tree contains negative branches: we put them to zero.')
+            _.dist = 0
     logger.debug('Read the tree {}.'.format(tree_nwk))
 
     df = pd.read_csv(data, sep=data_sep, index_col=id_index, header=0, dtype=str)
