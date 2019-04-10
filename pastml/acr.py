@@ -51,7 +51,7 @@ def _parse_pastml_parameters(params, states):
                              'should be a tab-delimited file with two columns, '
                              'the first one containing parameter names, '
                              'and the second, named "value", containing parameter values.'.format(params))
-    params = {str(k.encode('ASCII', 'replace').decode()): v for (k, v) in params}
+    params = {str(k.encode('ASCII', 'replace').decode()): v for (k, v) in params.items()}
     frequencies_specified = set(states) & set(params.keys())
     if frequencies_specified:
         if len(frequencies_specified) < len(states):
@@ -708,7 +708,7 @@ def main():
     out_group.add_argument('-v', '--verbose', action='store_true',
                            help="print information on the progress of the analysis (to console)")
 
-    parser.add_argument('--version', action='version', version='%(prog)s 1.9.13')
+    parser.add_argument('--version', action='version', version='%(prog)s 1.9.14')
 
     itol_group = parser.add_argument_group('iTOL-related arguments')
     itol_group.add_argument('--upload_to_itol', action='store_true',
