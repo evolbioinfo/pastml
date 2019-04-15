@@ -48,6 +48,7 @@ node_22	branch	node	#e41a1c	2	normal
 node_23	branch	node	#e41a1c	2	normal
 98CMAJ6934	branch	node	#e41a1c	2	normal
 node_24	branch	node	#e41a1c	2	normal
+node_32	branch	node	#ff7f00	2	normal
 00SEAY5240	branch	node	#ff7f00	2	normal
 node_34	branch	node	#e41a1c	2	normal
 node_35	branch	node	#4daf4a	2	normal

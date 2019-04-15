@@ -22,6 +22,8 @@ from pastml.tree import read_tree, name_tree, collapse_zero_branches, annotate_d
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 from pastml.visualisation.itol_manager import generate_itol_annotations
 
+PASTML_VERSION = '1.9.15'
+
 warnings.filterwarnings("ignore", append=True)
 
 COPY = 'COPY'
@@ -109,6 +111,7 @@ def _serialize_acr(args):
     # Not using DataFrames to speed up document writing
     with open(out_param_file, 'w+') as f:
         f.write('parameter\tvalue\n')
+        f.write('pastml_version\t{}\n'.format(PASTML_VERSION))
         for name in sorted(acr_result.keys()):
             if name not in [FREQUENCIES, STATES, MARGINAL_PROBABILITIES]:
                 if NUM_SCENARIOS == name:
@@ -281,7 +284,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                     columns=None, prediction_method=MPPA, model=F81, parameters=None,
                     name_column=None, date_column=None, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS,
                     out_data=None, html_compressed=None, html=None, work_dir=None,
-                    verbose=False, no_forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
+                    verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
                     itol_tree_name=None):
     """
     Applies PASTML to the given tree with the specified states and visualizes the result (as html maps).
@@ -315,9 +318,9 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         If multiple methods are given, but not for all the characters,
         for the rest of them the default method (pastml.ml.MPPA) is chosen.'
     :type prediction_method: str or list(str)
-    :param no_forced_joint: (optional, default is False) do not add JOINT state to the MPPA state selection
-        when it is not selected by Brier score.
-    :type no_forced_joint: bool
+    :param forced_joint: (optional, default is False) add JOINT state to the MPPA state selection
+        even if it is not selected by Brier score.
+    :type forced_joint: bool
     :param model: (optional, default is pastml.models.f81_like.F81) evolutionary model(s) for ML methods
         (ignored by MP methods).
         When multiple ancestral characters are specified (with ``columns`` argument),
@@ -410,7 +413,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     os.makedirs(work_dir, exist_ok=True)
 
     acr_results = acr(root, df, prediction_method=prediction_method, model=model, column2parameters=parameters,
-                      force_joint=not no_forced_joint)
+                      force_joint=forced_joint)
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
 
     if not out_data:
@@ -488,17 +491,25 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
                                  .format(date_column))
         annotate_depth(root)
         if not date_column:
-            tip2date = {tip.name: round(getattr(tip, DEPTH), 4) for tip in root}
-        min_date = min(tip2date.values())
-        max_date = max(tip2date.values())
+            tip2date = {tip.name: round(getattr(tip, DEPTH), 6) for tip in root}
+        else:
+            tip2date = {t: round(d, 6) if d is not None else None for (t, d) in tip2date.items()}
+
+        dates = [_ for _ in tip2date.values() if _ is not None]
+        if not dates:
+            tip2date = {tip.name: round(getattr(tip, DEPTH), 6) for tip in root}
+            dates = [_ for _ in tip2date.values() if _ is not None]
+            date_column = None
+            logger.warning('The date column does not contains dates for any of the tree tips, '
+                           'therefore we will ignore it')
+
+        min_date = min(dates)
+        max_date = max(dates)
+        dates = sorted(dates)
+        years = sorted({dates[0], dates[len(dates) // 2],
+                        dates[1 * len(dates) // 4], dates[3 * len(dates) // 4], dates[-1]})
         logger.debug("Extracted tip {}: they vary between {} and {}."
                      .format('dates' if date_column else 'distances', min_date, max_date))
-
-        step = (max_date - min_date) / 5
-        years = [min_date]
-        while years[-1] < max_date:
-            years.append(min(max_date, years[-1] + step))
-        years = sorted(set(min(max_date, max(min_date, round(_, 4))) for _ in years))
 
     if columns:
         if isinstance(columns, str):
@@ -650,9 +661,9 @@ def main():
                                 'for the rest of them the default method ({default}) is chosen.'
                            .format(ml=', '.join(ML_METHODS), mp=', '.join(MP_METHODS), copy=COPY, default=MPPA,
                                    meta=', '.join(META_ML_METHODS | {MP}), meta_ml=ML, meta_mp=MP, meta_all=ALL))
-    acr_group.add_argument('--no_forced_joint', action='store_true',
-                           help='do not add {joint} state to the {mppa} state selection '
-                                'when it is not selected by Brier score.'.format(joint=JOINT, mppa=MPPA))
+    acr_group.add_argument('--forced_joint', action='store_true',
+                           help='add {joint} state to the {mppa} state selection '
+                                'even if it is not selected by Brier score.'.format(joint=JOINT, mppa=MPPA))
     acr_group.add_argument('-m', '--model', default=F81,
                            choices=[JC, F81, EFT, HKY, JTT],
                            type=str, nargs='*',
@@ -708,7 +719,7 @@ def main():
     out_group.add_argument('-v', '--verbose', action='store_true',
                            help="print information on the progress of the analysis (to console)")
 
-    parser.add_argument('--version', action='version', version='%(prog)s 1.9.14')
+    parser.add_argument('--version', action='version', version='%(prog)s {version}'.format(version=PASTML_VERSION))
 
     itol_group = parser.add_argument_group('iTOL-related arguments')
     itol_group.add_argument('--upload_to_itol', action='store_true',

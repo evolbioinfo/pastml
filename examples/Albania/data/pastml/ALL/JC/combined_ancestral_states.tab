@@ -50,8 +50,8 @@ node_22	Africa	Africa	Africa	Africa	Africa	Africa
 node_23	Africa	Africa	Africa	Africa	Africa	Africa
 98CMAJ6934	Africa	Africa	Africa	Africa	Africa	Africa
 node_24	Africa	Africa	Africa	Africa	Africa	Africa
-node_32	WestEurope	Greece	Greece	Greece	WestEurope	Greece
-node_32		WestEurope	WestEurope			WestEurope
+node_32	WestEurope	Greece	Greece	Greece	WestEurope	WestEurope
+node_32		WestEurope	WestEurope			
 node_33	EastEurope	Africa	Africa	Greece	Greece	Greece
 node_33	Greece		EastEurope			WestEurope
 node_33			Greece			
