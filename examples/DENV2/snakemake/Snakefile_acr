@@ -33,8 +33,6 @@ rule all:
 
         expand(os.path.join(data_dir, maps_dir, 'real', 'acr_map_{loc}.genotype_{type}_tree.dated.html'),
         type=tree_types, loc=locs),
-        expand(os.path.join(data_dir, maps_dir, 'resampled', '{n}', 'acr_map_{loc}.genotype_{type}_tree.dated.html'),
-        type=['raxml'], loc=locs, n=range(5)),
 
 rule pastml_loc_genotype:
     '''
@@ -48,7 +46,7 @@ rule pastml_loc_genotype:
         map = os.path.join(data_dir, maps_dir, '{prefix}', 'acr_map_{loc}.genotype_{tree}.html'),
         tree = os.path.join(data_dir, maps_dir, '{prefix}', 'acr_tree_{loc}.genotype_{tree}.html')
     threads: 3
-    singularity: "docker://evolbioinfo/pastml:v1.9.8"
+    singularity: "docker://evolbioinfo/pastml:v1.9.15"
     params:
         mem = 4000,
         name = 'pastml_{loc}_gt',
@@ -78,7 +76,7 @@ rule pastml_loc:
         tree = os.path.join(data_dir, maps_dir, '{prefix}', 'acr_tree_{loc}_{tree}.html'),
         param = os.path.join(data_dir, 'pastml', '{prefix}', '{tree}', 'params.character_{loc}.method_MPPA.model_F81.tab')
     threads: 2
-    singularity: "docker://evolbioinfo/pastml:v1.9.8"
+    singularity: "docker://evolbioinfo/pastml:v1.9.15"
     params:
         mem = 4000,
         name = 'pastml_{loc}',
@@ -108,7 +106,7 @@ rule geomap:
         loc = '{loc}',
         country_col = 'Country',
         qos = "fast"
-    singularity: "docker://evolbioinfo/pastml:v1.9.8"
+    singularity: "docker://evolbioinfo/pastml:v1.9.15"
     shell:
         """
         geomap --data {input.data} --html {output.geo_map} --location {params.loc} --country {params.country_col}

@@ -1,702 +1,694 @@
-node	Location	genotype
-root	Africa	American
-root	Caribbean	Cosmopolitan
-root	Central America	Sylvatic
-root	Eastern Asia	
-root	Oceania	
-root	South America	
-root	South-eastern Asia	
-root	Southern Asia	
-n0	Africa	Sylvatic
-n0	Caribbean	
-n0	Eastern Asia	
-n0	Oceania	
-n0	South America	
-n0	South-eastern Asia	
-n14	South America	American
-n14	South-eastern Asia	AsianII
-n14	Southern Asia	Cosmopolitan
-n1	Africa	Sylvatic
-n13	South-eastern Asia	Sylvatic
-n15	South-eastern Asia	American
-n15		AsianAmerican
-n15		AsianI
-n15		AsianII
-n15		Cosmopolitan
-n343	Southern Asia	American
-n2	Africa	Sylvatic
-n9	Africa	Sylvatic
-EF105379.1	South-eastern Asia	Sylvatic
-EF105379	South-eastern Asia	Sylvatic
-n16	South-eastern Asia	Cosmopolitan
-n60	South-eastern Asia	AsianAmerican
-n60		AsianI
-n60		AsianII
-n60		Cosmopolitan
-n344	Southern Asia	American
-n349	Caribbean	American
-n349	Oceania	
-n349	South America	
-n349	Southern Asia	
-n3	Africa	Sylvatic
-n5	Africa	Sylvatic
-n10	Africa	Sylvatic
-JF260983	Europe	Sylvatic
-n17	South-eastern Asia	Cosmopolitan
-n44	Southern Asia	Cosmopolitan
-n61	South-eastern Asia	AsianAmerican
-n235	South-eastern Asia	AsianI
-n235		AsianII
-n345	Southern Asia	American
-n347	Southern Asia	American
-n350	Oceania	American
-n351	Caribbean	American
-n351	South America	
-n4	Africa	Sylvatic
-EF105384	Africa	Sylvatic
-n6	Africa	Sylvatic
-EU003591	Africa	Sylvatic
-n11	Africa	Sylvatic
-EF105383.2	Africa	Sylvatic
-n18	South-eastern Asia	Cosmopolitan
-n38	South-eastern Asia	Cosmopolitan
-n45	Southern Asia	Cosmopolitan
-n59	Southern Asia	Cosmopolitan
-n62	Caribbean	AsianAmerican
-n217	South-eastern Asia	AsianAmerican
-n236	South-eastern Asia	AsianI
-n338	Oceania	AsianII
-n338	South-eastern Asia	
-JQ922552.1	Southern Asia	American
-JQ922552.2	Southern Asia	American
-JQ922552	Southern Asia	American
-n348	Southern Asia	American
-JQ922550	Southern Asia	American
-HM582115	Oceania	American
-HM582115.1	Oceania	American
-n352	South America	American
-GQ868600	Caribbean	American
-EF105385.1	Africa	Sylvatic
-EF105385	Africa	Sylvatic
-n7	Africa	Sylvatic
-EF105387	Africa	Sylvatic
-n12	Africa	Sylvatic
-EF105383	Africa	Sylvatic
-n19	South-eastern Asia	Cosmopolitan
-n34	South-eastern Asia	Cosmopolitan
-n39	South-eastern Asia	Cosmopolitan
-GQ398259	South-eastern Asia	Cosmopolitan
-n46	Southern Asia	Cosmopolitan
-n48	Southern Asia	Cosmopolitan
-JQ922551	Southern Asia	Cosmopolitan
-JX475906	Southern Asia	Cosmopolitan
-JX475906.1	Southern Asia	Cosmopolitan
-n63	Caribbean	AsianAmerican
-M20558	Caribbean	AsianAmerican
-n229	South-eastern Asia	AsianAmerican
-n219	South-eastern Asia	AsianAmerican
-n224	South-eastern Asia	AsianAmerican
-n237	South-eastern Asia	AsianI
-n335	South-eastern Asia	AsianI
-n339	Oceania	AsianII
-n342	Eastern Asia	AsianII
-JQ922553	Southern Asia	American
-JQ922553.1	Southern Asia	American
-n353	South America	American
-GQ868592	South America	American
-EF105388.1	Africa	Sylvatic
-EF105388.2	Africa	Sylvatic
-EF105388	Africa	Sylvatic
-EF105383.3	Africa	Sylvatic
-EF105383.1	Africa	Sylvatic
-n20	Oceania	Cosmopolitan
-n20	South-eastern Asia	
-n22	South-eastern Asia	Cosmopolitan
-n35	Eastern Asia	Cosmopolitan
-n36	South-eastern Asia	Cosmopolitan
-n40	South-eastern Asia	Cosmopolitan
-n42	Africa	Cosmopolitan
-FJ882602.1	Southern Asia	Cosmopolitan
-FJ882602	Southern Asia	Cosmopolitan
-n49	Southern Asia	Cosmopolitan
-n57	Southern Asia	Cosmopolitan
-n167	Caribbean	AsianAmerican
-n65	Caribbean	AsianAmerican
-n69	Caribbean	AsianAmerican
-n230	South-eastern Asia	AsianAmerican
-n234	South-eastern Asia	AsianAmerican
-n220	South-eastern Asia	AsianAmerican
-FM210227	South-eastern Asia	AsianAmerican
-n225	South-eastern Asia	AsianAmerican
-n228	South-eastern Asia	AsianAmerican
-n238	South-eastern Asia	AsianI
-DQ181804	South-eastern Asia	AsianI
-n336	South-eastern Asia	AsianI
-M84728	South-eastern Asia	AsianI
-AF204177	Eastern Asia	AsianII
-AF204178	Eastern Asia	AsianII
-M29095.1	Oceania	AsianII
-M29095	Oceania	AsianII
-KJ734727.1	Eastern Asia	AsianII
-KJ734727	Eastern Asia	AsianII
-JX966379	Central America	American
-AF100465	South America	American
-n21	Eastern Asia	Cosmopolitan
-AY037116	Oceania	Cosmopolitan
-n23	South-eastern Asia	Cosmopolitan
-n32	South-eastern Asia	Cosmopolitan
-FJ196852	Eastern Asia	Cosmopolitan
-FJ196852.1	Eastern Asia	Cosmopolitan
-JN851131.1	South-eastern Asia	Cosmopolitan
-JN851131.2	South-eastern Asia	Cosmopolitan
-JN851131	South-eastern Asia	Cosmopolitan
-n41	South-eastern Asia	Cosmopolitan
-GQ398262	South-eastern Asia	Cosmopolitan
-GU131843.2	Africa	Cosmopolitan
-GU131843	Africa	Cosmopolitan
-GU131843.1	Africa	Cosmopolitan
-n50	Southern Asia	Cosmopolitan
-JQ955623	Southern Asia	Cosmopolitan
-n58	Southern Asia	Cosmopolitan
-AF276619	Eastern Asia	Cosmopolitan
-n216	Caribbean	AsianAmerican
-n169	Caribbean	AsianAmerican
-n204	Caribbean	AsianAmerican
-n66	Caribbean	AsianAmerican
-n68	Caribbean	AsianAmerican
-n70	Caribbean	AsianAmerican
-n159	South America	AsianAmerican
-n231	South-eastern Asia	AsianAmerican
-n232	South-eastern Asia	AsianAmerican
-FJ639701	South-eastern Asia	AsianAmerican
-FJ639701.1	South-eastern Asia	AsianAmerican
-n221	South-eastern Asia	AsianAmerican
-n222	South-eastern Asia	AsianAmerican
-n226	South-eastern Asia	AsianAmerican
-FM210243	South-eastern Asia	AsianAmerican
-FM210234	South-eastern Asia	AsianAmerican
-FM210222	South-eastern Asia	AsianAmerican
-n239	South-eastern Asia	AsianI
-n334	South-eastern Asia	AsianI
-n337	South-eastern Asia	AsianI
-M84727.1	South-eastern Asia	AsianI
-FJ196853	Eastern Asia	Cosmopolitan
-FJ196853.1	Eastern Asia	Cosmopolitan
-n28	South-eastern Asia	Cosmopolitan
-n25	South-eastern Asia	Cosmopolitan
-n26	South-eastern Asia	Cosmopolitan
-n33	South-eastern Asia	Cosmopolitan
-JN851126	South-eastern Asia	Cosmopolitan
-GQ398262.2	South-eastern Asia	Cosmopolitan
-GQ398262.1	South-eastern Asia	Cosmopolitan
-n51	Southern Asia	Cosmopolitan
-n56	Southern Asia	Cosmopolitan
-KF041236	Southern Asia	Cosmopolitan
-KF041236.1	Southern Asia	Cosmopolitan
-GQ868603	Caribbean	AsianAmerican
-GQ868603.1	Caribbean	AsianAmerican
-n170	Caribbean	AsianAmerican
-n170	South America	
-n182	Caribbean	AsianAmerican
-n205	Caribbean	AsianAmerican
-n215	Caribbean	AsianAmerican
-n67	Caribbean	AsianAmerican
-GQ398284	Caribbean	AsianAmerican
-EU529701	Caribbean	AsianAmerican
-EU529701.1	Caribbean	AsianAmerican
-n93	South America	AsianAmerican
-n72	Caribbean	AsianAmerican
-EU482546	Caribbean	AsianAmerican
-n160	South America	AsianAmerican
-n161	South America	AsianAmerican
-JX649148.1	South-eastern Asia	AsianAmerican
-JX649148	South-eastern Asia	AsianAmerican
-FJ639697.2	South-eastern Asia	AsianAmerican
-FJ639697	South-eastern Asia	AsianAmerican
-FJ639697.1	South-eastern Asia	AsianAmerican
-EU482664	South-eastern Asia	AsianAmerican
-EU482664.1	South-eastern Asia	AsianAmerican
-n223	South-eastern Asia	AsianAmerican
-FM210241	South-eastern Asia	AsianAmerican
-n227	South-eastern Asia	AsianAmerican
-FM210237	South-eastern Asia	AsianAmerican
-n331	South-eastern Asia	AsianI
-DQ181803	South-eastern Asia	AsianI
-n242	South-eastern Asia	AsianI
-n326	South-eastern Asia	AsianI
-DQ181805	South-eastern Asia	AsianI
-DQ181805.1	South-eastern Asia	AsianI
-M84727	South-eastern Asia	AsianI
-M84727.2	South-eastern Asia	AsianI
-n29	South-eastern Asia	Cosmopolitan
-n31	South-eastern Asia	Cosmopolitan
-JN851121	South-eastern Asia	Cosmopolitan
-GU370051	South-eastern Asia	Cosmopolitan
-JN851128	South-eastern Asia	Cosmopolitan
-JN851128.2	South-eastern Asia	Cosmopolitan
-JN851128.1	South-eastern Asia	Cosmopolitan
-EU179858	South-eastern Asia	Cosmopolitan
-HM488257	Oceania	Cosmopolitan
-n52	Southern Asia	Cosmopolitan
-n53	Southern Asia	Cosmopolitan
-JQ922549	Southern Asia	Cosmopolitan
-JQ922549.1	Southern Asia	Cosmopolitan
-n179	South America	AsianAmerican
-n172	South America	AsianAmerican
-EU569708	Caribbean	AsianAmerican
-n183	Caribbean	AsianAmerican
-n203	Caribbean	AsianAmerican
-n206	Caribbean	AsianAmerican
-EU482575	Caribbean	AsianAmerican
-EU482576.1	Caribbean	AsianAmerican
-EU482576	Caribbean	AsianAmerican
-GQ398284.1	Caribbean	AsianAmerican
-GQ398284.2	Caribbean	AsianAmerican
-n94	South America	AsianAmerican
-EU920828	South America	AsianAmerican
-n73	Caribbean	AsianAmerican
-n78	Caribbean	AsianAmerican
-EU920835	South America	AsianAmerican
-EU920834	South America	AsianAmerican
-JN819419	South America	AsianAmerican
-n163	South America	AsianAmerican
-n165	South America	AsianAmerican
-FM210221	South-eastern Asia	AsianAmerican
-FM210221.1	South-eastern Asia	AsianAmerican
-FM210235.1	South-eastern Asia	AsianAmerican
-FM210235	South-eastern Asia	AsianAmerican
-n332	South-eastern Asia	AsianI
-AF100462	South-eastern Asia	AsianI
-n243	South-eastern Asia	AsianI
-n325	South-eastern Asia	AsianI
-n327	South-eastern Asia	AsianI
-AF022434	South-eastern Asia	AsianI
-n30	South-eastern Asia	Cosmopolitan
-AY858035.1	South-eastern Asia	Cosmopolitan
-EU482640	South-eastern Asia	Cosmopolitan
-JX470186	Eastern Asia	Cosmopolitan
-DQ448231	Southern Asia	Cosmopolitan
-KF479233	Eastern Asia	Cosmopolitan
-n54	Southern Asia	Cosmopolitan
-KJ010186	Southern Asia	Cosmopolitan
-n180	South America	AsianAmerican
-EU687220	South America	AsianAmerican
-n173	South America	AsianAmerican
-n175	South America	AsianAmerican
-n184	Caribbean	AsianAmerican
-n198	Caribbean	AsianAmerican
-GQ398269	Caribbean	AsianAmerican
-GQ398282	Caribbean	AsianAmerican
-n207	Caribbean	AsianAmerican
-n208	Caribbean	AsianAmerican
-n117	Central America	AsianAmerican
-n96	South America	AsianAmerican
-n112	South America	AsianAmerican
-n74	Caribbean	AsianAmerican
-n75	South America	AsianAmerican
-n79	Caribbean	AsianAmerican
-EU482726	Caribbean	AsianAmerican
-FJ850085	South America	AsianAmerican
-FJ850085.1	South America	AsianAmerican
-FJ850085.2	South America	AsianAmerican
-n166	South America	AsianAmerican
-EU920840	South America	AsianAmerican
-EU726767	South-eastern Asia	AsianI
-EU726767.2	South-eastern Asia	AsianI
-EU726767.1	South-eastern Asia	AsianI
-n244	South-eastern Asia	AsianI
-n321	South-eastern Asia	AsianI
-AF169679	South-eastern Asia	AsianI
-AF169679.1	South-eastern Asia	AsianI
-n328	South-eastern Asia	AsianI
-n330	South-eastern Asia	AsianI
-AY858035	South-eastern Asia	Cosmopolitan
-AY858035.2	South-eastern Asia	Cosmopolitan
-n55	Southern Asia	Cosmopolitan
-KJ830750	Western Asia	Cosmopolitan
-n181	South America	AsianAmerican
-FJ898465.1	South America	AsianAmerican
-n174	South America	AsianAmerican
-AF489932	South America	AsianAmerican
-n176	South America	AsianAmerican
-n178	South America	AsianAmerican
-n185	Caribbean	AsianAmerican
-n189	Caribbean	AsianAmerican
-n199	Caribbean	AsianAmerican
-n201	Caribbean	AsianAmerican
-EU482590	Caribbean	AsianAmerican
-EU482590.1	Caribbean	AsianAmerican
-n209	Caribbean	AsianAmerican
-n214	Caribbean	AsianAmerican
-n157	Central America	AsianAmerican
-n119	Central America	AsianAmerican
-n130	Central America	AsianAmerican
-n97	South America	AsianAmerican
-n108	South America	AsianAmerican
-n113	South America	AsianAmerican
-n116	South America	AsianAmerican
-AY702039	Caribbean	AsianAmerican
-EU677145	Caribbean	AsianAmerican
-n76	South America	AsianAmerican
-EU920833.3	South America	AsianAmerican
-n80	Caribbean	AsianAmerican
-n92	Caribbean	AsianAmerican
-FJ850088	South America	AsianAmerican
-FJ850088.1	South America	AsianAmerican
-FJ639704	South-eastern Asia	AsianI
-n246	South-eastern Asia	AsianI
-n319	South-eastern Asia	AsianI
-n322	South-eastern Asia	AsianI
-n323	South-eastern Asia	AsianI
-n329	South-eastern Asia	AsianI
-DQ181798	South-eastern Asia	AsianI
-FJ639828	South-eastern Asia	AsianI
-AF100460	South-eastern Asia	AsianI
-KF360005	Southern Asia	Cosmopolitan
-KF041233	Southern Asia	Cosmopolitan
-FJ898465.2	South America	AsianAmerican
-FJ898465	South America	AsianAmerican
-JX669488.1	South America	AsianAmerican
-JX669488	South America	AsianAmerican
-n177	South America	AsianAmerican
-FJ850072	South America	AsianAmerican
-JX669483	South America	AsianAmerican
-JX669483.1	South America	AsianAmerican
-n186	Caribbean	AsianAmerican
-EU569719	Caribbean	AsianAmerican
-n190	Caribbean	AsianAmerican
-n197	Caribbean	AsianAmerican
-n200	Caribbean	AsianAmerican
-EU569714.1	Caribbean	AsianAmerican
-n202	Caribbean	AsianAmerican
-EU482554	Caribbean	AsianAmerican
-n210	Caribbean	AsianAmerican
-n212	Caribbean	AsianAmerican
-GQ398285	Caribbean	AsianAmerican
-EU482740	Caribbean	AsianAmerican
-n158	Central America	AsianAmerican
-FJ898439	Central America	AsianAmerican
-n123	Central America	AsianAmerican
-n121	Central America	AsianAmerican
-KJ189370	Central America	AsianAmerican
-n131	Central America	AsianAmerican
-n145	Central America	AsianAmerican
-n104	South America	AsianAmerican
-n99	South America	AsianAmerican
-FJ024473	South America	AsianAmerican
-n109	South America	AsianAmerican
-n111	South America	AsianAmerican
-n114	South America	AsianAmerican
-GQ868553	South America	AsianAmerican
-KJ189305	South America	AsianAmerican
-EU482607	South America	AsianAmerican
-n77	South America	AsianAmerican
-EU920833.1	South America	AsianAmerican
-n81	Caribbean	AsianAmerican
-n83	Caribbean	AsianAmerican
-n83	South America	
-EU920849.1	Caribbean	AsianAmerican
-EU920849	Caribbean	AsianAmerican
-n247	South-eastern Asia	AsianI
-n311	South-eastern Asia	AsianI
-n320	South-eastern Asia	AsianI
-FJ810411	South-eastern Asia	AsianI
-FJ639706	South-eastern Asia	AsianI
-FJ639706.1	South-eastern Asia	AsianI
-n324	South-eastern Asia	AsianI
-JF730047	South-eastern Asia	AsianI
-EU687246	South-eastern Asia	AsianI
-EU687246.1	South-eastern Asia	AsianI
-KC294201	South America	AsianAmerican
-JX669484	South America	AsianAmerican
-n187	Caribbean	AsianAmerican
-EU482728.3	Caribbean	AsianAmerican
-n191	Caribbean	AsianAmerican
-EU677143	Caribbean	AsianAmerican
-EU482565	Caribbean	AsianAmerican
-EU482565.1	Caribbean	AsianAmerican
-EU569714	Caribbean	AsianAmerican
-EU569714.2	Caribbean	AsianAmerican
-EU677144	Caribbean	AsianAmerican
-EU677144.1	Caribbean	AsianAmerican
-n211	Caribbean	AsianAmerican
-GQ398296	Caribbean	AsianAmerican
-n213	Caribbean	AsianAmerican
-GQ398302	Caribbean	AsianAmerican
-GQ868515.1	Central America	AsianAmerican
-GQ868515	Central America	AsianAmerican
-n124	Central America	AsianAmerican
-GQ868604	Central America	AsianAmerican
-n122	Central America	AsianAmerican
-EU482603	Central America	AsianAmerican
-n140	Central America	AsianAmerican
-n133	Central America	AsianAmerican
-n138	Central America	AsianAmerican
-n146	Central America	AsianAmerican
-n156	Central America	AsianAmerican
-n149	Central America	AsianAmerican
-n151	Central America	AsianAmerican
-n105	South America	AsianAmerican
-n107	South America	AsianAmerican
-n100	South America	AsianAmerican
-n102	South America	AsianAmerican
-GQ868558.2	South America	AsianAmerican
-GQ868558	South America	AsianAmerican
-GQ868558.1	South America	AsianAmerican
-GQ868555	South America	AsianAmerican
-GQ868555.1	South America	AsianAmerican
-n115	South America	AsianAmerican
-JN819408	South America	AsianAmerican
-EU920833	South America	AsianAmerican
-EU920833.2	South America	AsianAmerican
-n82	Caribbean	AsianAmerican
-EU687216.2	Caribbean	AsianAmerican
-n84	Caribbean	AsianAmerican
-n84	South America	
-EU920842	South America	AsianAmerican
-n248	South-eastern Asia	AsianI
-n310	South-eastern Asia	AsianI
-n312	South-eastern Asia	AsianI
-GU131924	South-eastern Asia	AsianI
-FJ810411.2	South-eastern Asia	AsianI
-FJ810411.1	South-eastern Asia	AsianI
-GQ868638.1	South-eastern Asia	AsianI
-GQ868638	South-eastern Asia	AsianI
-n188	Caribbean	AsianAmerican
-EU482728.1	Caribbean	AsianAmerican
-EU482552	Caribbean	AsianAmerican
-n193	Caribbean	AsianAmerican
-EU482551	Caribbean	AsianAmerican
-GQ398297.1	Caribbean	AsianAmerican
-GQ398297	Caribbean	AsianAmerican
-EU482561.1	Caribbean	AsianAmerican
-EU482561	Caribbean	AsianAmerican
-n125	Central America	AsianAmerican
-EU596500	Central America	AsianAmerican
-EU482634	Central America	AsianAmerican
-EU482634.1	Central America	AsianAmerican
-n141	Central America	AsianAmerican
-n142	Central America	AsianAmerican
-n134	Central America	AsianAmerican
-n135	Central America	AsianAmerican
-n139	Central America	AsianAmerican
-FJ873808.1	Central America	AsianAmerican
-FJ744704	Central America	AsianAmerican
-FJ744704.1	Central America	AsianAmerican
-FJ850066.1	Central America	AsianAmerican
-FJ850066	Central America	AsianAmerican
-FJ850120.2	Central America	AsianAmerican
-FJ850120	Central America	AsianAmerican
-FJ850120.1	Central America	AsianAmerican
-n155	Central America	AsianAmerican
-n153	Central America	AsianAmerican
-FJ906956	Central America	AsianAmerican
-n106	South America	AsianAmerican
-HQ332189	South America	AsianAmerican
-FJ639733.1	South America	AsianAmerican
-FJ639733	South America	AsianAmerican
-n101	South America	AsianAmerican
-FJ850108	South America	AsianAmerican
-JN819407	South America	AsianAmerican
-JN819407.1	South America	AsianAmerican
-JN819407.2	South America	AsianAmerican
-JN819408.1	South America	AsianAmerican
-JN819408.2	South America	AsianAmerican
-EU687216	Caribbean	AsianAmerican
-EU687216.1	Caribbean	AsianAmerican
-n85	South America	AsianAmerican
-n91	Caribbean	AsianAmerican
-n304	South-eastern Asia	AsianI
-n259	South-eastern Asia	AsianI
-n251	South-eastern Asia	AsianI
-n257	South-eastern Asia	AsianI
-FJ639707	South-eastern Asia	AsianI
-EU687249	South-eastern Asia	AsianI
-GU131932	South-eastern Asia	AsianI
-n314	South-eastern Asia	AsianI
-n316	South-eastern Asia	AsianI
-EU482728	Caribbean	AsianAmerican
-EU482728.2	Caribbean	AsianAmerican
-n194	Caribbean	AsianAmerican
-n196	Caribbean	AsianAmerican
-n126	Central America	AsianAmerican
-n128	Central America	AsianAmerican
-FJ850061.1	Central America	AsianAmerican
-FJ850061	Central America	AsianAmerican
-n143	Central America	AsianAmerican
-GQ199897	Central America	AsianAmerican
-GU369819	Central America	AsianAmerican
-GU369819.1	Central America	AsianAmerican
-n136	Central America	AsianAmerican
-KJ189308	Central America	AsianAmerican
-FJ873808.2	Central America	AsianAmerican
-FJ873808	Central America	AsianAmerican
-FJ882594	Central America	AsianAmerican
-FJ882594.1	Central America	AsianAmerican
-n154	Central America	AsianAmerican
-EU482635	Central America	AsianAmerican
-GQ868641	South America	AsianAmerican
-GQ868641.1	South America	AsianAmerican
-HQ332186.1	South America	AsianAmerican
-HQ332186	South America	AsianAmerican
-n86	South America	AsianAmerican
-JX669476	South America	AsianAmerican
-EU920850	Caribbean	AsianAmerican
-EU920850.1	Caribbean	AsianAmerican
-n305	South-eastern Asia	AsianI
-FJ410221	South-eastern Asia	AsianI
-n260	South-eastern Asia	AsianI
-n302	South-eastern Asia	AsianI
-EU660413	South-eastern Asia	AsianI
-n253	South-eastern Asia	AsianI
-FM210211	South-eastern Asia	AsianI
-n258	South-eastern Asia	AsianI
-FM210214	South-eastern Asia	AsianI
-n315	South-eastern Asia	AsianI
-KF955402	South-eastern Asia	AsianI
-n317	South-eastern Asia	AsianI
-FJ639718.3	South-eastern Asia	AsianI
-EU529706.1	Caribbean	AsianAmerican
-EU529706.2	Caribbean	AsianAmerican
-EU529706	Caribbean	AsianAmerican
-EU596490.1	Caribbean	AsianAmerican
-EU596490	Caribbean	AsianAmerican
-n127	Central America	AsianAmerican
-FJ205885	Central America	AsianAmerican
-n129	Central America	AsianAmerican
-FJ850050	Central America	AsianAmerican
-n144	Central America	AsianAmerican
-FJ850121.2	Central America	AsianAmerican
-n137	Central America	AsianAmerican
-GQ199894.2	Central America	AsianAmerican
-FJ410291	Central America	AsianAmerican
-FJ410291.1	Central America	AsianAmerican
-n87	South America	AsianAmerican
-HM181971	South America	AsianAmerican
-n306	South-eastern Asia	AsianI
-EU482661	South-eastern Asia	AsianI
-EU482676	South-eastern Asia	AsianI
-n262	South-eastern Asia	AsianI
-n270	South-eastern Asia	AsianI
-n303	South-eastern Asia	AsianI
-EU482705	South-eastern Asia	AsianI
-n254	South-eastern Asia	AsianI
-EU482541	South-eastern Asia	AsianI
-EU482669	South-eastern Asia	AsianI
-EU482669.1	South-eastern Asia	AsianI
-GQ868631.1	South-eastern Asia	AsianI
-GQ868631	South-eastern Asia	AsianI
-n318	South-eastern Asia	AsianI
-FJ639718.2	South-eastern Asia	AsianI
-JF357906.1	Central America	AsianAmerican
-JF357906	Central America	AsianAmerican
-HQ705625.1	Central America	AsianAmerican
-HQ705625	Central America	AsianAmerican
-FJ850121.1	Central America	AsianAmerican
-FJ850121	Central America	AsianAmerican
-GQ199894	Central America	AsianAmerican
-GQ199894.1	Central America	AsianAmerican
-n88	South America	AsianAmerican
-n90	South America	AsianAmerican
-n307	South-eastern Asia	AsianI
-n309	South-eastern Asia	AsianI
-n263	South-eastern Asia	AsianI
-n269	South-eastern Asia	AsianI
-n274	South-eastern Asia	AsianI
-n272	South-eastern Asia	AsianI
-EU482642	South-eastern Asia	AsianI
-EU482464	South-eastern Asia	AsianI
-EU482658	South-eastern Asia	AsianI
-n255	South-eastern Asia	AsianI
-FJ410259	South-eastern Asia	AsianI
-FJ639718	South-eastern Asia	AsianI
-FJ639718.1	South-eastern Asia	AsianI
-n89	South America	AsianAmerican
-JX669478	South America	AsianAmerican
-GU131881	South America	AsianAmerican
-GU131881.1	South America	AsianAmerican
-n308	South-eastern Asia	AsianI
-FJ410215	South-eastern Asia	AsianI
-EU482451	South-eastern Asia	AsianI
-EU482451.1	South-eastern Asia	AsianI
-n264	South-eastern Asia	AsianI
-EU482656	South-eastern Asia	AsianI
-EU482670.1	South-eastern Asia	AsianI
-EU482670	South-eastern Asia	AsianI
-n275	South-eastern Asia	AsianI
-n294	South-eastern Asia	AsianI
-n273	South-eastern Asia	AsianI
-FJ024452	South-eastern Asia	AsianI
-n256	South-eastern Asia	AsianI
-FJ432726	South-eastern Asia	AsianI
-JX286520	South America	AsianAmerican
-KC294211	South America	AsianAmerican
-FJ410224	South-eastern Asia	AsianI
-FJ410224.1	South-eastern Asia	AsianI
-FJ410217	South-eastern Asia	AsianI
-n266	South-eastern Asia	AsianI
-EU482474	South-eastern Asia	AsianI
-n276	South-eastern Asia	AsianI
-n288	South-eastern Asia	AsianI
-n295	South-eastern Asia	AsianI
-n298	South-eastern Asia	AsianI
-FJ205877	South-eastern Asia	AsianI
-FJ205877.1	South-eastern Asia	AsianI
-EU482469	South-eastern Asia	AsianI
-EU482469.1	South-eastern Asia	AsianI
-n267	South-eastern Asia	AsianI
-EU482699	South-eastern Asia	AsianI
-n277	South-eastern Asia	AsianI
-n279	South-eastern Asia	AsianI
-n289	South-eastern Asia	AsianI
-n292	South-eastern Asia	AsianI
-n296	South-eastern Asia	AsianI
-n297	South-eastern Asia	AsianI
-n299	South-eastern Asia	AsianI
-n301	South-eastern Asia	AsianI
-n268	South-eastern Asia	AsianI
-FJ562098	South-eastern Asia	AsianI
-n278	South-eastern Asia	AsianI
-FJ024454	South-eastern Asia	AsianI
-n280	South-eastern Asia	AsianI
-n287	South-eastern Asia	AsianI
-n290	South-eastern Asia	AsianI
-n291	South-eastern Asia	AsianI
-n293	South-eastern Asia	AsianI
-FJ547067	South-eastern Asia	AsianI
-EU482467.1	South-eastern Asia	AsianI
-EU482467	South-eastern Asia	AsianI
-EU482679	South-eastern Asia	AsianI
-EU482679.1	South-eastern Asia	AsianI
-n300	South-eastern Asia	AsianI
-GU131899.1	South-eastern Asia	AsianI
-FJ410202.1	South-eastern Asia	AsianI
-FJ410202	South-eastern Asia	AsianI
-EU482701.1	South-eastern Asia	AsianI
-EU482701	South-eastern Asia	AsianI
-FJ859028.1	South-eastern Asia	AsianI
-FJ859028	South-eastern Asia	AsianI
-n281	South-eastern Asia	AsianI
-FJ461311	South-eastern Asia	AsianI
-EU677148.1	South-eastern Asia	AsianI
-EU677148	South-eastern Asia	AsianI
-JF730049.1	South-eastern Asia	AsianI
-JF730049	South-eastern Asia	AsianI
-FJ410241.1	South-eastern Asia	AsianI
-FJ410241	South-eastern Asia	AsianI
-EU482654.1	South-eastern Asia	AsianI
-EU482654	South-eastern Asia	AsianI
-GU131899.2	South-eastern Asia	AsianI
-GU131899	South-eastern Asia	AsianI
-n282	South-eastern Asia	AsianI
-n285	South-eastern Asia	AsianI
-n283	South-eastern Asia	AsianI
-n284	South-eastern Asia	AsianI
-n286	South-eastern Asia	AsianI
-FJ547064	South-eastern Asia	AsianI
-FJ390387	South-eastern Asia	AsianI
-FJ390387.1	South-eastern Asia	AsianI
-FJ410237.1	South-eastern Asia	AsianI
-FJ410237	South-eastern Asia	AsianI
-FJ547064.2	South-eastern Asia	AsianI
-FJ547064.1	South-eastern Asia	AsianI
+node	Location
+root	Africa
+root	Caribbean
+root	Central America
+root	Eastern Asia
+root	Oceania
+root	South America
+root	South-eastern Asia
+root	Southern Asia
+n0	Africa
+n0	Caribbean
+n0	Eastern Asia
+n0	Oceania
+n0	South America
+n0	South-eastern Asia
+n14	South America
+n14	South-eastern Asia
+n14	Southern Asia
+n1	Africa
+n13	South-eastern Asia
+n15	South-eastern Asia
+n343	Southern Asia
+n2	Africa
+n9	Africa
+EF105379.1	South-eastern Asia
+EF105379	South-eastern Asia
+n16	South-eastern Asia
+n60	South-eastern Asia
+n344	Southern Asia
+n349	Caribbean
+n349	Oceania
+n349	South America
+n349	Southern Asia
+n3	Africa
+n5	Africa
+n10	Africa
+JF260983	Europe
+n17	South-eastern Asia
+n44	Southern Asia
+n61	South-eastern Asia
+n235	South-eastern Asia
+n345	Southern Asia
+n347	Southern Asia
+n350	Oceania
+n351	Caribbean
+n351	South America
+n4	Africa
+EF105384	Africa
+n6	Africa
+EU003591	Africa
+n11	Africa
+EF105383.2	Africa
+n18	South-eastern Asia
+n38	South-eastern Asia
+n45	Southern Asia
+n59	Southern Asia
+n62	Caribbean
+n217	South-eastern Asia
+n236	South-eastern Asia
+n338	Oceania
+n338	South-eastern Asia
+JQ922552.1	Southern Asia
+JQ922552.2	Southern Asia
+JQ922552	Southern Asia
+n348	Southern Asia
+JQ922550	Southern Asia
+HM582115	Oceania
+HM582115.1	Oceania
+n352	South America
+GQ868600	Caribbean
+EF105385.1	Africa
+EF105385	Africa
+n7	Africa
+EF105387	Africa
+n12	Africa
+EF105383	Africa
+n19	South-eastern Asia
+n34	South-eastern Asia
+n39	South-eastern Asia
+GQ398259	South-eastern Asia
+n46	Southern Asia
+n48	Southern Asia
+JQ922551	Southern Asia
+JX475906	Southern Asia
+JX475906.1	Southern Asia
+n63	Caribbean
+M20558	Caribbean
+n229	South-eastern Asia
+n219	South-eastern Asia
+n224	South-eastern Asia
+n237	South-eastern Asia
+n335	South-eastern Asia
+n339	Oceania
+n342	Eastern Asia
+JQ922553	Southern Asia
+JQ922553.1	Southern Asia
+n353	South America
+GQ868592	South America
+EF105388.1	Africa
+EF105388.2	Africa
+EF105388	Africa
+EF105383.3	Africa
+EF105383.1	Africa
+n20	Oceania
+n20	South-eastern Asia
+n22	South-eastern Asia
+n35	Eastern Asia
+n36	South-eastern Asia
+n40	South-eastern Asia
+n42	Africa
+FJ882602.1	Southern Asia
+FJ882602	Southern Asia
+n49	Southern Asia
+n57	Southern Asia
+n167	Caribbean
+n65	Caribbean
+n69	Caribbean
+n230	South-eastern Asia
+n234	South-eastern Asia
+n220	South-eastern Asia
+FM210227	South-eastern Asia
+n225	South-eastern Asia
+n228	South-eastern Asia
+n238	South-eastern Asia
+DQ181804	South-eastern Asia
+n336	South-eastern Asia
+M84728	South-eastern Asia
+AF204177	Eastern Asia
+AF204178	Eastern Asia
+M29095.1	Oceania
+M29095	Oceania
+KJ734727.1	Eastern Asia
+KJ734727	Eastern Asia
+JX966379	Central America
+AF100465	South America
+n21	Eastern Asia
+AY037116	Oceania
+n23	South-eastern Asia
+n32	South-eastern Asia
+FJ196852	Eastern Asia
+FJ196852.1	Eastern Asia
+JN851131.1	South-eastern Asia
+JN851131.2	South-eastern Asia
+JN851131	South-eastern Asia
+n41	South-eastern Asia
+GQ398262	South-eastern Asia
+GU131843.2	Africa
+GU131843	Africa
+GU131843.1	Africa
+n50	Southern Asia
+JQ955623	Southern Asia
+n58	Southern Asia
+AF276619	Eastern Asia
+n216	Caribbean
+n169	Caribbean
+n204	Caribbean
+n66	Caribbean
+n68	Caribbean
+n70	Caribbean
+n159	South America
+n231	South-eastern Asia
+n232	South-eastern Asia
+FJ639701	South-eastern Asia
+FJ639701.1	South-eastern Asia
+n221	South-eastern Asia
+n222	South-eastern Asia
+n226	South-eastern Asia
+FM210243	South-eastern Asia
+FM210234	South-eastern Asia
+FM210222	South-eastern Asia
+n239	South-eastern Asia
+n334	South-eastern Asia
+n337	South-eastern Asia
+M84727.1	South-eastern Asia
+FJ196853	Eastern Asia
+FJ196853.1	Eastern Asia
+n28	South-eastern Asia
+n25	South-eastern Asia
+n26	South-eastern Asia
+n33	South-eastern Asia
+JN851126	South-eastern Asia
+GQ398262.2	South-eastern Asia
+GQ398262.1	South-eastern Asia
+n51	Southern Asia
+n56	Southern Asia
+KF041236	Southern Asia
+KF041236.1	Southern Asia
+GQ868603	Caribbean
+GQ868603.1	Caribbean
+n170	Caribbean
+n170	South America
+n182	Caribbean
+n205	Caribbean
+n215	Caribbean
+n67	Caribbean
+GQ398284	Caribbean
+EU529701	Caribbean
+EU529701.1	Caribbean
+n93	South America
+n72	Caribbean
+EU482546	Caribbean
+n160	South America
+n161	South America
+JX649148.1	South-eastern Asia
+JX649148	South-eastern Asia
+FJ639697.2	South-eastern Asia
+FJ639697	South-eastern Asia
+FJ639697.1	South-eastern Asia
+EU482664	South-eastern Asia
+EU482664.1	South-eastern Asia
+n223	South-eastern Asia
+FM210241	South-eastern Asia
+n227	South-eastern Asia
+FM210237	South-eastern Asia
+n331	South-eastern Asia
+DQ181803	South-eastern Asia
+n242	South-eastern Asia
+n326	South-eastern Asia
+DQ181805	South-eastern Asia
+DQ181805.1	South-eastern Asia
+M84727	South-eastern Asia
+M84727.2	South-eastern Asia
+n29	South-eastern Asia
+n31	South-eastern Asia
+JN851121	South-eastern Asia
+GU370051	South-eastern Asia
+JN851128	South-eastern Asia
+JN851128.2	South-eastern Asia
+JN851128.1	South-eastern Asia
+EU179858	South-eastern Asia
+HM488257	Oceania
+n52	Southern Asia
+n53	Southern Asia
+JQ922549	Southern Asia
+JQ922549.1	Southern Asia
+n179	South America
+n172	South America
+EU569708	Caribbean
+n183	Caribbean
+n203	Caribbean
+n206	Caribbean
+EU482575	Caribbean
+EU482576.1	Caribbean
+EU482576	Caribbean
+GQ398284.1	Caribbean
+GQ398284.2	Caribbean
+n94	South America
+EU920828	South America
+n73	Caribbean
+n78	Caribbean
+EU920835	South America
+EU920834	South America
+JN819419	South America
+n163	South America
+n165	South America
+FM210221	South-eastern Asia
+FM210221.1	South-eastern Asia
+FM210235.1	South-eastern Asia
+FM210235	South-eastern Asia
+n332	South-eastern Asia
+AF100462	South-eastern Asia
+n243	South-eastern Asia
+n325	South-eastern Asia
+n327	South-eastern Asia
+AF022434	South-eastern Asia
+n30	South-eastern Asia
+AY858035.1	South-eastern Asia
+EU482640	South-eastern Asia
+JX470186	Eastern Asia
+DQ448231	Southern Asia
+KF479233	Eastern Asia
+n54	Southern Asia
+KJ010186	Southern Asia
+n180	South America
+EU687220	South America
+n173	South America
+n175	South America
+n184	Caribbean
+n198	Caribbean
+GQ398269	Caribbean
+GQ398282	Caribbean
+n207	Caribbean
+n208	Caribbean
+n117	Central America
+n96	South America
+n112	South America
+n74	Caribbean
+n75	South America
+n79	Caribbean
+EU482726	Caribbean
+FJ850085	South America
+FJ850085.1	South America
+FJ850085.2	South America
+n166	South America
+EU920840	South America
+EU726767	South-eastern Asia
+EU726767.2	South-eastern Asia
+EU726767.1	South-eastern Asia
+n244	South-eastern Asia
+n321	South-eastern Asia
+AF169679	South-eastern Asia
+AF169679.1	South-eastern Asia
+n328	South-eastern Asia
+n330	South-eastern Asia
+AY858035	South-eastern Asia
+AY858035.2	South-eastern Asia
+n55	Southern Asia
+KJ830750	Western Asia
+n181	South America
+FJ898465.1	South America
+n174	South America
+AF489932	South America
+n176	South America
+n178	South America
+n185	Caribbean
+n189	Caribbean
+n199	Caribbean
+n201	Caribbean
+EU482590	Caribbean
+EU482590.1	Caribbean
+n209	Caribbean
+n214	Caribbean
+n157	Central America
+n119	Central America
+n130	Central America
+n97	South America
+n108	South America
+n113	South America
+n116	South America
+AY702039	Caribbean
+EU677145	Caribbean
+n76	South America
+EU920833.3	South America
+n80	Caribbean
+n92	Caribbean
+FJ850088	South America
+FJ850088.1	South America
+FJ639704	South-eastern Asia
+n246	South-eastern Asia
+n319	South-eastern Asia
+n322	South-eastern Asia
+n323	South-eastern Asia
+n329	South-eastern Asia
+DQ181798	South-eastern Asia
+FJ639828	South-eastern Asia
+AF100460	South-eastern Asia
+KF360005	Southern Asia
+KF041233	Southern Asia
+FJ898465.2	South America
+FJ898465	South America
+JX669488.1	South America
+JX669488	South America
+n177	South America
+FJ850072	South America
+JX669483	South America
+JX669483.1	South America
+n186	Caribbean
+EU569719	Caribbean
+n190	Caribbean
+n197	Caribbean
+n200	Caribbean
+EU569714.1	Caribbean
+n202	Caribbean
+EU482554	Caribbean
+n210	Caribbean
+n212	Caribbean
+GQ398285	Caribbean
+EU482740	Caribbean
+n158	Central America
+FJ898439	Central America
+n123	Central America
+n121	Central America
+KJ189370	Central America
+n131	Central America
+n145	Central America
+n104	South America
+n99	South America
+FJ024473	South America
+n109	South America
+n111	South America
+n114	South America
+GQ868553	South America
+KJ189305	South America
+EU482607	South America
+n77	South America
+EU920833.1	South America
+n81	Caribbean
+n83	Caribbean
+n83	South America
+EU920849.1	Caribbean
+EU920849	Caribbean
+n247	South-eastern Asia
+n311	South-eastern Asia
+n320	South-eastern Asia
+FJ810411	South-eastern Asia
+FJ639706	South-eastern Asia
+FJ639706.1	South-eastern Asia
+n324	South-eastern Asia
+JF730047	South-eastern Asia
+EU687246	South-eastern Asia
+EU687246.1	South-eastern Asia
+KC294201	South America
+JX669484	South America
+n187	Caribbean
+EU482728.3	Caribbean
+n191	Caribbean
+EU677143	Caribbean
+EU482565	Caribbean
+EU482565.1	Caribbean
+EU569714	Caribbean
+EU569714.2	Caribbean
+EU677144	Caribbean
+EU677144.1	Caribbean
+n211	Caribbean
+GQ398296	Caribbean
+n213	Caribbean
+GQ398302	Caribbean
+GQ868515.1	Central America
+GQ868515	Central America
+n124	Central America
+GQ868604	Central America
+n122	Central America
+EU482603	Central America
+n140	Central America
+n133	Central America
+n138	Central America
+n146	Central America
+n156	Central America
+n149	Central America
+n151	Central America
+n105	South America
+n107	South America
+n100	South America
+n102	South America
+GQ868558.2	South America
+GQ868558	South America
+GQ868558.1	South America
+GQ868555	South America
+GQ868555.1	South America
+n115	South America
+JN819408	South America
+EU920833	South America
+EU920833.2	South America
+n82	Caribbean
+EU687216.2	Caribbean
+n84	Caribbean
+n84	South America
+EU920842	South America
+n248	South-eastern Asia
+n310	South-eastern Asia
+n312	South-eastern Asia
+GU131924	South-eastern Asia
+FJ810411.2	South-eastern Asia
+FJ810411.1	South-eastern Asia
+GQ868638.1	South-eastern Asia
+GQ868638	South-eastern Asia
+n188	Caribbean
+EU482728.1	Caribbean
+EU482552	Caribbean
+n193	Caribbean
+EU482551	Caribbean
+GQ398297.1	Caribbean
+GQ398297	Caribbean
+EU482561.1	Caribbean
+EU482561	Caribbean
+n125	Central America
+EU596500	Central America
+EU482634	Central America
+EU482634.1	Central America
+n141	Central America
+n142	Central America
+n134	Central America
+n135	Central America
+n139	Central America
+FJ873808.1	Central America
+FJ744704	Central America
+FJ744704.1	Central America
+FJ850066.1	Central America
+FJ850066	Central America
+FJ850120.2	Central America
+FJ850120	Central America
+FJ850120.1	Central America
+n155	Central America
+n153	Central America
+FJ906956	Central America
+n106	South America
+HQ332189	South America
+FJ639733.1	South America
+FJ639733	South America
+n101	South America
+FJ850108	South America
+JN819407	South America
+JN819407.1	South America
+JN819407.2	South America
+JN819408.1	South America
+JN819408.2	South America
+EU687216	Caribbean
+EU687216.1	Caribbean
+n85	South America
+n91	Caribbean
+n304	South-eastern Asia
+n259	South-eastern Asia
+n251	South-eastern Asia
+n257	South-eastern Asia
+FJ639707	South-eastern Asia
+EU687249	South-eastern Asia
+GU131932	South-eastern Asia
+n314	South-eastern Asia
+n316	South-eastern Asia
+EU482728	Caribbean
+EU482728.2	Caribbean
+n194	Caribbean
+n196	Caribbean
+n126	Central America
+n128	Central America
+FJ850061.1	Central America
+FJ850061	Central America
+n143	Central America
+GQ199897	Central America
+GU369819	Central America
+GU369819.1	Central America
+n136	Central America
+KJ189308	Central America
+FJ873808.2	Central America
+FJ873808	Central America
+FJ882594	Central America
+FJ882594.1	Central America
+n154	Central America
+EU482635	Central America
+GQ868641	South America
+GQ868641.1	South America
+HQ332186.1	South America
+HQ332186	South America
+n86	South America
+JX669476	South America
+EU920850	Caribbean
+EU920850.1	Caribbean
+n305	South-eastern Asia
+FJ410221	South-eastern Asia
+n260	South-eastern Asia
+n302	South-eastern Asia
+EU660413	South-eastern Asia
+n253	South-eastern Asia
+FM210211	South-eastern Asia
+n258	South-eastern Asia
+FM210214	South-eastern Asia
+n315	South-eastern Asia
+KF955402	South-eastern Asia
+n317	South-eastern Asia
+FJ639718.3	South-eastern Asia
+EU529706.1	Caribbean
+EU529706.2	Caribbean
+EU529706	Caribbean
+EU596490.1	Caribbean
+EU596490	Caribbean
+n127	Central America
+FJ205885	Central America
+n129	Central America
+FJ850050	Central America
+n144	Central America
+FJ850121.2	Central America
+n137	Central America
+GQ199894.2	Central America
+FJ410291	Central America
+FJ410291.1	Central America
+n87	South America
+HM181971	South America
+n306	South-eastern Asia
+EU482661	South-eastern Asia
+EU482676	South-eastern Asia
+n262	South-eastern Asia
+n270	South-eastern Asia
+n303	South-eastern Asia
+EU482705	South-eastern Asia
+n254	South-eastern Asia
+EU482541	South-eastern Asia
+EU482669	South-eastern Asia
+EU482669.1	South-eastern Asia
+GQ868631.1	South-eastern Asia
+GQ868631	South-eastern Asia
+n318	South-eastern Asia
+FJ639718.2	South-eastern Asia
+JF357906.1	Central America
+JF357906	Central America
+HQ705625.1	Central America
+HQ705625	Central America
+FJ850121.1	Central America
+FJ850121	Central America
+GQ199894	Central America
+GQ199894.1	Central America
+n88	South America
+n90	South America
+n307	South-eastern Asia
+n309	South-eastern Asia
+n263	South-eastern Asia
+n269	South-eastern Asia
+n274	South-eastern Asia
+n272	South-eastern Asia
+EU482642	South-eastern Asia
+EU482464	South-eastern Asia
+EU482658	South-eastern Asia
+n255	South-eastern Asia
+FJ410259	South-eastern Asia
+FJ639718	South-eastern Asia
+FJ639718.1	South-eastern Asia
+n89	South America
+JX669478	South America
+GU131881	South America
+GU131881.1	South America
+n308	South-eastern Asia
+FJ410215	South-eastern Asia
+EU482451	South-eastern Asia
+EU482451.1	South-eastern Asia
+n264	South-eastern Asia
+EU482656	South-eastern Asia
+EU482670.1	South-eastern Asia
+EU482670	South-eastern Asia
+n275	South-eastern Asia
+n294	South-eastern Asia
+n273	South-eastern Asia
+FJ024452	South-eastern Asia
+n256	South-eastern Asia
+FJ432726	South-eastern Asia
+JX286520	South America
+KC294211	South America
+FJ410224	South-eastern Asia
+FJ410224.1	South-eastern Asia
+FJ410217	South-eastern Asia
+n266	South-eastern Asia
+EU482474	South-eastern Asia
+n276	South-eastern Asia
+n288	South-eastern Asia
+n295	South-eastern Asia
+n298	South-eastern Asia
+FJ205877	South-eastern Asia
+FJ205877.1	South-eastern Asia
+EU482469	South-eastern Asia
+EU482469.1	South-eastern Asia
+n267	South-eastern Asia
+EU482699	South-eastern Asia
+n277	South-eastern Asia
+n279	South-eastern Asia
+n289	South-eastern Asia
+n292	South-eastern Asia
+n296	South-eastern Asia
+n297	South-eastern Asia
+n299	South-eastern Asia
+n301	South-eastern Asia
+n268	South-eastern Asia
+FJ562098	South-eastern Asia
+n278	South-eastern Asia
+FJ024454	South-eastern Asia
+n280	South-eastern Asia
+n287	South-eastern Asia
+n290	South-eastern Asia
+n291	South-eastern Asia
+n293	South-eastern Asia
+FJ547067	South-eastern Asia
+EU482467.1	South-eastern Asia
+EU482467	South-eastern Asia
+EU482679	South-eastern Asia
+EU482679.1	South-eastern Asia
+n300	South-eastern Asia
+GU131899.1	South-eastern Asia
+FJ410202.1	South-eastern Asia
+FJ410202	South-eastern Asia
+EU482701.1	South-eastern Asia
+EU482701	South-eastern Asia
+FJ859028.1	South-eastern Asia
+FJ859028	South-eastern Asia
+n281	South-eastern Asia
+FJ461311	South-eastern Asia
+EU677148.1	South-eastern Asia
+EU677148	South-eastern Asia
+JF730049.1	South-eastern Asia
+JF730049	South-eastern Asia
+FJ410241.1	South-eastern Asia
+FJ410241	South-eastern Asia
+EU482654.1	South-eastern Asia
+EU482654	South-eastern Asia
+GU131899.2	South-eastern Asia
+GU131899	South-eastern Asia
+n282	South-eastern Asia
+n285	South-eastern Asia
+n283	South-eastern Asia
+n284	South-eastern Asia
+n286	South-eastern Asia
+FJ547064	South-eastern Asia
+FJ390387	South-eastern Asia
+FJ390387.1	South-eastern Asia
+FJ410237.1	South-eastern Asia
+FJ410237	South-eastern Asia
+FJ547064.2	South-eastern Asia
+FJ547064.1	South-eastern Asia

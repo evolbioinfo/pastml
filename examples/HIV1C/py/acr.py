@@ -25,8 +25,6 @@ if '__main__' == __name__:
     parser.add_argument('--out_data', required=False, type=str, default=None)
     parser.add_argument('--work_dir', required=False, type=str, default=None)
     parser.add_argument('--verbose', action='store_true', help="print information on the progress of the analysis")
-    parser.add_argument('--joint_option', choices=['forced_joint', 'no_forced_joint'],
-                        help="whether to force the addition of the JOINT state to the MPPA prediction")
     params = parser.parse_args()
 
     for tree, html in zip(params.trees, params.htmls):
@@ -36,7 +34,7 @@ if '__main__' == __name__:
                         columns=params.columns, name_column=params.name_column, date_column=params.date_column,
                         tip_size_threshold=params.threshold,
                         parameters=params.parameters, out_data=params.out_data, work_dir=work_dir,
-                        verbose=params.verbose, no_forced_joint=params.joint_option == 'no_forced_joint')
+                        verbose=params.verbose)
         if params.out_parameters:
             for column, out_parameters in zip(params.columns, params.out_parameters):
                 pastml_out_pars = \

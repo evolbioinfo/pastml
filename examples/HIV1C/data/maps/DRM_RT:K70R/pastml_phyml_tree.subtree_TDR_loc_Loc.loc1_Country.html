@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+  font-family: helvetica,serif;
+  font-size: 14px;
+}
+
+#cy {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 10;
+  background-color: #FFFFFF;
+}
+
+h1 {
+  opacity: 0.5;
+  font-size: 1em;
+}
+
+.floating {
+    max-width: 30%;
+    width: 120px;
+    float: right;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+}
+
+.cy-button {
+    background-color: #555555;
+    border: none;
+    color: white;
+    padding: 6px 0px;
+    width: 100%;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 3px 10px 0 rgba(0,0,0,0.19);
+}
+
+a.cy-button:link, a.cy-button:visited, a.cy-button:hover {
+    color: white;
+    text-decoration: none;
+}
+
+
+.slidertext {
+    width: 100%;
+    color: #555555;
+    border: none;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+}
+
+.slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 15px;
+    text-align: center;
+    border-radius: 5px;
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.7;
+    -webkit-transition: .2s;
+    transition: opacity .2s;
+    margin: 10px 0px;
+    display: inline-block;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 3px 10px 0 rgba(0,0,0,0.19);
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: #555555;
+    cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: #555555;
+    cursor: pointer;
+}
+
+@media all and (max-width: 600px) {
+    .buttontext {
+        display: none;
+    }
+}
+
+
+</style>
+<meta charset=utf-8 />
+<meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
+<title>pastml_phyml_tree.subtree_TDR_loc_Loc.loc1_Country</title>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/dagre.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape-dagre.js"></script>
+
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/jquery.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/jquery.qtip.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape-qtip.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://pastml.pasteur.fr/static/css/jquery.qtip.min.css"/>
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"/>
+<meta http-Equiv="Cache-Control" Content="no-cache" />
+<meta http-Equiv="Pragma" Content="no-cache" />
+<meta http-Equiv="Expires" Content="0" />
+</head>
+<body>
+<div id="fullscreenDiv">
+<div id="cy"></div>
+<div class="floating">
+    <a class="cy-button" href="#" id="fit" onclick="fit()">
+        <span class="glyphicon glyphicon-resize-full"></span><span class="buttontext">  Fit screen</span>
+    </a>
+    <a class="cy-button" href="#" id="reset" onclick="resetLayout()">
+        <span class="glyphicon glyphicon-picture"></span><span class="buttontext">  Layout</span>
+    </a>
+    <a class="cy-button" href="#" id="downloader" onclick="toImage()" download="pastml_phyml_tree.subtree_TDR_loc_Loc.loc1_Country.jpg">
+        <span class="glyphicon glyphicon-save"></span><span class="buttontext">  Save (jpg)</span>
+    </a>
+    <a class="cy-button" href="#" id="fullscreen" onclick="toggleFullScreen()">
+        <span id="fsspan" class="glyphicon glyphicon-fullscreen"></span><span id="fstext" class="buttontext">  Full screen</span>
+    </a>
+    
+<div class="slidecontainer">
+  <input type="range" min="0" max="3" value="3" class="slider" id="myRange" step="1">
+  <div class="slidertext">Year: <span id="demo"></span></div>
+</div>
+</div></div>
+<!-- Load appplication code at the end to ensure DOM is loaded -->
+<script type="text/javascript">
+var layoutOptions = {
+    name: 'dagre',
+    nodesep: 10, // the separation between adjacent nodes in the same rank
+    edgeSep: 10, // the separation between adjacent edges in the same rank
+    rankSep: 80, // the separation between adjacent ranks
+    rankDir: 'TB', // 'TB' for top to bottom flow, 'LR' for left to right,
+    ranker: 'longest-path', // Type of algorithm to assign a rank to each node in the input graph. Possible values: 'network-simplex', 'tight-tree' or 'longest-path'
+    minLen: 1, // number of ranks to keep between the source and target of the edge
+
+    // general layout options
+    fit: true, // whether to fit to viewport
+    padding: 1, // fit padding
+    spacingFactor: undefined, // Applies a multiplicative factor (>0) to expand or compress the overall area that the nodes take up
+    nodeDimensionsIncludeLabels: true, // whether labels should be included in determining the space used by a node
+    animate: false, // whether to transition the node positions
+    animateFilter: function( node, i ){ return true; }, // whether to animate specific nodes when animation is on; non-animated nodes immediately go to their final positions
+    animationDuration: 500, // duration of animation in ms if enabled
+    animationEasing: undefined, // easing of animation if enabled
+    boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
+    transform: function( node, pos ){ return pos; }, // a function that applies a transform to the final node position
+    ready: function(){}, // on layoutready
+    stop: function(){} // on layoutstop
+  };
+
+var cy = cytoscape({
+  container: document.getElementById('cy'),
+
+  style: cytoscape.stylesheet()
+    .selector('node')
+      .css({
+        'width': 300,
+        'height': 300,
+        'content': '',
+        'shape': 'ellipse',
+        'pie-size': '100%',
+        'background-color': '#909090',
+        'color': '#383838',
+        'text-opacity': 1,
+        'text-valign': 'center',
+        'text-halign': 'center',
+        'font-size': 80,
+        'text-halign' : 'center',
+        'text-valign' : 'center',
+        'min-zoomed-font-size': 12,
+        'text-background-color' : '#ffffff',
+        'text-background-shape' : 'roundrectangle',
+        'text-background-opacity': .3,
+        'text-background-padding' : 1,
+      })
+    .selector('node[node_name]')
+      .css({
+        'content': 'data(node_name)',
+      })
+    .selector('node[tip]')
+      .css({
+        'width': 400,
+        'height': 400,
+        'font-size': 100,
+      })
+    .selector('node[unresolved]')
+      .css({
+        'shape': 'octagon',
+        'pie-size': '92%',
+        'width': 500,
+        'height': 500,
+        'font-size': 125,
+      })
+    .selector('node[node_size]')
+      .css({
+        'width': 'data(node_size)',
+        'height': 'data(node_size)',
+      })
+    .selector('node[node_fontsize]')
+      .css({
+        'font-size': 'data(node_fontsize)',
+      })
+    
+    .selector(".Country-RTK70Rsensitive")
+        .css({
+        
+                'pie-1-background-color': "#ffffff",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryArgentina-RTK70Rsensitive")
+        .css({
+        
+                'pie-1-background-color': "#cc6f66",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryBrazil-RTK70R")
+        .css({
+        
+                'pie-1-background-color': "#b599cc",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#ffffff",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryBrazil-RTK70Rresistant")
+        .css({
+        
+                'pie-1-background-color': "#b599cc",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#d95f02",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryBrazil-RTK70Rsensitive")
+        .css({
+        
+                'pie-1-background-color': "#b599cc",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryBurundi-RTK70Rsensitive")
+        .css({
+        
+                'pie-1-background-color': "#cc669c",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryCuba-RTK70Rsensitive")
+        .css({
+        
+                'pie-1-background-color': "#33ccb7",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryEthiopia-RTK70Rsensitive")
+        .css({
+        
+                'pie-1-background-color': "#a533cc",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryRomania-RTK70Rsensitive")
+        .css({
+        
+                'pie-1-background-color': "#66accc",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountrySweden-RTK70Rsensitive")
+        .css({
+        
+                'pie-1-background-color': "#cc66b8",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryUganda-RTK70Rsensitive")
+        .css({
+        
+                'pie-1-background-color': "#33cc8e",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".CountryUnitedRepublicofTanzania-RTK70Rsensitive")
+        .css({
+        
+                'pie-1-background-color': "#cc33a0",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector('edge')
+      .css({
+        'width': 50,
+        'font-size': 80,
+        'color': 'black',
+        'content': '',
+        'curve-style': 'bezier',
+        'target-arrow-shape': 'triangle',
+        'target-arrow-color': '#909090',
+        'opacity': 0.8,
+        'text-opacity': 1,
+        'line-color': '#909090',
+        'text-background-color' : '#ffffff',
+        'text-background-shape' : 'roundrectangle',
+        'text-background-opacity': 1,
+        'text-background-padding' : 4,
+        'min-zoomed-font-size': 10,
+      })
+    .selector('edge[edge_meta]')
+      .css({
+        'line-color': '#383838',
+        'target-arrow-color': '#383838',
+      })
+    .selector('edge[edge_name]')
+      .css({
+        'content': 'data(edge_name)',
+      })
+    .selector('edge[edge_size]')
+      .css({
+        'width': 'data(edge_size)',
+        'font-size': 'data(edge_size)',
+      })
+    .selector(':selected')
+      .css({
+        'background-color': 'black',
+        'line-color': 'black',
+        'target-arrow-color': 'black',
+        'source-arrow-color': 'black',
+        'pie-size': '60%',
+        'opacity': 1
+      })
+    .selector('.faded')
+      .css({
+        'opacity': 0.25,
+        'text-opacity': 0
+      }),
+
+  elements: {'nodes': [{'data': {'node_names': 'node_3599', 'node_all_tips_1': ' 335', 'node_in_tips_1': ' 85', 'node_in_ns_2': ' 141', 'node_fontsize_2': 205, 'node_all_tips_0': ' 2', 'node_fontsize': 205, 'node_in_ns': ' 141', 'node_name': 'Burundi 85', 'node_size_2': 1302, 'node_size_1': 1302, 'node_names_3': 'node_3599', 'node_in_ns_1': ' 141', 'date': 0, 'node_all_tips': ' 615', 'node_in_tips_0': ' 0', 'node_name_1': 'Burundi 85', 'node_names_1': 'node_3599', 'node_in_ns_3': ' 141', 'node_name_3': 'Burundi 85', 'node_all_tips_2': ' 451', 'node_name_2': 'Burundi 85', 'node_name_0': 'Burundi 0', 'node_in_tips_2': ' 85', 'node_fontsize_0': 80, 'node_in_ns_0': ' 14', 'node_in_tips': ' 85', 'node_names_2': 'node_3599', 'node_fontsize_3': 205, 'node_in_tips_3': ' 85', 'node_size_0': 133, 'node_size_3': 1302, 'node_fontsize_1': 205, 'node_size': 1302, 'node_names_0': 'node_3599', 'node_all_tips_3': ' 615', 'id': 0, 'tooltip': 'Country: Burundi<br>RTK70R: sensitive'}, 'classes': 'CountryBurundi-RTK70Rsensitive'}, {'data': {'node_names': 'node_3598', 'node_all_tips_1': ' 92', 'node_in_tips_1': ' 72', 'node_in_ns_2': ' 204', 'node_fontsize_2': 214, 'node_fontsize': 240, 'node_in_ns': ' 221', 'node_name': 'Brazil 187', 'node_size_2': 1375, 'node_size_1': 1239, 'node_names_3': 'node_3598', 'node_in_ns_1': ' 181', 'date': 1, 'node_all_tips': ' 262', 'node_name_1': 'Brazil 72', 'node_names_1': 'node_3598', 'node_in_ns_3': ' 221', 'node_name_3': 'Brazil 187', 'node_all_tips_2': ' 158', 'node_name_2': 'Brazil 103', 'node_in_tips_2': ' 103', 'node_in_tips': ' 187', 'node_names_2': 'node_3598', 'node_fontsize_3': 240, 'node_in_tips_3': ' 187', 'node_size_3': 1600, 'node_fontsize_1': 198, 'node_size': 1600, 'node_all_tips_3': ' 262', 'id': 1, 'tooltip': 'Country: Brazil<br>RTK70R: sensitive'}, 'classes': 'CountryBrazil-RTK70Rsensitive'}, {'data': {'node_names': 'node_3297', 'node_all_tips_1': ' 22', 'node_in_tips_1': ' 0', 'node_in_ns_2': ' 3', 'node_fontsize_2': 80, 'unresolved': 1, 'node_fontsize': 80, 'node_in_ns': ' 3', 'node_name': ' 0', 'node_size_2': 266, 'node_size_1': 266, 'node_names_3': 'node_3297', 'node_in_ns_1': ' 3', 'date': 1, 'node_all_tips': ' 30', 'node_name_1': ' 0', 'node_names_1': 'node_3297', 'node_in_ns_3': ' 3', 'node_name_3': ' 0', 'node_all_tips_2': ' 23', 'node_name_2': ' 0', 'node_in_tips_2': ' 0', 'node_in_tips': ' 0', 'node_names_2': 'node_3297', 'node_fontsize_3': 80, 'node_in_tips_3': ' 0', 'node_size_3': 266, 'node_fontsize_1': 80, 'node_size': 266, 'node_all_tips_3': ' 30', 'id': 2, 'tooltip': 'Country: Burundi or Ethiopia or Sweden<br>RTK70R: sensitive'}, 'classes': 'Country-RTK70Rsensitive'}, {'data': {'node_names': 'node_3139', 'node_all_tips_1': ' 14', 'node_in_tips_1': ' 10', 'node_in_ns_2': ' 11', 'node_fontsize_2': 120, 'node_fontsize': 123, 'node_in_ns': ' 11', 'node_name': 'Cuba 11', 'node_size_2': 556, 'node_size_1': 556, 'node_names_3': 'node_3139', 'node_in_ns_1': ' 11', 'date': 1, 'node_all_tips': ' 15', 'node_name_1': 'Cuba 10', 'node_names_1': 'node_3139', 'node_in_ns_3': ' 11', 'node_name_3': 'Cuba 11', 'node_all_tips_2': ' 14', 'node_name_2': 'Cuba 10', 'node_in_tips_2': ' 10', 'node_in_tips': ' 11', 'node_names_2': 'node_3139', 'node_fontsize_3': 123, 'node_in_tips_3': ' 11', 'node_size_3': 583, 'node_fontsize_1': 120, 'node_size': 583, 'node_all_tips_3': ' 15', 'id': 3, 'tip': 1, 'tooltip': 'Country: Cuba<br>RTK70R: sensitive'}, 'classes': 'CountryCuba-RTK70Rsensitive'}, {'data': {'node_names': 'node_3242', 'node_all_tips_1': ' 74', 'node_in_tips_1': ' 36', 'node_in_ns_2': ' 79', 'node_fontsize_2': 168, 'node_all_tips_0': ' 2', 'node_fontsize': 173, 'node_in_ns': ' 79', 'node_name': 'Ethiopia 40', 'node_size_2': 978, 'node_size_1': 978, 'node_names_3': 'node_3242', 'node_in_ns_1': ' 79', 'date': 0, 'node_all_tips': ' 97', 'node_name_1': 'Ethiopia 36', 'node_names_1': 'node_3242', 'node_in_tips_0': ' 2', 'node_in_ns_3': ' 79', 'node_name_3': 'Ethiopia 40', 'node_all_tips_2': ' 78', 'node_name_2': 'Ethiopia 36', 'node_name_0': 'Ethiopia 2', 'node_in_tips_2': ' 36', 'node_fontsize_0': 86, 'node_in_ns_0': ' 11', 'node_in_tips': ' 40', 'node_names_2': 'node_3242', 'node_fontsize_3': 173, 'node_in_tips_3': ' 40', 'node_size_0': 255, 'node_size_3': 1017, 'node_fontsize_1': 168, 'node_size': 1017, 'node_names_0': 'node_3242', 'node_all_tips_3': ' 97', 'id': 4, 'tooltip': 'Country: Ethiopia<br>RTK70R: sensitive'}, 'classes': 'CountryEthiopia-RTK70Rsensitive'}, {'data': {'node_names': 'AB285789, AB285791, AB285795, AB285797, AB285814, KU319536, KU319540', 'node_all_tips_1': ' 1', 'node_in_tips_1': ' 1', 'node_in_ns_2': ' 0', 'node_meta_2': 1, 'node_fontsize_2': 80, 'node_meta_3': 1, 'node_fontsize': 80, 'node_in_ns': ' 0', 'node_name': 'Ethiopia 1', 'node_size_2': 200, 'node_size_1': 200, 'node_names_3': 'AB285789, AB285791, AB285795, AB285797, AB285814, KU319536, KU319540', 'node_in_ns_1': ' 0', 'date': 1, 'node_all_tips': ' 1', 'node_name_1': 'Ethiopia 1', 'node_names_1': 'AB285789, AB285791, AB285795, AB285797, AB285814', 'node_meta_1': 1, 'node_in_ns_3': ' 0', 'node_name_3': 'Ethiopia 1', 'node_all_tips_2': ' 1', 'node_name_2': 'Ethiopia 1', 'node_in_tips_2': ' 1', 'node_in_tips': ' 1', 'node_names_2': 'AB285789, AB285791, AB285795, AB285797, AB285814', 'node_fontsize_3': 80, 'node_in_tips_3': ' 1', 'node_meta': 1, 'node_size_3': 200, 'node_fontsize_1': 80, 'node_size': 200, 'node_all_tips_3': ' 1', 'id': 5, 'tip': 1, 'tooltip': 'Country: Ethiopia<br>RTK70R: sensitive'}, 'classes': 'CountryEthiopia-RTK70Rsensitive'}, {'data': {'node_names': 'HM191527, HM191529, HM191530, node_2989', 'node_in_ns_2': ' 0-4', 'node_meta_2': 1, 'node_fontsize_2': 97, 'node_meta_3': 1, 'node_fontsize': 101, 'node_in_ns': ' 0-4', 'node_name': 'Romania 1-5', 'node_size_2': 350, 'node_names_3': 'HM191527, HM191529, HM191530, node_2989', 'date': 2, 'node_all_tips': ' 1-5', 'node_in_ns_3': ' 0-4', 'node_name_3': 'Romania 1-5', 'node_all_tips_2': ' 1-4', 'node_name_2': 'Romania 1-4', 'node_in_tips_2': ' 1-4', 'node_in_tips': ' 1-5', 'node_names_2': 'HM191527, HM191530, node_2989', 'node_fontsize_3': 101, 'node_in_tips_3': ' 1-5', 'node_meta': 1, 'node_size_3': 392, 'node_size': 392, 'node_all_tips_3': ' 1-5', 'id': 6, 'tip': 1, 'tooltip': 'Country: Romania<br>RTK70R: sensitive'}, 'classes': 'CountryRomania-RTK70Rsensitive'}, {'data': {'node_names': 'GQ400585, GQ400615, GQ401022, MF373137, MF373139, MF373187, MF373202, node_3254', 'node_all_tips_1': ' 1', 'node_in_tips_1': ' 1', 'node_in_ns_2': ' 0-1', 'node_meta_2': 1, 'node_fontsize_2': 86, 'node_meta_3': 1, 'node_fontsize': 86, 'node_in_ns': ' 0-1', 'node_name': 'Sweden 1-2', 'node_size_2': 255, 'node_size_1': 200, 'node_names_3': 'GQ400585, GQ400615, GQ401022, MF373137, MF373139, MF373187, MF373202, node_3254', 'node_in_ns_1': ' 0', 'date': 1, 'node_all_tips': ' 1-2', 'node_name_1': 'Sweden 1', 'node_names_1': 'GQ400585, GQ400615', 'node_meta_1': 1, 'node_in_ns_3': ' 0-1', 'node_name_3': 'Sweden 1-2', 'node_all_tips_2': ' 1-2', 'node_name_2': 'Sweden 1-2', 'node_in_tips_2': ' 1-2', 'node_in_tips': ' 1-2', 'node_names_2': 'GQ400585, GQ400615, GQ401022, node_3254', 'node_fontsize_3': 86, 'node_in_tips_3': ' 1-2', 'node_meta': 1, 'node_size_3': 255, 'node_fontsize_1': 80, 'node_size': 255, 'node_all_tips_3': ' 1-2', 'id': 7, 'tip': 1, 'tooltip': 'Country: Sweden<br>RTK70R: sensitive'}, 'classes': 'CountrySweden-RTK70Rsensitive'}, {'data': {'node_names': 'node_3264', 'node_all_tips_1': ' 6', 'node_in_tips_1': ' 6', 'node_in_ns_2': ' 7', 'node_fontsize_2': 106, 'node_fontsize': 110, 'node_in_ns': ' 7', 'node_name': 'Uganda 7', 'node_size_2': 430, 'node_size_1': 430, 'node_names_3': 'node_3264', 'node_in_ns_1': ' 7', 'date': 1, 'node_all_tips': ' 8', 'node_name_1': 'Uganda 6', 'node_names_1': 'node_3264', 'node_in_ns_3': ' 7', 'node_name_3': 'Uganda 7', 'node_all_tips_2': ' 6', 'node_name_2': 'Uganda 6', 'node_in_tips_2': ' 6', 'node_in_tips': ' 7', 'node_names_2': 'node_3264', 'node_fontsize_3': 110, 'node_in_tips_3': ' 7', 'node_size_3': 465, 'node_fontsize_1': 106, 'node_size': 465, 'node_all_tips_3': ' 8', 'id': 8, 'tip': 1, 'tooltip': 'Country: Uganda<br>RTK70R: sensitive'}, 'classes': 'CountryUganda-RTK70Rsensitive'}, {'data': {'node_names': 'node_3089', 'node_in_ns_2': ' 42', 'node_fontsize_2': 148, 'node_fontsize': 165, 'node_in_ns': ' 42', 'node_name': 'United Republic of Tanzania 33', 'node_size_2': 802, 'node_names_3': 'node_3089', 'date': 2, 'node_all_tips': ' 47', 'node_in_ns_3': ' 42', 'node_name_3': 'United Republic of Tanzania 33', 'node_all_tips_2': ' 34', 'node_name_2': 'United Republic of Tanzania 22', 'node_in_tips_2': ' 22', 'node_in_tips': ' 33', 'node_names_2': 'node_3089', 'node_fontsize_3': 165, 'node_in_tips_3': ' 33', 'node_size_3': 946, 'node_size': 946, 'node_all_tips_3': ' 47', 'id': 9, 'tip': 1, 'tooltip': 'Country: United Republic of Tanzania<br>RTK70R: sensitive'}, 'classes': 'CountryUnitedRepublicofTanzania-RTK70Rsensitive'}, {'data': {'node_names': 'EU251735, EU251757, EU251842, EU251845, EU251870, HM572410', 'node_in_ns_2': ' 0', 'node_meta_2': 1, 'node_fontsize_2': 80, 'node_meta_3': 1, 'node_fontsize': 80, 'node_in_ns': ' 0', 'node_name': 'United Republic of Tanzania 1', 'node_size_2': 200, 'node_names_3': 'EU251735, EU251757, EU251842, EU251845, EU251870, HM572410', 'date': 2, 'node_all_tips': ' 1', 'node_in_ns_3': ' 0', 'node_name_3': 'United Republic of Tanzania 1', 'node_all_tips_2': ' 1', 'node_name_2': 'United Republic of Tanzania 1', 'node_in_tips_2': ' 1', 'node_in_tips': ' 1', 'node_names_2': 'EU251735, EU251757, EU251842, EU251845, EU251870', 'node_fontsize_3': 80, 'node_in_tips_3': ' 1', 'node_meta': 1, 'node_size_3': 200, 'node_size': 200, 'node_all_tips_3': ' 1', 'id': 10, 'tip': 1, 'tooltip': 'Country: United Republic of Tanzania<br>RTK70R: sensitive'}, 'classes': 'CountryUnitedRepublicofTanzania-RTK70Rsensitive'}, {'data': {'node_names': 'AY563171, AY563175, EF120254, EF120336, node_3542, node_3578', 'node_all_tips_1': ' 1-2', 'node_in_tips_1': ' 1-2', 'node_in_ns_2': ' 0-1', 'node_meta_2': 1, 'node_fontsize_2': 86, 'node_meta_3': 1, 'node_fontsize': 86, 'node_in_ns': ' 0-1', 'node_name': 'Argentina 1-2', 'node_size_2': 255, 'node_size_1': 255, 'node_names_3': 'AY563171, AY563175, EF120254, EF120336, node_3542, node_3578', 'node_in_ns_1': ' 0-1', 'date': 1, 'node_all_tips': ' 1-2', 'node_name_1': 'Argentina 1-2', 'node_names_1': 'AY563171, AY563175, EF120336, node_3542, node_3578', 'node_meta_1': 1, 'node_in_ns_3': ' 0-1', 'node_name_3': 'Argentina 1-2', 'node_all_tips_2': ' 1-2', 'node_name_2': 'Argentina 1-2', 'node_in_tips_2': ' 1-2', 'node_in_tips': ' 1-2', 'node_names_2': 'AY563171, AY563175, EF120254, EF120336, node_3542, node_3578', 'node_fontsize_3': 86, 'node_in_tips_3': ' 1-2', 'node_meta': 1, 'node_size_3': 255, 'node_fontsize_1': 86, 'node_size': 255, 'node_all_tips_3': ' 1-2', 'id': 11, 'tip': 1, 'tooltip': 'Country: Argentina<br>RTK70R: sensitive'}, 'classes': 'CountryArgentina-RTK70Rsensitive'}, {'data': {'node_names': 'AF286228, FJ591190, FJ591264, FJ591317, FJ591344, FJ591376, FJ591402, FJ591441, FJ591466, FJ591506, FJ591527, FJ591551, FJ591574, FJ591648, FJ591954, FJ591957, node_3398, node_3417, node_3467, node_3519', 'node_all_tips_1': ' 1-2', 'node_in_tips_1': ' 1-2', 'node_in_ns_2': ' 0-8', 'node_meta_2': 1, 'node_fontsize_2': 101, 'node_meta_3': 1, 'node_fontsize': 110, 'node_in_ns': ' 0-8', 'node_name': 'Brazil 1-7', 'node_size_2': 392, 'node_names_3': 'AF286228, FJ591190, FJ591264, FJ591317, FJ591344, FJ591376, FJ591402, FJ591441, FJ591466, FJ591506, FJ591527, FJ591551, FJ591574, FJ591648, FJ591954, FJ591957, node_3398, node_3417, node_3467, node_3519', 'node_size_1': 255, 'node_in_ns_1': ' 0-3', 'date': 1, 'node_all_tips': ' 1-9', 'node_name_1': 'Brazil 1-2', 'node_names_1': 'AF286228, FJ591574, FJ591954, FJ591957, node_3417, node_3467', 'node_meta_1': 1, 'node_in_ns_3': ' 0-8', 'node_name_3': 'Brazil 1-7', 'node_all_tips_2': ' 1-7', 'node_name_2': 'Brazil 1-5', 'node_in_tips_2': ' 1-5', 'node_in_tips': ' 1-7', 'node_names_2': 'AF286228, FJ591264, FJ591317, FJ591344, FJ591376, FJ591402, FJ591441, FJ591574, FJ591648, FJ591954, FJ591957, node_3398, node_3417, node_3467, node_3519', 'node_fontsize_3': 110, 'node_in_tips_3': ' 1-7', 'node_meta': 1, 'node_size_3': 465, 'node_fontsize_1': 86, 'node_size': 465, 'node_all_tips_3': ' 1-9', 'id': 12, 'tip': 1, 'tooltip': 'Country: Brazil<br>RTK70R: resistant'}, 'classes': 'CountryBrazil-RTK70Rresistant'}, {'data': {'node_names': 'node_3568, node_3574', 'node_all_tips_1': ' 2', 'node_in_tips_1': ' 0', 'node_in_ns_2': ' 3', 'node_meta_2': 1, 'node_fontsize_2': 80, 'unresolved': 1, 'node_meta_3': 1, 'node_fontsize': 80, 'node_in_ns': ' 3', 'node_name': 'Brazil 0', 'node_size_2': 266, 'node_names_3': 'node_3568, node_3574', 'node_size_1': 266, 'node_in_ns_1': ' 1', 'date': 2, 'node_all_tips': ' 5-6', 'node_name_1': 'Brazil 0', 'node_names_1': 'node_3574', 'node_in_ns_3': ' 3', 'node_name_3': 'Brazil 0', 'node_all_tips_2': ' 4-5', 'node_name_2': 'Brazil 0', 'node_in_tips_2': ' 0', 'node_in_tips': ' 0', 'node_names_2': 'node_3568, node_3574', 'node_fontsize_3': 80, 'node_in_tips_3': ' 0', 'node_meta': 1, 'node_size_3': 266, 'node_fontsize_1': 80, 'node_size': 266, 'node_all_tips_3': ' 5-6', 'id': 13, 'tooltip': 'Country: Brazil<br>RTK70R: resistant or sensitive'}, 'classes': 'CountryBrazil-RTK70R'}, {'data': {'node_names': 'node_3296', 'node_all_tips_1': ' 18', 'node_in_tips_1': ' 13', 'node_in_ns_2': ' 20', 'node_fontsize_2': 129, 'node_fontsize': 134, 'node_in_ns': ' 20', 'node_name': 'Ethiopia 15', 'node_size_2': 632, 'node_size_1': 632, 'node_names_3': 'node_3296', 'node_in_ns_1': ' 20', 'date': 1, 'node_all_tips': ' 23', 'node_name_1': 'Ethiopia 13', 'node_names_1': 'node_3296', 'node_in_ns_3': ' 20', 'node_name_3': 'Ethiopia 15', 'node_all_tips_2': ' 18', 'node_name_2': 'Ethiopia 13', 'node_in_tips_2': ' 13', 'node_in_tips': ' 15', 'node_names_2': 'node_3296', 'node_fontsize_3': 134, 'node_in_tips_3': ' 15', 'node_size_3': 676, 'node_fontsize_1': 129, 'node_size': 676, 'node_all_tips_3': ' 23', 'id': 14, 'tip': 1, 'tooltip': 'Country: Ethiopia<br>RTK70R: sensitive'}, 'classes': 'CountryEthiopia-RTK70Rsensitive'}, {'data': {'node_names': 'AY165219, AY165260, GQ400158, GQ400161, GQ400816, GQ400950, GQ400980, MF373145, MF373146, MF373192', 'node_all_tips_1': ' 1', 'node_in_tips_1': ' 1', 'node_in_ns_2': ' 0', 'node_meta_2': 1, 'node_fontsize_2': 80, 'node_meta_3': 1, 'node_fontsize': 80, 'node_in_ns': ' 0', 'node_name': 'Sweden 1', 'node_size_2': 200, 'node_size_1': 200, 'node_names_3': 'AY165219, AY165260, GQ400158, GQ400161, GQ400816, GQ400950, GQ400980, MF373145, MF373146, MF373192', 'node_in_ns_1': ' 0', 'date': 1, 'node_all_tips': ' 1', 'node_name_1': 'Sweden 1', 'node_names_1': 'AY165219, AY165260, GQ400158, GQ400161, GQ400816, GQ400950, GQ400980', 'node_meta_1': 1, 'node_in_ns_3': ' 0', 'node_name_3': 'Sweden 1', 'node_all_tips_2': ' 1', 'node_name_2': 'Sweden 1', 'node_in_tips_2': ' 1', 'node_in_tips': ' 1', 'node_names_2': 'AY165219, AY165260, GQ400158, GQ400161, GQ400816, GQ400950, GQ400980', 'node_fontsize_3': 80, 'node_in_tips_3': ' 1', 'node_meta': 1, 'node_size_3': 200, 'node_fontsize_1': 80, 'node_size': 200, 'node_all_tips_3': ' 1', 'id': 15, 'tip': 1, 'tooltip': 'Country: Sweden<br>RTK70R: sensitive'}, 'classes': 'CountrySweden-RTK70Rsensitive'}, {'data': {'node_names': 'FJ591417, node_3565', 'node_in_ns_2': ' 0-1', 'node_meta_2': 1, 'node_fontsize_2': 86, 'node_meta_3': 1, 'node_fontsize': 86, 'node_in_ns': ' 0-1', 'node_name': 'Brazil 1-2', 'node_size_2': 255, 'node_names_3': 'FJ591417, node_3565', 'date': 2, 'node_all_tips': ' 1-2', 'node_in_ns_3': ' 0-1', 'node_name_3': 'Brazil 1-2', 'node_all_tips_2': ' 1-2', 'node_name_2': 'Brazil 1-2', 'node_in_tips_2': ' 1-2', 'node_in_tips': ' 1-2', 'node_names_2': 'FJ591417, node_3565', 'node_fontsize_3': 86, 'node_in_tips_3': ' 1-2', 'node_meta': 1, 'node_size_3': 255, 'node_size': 255, 'node_all_tips_3': ' 1-2', 'id': 16, 'tip': 1, 'tooltip': 'Country: Brazil<br>RTK70R: resistant'}, 'classes': 'CountryBrazil-RTK70Rresistant'}], 'edges': [{'data': {'source': 0, 'target': 1, 'edge_name': '', 'edge_size_3': 50, 'date': 1, 'edge_name_2': '', 'edge_size_1': 50, 'edge_name_1': '', 'edge_size': 50, 'edge_name_3': '', 'edge_size_2': 50}}, {'data': {'source': 0, 'target': 2, 'edge_name': '', 'edge_size_3': 50, 'date': 1, 'edge_name_2': '', 'edge_size_1': 50, 'edge_name_1': '', 'edge_size': 50, 'edge_name_3': '', 'edge_size_2': 50}}, {'data': {'source': 0, 'target': 3, 'edge_name': '', 'edge_size_3': 50, 'date': 1, 'edge_name_2': '', 'edge_size_1': 50, 'edge_name_1': '', 'edge_size': 50, 'edge_name_3': '', 'edge_size_2': 50}}, {'data': {'source': 0, 'target': 4, 'edge_name_0': '', 'edge_name': '', 'edge_size_3': 50, 'date': 0, 'edge_name_2': '', 'edge_size_1': 50, 'edge_size_0': 50, 'edge_name_1': '', 'edge_size': 50, 'edge_name_3': '', 'edge_size_2': 50}}, {'data': {'source': 0, 'target': 5, 'edge_meta_2': 1, 'edge_name': '7', 'edge_size_3': 81, 'date': 1, 'edge_name_2': '5', 'edge_meta_1': 1, 'edge_meta': 1, 'edge_size_1': 71, 'edge_name_1': '5', 'edge_size': 81, 'edge_name_3': '7', 'edge_size_2': 71, 'edge_meta_3': 1}}, {'data': {'source': 0, 'target': 6, 'edge_meta_2': 1, 'edge_name': '4', 'edge_size_3': 65, 'date': 2, 'edge_name_2': '3', 'edge_meta': 1, 'edge_size': 65, 'edge_name_3': '4', 'edge_size_2': 60, 'edge_meta_3': 1}}, {'data': {'source': 0, 'target': 7, 'edge_meta_2': 1, 'edge_name': '8', 'edge_size_3': 86, 'date': 1, 'edge_name_2': '4', 'edge_meta_1': 1, 'edge_meta': 1, 'edge_size_1': 55, 'edge_name_1': '2', 'edge_size': 86, 'edge_name_3': '8', 'edge_size_2': 65, 'edge_meta_3': 1}}, {'data': {'source': 0, 'target': 8, 'edge_name': '', 'edge_size_3': 50, 'date': 1, 'edge_name_2': '', 'edge_size_1': 50, 'edge_name_1': '', 'edge_size': 50, 'edge_name_3': '', 'edge_size_2': 50}}, {'data': {'source': 0, 'target': 9, 'edge_name': '', 'edge_size_3': 50, 'date': 2, 'edge_name_2': '', 'edge_size': 50, 'edge_name_3': '', 'edge_size_2': 50}}, {'data': {'source': 0, 'target': 10, 'edge_meta_2': 1, 'edge_name': '6', 'edge_size_3': 76, 'date': 2, 'edge_name_2': '5', 'edge_meta': 1, 'edge_size': 76, 'edge_name_3': '6', 'edge_size_2': 71, 'edge_meta_3': 1}}, {'data': {'source': 1, 'target': 11, 'edge_meta_2': 1, 'edge_name': '6', 'edge_size_3': 76, 'date': 1, 'edge_name_2': '6', 'edge_meta_1': 1, 'edge_meta': 1, 'edge_size_1': 71, 'edge_name_1': '5', 'edge_size': 76, 'edge_name_3': '6', 'edge_size_2': 76, 'edge_meta_3': 1}}, {'data': {'source': 1, 'target': 12, 'edge_meta_2': 1, 'edge_color': '#b599cc', 'edge_name': '20', 'edge_size_3': 150, 'date': 1, 'edge_name_2': '15', 'edge_meta_1': 1, 'edge_meta': 1, 'edge_size_1': 76, 'edge_name_1': '6', 'edge_size': 150, 'edge_name_3': '20', 'edge_size_2': 123, 'edge_meta_3': 1}}, {'data': {'source': 1, 'target': 13, 'edge_meta_2': 1, 'edge_color': '#b599cc', 'edge_name': '2', 'edge_size_3': 55, 'date': 2, 'edge_name_2': '2', 'edge_size_1': 50, 'edge_meta': 1, 'edge_name_1': '', 'edge_size': 55, 'edge_name_3': '2', 'edge_size_2': 55, 'edge_meta_3': 1}}, {'data': {'source': 2, 'target': 14, 'edge_name': '', 'edge_size_3': 50, 'date': 1, 'edge_name_2': '', 'edge_size_1': 50, 'edge_name_1': '', 'edge_size': 50, 'edge_name_3': '', 'edge_size_2': 50}}, {'data': {'source': 4, 'target': 15, 'edge_meta_2': 1, 'edge_name': '10', 'edge_size_3': 97, 'date': 1, 'edge_name_2': '7', 'edge_meta_1': 1, 'edge_meta': 1, 'edge_size_1': 81, 'edge_name_1': '7', 'edge_size': 97, 'edge_name_3': '10', 'edge_size_2': 81, 'edge_meta_3': 1}}, {'data': {'source': 13, 'target': 16, 'edge_meta_2': 1, 'edge_color': '#b599cc', 'edge_name': '2', 'edge_size_3': 55, 'date': 2, 'edge_name_2': '2', 'edge_meta': 1, 'edge_size': 55, 'edge_name_3': '2', 'edge_size_2': 55, 'edge_meta_3': 1}}]},
+
+  layout: layoutOptions,
+
+  ready: function(){
+    window.cy = this;
+  }
+});
+
+function addQtips() {
+    cy.filter(function(ele, i, eles) {
+        return ele.isNode() && ele.data('tooltip') !== undefined;
+    } ).qtip({
+        content: function(){
+                var tooltip = '<br><div style="overflow: auto;"><span style="white-space:nowrap;">' + this.data('tooltip') + '</span></div>';
+                if (this.data('node_meta') !== undefined) {
+                    tooltip += '<br><div style="overflow: auto;"><span style="white-space:nowrap;">ids: ' + this.data('node_names') + '</span></div>';
+                } else {
+                    tooltip += '<br>id: ' + this.data('node_names') + '<br>';
+                }
+                tooltip += '<br>tips inside: ' + this.data('node_in_tips');
+                tooltip += '<br>total tips in the subtree: ' + this.data('node_all_tips');
+                tooltip += '<br>internal nodes inside: ' + this.data('node_in_ns');
+                return tooltip;
+            },
+        show: {event: 'mouseover'},
+        hide: {event: 'mouseout'},
+        style: {classes: 'qtip-bootstrap'},
+        position: {at: 'center bottom'}
+    });
+}
+
+cy.minZoom(.001);
+cy.maxZoom(20);
+addQtips();
+
+
+function toImage(){
+    document.getElementById("downloader").href = cy.jpg({ full: false, quality: 1.0, scale: 2}).replace(/^data:image\/[^;]/, 'data:application/octet-stream');
+}
+
+function fit() {
+    cy.fit();
+}
+
+function resetLayout() {
+    cy.layout(layoutOptions).run();
+}
+
+var years = ['1986', '2004', '2005', '2015'];
+var slider = document.getElementById("myRange");
+if (slider !== null) {
+    var output = document.getElementById("demo");
+    output.innerHTML = years[slider.value]; // Display the default slider value
+
+    // Update the current slider value (each time you drag the slider handle)
+    var removed = cy.collection();
+
+    slider.oninput = function() {
+        output.innerHTML = years[this.value];
+        removed.restore();
+        removed = cy.remove("[date>" + this.value + "]");
+        var list = cy.$("");
+        for (var i=0, ele; ele = list[i]; i++) {
+            if (ele.data('node_name_' + this.value) !== undefined) {
+                ele.data('node_name', ele.data('node_name_' + this.value));
+            }
+            if (ele.data('node_names_' + this.value) !== undefined) {
+                ele.data('node_names', ele.data('node_names_' + this.value));
+            }
+            if (ele.data('node_fontsize_' + this.value) !== undefined) {
+                ele.data('node_fontsize', ele.data('node_fontsize_' + this.value));
+            }
+            if (ele.data('node_in_tips_' + this.value) !== undefined) {
+                ele.data('node_in_tips', ele.data('node_in_tips_' + this.value));
+            }
+            if (ele.data('node_in_ns_' + this.value) !== undefined) {
+                ele.data('node_in_ns', ele.data('node_in_ns_' + this.value));
+            }
+            if (ele.data('node_all_tips_' + this.value) !== undefined) {
+                ele.data('node_all_tips', ele.data('node_all_tips_' + this.value));
+            }
+            if (ele.data('node_size_' + this.value) !== undefined) {
+                ele.data('node_size', ele.data('node_size_' + this.value));
+            }
+            if (ele.data('edge_name_' + this.value) !== undefined) {
+                ele.data('edge_name', ele.data('edge_name_' + this.value));
+            }
+            if (ele.data('edge_size_' + this.value) !== undefined) {
+                ele.data('edge_size', ele.data('edge_size_' + this.value));
+            }
+            if (ele.data('edge_meta_' + this.value) !== undefined) {
+                ele.data('edge_meta', ele.data('edge_meta_' + this.value))
+            } else if (ele.data('edge_meta') !== undefined) {
+                ele.removeData('edge_meta');
+                cy.remove(ele);
+                cy.add(ele);
+            }
+            if (ele.data('node_meta_' + this.value) !== undefined) {
+                ele.data('node_meta', ele.data('node_meta_' + this.value));
+            } else if (ele.data('node_meta') !== undefined) {
+                ele.removeData('node_meta');
+            }
+        }
+    }
+}
+
+function toggleFullScreen() {
+  var elem = document.getElementById("fullscreenDiv");
+  if ((document.fullScreenElement && document.fullScreenElement !== null) ||
+   (!document.mozFullScreen && !document.webkitIsFullScreen)) {
+    if (elem.requestFullScreen) {
+      elem.requestFullScreen();
+    } else if (elem.mozRequestFullScreen) {
+      elem.mozRequestFullScreen();
+    } else if (elem.webkitRequestFullScreen) {
+      elem.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+    }
+    document.getElementById("fsspan").className = "glyphicon glyphicon-resize-small"
+    document.getElementById("fstext").innerHTML = "  Exit full screen"
+  } else {
+    if (document.cancelFullScreen) {
+      document.cancelFullScreen();
+    } else if (document.mozCancelFullScreen) {
+      document.mozCancelFullScreen();
+    } else if (document.webkitCancelFullScreen) {
+      document.webkitCancelFullScreen();
+    }
+    document.getElementById("fsspan").className = "glyphicon glyphicon-fullscreen"
+    document.getElementById("fstext").innerHTML = "  Full screen"
+  }
+}</script>
+</body>
+</html>
