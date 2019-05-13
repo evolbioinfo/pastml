@@ -1,0 +1,32 @@
+
+LEAST-SQUARE METHODS TO ESTIMATE RATES AND DATES - v0.3beta 
+
+
+Input files:
+  I                                 Input tree file : /home/azhukova/atlas/projects/pastml_atlas/examples/DENV2/data/real/phyml_tree.collapsed_support_0.5.nwk
+  D                                 Input date file : /home/azhukova/atlas/projects/pastml_atlas/examples/DENV2/data/real/dates.tab
+  P                                  Partition file : No
+Output file:
+  O                                    Output file  : /home/azhukova/atlas/projects/pastml_atlas/examples/DENV2/data/real/phyml_tree.collapsed_support_0.5.dated
+Parameters:
+  C                                With constraints : Yes
+  T                        Lower bound for the rate : 1.000e-10
+  V                                  With variances : Yes, use variances based on branches estimated by LSD
+  B                          Parameter of variances : 10
+  S                                 Sequence Length : 10188
+  R                               Estimate the root : Use fast method to search on all branches
+  W                         Given substitution rate : No
+  G                                 Given outgroups : No
+  N                               Multiple data set : No
+  F                    Compute confidence intervals : Yes, sampling 1000 times
+
+  H to print Help 
+  Y to accept or type a letter to change an option (Q = Exit) 
+Tree 1 rate 1.887e-04 , tMRCA 951.145518 , objective function 3.365872e+03
+Re-estimate using variances based on the branch lengths of the previous run ...
+rate 2.353e-04 , tMRCA 1128.604531 , objective function 8.166376e+03
+rate 2.353e-04 [2.155e-04 , 2.477e-04] , tMRCA 1128.604531 [1046.000517 , 1177.572661] , objective function 8.166376e+03
+
+
+*********************************************************
+Elapsed time: 10.44 seconds

@@ -27,12 +27,15 @@ rule all:
         expand(os.path.join(data_dir, maps_dir, 'real', 'geo_map_{loc}.html'), loc=locs),
         expand(os.path.join(data_dir, maps_dir, 'resampled', '{n}', 'geo_map_{loc}.html'), loc=locs, n=range(5)),
 
+        expand(os.path.join(data_dir, maps_dir, 'real', 'acr_map_{loc}_phyml_tree.collapsed_support_0.5.dated.html'), loc=locs),
         expand(os.path.join(data_dir, maps_dir, 'real', 'acr_map_{loc}_{type}_tree.dated.html'), type=tree_types, loc=locs),
         expand(os.path.join(data_dir, maps_dir, 'resampled', '{n}', 'acr_map_{loc}_{type}_tree.dated.html'),
         type=['raxml'], loc=locs, n=range(5)),
 
         expand(os.path.join(data_dir, maps_dir, 'real', 'acr_map_{loc}.genotype_{type}_tree.dated.html'),
         type=tree_types, loc=locs),
+        expand(os.path.join(data_dir, maps_dir, 'real',
+        'acr_map_{loc}.genotype_phyml_tree.collapsed_support_0.5.dated.html'), loc=locs),
 
 rule pastml_loc_genotype:
     '''
@@ -61,7 +64,7 @@ rule pastml_loc_genotype:
         pastml --tree {input.tree} --data {input.data} \
         --html_compressed {output.map} --html {output.tree} --columns {params.loc} genotype  --name_column {params.loc} \
         --date_column {params.date_col} -v --work_dir {params.wd} --parameters {input.param} \
-        --upload_to_itol --itol_tree_name {params.tree}_{params.prefix}
+        --upload_to_itol --itol_tree_name {params.tree}_{params.prefix} --tip_size_threshold 25
         """
 
 rule pastml_loc:
@@ -88,7 +91,7 @@ rule pastml_loc:
         """
         pastml --tree {input.tree} --data {input.data} \
         --html_compressed {output.map} --html {output.tree} --columns {params.loc} \
-        --date_column {params.date_col} -v --work_dir {params.wd}
+        --date_column {params.date_col} -v --work_dir {params.wd} --tip_size_threshold 25
         """
 
 rule geomap:

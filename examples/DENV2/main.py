@@ -11,4 +11,4 @@ if '__main__' == __name__:
     character = 'Location'
     pastml_pipeline(data=STATES_INPUT, tree=TREE_NWK, prediction_method=ML,
                     html_compressed=os.path.join(DATA_DIR, 'maps', 'map_{}.html'.format(character)),
-                    verbose=True, columns=[character], date_column='year', upload_to_itol=True)
+                    verbose=True, columns=[character], date_column='year', upload_to_itol=True, tip_size_threshold=25)

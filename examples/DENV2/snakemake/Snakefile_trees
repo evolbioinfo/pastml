@@ -7,6 +7,7 @@ import os
 # snakemake --snakefile Snakefile_trees --config folder=.. --dag | dot -Tsvg > pipeline_trees.svg
 
 localrules: all
+ruleorder: date_and_root_globally > collapse
 
 
 folder = os.path.abspath(config["folder"])
@@ -19,6 +20,7 @@ tree_types = ['raxml', 'fast', 'phyml']
 
 rule all:
     input:
+        os.path.join(data_dir, 'real', 'phyml_tree.collapsed_support_0.5.dated.nwk'),
         expand(os.path.join(data_dir, 'real', '{type}_tree.dated.nwk'), type=tree_types),
         expand(os.path.join(data_dir, 'resampled', '{n}', '{type}_tree.dated.nwk'), type=['raxml'], n=range(5)),
         distances = expand(os.path.join(data_dir, 'real', 'distances_all_trees.tab')),
@@ -108,6 +110,7 @@ rule raxml:
         aln = os.path.join(data_dir, '{prefix}', 'aln.fa')
     output:
         tree = os.path.join(data_dir, '{prefix}', 'raxml_tree.nwk'),
+        tree_sh = os.path.join(data_dir, '{prefix}', 'raxml_tree.sh_support.nwk'),
         log = os.path.join(data_dir, '{prefix}', 'raxml_tree.log'),
     threads: 12
     singularity: "docker://evolbioinfo/raxml:v8.2.11-sse3"
@@ -120,7 +123,10 @@ rule raxml:
         raxmlHPC -f ad -m GTRGAMMA -s {input.aln} -c 6 -n "RAXML" -p 239 -T {threads} -w {params.wd} -x 239 -N 100
         mv "{params.wd}/RAxML_bestTree.RAXML" {output.tree}
         mv "{params.wd}/RAxML_info.RAXML" {output.log}
-        rm -rf "{params.wd}/RAxML_*"
+        rm -rf "{params.wd}/RAxML_*.RAXML"
+        raxmlHPC -f J -t {output.tree} -p 239 -m GTRGAMMA -c 6 -n SH -s {input.aln} -w {params.wd}
+        mv "{params.wd}/RAxML_fastTreeSH_Support.SH" {output.tree_sh}
+        rm -rf "{params.wd}/RAxML_*.SH"
         """
 
 rule extract_dates:
@@ -167,6 +173,29 @@ rule date_and_root_globally:
         mv {params.wd} {output.log}
         rm {params.wd}.newick
         rm {params.wd}.nexus
+        """
+
+
+rule collapse:
+    '''
+    Collapses branches using a certain criterion.
+    '''
+    input:
+        tree = os.path.join(data_dir, '{prefix}', '{tree}.nwk'),
+    output:
+        tree = temp(os.path.join(data_dir, '{prefix}', '{tree}.collapsed_{feature}_{threshold}.nwk')),
+    threads: 1
+    params:
+        mem = 500,
+        name='collapse_{feature}_{threshold}',
+        threshold='{threshold}',
+        feature='{feature}',
+        qos = 'fast'
+    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    shell:
+        """
+        python3 {folder}/py/collapse.py --input_tree {input.tree} --feature {params.feature} \
+        --output_tree {output.tree} --threshold {params.threshold}
         """
 
 rule compare_trees:
