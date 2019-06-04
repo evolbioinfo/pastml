@@ -7,7 +7,7 @@ The result is then visualised as a zoomable html map.
 
 #### Article
 
-Ishikawa SA, Zhukova A, Iwasaki W, Gascuel O (2018) __A Fast Likelihood Method to Reconstruct and Visualize Ancestral Scenarios__ [[bioRxiv]](https://doi.org/10.1101/379529).
+Ishikawa SA, Zhukova A, Iwasaki W, Gascuel O (2018) __A Fast Likelihood Method to Reconstruct and Visualize Ancestral Scenarios__. [_Molecular Biology and Evolution_, msz131](https://doi.org/10.1093/molbev/msz131).
 
 ## How it works
 
