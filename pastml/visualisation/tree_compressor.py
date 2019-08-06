@@ -3,8 +3,6 @@ from collections import defaultdict
 
 import numpy as np
 
-from tree import DATE
-
 IS_TIP = 'is_tip'
 
 REASONABLE_NUMBER_OF_TIPS = 15
@@ -24,9 +22,6 @@ METACHILD = 'metachild'
 
 
 def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS):
-    for _ in tree:
-        _.add_feature(IS_TIP, True)
-
     compressed_tree = tree.copy()
 
     for n_compressed, n in zip(compressed_tree.traverse('postorder'), tree.traverse('postorder')):
@@ -107,7 +102,6 @@ def collapse_horizontally(tree, columns, tips2bin):
             config2children[get_configuration(_)[1]].append(_)
         for children in (_ for _ in config2children.values() if len(_) > 1):
             collapsed_configurations += 1
-            children = sorted(children, key=lambda _: getattr(_, DATE))
             child = children[0]
             for sibling in children[1:]:
                 getattr(child, TIPS_INSIDE).extend(getattr(sibling, TIPS_INSIDE))

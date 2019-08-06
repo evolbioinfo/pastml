@@ -194,6 +194,16 @@ if (slider !== null) {
         output.innerHTML = years[this.value];
         removed.restore();
         removed = cy.remove("[mile>" + this.value + "]");
+
+        var list = cy.$("");
+        for (var i=0, ele; ele = list[i]; i++) {
+            if (ele.data('node_name_' + this.value) !== undefined) {
+                ele.data('node_name', ele.data('node_name_' + this.value));
+            }
+            if (ele.data('edge_name_' + this.value) !== undefined) {
+                ele.data('edge_name', ele.data('edge_name_' + this.value));
+            }
+        }
     }
 }
 

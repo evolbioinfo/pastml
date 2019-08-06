@@ -7,8 +7,12 @@ from jinja2 import Environment, PackageLoader
 
 from pastml.visualisation.colour_generator import get_enough_colours, WHITE
 from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, TIPS_INSIDE, TIPS_BELOW, \
-    REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS
+    REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP
 from pastml.tree import DATE, LEVEL
+
+TIMELINE_TIPS = 'TIPS'
+TIMELINE_NODES = 'NODES'
+TIMELINE_LTT = 'LTT'
 
 TIP_LIMIT = 1000
 
@@ -29,6 +33,7 @@ ELEMENTS = 'elements'
 
 NODE_SIZE = 'node_size'
 NODE_NAME = 'node_name'
+BRANCH_NAME = 'branch_name'
 EDGE_SIZE = 'edge_size'
 EDGE_NAME = 'edge_name'
 FONT_SIZE = 'node_fontsize'
@@ -72,7 +77,7 @@ def get_scaling_function(y_m, y_M, x_m, x_M):
 
 
 def set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling, transform_size, transform_e_size, state,
-                                 suffix=''):
+                                 root_names, suffix=''):
     tips_inside, internal_nodes_inside, roots = getattr(n, TIPS_INSIDE, []), \
                                                 getattr(n, INTERNAL_NODES_INSIDE, []), \
                                                 getattr(n, ROOTS, [])
@@ -96,7 +101,7 @@ def set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling, 
     n.add_feature('node_{}{}'.format(TIPS_INSIDE, suffix), tips_inside_str)
     n.add_feature('node_{}{}'.format(INTERNAL_NODES_INSIDE, suffix), internal_ns_inside_str)
     n.add_feature('node_{}{}'.format(TIPS_BELOW, suffix), tips_below_str)
-    n.add_feature('node_{}{}'.format(ROOTS, suffix), ', '.join(sorted([_.name for _ in roots])))
+    n.add_feature('node_{}{}'.format(ROOTS, suffix), ', '.join(sorted(root_names)))
 
     edge_size = len(roots)
     if edge_size > 1:
@@ -112,12 +117,10 @@ def set_cyto_features_tree(n, state):
     n.add_feature(EDGE_NAME, '{:.3f}'.format(n.dist))
 
 
-def _tree2json(tree, column2states, name_feature, node2tooltip, milestones=None, compressed_tree=None):
+def _tree2json(tree, column2states, name_feature, node2tooltip, get_date, milestones=None, compressed_tree=None,
+               timeline_type=TIMELINE_TIPS):
     working_tree = compressed_tree if compressed_tree else tree
     e_size_scaling, font_scaling, size_scaling, transform_e_size, transform_size = get_size_transformations(working_tree)
-
-    def filter_by_date(items, date):
-        return [_ for _ in items if getattr(_, DATE) <= date]
 
     is_compressed = compressed_tree is not None
 
@@ -126,29 +129,35 @@ def _tree2json(tree, column2states, name_feature, node2tooltip, milestones=None,
         for n in working_tree.traverse():
             state = get_column_value_str(n, name_feature, format_list=False, list_value='') if name_feature else ''
             n2state[n.name] = state
+            root_names = [_.name for _ in getattr(n, ROOTS)]
             set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling,
-                                         transform_size, transform_e_size, state)
+                                         transform_size, transform_e_size, state, root_names)
 
-        if milestones and len(milestones) > 1:
+        def filter_by_date(items, date):
+            return [_ for _ in items if get_date(_) <= date]
+
+        if len(milestones) > 1:
+            nodes = list(working_tree.traverse())
             for i in range(len(milestones) - 1, -1, -1):
                 milestone = milestones[i]
+                nodes_i = []
 
                 # remove too recent nodes from the original tree
                 for n in tree.traverse('postorder'):
-                    if getattr(n, DATE) > milestone and not n.is_root():
+                    if n.is_root():
+                        continue
+                    if get_date(n) > milestone:
                         n.up.remove_child(n)
 
                 suffix = '_{}'.format(i)
-                for n in working_tree.traverse():
+                for n in nodes:
                     state = n2state[n.name]
                     tips_inside, internal_nodes_inside, roots = getattr(n, TIPS_INSIDE, []), \
                                                                 getattr(n, INTERNAL_NODES_INSIDE, []), \
                                                                 getattr(n, ROOTS, [])
-                    if not roots:
-                        continue
                     tips_inside_i, internal_nodes_inside_i, roots_i = [], [], []
                     for ti, ini, root in zip(tips_inside, internal_nodes_inside, roots):
-                        if getattr(root, DATE) <= milestone:
+                        if get_date(root) <= milestone:
                             roots_i.append(root)
 
                             ti = filter_by_date(ti, milestone)
@@ -159,13 +168,46 @@ def _tree2json(tree, column2states, name_feature, node2tooltip, milestones=None,
                     n.add_features(**{TIPS_INSIDE: tips_inside_i, INTERNAL_NODES_INSIDE: internal_nodes_inside_i,
                                       ROOTS: roots_i})
                     if roots_i:
-                        set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling,
-                                                     transform_size, transform_e_size, state, suffix=suffix)
+                        n.add_feature(MILESTONE, i)
+                        root_names = [getattr(_, BRANCH_NAME) if getattr(_, DATE) > milestone else _.name for _ in roots_i]
+                        set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling, transform_size,
+                                                     transform_e_size, state, root_names=root_names, suffix=suffix)
+                        nodes_i.append(n)
+                nodes = nodes_i
     else:
         for n in working_tree.traverse():
             state = get_column_value_str(n, name_feature, format_list=False, list_value='') if name_feature else ''
             n.add_feature('node_root_id', n.name)
             set_cyto_features_tree(n, state)
+
+        if len(milestones) > 1:
+
+            def binary_search(start, end, value, array):
+                if start >= end - 1:
+                    return start
+                i = int((start + end) / 2)
+                if array[i] == value or array[i] > value and (i == start or value > array[i - 1]):
+                    return i
+                if array[i] > value:
+                    return binary_search(start, i, value, array)
+                return binary_search(i + 1, end, value, array)
+
+            for n in working_tree.traverse('preorder'):
+                ms_i = 0 if n.is_root() else binary_search(getattr(n.up, MILESTONE),
+                                                           len(milestones), get_date(n), milestones)
+                n.add_feature(MILESTONE, ms_i)
+                for i in range(len(milestones) - 1, ms_i - 1, -1):
+                    milestone = milestones[i]
+                    suffix = '_{}'.format(i)
+                    if TIMELINE_LTT == timeline_type:
+                        # if it is LTT also cut the branches if needed
+                        if getattr(n, DATE) > milestone:
+                            n.add_feature('{}{}'.format(EDGE_NAME, suffix), '{:.3f}'.format(milestone - getattr(n.up, DATE)))
+                            n.add_feature('{}{}'.format(NODE_NAME, suffix), getattr(n, BRANCH_NAME))
+                        else:
+                            n.add_feature('{}{}'.format(EDGE_NAME, suffix), '{:.3f}'.format(n.dist))
+                            n.add_feature('{}{}'.format(NODE_NAME, suffix), n.name)
+
 
     clazzes = set()
     nodes, edges = [], []
@@ -257,8 +299,8 @@ def get_size_transformations(tree):
 
 
 def save_as_cytoscape_html(tree, out_html, column2states, layout='dagre', name_feature='name',
-                           name2colour=None, n2tooltip=None, milestones=None, compressed_tree=None,
-                           age_label='Dist. to root'):
+                           name2colour=None, n2tooltip=None, compressed_tree=None,
+                           age_label='Dist. to root', timeline_type=TIMELINE_TIPS):
     """
     Converts a tree to an html representation using Cytoscape.js.
 
@@ -281,9 +323,32 @@ def save_as_cytoscape_html(tree, out_html, column2states, layout='dagre', name_f
     """
     graph_name = os.path.splitext(os.path.basename(out_html))[0]
 
+    if TIMELINE_NODES == timeline_type:
+        def get_date(node):
+            return getattr(node, DATE)
+    elif TIMELINE_TIPS == timeline_type:
+        max_date = max(getattr(_, DATE) for _ in tree)
+
+        def get_date(node):
+            tips = [_ for _ in node if getattr(_, IS_TIP, False)]
+            return min(getattr(_, DATE) for _ in tips) if tips else max_date
+    elif TIMELINE_LTT == timeline_type:
+        def get_date(node):
+            return getattr(node, DATE) if node.is_root() else (getattr(node.up, DATE) + 1e-6)
+    else:
+        raise ValueError('Unknown timeline type: {}. Allowed ones are {}, {} and {}.'
+                         .format(timeline_type, TIMELINE_NODES, TIMELINE_TIPS, TIMELINE_LTT))
+
+    dates = sorted([getattr(_, DATE) for _ in (tree.traverse()
+                                               if timeline_type in [TIMELINE_LTT, TIMELINE_NODES] else tree)])
+    milestones = sorted({dates[0], dates[len(dates) // 8], dates[len(dates) // 4], dates[3 * len(dates) // 8],
+                         dates[len(dates) // 2], dates[5 * len(dates) // 8], dates[3 * len(dates) // 4],
+                         dates[7 * len(dates) // 8], dates[-1]})
+
     json_dict, clazzes \
-        = _tree2json(tree, column2states, name_feature=name_feature,
-                     node2tooltip=n2tooltip, milestones=milestones, compressed_tree=compressed_tree)
+        = _tree2json(tree, column2states, name_feature=name_feature, get_date=get_date,
+                     node2tooltip=n2tooltip, milestones=milestones, compressed_tree=compressed_tree,
+                     timeline_type=timeline_type)
     env = Environment(loader=PackageLoader('pastml'))
     template = env.get_template('pie_tree.js') if compressed_tree is not None else env.get_template(
         'pie_tree_simple.js')
@@ -338,12 +403,7 @@ def get_column_value_str(n, column, format_list=True, list_value='<unresolved>')
 
 
 def visualize(tree, column2states, name_column=None, html=None, html_compressed=None,
-              tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, age_label='Dist. to root'):
-
-    ages = sorted([getattr(_, DATE) for _ in tree.traverse()])
-    milestones = sorted({ages[0], ages[len(ages) // 8], ages[len(ages) // 4], ages[3 * len(ages) // 8],
-                         ages[len(ages) // 2], ages[5 * len(ages) // 8], ages[3 * len(ages) // 4],
-                         ages[7 * len(ages) // 8], ages[-1]})
+              tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, age_label='Dist. to root', timeline_type=TIMELINE_TIPS):
 
     one_column = next(iter(column2states.keys())) if len(column2states) == 1 else None
 
@@ -365,40 +425,32 @@ def visualize(tree, column2states, name_column=None, html=None, html_compressed=
                 if len(sts) == 1 and not n.is_root() and getattr(n.up, column, set()) == sts:
                     n.add_feature('edge_color', state2color[next(iter(sts))])
 
-    def binary_search(start, end, value, array):
-        if start >= end - 1:
-            return start
-        i = int((start + end) / 2)
-        if array[i] == value or array[i] > value and (i == start or value > array[i - 1]):
-            return i
-        if array[i] > value:
-            return binary_search(start, i, value, array)
-        return binary_search(i + 1, end, value, array)
-
-    for node in tree.traverse('preorder'):
+    for node in tree.traverse():
+        if node.is_leaf():
+            node.add_feature(IS_TIP, True)
+        node.add_feature(BRANCH_NAME, '{}-{}'.format(node.up.name if not node.is_root() else '', node.name))
         for column in column2states.keys():
             if len(getattr(node, column, set())) != 1:
                 node.add_feature(UNRESOLVED, 1)
-        node.add_feature(MILESTONE, 0 if node.is_root() \
-            else binary_search(getattr(node.up, MILESTONE), len(milestones), getattr(node, DATE), milestones))
 
     def get_category_str(n):
         return '<br>'.join('{}: {}'.format(column, get_column_value_str(n, column, format_list=True))
                            for column in sorted(column2states.keys()))
 
     if html:
-        save_as_cytoscape_html(tree, html, column2states=column2states, name2colour=name2colour,
-                               n2tooltip={n: get_category_str(n) for n in tree.traverse()},
-                               name_feature='name', milestones=milestones, compressed_tree=None, age_label=age_label)
+        if len(tree) > 500:
+            logging.error('Your tree is too large to be visualised without compression, '
+                          'check out upload to iTOL option instead')
+        else:
+            save_as_cytoscape_html(tree, html, column2states=column2states, name2colour=name2colour,
+                                   n2tooltip={n: get_category_str(n) for n in tree.traverse()},
+                                   name_feature='name', compressed_tree=None, age_label=age_label,
+                                   timeline_type=timeline_type)
 
     if html_compressed:
         tree_compressed, tree = compress_tree(tree, columns=column2states.keys(), tip_size_threshold=tip_size_threshold)
 
-        save_as_cytoscape_html(tree, html_compressed + '_full.html', column2states=column2states,
-                               name2colour=name2colour, n2tooltip={n: get_category_str(n) for n in tree.traverse()},
-                               name_feature='name', milestones=milestones, compressed_tree=None, age_label=age_label)
-
         save_as_cytoscape_html(tree, html_compressed, column2states=column2states, name2colour=name2colour,
                                n2tooltip={n: get_category_str(n) for n in tree_compressed.traverse()},
-                               milestones=milestones, name_feature=name_column, compressed_tree=tree_compressed,
-                               age_label=age_label)
+                               name_feature=name_column, compressed_tree=tree_compressed,
+                               age_label=age_label, timeline_type=timeline_type)
