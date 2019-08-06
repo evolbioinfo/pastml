@@ -6,8 +6,6 @@ from ete3 import Tree
 
 LEVEL = 'level'
 
-DEPTH = 'depth'
-
 DATE = 'date'
 
 
@@ -20,27 +18,14 @@ def get_dist_to_root(tip):
     return dist_to_root
 
 
-def date2years(d):
-    if pd.notnull(d):
-        first_jan_this_year = pd.datetime(year=d.year, month=1, day=1)
-        day_of_this_year = d - first_jan_this_year
-        first_jan_next_year = pd.datetime(year=d.year + 1, month=1, day=1)
-        days_in_this_year = first_jan_next_year - first_jan_this_year
-        return d.year + day_of_this_year / days_in_this_year
-    else:
-        return None
-
-
-def annotate_depth(tree, depth_feature=DEPTH, level_feature=LEVEL):
+def annotate_dates(tree, date_feature=DATE, level_feature=LEVEL, root_date=0):
     for node in tree.traverse('preorder'):
         if node.is_root():
-            node.add_feature(depth_feature, node.dist)
+            node.add_feature(date_feature, root_date if root_date else 0)
             node.add_feature(level_feature, 0)
-        depth = getattr(node, depth_feature)
-        level = getattr(node, level_feature)
-        for child in node.children:
-            child.add_feature(depth_feature, depth + child.dist)
-            child.add_feature(level_feature, level + 1)
+        else:
+            node.add_feature(date_feature, getattr(node.up, date_feature) + node.dist)
+            node.add_feature(level_feature, getattr(node.up, level_feature) + 1)
 
 
 def name_tree(tree):

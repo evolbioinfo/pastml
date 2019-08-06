@@ -18,7 +18,7 @@ from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, 
     get_pastml_marginal_prob_file, get_pastml_work_dir
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
     get_default_mp_method
-from pastml.tree import read_tree, name_tree, collapse_zero_branches, annotate_depth, DEPTH, date2years
+from pastml.tree import read_tree, name_tree, collapse_zero_branches, annotate_dates, DATE
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 from pastml.visualisation.itol_manager import generate_itol_annotations
 
@@ -27,6 +27,22 @@ PASTML_VERSION = '1.9.15'
 warnings.filterwarnings("ignore", append=True)
 
 COPY = 'COPY'
+
+
+def datetime2numeric(d):
+    """
+    Converts a datetime date to numeric format.
+    For example: 2016-12-31 -> 2016.9972677595629; 2016-1-1 -> 2016.0
+    :param d: a date to be converted
+    :type d: np.datetime
+    :return: numeric representation of the date
+    :rtype: float
+    """
+    first_jan_this_year = pd.datetime(year=d.year, month=1, day=1)
+    day_of_this_year = d - first_jan_this_year
+    first_jan_next_year = pd.datetime(year=d.year + 1, month=1, day=1)
+    days_in_this_year = first_jan_next_year - first_jan_this_year
+    return d.year + day_of_this_year / days_in_this_year
 
 
 def _parse_pastml_parameters(params, states):
@@ -282,7 +298,7 @@ def _quote(str_list):
 
 def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                     columns=None, prediction_method=MPPA, model=F81, parameters=None,
-                    name_column=None, date_column=None, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS,
+                    name_column=None, root_date=None, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS,
                     out_data=None, html_compressed=None, html=None, work_dir=None,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
                     itol_tree_name=None):
@@ -350,9 +366,9 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         (must be one of those specified in ``columns``, if ``columns`` are specified).
         If the annotation table contains only one column, it will be used by default.
     :type name_column: str
-    :param date_column: (optional) name of the annotation table column that contains tip dates,
+    :param root_date: (optional) date of the root node (only to be specified if the tree is dated),,
         if specified it is used to add a time slider to the visualisation.
-    :type date_column: str
+    :type root_date: str or pandas.datetime or float
     :param tip_size_threshold: (optional, by default is 15) recursively remove the tips
         of size less than threshold-th largest tip from the compressed map (set to 1e10 to keep all).
         The larger it is the less tips will be trimmed.
@@ -388,13 +404,14 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     """
     logger = _set_up_pastml_logger(verbose)
 
-    root, df, years, tip2date, name_column = \
-        _validate_input(columns, data, data_sep, date_column, html, html_compressed, id_index, name_column, tree,
+    age_label = 'Dist. to root' if root_date is None else 'Date'
+
+    root, df, name_column, root_date = \
+        _validate_input(columns, data, data_sep, root_date if html_compressed or html or upload_to_itol else None,
+                        id_index, name_column if html_compressed else None, tree,
                         copy_only=COPY == prediction_method or (isinstance(prediction_method, list)
                                                                 and all(COPY == _ for _ in prediction_method)))
-
-    if not date_column:
-        date_column = 'Dist. to root'
+    annotate_dates(root, root_date=root_date)
 
     if parameters:
         if isinstance(parameters, str):
@@ -418,6 +435,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
 
     if not out_data:
         out_data = os.path.join(work_dir, get_combined_ancestral_state_file())
+
     state_df = _serialize_predicted_states(sorted(column2states.keys()), out_data, root)
 
     # a meta-method would have added a suffix to the name feature
@@ -426,6 +444,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         name_column = ml_name_column if ml_name_column in column2states \
             else get_personalized_feature_name(name_column, get_default_mp_method())
 
+
     itol_result = None
     pool = ThreadPool()
     new_tree = os.path.join(work_dir, get_named_tree_file(tree))
@@ -433,15 +452,13 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     async_result = pool.map_async(func=_serialize_acr, iterable=((acr_res, work_dir) for acr_res in acr_results))
     if upload_to_itol:
         itol_result = pool.apply_async(func=generate_itol_annotations,
-                                       args=(column2states, work_dir, acr_results, state_df, date_column, tip2date,
-                                             new_tree, itol_id, itol_project,
-                                             itol_tree_name))
+                                       args=(column2states, work_dir, acr_results, state_df, age_label,
+                                             new_tree, itol_id, itol_project, itol_tree_name))
 
     if html or html_compressed:
         logger.debug('\n=============VISUALISATION=====================')
-        visualize(root, column2states=column2states,
-                  html=html, html_compressed=html_compressed, years=years, tip2date=tip2date,
-                  name_column=name_column, tip_size_threshold=tip_size_threshold, date_column=date_column)
+        visualize(root, column2states=column2states, html=html, html_compressed=html_compressed,
+                  name_column=name_column, tip_size_threshold=tip_size_threshold, age_label=age_label)
 
     async_result.wait()
     if itol_result:
@@ -451,7 +468,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     return root
 
 
-def _validate_input(columns, data, data_sep, date_column, html, html_compressed, id_index, name_column, tree_nwk,
+def _validate_input(columns, data, data_sep, root_date, id_index, name_column, tree_nwk,
                     copy_only):
     logger = logging.getLogger('pastml')
     logger.debug('\n=============INPUT DATA VALIDATION=============')
@@ -470,46 +487,16 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
     logger.debug('Read the annotation file {}.'.format(data))
 
     # As the date column is only used for visualisation if there is no visualisation we are not gonna validate it
-    years, tip2date = [], {}
-    if html_compressed or html:
-        if date_column:
-            if date_column not in df.columns:
-                raise ValueError('The date column "{}" not found among the annotation columns: {}.'
-                                 .format(date_column, _quote(df.columns)))
+    if root_date is not None:
+        try:
+            root_date = float(root_date)
+        except ValueError:
             try:
-                df[date_column] = pd.to_datetime(df[date_column], infer_datetime_format=True)
+                root_date = pd.to_datetime(root_date, infer_datetime_format=True)
+                root_date = datetime2numeric(root_date)
             except ValueError:
-                try:
-                    df[date_column] = pd.to_datetime(df[date_column], format='%Y.0')
-                except ValueError:
-                    raise ValueError('Could not infer the date format for column "{}", please check it.'
-                                     .format(date_column))
-
-            tip2date = df.loc[[_.name for _ in root], date_column].apply(date2years).to_dict()
-            if not tip2date:
-                raise ValueError('Could not find any dates for the tree tips in column {}, please check it.'
-                                 .format(date_column))
-        annotate_depth(root)
-        if not date_column:
-            tip2date = {tip.name: round(getattr(tip, DEPTH), 6) for tip in root}
-        else:
-            tip2date = {t: round(d, 6) if d is not None else None for (t, d) in tip2date.items()}
-
-        dates = [_ for _ in tip2date.values() if _ is not None]
-        if not dates:
-            tip2date = {tip.name: round(getattr(tip, DEPTH), 6) for tip in root}
-            dates = [_ for _ in tip2date.values() if _ is not None]
-            date_column = None
-            logger.warning('The date column does not contains dates for any of the tree tips, '
-                           'therefore we will ignore it')
-
-        min_date = min(dates)
-        max_date = max(dates)
-        dates = sorted(dates)
-        years = sorted({dates[0], dates[len(dates) // 2],
-                        dates[1 * len(dates) // 4], dates[3 * len(dates) // 4], dates[-1]})
-        logger.debug("Extracted tip {}: they vary between {} and {}."
-                     .format('dates' if date_column else 'distances', min_date, max_date))
+                raise ValueError('Could not infer the date format for root date "{}", please check it.'
+                                 .format(root_date))
 
     if columns:
         if isinstance(columns, str):
@@ -541,7 +528,7 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
                                  ', '.join(list(df_index_names)[: min(len(df_index_names), 3)])))
     logger.debug('Checked that tip names correspond to annotation file index.')
 
-    if html_compressed and name_column:
+    if name_column:
         name_column = col_name2cat(name_column)
         if name_column not in df.columns:
             raise ValueError('The name column ("{}") should be one of those specified as columns ({}).'
@@ -563,7 +550,7 @@ def _validate_input(columns, data, data_sep, date_column, html, html_compressed,
                          'PASTML cannot infer ancestral states for a tree with too many tip states.'
                          .format(percentage_unique.idxmax(), 100 * max_unique_percentage))
     logger.debug('Finished input validation.')
-    return root, df, years, tip2date, name_column
+    return root, df, name_column, root_date
 
 
 def _serialize_predicted_states(columns, out_data, root):
@@ -572,7 +559,7 @@ def _serialize_predicted_states(columns, out_data, root):
     with open(out_data, 'w+') as f:
         f.write('node\t{}\n'.format('\t'.join(columns)))
         for node in root.traverse():
-            vs = [node.dist]
+            vs = [node.dist, getattr(node, DATE)]
             column2values = {}
             for column in columns:
                 value = getattr(node, column, set())
@@ -594,7 +581,7 @@ def _serialize_predicted_states(columns, out_data, root):
                     f.write('\t{}'.format(value))
                 f.write('\n')
     logging.getLogger('pastml').debug('Serialized reconstructed states to {}.'.format(out_data))
-    return pd.DataFrame(index=ids, data=data, columns=['dist'] + columns)
+    return pd.DataFrame(index=ids, data=data, columns=['dist', DATE] + columns)
 
 
 def _set_up_pastml_logger(verbose):
@@ -694,8 +681,8 @@ def main():
                                 "in the compressed map visualisation "
                                 "(must be one of those specified via -c, --columns). "
                                 "If the annotation table contains only one column it will be used by default.")
-    vis_group.add_argument('--date_column', required=False, default=None,
-                           help="name of the annotation table column that contains tip dates, "
+    vis_group.add_argument('--root_date', required=False, default=None,
+                           help="date of the root node (only to be specified if the tree is dated), "
                                 "if specified it is used to add a time slider to the visualisation.",
                            type=str)
     vis_group.add_argument('--tip_size_threshold', type=int, default=REASONABLE_NUMBER_OF_TIPS,

@@ -32,7 +32,7 @@ var cy = cytoscape({
         'width': 300,
         'height': 300,
         'content': '',
-        'shape': 'ellipse',
+        'shape': 'barrel',
         'pie-size': '100%',
         'background-color': '#909090',
         'color': '#383838',
@@ -54,9 +54,10 @@ var cy = cytoscape({
       })
     .selector('node[tip]')
       .css({
-        'width': 400,
-        'height': 400,
+        'width': 500,
+        'height': 500,
         'font-size': 100,
+        'shape': 'ellipse',
       })
     .selector('node[unresolved]')
       .css({
@@ -151,7 +152,7 @@ function addQtips() {
     } ).qtip({
         content: function(){
                 return '<br><div style="overflow: auto;"><span style="white-space:nowrap;">'
-                + this.data('tooltip') + '</span></div>'; + '<br>id: ' + this.data('node_root_id');
+                + this.data('tooltip') + '</span></div>' + '<br>id: ' + this.data('node_root_id');
             },
         show: {event: 'mouseover'},
         hide: {event: 'mouseout'},
@@ -192,7 +193,7 @@ if (slider !== null) {
     slider.oninput = function() {
         output.innerHTML = years[this.value];
         removed.restore();
-        removed = cy.remove("[date>" + this.value + "]");
+        removed = cy.remove("[mile>" + this.value + "]");
     }
 }
 

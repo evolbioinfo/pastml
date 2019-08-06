@@ -3,6 +3,10 @@ from collections import defaultdict
 
 import numpy as np
 
+from tree import DATE
+
+IS_TIP = 'is_tip'
+
 REASONABLE_NUMBER_OF_TIPS = 15
 
 CATEGORIES = 'categories'
@@ -12,112 +16,121 @@ NUM_TIPS_INSIDE = 'max_size'
 TIPS_INSIDE = 'in_tips'
 INTERNAL_NODES_INSIDE = 'in_ns'
 TIPS_BELOW = 'all_tips'
-NAMES = 'names'
+ROOTS = 'roots'
+
+COMPRESSED_NODE = 'compressed_node'
 
 METACHILD = 'metachild'
 
 
-def compress_tree(tree, columns, n2date, can_merge_diff_sizes=True, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS):
-    for n in tree.traverse('postorder'):
-        n.add_feature(TIPS_INSIDE, [])
-        n.add_feature(INTERNAL_NODES_INSIDE, [])
-        n.add_feature(TIPS_BELOW, [])
-        n.add_feature(NAMES, [n.name])
-        if n.is_leaf():
-            getattr(n, TIPS_INSIDE).append(n.name)
-            getattr(n, TIPS_BELOW).append(n.name)
+def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS):
+    for _ in tree:
+        _.add_feature(IS_TIP, True)
+
+    compressed_tree = tree.copy()
+
+    for n_compressed, n in zip(compressed_tree.traverse('postorder'), tree.traverse('postorder')):
+        n_compressed.add_feature(TIPS_INSIDE, [])
+        n_compressed.add_feature(INTERNAL_NODES_INSIDE, [])
+        n_compressed.add_feature(ROOTS, [n])
+        if n_compressed.is_leaf():
+            getattr(n_compressed, TIPS_INSIDE).append(n)
         else:
-            getattr(n, INTERNAL_NODES_INSIDE).append(n.name)
-            for _ in n:
-                getattr(n, TIPS_BELOW).append(_.name)
+            getattr(n_compressed, INTERNAL_NODES_INSIDE).append(n)
+        n.add_feature(COMPRESSED_NODE, n_compressed)
 
-    collapse_vertically(tree, columns)
+    collapse_vertically(compressed_tree, columns)
 
-    for n in tree.traverse():
+    for n in compressed_tree.traverse():
         n.add_feature(NUM_TIPS_INSIDE, len(getattr(n, TIPS_INSIDE)))
         n.add_feature(TIPS_INSIDE, [getattr(n, TIPS_INSIDE)])
         n.add_feature(INTERNAL_NODES_INSIDE, [getattr(n, INTERNAL_NODES_INSIDE)])
-        n.add_feature(TIPS_BELOW, [getattr(n, TIPS_BELOW)])
-
-    remove_mediators(tree, columns)
 
     get_bin = lambda _: _
-    collapse_horizontally(tree, columns, get_bin, n2date)
+    collapse_horizontally(compressed_tree, columns, get_bin)
 
-    if can_merge_diff_sizes and len(tree) > tip_size_threshold:
+    if can_merge_diff_sizes and len(compressed_tree) > tip_size_threshold:
         get_bin = lambda _: int(np.log10(max(1, _)))
         logging.getLogger('pastml').debug('Allowed merging nodes of different sizes.')
-        collapse_horizontally(tree, columns, get_bin, n2date)
+        collapse_horizontally(compressed_tree, columns, get_bin)
 
-    if len(tree) > tip_size_threshold:
-        for n in tree.traverse('preorder'):
-            multiplier = (getattr(n.up, 'multiplier') if n.up else 1) * len(getattr(n, TIPS_BELOW))
+    if len(compressed_tree) > tip_size_threshold:
+        for n in compressed_tree.traverse('preorder'):
+            multiplier = (getattr(n.up, 'multiplier') if n.up else 1) * len(getattr(n, ROOTS))
             n.add_feature('multiplier', multiplier)
 
         def get_tsize(n):
             return getattr(n, NUM_TIPS_INSIDE) * getattr(n, 'multiplier')
 
-        tip_sizes = []
-        for n in tree.traverse('postorder'):
+        node_thresholds = []
+        for n in compressed_tree.traverse('postorder'):
             children_bs = 0 if not n.children else max(get_tsize(_) for _ in n.children)
             bs = get_tsize(n)
+            # if bs > children_bs it means that the trimming threshold for the node is higher
+            # than the ones for its children
             if not n.is_root() and bs > children_bs:
-                tip_sizes.append(bs)
-        if len(tip_sizes) > tip_size_threshold:
-            threshold = sorted(tip_sizes)[-tip_size_threshold]
-            if min(tip_sizes) >= threshold:
-                logging.getLogger('pastml')\
-                    .debug('No tip is smaller than the threshold ({}, the size of the {}-th largest tip).'
-                           .format(threshold, tip_size_threshold))
-            else:
-                logging.getLogger('pastml').debug('Set tip size threshold to {} (the size of the {}-th largest tip).'
-                                                  .format(threshold, tip_size_threshold))
-                remove_small_tips(tree, to_be_removed=lambda _: get_tsize(_) < threshold, n2date=n2date)
-                remove_mediators(tree, columns)
-                collapse_horizontally(tree, columns, get_bin, n2date)
-    return tree
+                node_thresholds.append(bs)
+        threshold = sorted(node_thresholds)[-tip_size_threshold]
+
+        if min(node_thresholds) >= threshold:
+            logging.getLogger('pastml')\
+                .debug('No tip is smaller than the threshold ({}, the size of the {}-th largest tip).'
+                       .format(threshold, tip_size_threshold))
+        else:
+            logging.getLogger('pastml').debug('Set tip size threshold to {} (the size of the {}-th largest tip).'
+                                              .format(threshold, tip_size_threshold))
+            remove_small_tips(compressed_tree, to_be_removed=lambda _: get_tsize(_) < threshold)
+            remove_mediators(compressed_tree, columns)
+            collapse_horizontally(compressed_tree, columns, get_bin)
+    return compressed_tree, tree
 
 
-def collapse_horizontally(tree, columns, tips2bin, n2date):
+def collapse_horizontally(tree, columns, tips2bin):
     config_cache = {}
 
     def get_configuration(n):
-        if n not in config_cache:
-            # Configuration is (branch_width, (states, child_configurations)),
+        if n.name not in config_cache:
+            # Configuration is (branch_width, (size, states, child_configurations)),
             # where branch_width is only used for recursive calls and is ignored when considering a merge
-            config_cache[n] = (len(getattr(n, TIPS_INSIDE)),
+            config_cache[n.name] = (len(getattr(n, TIPS_INSIDE)),
                                (tips2bin(getattr(n, NUM_TIPS_INSIDE)),
                                 tuple(tuple(sorted(getattr(n, column, set()))) for column in columns),
                                 tuple(sorted([get_configuration(_) for _ in n.children]))))
-        return config_cache[n]
+        return config_cache[n.name]
 
     collapsed_configurations = 0
 
     for n in tree.traverse('postorder'):
         config2children = defaultdict(list)
         for _ in n.children:
+            # use (size, states, child_configurations) as configuration (ignore branch width)
             config2children[get_configuration(_)[1]].append(_)
         for children in (_ for _ in config2children.values() if len(_) > 1):
             collapsed_configurations += 1
-            children = sorted(children, key=lambda _: n2date[_.name])
+            children = sorted(children, key=lambda _: getattr(_, DATE))
             child = children[0]
             for sibling in children[1:]:
                 getattr(child, TIPS_INSIDE).extend(getattr(sibling, TIPS_INSIDE))
+                for ti in getattr(sibling, TIPS_INSIDE):
+                    for _ in ti:
+                        _.add_feature(COMPRESSED_NODE, child)
                 getattr(child, INTERNAL_NODES_INSIDE).extend(getattr(sibling, INTERNAL_NODES_INSIDE))
-                getattr(child, TIPS_BELOW).extend(getattr(sibling, TIPS_BELOW))
-                getattr(child, NAMES).extend(getattr(sibling, NAMES))
+                for ii in getattr(sibling, INTERNAL_NODES_INSIDE):
+                    for _ in ii:
+                        _.add_feature(COMPRESSED_NODE, child)
+                getattr(child, ROOTS).extend(getattr(sibling, ROOTS))
                 n.remove_child(sibling)
             child.add_feature(METACHILD, True)
             child.add_feature(NUM_TIPS_INSIDE,
                               sum(len(_) for _ in getattr(child, TIPS_INSIDE)) / len(getattr(child, TIPS_INSIDE)))
-            if child in config_cache:
-                config_cache[child] = (len(getattr(child, TIPS_INSIDE)), config_cache[child][1])
+            if child.name in config_cache:
+                config_cache[child.name] = (len(getattr(child, TIPS_INSIDE)), config_cache[child.name][1])
     if collapsed_configurations:
         logging.getLogger('pastml').debug(
             'Collapsed {} sets of equivalent configurations horizontally.'.format(collapsed_configurations))
 
 
-def remove_small_tips(tree, to_be_removed, n2date):
+def remove_small_tips(tree, to_be_removed):
     num_removed = 0
     changed = True
     while changed:
@@ -127,13 +140,14 @@ def remove_small_tips(tree, to_be_removed, n2date):
             if parent and to_be_removed(l):
                 num_removed += 1
                 parent.remove_child(l)
+                # remove the corresponding nodes from the non-collapsed tree
+                for ti in getattr(l, TIPS_INSIDE):
+                    for _ in ti:
+                        _.up.remove_child(_)
+                for ii in getattr(l, INTERNAL_NODES_INSIDE):
+                    for _ in ii:
+                        _.up.remove_child(_)
                 changed = True
-    for n in tree.traverse('postorder'):
-        date = min(min(n2date[_] for _ in tips) for tips in getattr(n, TIPS_INSIDE) if tips) \
-            if getattr(n, NUM_TIPS_INSIDE) else None
-        for c in n.children:
-            date = n2date[c.name] if date is None else min(date, n2date[c.name])
-        n2date[n.name] = date
     logging.getLogger('pastml').debug(
         'Recursively removed {} tips of size smaller than the threshold.'.format(num_removed))
 
@@ -162,7 +176,11 @@ def collapse_vertically(tree, columns):
             # merge the child into this node if their states are the same
             if _same_states(n, child, columns):
                 getattr(n, TIPS_INSIDE).extend(getattr(child, TIPS_INSIDE))
+                for _ in getattr(child, TIPS_INSIDE):
+                    _.add_feature(COMPRESSED_NODE, n)
                 getattr(n, INTERNAL_NODES_INSIDE).extend(getattr(child, INTERNAL_NODES_INSIDE))
+                for _ in getattr(child, INTERNAL_NODES_INSIDE):
+                    _.add_feature(COMPRESSED_NODE, n)
 
                 n.remove_child(child)
                 grandchildren = list(child.children)
@@ -203,6 +221,12 @@ def remove_mediators(tree, columns):
         if compatible:
             parent.remove_child(n)
             parent.add_child(child)
+            # update the uncompressed tree
+            for ii in getattr(n, INTERNAL_NODES_INSIDE):
+                for _ in ii:
+                    for c in list(_.children):
+                        _.up.add_child(c)
+                    _.up.remove_child(_)
             num_removed += 1
     if num_removed:
         logging.getLogger('pastml').debug("Removed {} internal node{}"

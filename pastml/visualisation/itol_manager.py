@@ -8,6 +8,8 @@ from pastml import METHOD, CHARACTER, STATES
 from pastml.visualisation.colour_generator import get_enough_colours
 from itolapi import Itol
 
+from tree import DATE
+
 STYLE_FILE_HEADER_TEMPLATE = """DATASET_STYLE
 
 SEPARATOR TAB
@@ -54,7 +56,7 @@ POPUP_CONTENT_TEMPLATE = "<b>{key}: </b>" \
                          "<span style='white-space:nowrap;'>{value}</span></div>"
 
 
-def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col, tip2date,
+def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
                               tree_path, itol_id=None, itol_project=None, itol_tree_name=None):
     annotation_files = []
     popup_file = os.path.join(work_dir, 'iTOL_popup_info.txt')
@@ -95,12 +97,11 @@ def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
         annotation_files.append(colorstrip_file)
         logging.getLogger('pastml').debug('Generated iTol colorstrip file for {}: {}.'.format(column, colorstrip_file))
 
-    state_df = state_df[list(column2states.keys()) + ['dist']]
+    state_df = state_df[list(column2states.keys()) + ['dist', DATE]]
     for c in column2states.keys():
         state_df[c] = state_df[c].apply(lambda _: ' or '.join(sorted(_)))
-    state_df.columns = ['ACR {} predicted state'.format(c) for c in column2states.keys()] + ['Node dist']
+    state_df.columns = ['ACR {} predicted state'.format(c) for c in column2states.keys()] + ['Node dist', date_col]
     state_df['Node id'] = state_df.index
-    state_df.loc[list(tip2date.keys()), date_col] = list(tip2date.values())
 
     for acr_result in acrs:
         if is_marginal(acr_result[METHOD]):

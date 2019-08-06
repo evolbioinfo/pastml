@@ -144,9 +144,9 @@ function addQtips() {
         content: function(){
                 var tooltip = '<br><div style="overflow: auto;"><span style="white-space:nowrap;">' + this.data('tooltip') + '</span></div>';
                 if (this.data('node_meta') !== undefined) {
-                    tooltip += '<br><div style="overflow: auto;"><span style="white-space:nowrap;">ids: ' + this.data('node_names') + '</span></div>';
+                    tooltip += '<br><div style="overflow: auto;"><span style="white-space:nowrap;">ids: ' + this.data('node_roots') + '</span></div>';
                 } else {
-                    tooltip += '<br>id: ' + this.data('node_names') + '<br>';
+                    tooltip += '<br>id: ' + this.data('node_roots') + '<br>';
                 }
                 tooltip += '<br>tips inside: ' + this.data('node_in_tips');
                 tooltip += '<br>total tips in the subtree: ' + this.data('node_all_tips');
@@ -189,14 +189,14 @@ if (slider !== null) {
     slider.oninput = function() {
         output.innerHTML = years[this.value];
         removed.restore();
-        removed = cy.remove("[date>" + this.value + "]");
+        removed = cy.remove("[mile>" + this.value + "]");
         var list = cy.$("");
         for (var i=0, ele; ele = list[i]; i++) {
             if (ele.data('node_name_' + this.value) !== undefined) {
                 ele.data('node_name', ele.data('node_name_' + this.value));
             }
-            if (ele.data('node_names_' + this.value) !== undefined) {
-                ele.data('node_names', ele.data('node_names_' + this.value));
+            if (ele.data('node_roots_' + this.value) !== undefined) {
+                ele.data('node_roots', ele.data('node_roots_' + this.value));
             }
             if (ele.data('node_fontsize_' + this.value) !== undefined) {
                 ele.data('node_fontsize', ele.data('node_fontsize_' + this.value));
