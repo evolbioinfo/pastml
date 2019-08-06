@@ -13,4 +13,4 @@ if '__main__' == __name__:
     pastml_pipeline(data=STATES_INPUT,
                     tree=TREE_NWK, prediction_method=ML,
                     html_compressed=os.path.join(DATA_DIR, 'maps', 'map_{}.html'.format('_'.join(mutations))),
-                    verbose=True, columns=mutations, date_column='Year', upload_to_itol=True)
+                    verbose=True, columns=mutations, upload_to_itol=True)
