@@ -1,27 +1,14 @@
-
 var layoutOptions = {
-    name: '{{layout}}',
-    nodesep: 0, // the separation between adjacent nodes in the same rank
-    edgeSep: 0, // the separation between adjacent edges in the same rank
-    rankSep: 4, // the separation between adjacent ranks
-    rankDir: 'TB', // 'TB' for top to bottom flow, 'LR' for left to right,
-    ranker: 'longest-path', // Type of algorithm to assign a rank to each node in the input graph. Possible values: 'network-simplex', 'tight-tree' or 'longest-path'
-    minLen: function( edge ){ return edge.data('minLen') | 0; }, // number of ranks to keep between the source and target of the edge
+  name: 'preset',
+  positions: function(node){
+    node.position('x', node.data('node_x'));
+    node.position('y', node.data('node_y'));
+    return node.position();
+  },
+  fit: true, // whether to fit to viewport
+  padding: 1, // padding on fit
+};
 
-    // general layout options
-    fit: true, // whether to fit to viewport
-    padding: 1, // fit padding
-    spacingFactor: undefined, // Applies a multiplicative factor (>0) to expand or compress the overall area that the nodes take up
-    nodeDimensionsIncludeLabels: true, // whether labels should be included in determining the space used by a node
-    animate: false, // whether to transition the node positions
-    animateFilter: function( node, i ){ return true; }, // whether to animate specific nodes when animation is on; non-animated nodes immediately go to their final positions
-    animationDuration: 500, // duration of animation in ms if enabled
-    animationEasing: undefined, // easing of animation if enabled
-    boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
-    transform: function( node, pos ){ return pos; }, // a function that applies a transform to the final node position
-    ready: function(){}, // on layoutready
-    stop: function(){} // on layoutstop
-  };
 
 var cy = cytoscape({
   container: document.getElementById('cy'),
@@ -78,6 +65,12 @@ var cy = cytoscape({
         'text-background-padding' : 0,
         'opacity': 0,
       })
+    .selector('node[hidden>0]')
+      .css({
+        'opacity': 0.1,
+        'width': 100,
+        'height': 100,
+      })
     {% for (clazz, css) in clazz2css %}
     .selector(".{{clazz}}")
         .css({
@@ -86,8 +79,8 @@ var cy = cytoscape({
     {% endfor %}
     .selector('edge')
       .css({
-        'width': 60,
-        'font-size': 80,
+        'width': 100,
+        'font-size': 100,
         'color': 'black',
         'content': '',
         'curve-style': 'bezier',
@@ -110,17 +103,11 @@ var cy = cytoscape({
       .css({
         'content': 'data(edge_name)',
       })
-    .selector('edge[edge_size]')
-      .css({
-        'width': 'data(edge_size)',
-        'font-size': 'data(edge_size)',
-      })
     .selector('edge[edge_color]')
       .css({
         'target-arrow-color': 'data(edge_color)',
         'line-color': 'data(edge_color)',
-        'opacity': .5,
-        'width': 40,
+        'width': 80,
       })
     .selector(':selected')
       .css({
@@ -179,8 +166,27 @@ function fit() {
 }
 
 function resetLayout() {
+    cy.startBatch();
     cy.layout(layoutOptions).run();
+
+    if (slider !== null) {
+        var cur_dist_attr = 'edge_name_' + slider.value;
+        var initial_dist_attr = 'edge_name_' + slider.max;
+        var cur_dist, initial_dist;
+
+        var list = cy.edges();
+        for (var i=0, ele; ele = list[i]; i++) {
+            cur_dist = ele.data(cur_dist_attr);
+            initial_dist = ele.data(initial_dist_attr);
+            if (cur_dist !== undefined && cur_dist != initial_dist) {
+                ele.target().position('y', (ele.source().position('y') +
+                cur_dist * (ele.target().position('y') - ele.source().position('y')) / initial_dist));
+            }
+        }
+    }
+    cy.endBatch();
 }
+
 var years = {{years}};
 var slider = document.getElementById("myRange");
 if (slider !== null) {
@@ -198,20 +204,24 @@ if (slider !== null) {
         removed.restore();
         removed = cy.remove("[mile>" + this.value + "]");
 
-        var nn_attr = 'node_name_' + this.value;
-        var dist_attr = 'edge_name_' + this.value;
-        var dist;
+        var cur_dist_attr = 'edge_name_' + this.value;
+        var initial_dist_attr = 'edge_name_' + this.max;
+        var old_dist, cur_dist;
 
-        var list = cy.$("");
+        var list = cy.edges();
         for (var i=0, ele; ele = list[i]; i++) {
-            if (ele.data(nn_attr) !== undefined) {
-                ele.data('node_name', ele.data(nn_attr));
-            }
-            dist = ele.data('edge_name');
-            if (ele.data(dist_attr) !== undefined && ele.data(dist_attr) != dist) {
-                ele.target().position('y', (ele.source().position('y') +
-                ele.data(dist_attr) * (ele.target().position('y') - ele.source().position('y')) / dist));
-                ele.data('edge_name', ele.data(dist_attr));
+            old_dist = ele.data('edge_name');
+            cur_dist = ele.data(cur_dist_attr);
+            if (cur_dist !== undefined && cur_dist != old_dist) {
+                if (ele.data(initial_dist_attr) != cur_dist) {
+                    ele.target().data('hidden', 1);
+                } else {
+                    ele.target().data('hidden', 0);
+                    console.log(ele.target().data());
+                }
+                ele.target().position('y', (ele.source().position('y')
+                + cur_dist * (ele.target().position('y') - ele.source().position('y')) / old_dist));
+                ele.data('edge_name', cur_dist);
             }
         }
         cy.endBatch();

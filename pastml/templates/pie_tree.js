@@ -1,6 +1,6 @@
 
 var layoutOptions = {
-    name: '{{layout}}',
+    name: 'dagre',
     nodesep: 10, // the separation between adjacent nodes in the same rank
     edgeSep: 10, // the separation between adjacent edges in the same rank
     rankSep: 80, // the separation between adjacent ranks
