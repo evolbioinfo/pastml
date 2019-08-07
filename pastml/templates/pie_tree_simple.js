@@ -199,26 +199,21 @@ if (slider !== null) {
         removed = cy.remove("[mile>" + this.value + "]");
 
         var nn_attr = 'node_name_' + this.value;
-        var en_attr = 'edge_name_' + this.value;
-        var ml_attr = 'minLen_' + this.value;
-        var ml;
+        var dist_attr = 'edge_name_' + this.value;
+        var dist;
 
         var list = cy.$("");
         for (var i=0, ele; ele = list[i]; i++) {
             if (ele.data(nn_attr) !== undefined) {
                 ele.data('node_name', ele.data(nn_attr));
             }
-            ml = ele.data('minLen');
-            if (ele.data(en_attr) !== undefined) {
-                ele.data('edge_name', ele.data(en_attr));
-            }
-            if (ele.data(ml_attr) !== undefined && ele.data(ml_attr) != ml) {
+            dist = ele.data('edge_name');
+            if (ele.data(dist_attr) !== undefined && ele.data(dist_attr) != dist) {
                 ele.target().position('y', (ele.source().position('y') +
-                ele.data(ml_attr) * (ele.target().position('y') - ele.source().position('y')) / ml));
-                ele.data('minLen', ele.data(ml_attr));
+                ele.data(dist_attr) * (ele.target().position('y') - ele.source().position('y')) / dist));
+                ele.data('edge_name', ele.data(dist_attr));
             }
         }
-
         cy.endBatch();
     }
 }

@@ -114,7 +114,7 @@ def set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling, 
 
 def set_cyto_features_tree(n, state):
     n.add_feature(NODE_NAME, state)
-    n.add_feature(EDGE_NAME, '{:.3f}'.format(n.dist))
+    n.add_feature(EDGE_NAME, np.round(n.dist, 3))
 
 
 def _tree2json(tree, column2states, name_feature, node2tooltip, get_date, milestones=None, compressed_tree=None,
@@ -202,10 +202,10 @@ def _tree2json(tree, column2states, name_feature, node2tooltip, get_date, milest
                     if TIMELINE_LTT == timeline_type:
                         # if it is LTT also cut the branches if needed
                         if getattr(n, DATE) > milestone:
-                            n.add_feature('{}{}'.format(EDGE_NAME, suffix), '{:.3f}'.format(milestone - getattr(n.up, DATE)))
+                            n.add_feature('{}{}'.format(EDGE_NAME, suffix), np.round(milestone - getattr(n.up, DATE), 3))
                             n.add_feature('{}{}'.format(NODE_NAME, suffix), getattr(n, BRANCH_NAME))
                         else:
-                            n.add_feature('{}{}'.format(EDGE_NAME, suffix), '{:.3f}'.format(n.dist))
+                            n.add_feature('{}{}'.format(EDGE_NAME, suffix), np.round(n.dist, 3))
                             n.add_feature('{}{}'.format(NODE_NAME, suffix), n.name)
 
     clazzes = set()
@@ -256,7 +256,6 @@ def _tree2json(tree, column2states, name_feature, node2tooltip, get_date, milest
             clazzes.add(clazz)
         nodes.append(get_node(n, n_id, tooltip=node2tooltip[n], clazz=clazz))
 
-        n_date = getattr(n, DATE)
         for child in sorted(n.children, key=lambda _: node2id[_]):
             edge_attributes = {feature: getattr(child, feature) for feature in child.features
                                if feature.startswith('edge_') or feature == MILESTONE}
@@ -269,17 +268,6 @@ def _tree2json(tree, column2states, name_feature, node2tooltip, get_date, milest
                 source_name = target_name
                 if int(child.dist / dist_step) > 0:
                     edge_attributes['minLen'] = _get_min_len(child.dist, dist_step)
-                    if TIMELINE_LTT == timeline_type:
-                        ms_i = getattr(child, MILESTONE)
-                        child_date = getattr(child, DATE)
-                        if child_date > milestones[ms_i] \
-                                and _get_min_len(milestones[ms_i] - n_date, dist_step) != edge_attributes['minLen']:
-                            for i in range(len(milestones) - 1, ms_i - 1, -1):
-                                milestone = milestones[i]
-                                edge_attributes['minLen_{}'.format(i)] = \
-                                    _get_min_len(milestone - n_date, dist_step) if child_date > milestone \
-                                        else edge_attributes['minLen']
-                                print(edge_attributes)
             edges.append(get_edge(source_name, node2id[child], **edge_attributes))
 
     json_dict = {NODES: nodes, EDGES: edges}
