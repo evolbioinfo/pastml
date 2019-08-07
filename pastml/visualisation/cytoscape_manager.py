@@ -10,7 +10,7 @@ from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, TIPS_INSIDE, T
     REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP
 from pastml.tree import DATE, LEVEL
 
-TIMELINE_TIPS = 'TIPS'
+TIMELINE_SAMPLED = 'SAMPLED'
 TIMELINE_NODES = 'NODES'
 TIMELINE_LTT = 'LTT'
 
@@ -118,7 +118,7 @@ def set_cyto_features_tree(n, state):
 
 
 def _tree2json(tree, column2states, name_feature, node2tooltip, get_date, milestones=None, compressed_tree=None,
-               timeline_type=TIMELINE_TIPS):
+               timeline_type=TIMELINE_SAMPLED):
     working_tree = compressed_tree if compressed_tree else tree
     e_size_scaling, font_scaling, size_scaling, transform_e_size, transform_size = get_size_transformations(working_tree)
 
@@ -208,7 +208,6 @@ def _tree2json(tree, column2states, name_feature, node2tooltip, get_date, milest
                             n.add_feature('{}{}'.format(EDGE_NAME, suffix), '{:.3f}'.format(n.dist))
                             n.add_feature('{}{}'.format(NODE_NAME, suffix), n.name)
 
-
     clazzes = set()
     nodes, edges = [], []
 
@@ -234,17 +233,17 @@ def _tree2json(tree, column2states, name_feature, node2tooltip, get_date, milest
 
     one_column = next(iter(column2states.keys())) if len(column2states) == 1 else None
 
-    too_many_uncompressed_tips = not is_compressed and num_tips <= TIP_LIMIT
-    if too_many_uncompressed_tips:
+    not_too_many_uncompressed_tips = not is_compressed and num_tips <= TIP_LIMIT
+    if not_too_many_uncompressed_tips:
         dist_step = np.median(
             [getattr(n, DATE) / getattr(n, LEVEL) for n in working_tree.traverse() if not n.is_root()]) \
-                    / (3 if num_tips <= TIP_LIMIT / 2 else 2)
+                    / (4 if num_tips <= TIP_LIMIT / 2 else 3)
 
     for n, n_id in sorted(node2id.items(), key=lambda ni: ni[1]):
-        if n == working_tree and too_many_uncompressed_tips and int(n.dist / dist_step) > 0:
+        if n == working_tree and not_too_many_uncompressed_tips and int(n.dist / dist_step) > 0:
             fake_id = 'fake_node_{}'.format(n_id)
             nodes.append(get_fake_node(fake_id))
-            edges.append(get_edge(fake_id, n_id, minLen=int(n.dist / dist_step),
+            edges.append(get_edge(fake_id, n_id, minLen=_get_min_len(n.dist, dist_step),
                                   **{feature: getattr(n, feature) for feature in n.features
                                      if feature.startswith('edge_') or feature == MILESTONE}))
         if one_column:
@@ -257,22 +256,38 @@ def _tree2json(tree, column2states, name_feature, node2tooltip, get_date, milest
             clazzes.add(clazz)
         nodes.append(get_node(n, n_id, tooltip=node2tooltip[n], clazz=clazz))
 
+        n_date = getattr(n, DATE)
         for child in sorted(n.children, key=lambda _: node2id[_]):
             edge_attributes = {feature: getattr(child, feature) for feature in child.features
                                if feature.startswith('edge_') or feature == MILESTONE}
             source_name = n_id
-            if too_many_uncompressed_tips:
+            if not_too_many_uncompressed_tips:
                 target_name = 'fake_node_{}'.format(node2id[child])
                 nodes.append(get_fake_node(target_name))
                 edges.append(get_edge(source_name, target_name, fake=1,
                                       **{k: v for (k, v) in edge_attributes.items() if EDGE_NAME not in k}))
                 source_name = target_name
-                if int(n.dist / dist_step) > 0:
-                    edge_attributes['minLen'] = int(child.dist / dist_step)
+                if int(child.dist / dist_step) > 0:
+                    edge_attributes['minLen'] = _get_min_len(child.dist, dist_step)
+                    if TIMELINE_LTT == timeline_type:
+                        ms_i = getattr(child, MILESTONE)
+                        child_date = getattr(child, DATE)
+                        if child_date > milestones[ms_i] \
+                                and _get_min_len(milestones[ms_i] - n_date, dist_step) != edge_attributes['minLen']:
+                            for i in range(len(milestones) - 1, ms_i - 1, -1):
+                                milestone = milestones[i]
+                                edge_attributes['minLen_{}'.format(i)] = \
+                                    _get_min_len(milestone - n_date, dist_step) if child_date > milestone \
+                                        else edge_attributes['minLen']
+                                print(edge_attributes)
             edges.append(get_edge(source_name, node2id[child], **edge_attributes))
 
     json_dict = {NODES: nodes, EDGES: edges}
     return json_dict, sorted(clazzes)
+
+
+def _get_min_len(dist, dist_step):
+    return max(int(dist / dist_step), 1)
 
 
 def get_size_transformations(tree):
@@ -300,7 +315,7 @@ def get_size_transformations(tree):
 
 def save_as_cytoscape_html(tree, out_html, column2states, layout='dagre', name_feature='name',
                            name2colour=None, n2tooltip=None, compressed_tree=None,
-                           age_label='Dist. to root', timeline_type=TIMELINE_TIPS):
+                           age_label='Dist. to root', timeline_type=TIMELINE_SAMPLED):
     """
     Converts a tree to an html representation using Cytoscape.js.
 
@@ -326,7 +341,7 @@ def save_as_cytoscape_html(tree, out_html, column2states, layout='dagre', name_f
     if TIMELINE_NODES == timeline_type:
         def get_date(node):
             return getattr(node, DATE)
-    elif TIMELINE_TIPS == timeline_type:
+    elif TIMELINE_SAMPLED == timeline_type:
         max_date = max(getattr(_, DATE) for _ in tree)
 
         def get_date(node):
@@ -337,7 +352,7 @@ def save_as_cytoscape_html(tree, out_html, column2states, layout='dagre', name_f
             return getattr(node, DATE) if node.is_root() else (getattr(node.up, DATE) + 1e-6)
     else:
         raise ValueError('Unknown timeline type: {}. Allowed ones are {}, {} and {}.'
-                         .format(timeline_type, TIMELINE_NODES, TIMELINE_TIPS, TIMELINE_LTT))
+                         .format(timeline_type, TIMELINE_NODES, TIMELINE_SAMPLED, TIMELINE_LTT))
 
     dates = sorted([getattr(_, DATE) for _ in (tree.traverse()
                                                if timeline_type in [TIMELINE_LTT, TIMELINE_NODES] else tree)])
@@ -403,7 +418,7 @@ def get_column_value_str(n, column, format_list=True, list_value='<unresolved>')
 
 
 def visualize(tree, column2states, name_column=None, html=None, html_compressed=None,
-              tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, age_label='Dist. to root', timeline_type=TIMELINE_TIPS):
+              tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, age_label='Dist. to root', timeline_type=TIMELINE_SAMPLED):
 
     one_column = next(iter(column2states.keys())) if len(column2states) == 1 else None
 

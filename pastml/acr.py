@@ -13,7 +13,7 @@ from pastml.models.hky import KAPPA, HKY_STATES, HKY
 from pastml.models.jtt import JTT_STATES, JTT
 from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, NUM_SCENARIOS
 from pastml.annotation import preannotate_tree, get_tree_stats
-from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_TIPS, TIMELINE_NODES, TIMELINE_LTT
+from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file, get_pastml_work_dir
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
@@ -22,7 +22,7 @@ from pastml.tree import read_tree, name_tree, collapse_zero_branches, annotate_d
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 from pastml.visualisation.itol_manager import generate_itol_annotations
 
-PASTML_VERSION = '1.9.15'
+PASTML_VERSION = '1.9.16'
 
 warnings.filterwarnings("ignore", append=True)
 
@@ -298,13 +298,13 @@ def _quote(str_list):
 
 def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                     columns=None, prediction_method=MPPA, model=F81, parameters=None,
-                    name_column=None, root_date=None, timeline_type=TIMELINE_TIPS,
+                    name_column=None, root_date=None, timeline_type=TIMELINE_SAMPLED,
                     tip_size_threshold=REASONABLE_NUMBER_OF_TIPS,
                     out_data=None, html_compressed=None, html=None, work_dir=None,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
                     itol_tree_name=None):
     """
-    Applies PASTML to the given tree with the specified states and visualizes the result (as html maps).
+    Applies PastML to the given tree with the specified states and visualises the result (as html maps).
 
     :param tree: path to the input tree in newick format (must be rooted).
     :type tree: str
@@ -367,19 +367,18 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         (must be one of those specified in ``columns``, if ``columns`` are specified).
         If the annotation table contains only one column, it will be used by default.
     :type name_column: str
-    :param root_date: (optional) date of the root node (only to be specified if the tree is dated),,
-        if specified it is used to add a time slider to the visualisation.
+    :param root_date: (optional) date of the root node (only to be specified if the tree is dated),
+        if specified it is used to visualise a timeline based on dates (otherwise it is based on distances to root).
     :type root_date: str or pandas.datetime or float
     :param tip_size_threshold: (optional, by default is 15) recursively remove the tips
         of size less than threshold-th largest tip from the compressed map (set to 1e10 to keep all).
         The larger it is the less tips will be trimmed.
     :type tip_size_threshold: int
-    :param timeline_type: (optional, by default is pastml.visualisation.cytoscape_manager.TIMELINE_TIPS)
+    :param timeline_type: (optional, by default is pastml.visualisation.cytoscape_manager.TIMELINE_SAMPLED)
         type of timeline visualisation: at each date/distance to root selected on the slider, either
-        (pastml.visualisation.cytoscape_manager.TIMELINE_TIPS) all the lineages that do not end up with
-        a tip sampled not after this date/distance to root are hidden;
-        or (pastml.visualisation.cytoscape_manager.TIMELINE_NODES) all the nodes whose date/distance to root
-        is after this date are hidden;
+        (pastml.visualisation.cytoscape_manager.TIMELINE_SAMPLED) all the lineages sampled after it are hidden; "
+        or (pastml.visualisation.cytoscape_manager.TIMELINE_NODES) all the nodes with a
+        more recent date/larger distance to root are hidden;
         or (pastml.visualisation.cytoscape_manager.TIMELINE_LTT) all the nodes whose branch started
         after this date/distance to root are hidden, and the external branches are cut
         to the specified date/distance to root if needed;
@@ -695,21 +694,21 @@ def main():
                                 "If the annotation table contains only one column it will be used by default.")
     vis_group.add_argument('--root_date', required=False, default=None,
                            help="date of the root node (only to be specified if the tree is dated), "
-                                "if specified it is used to add a time slider to the visualisation.",
+                                "if specified it is used to visualise a timeline based on dates "
+                                "(otherwise it is based on distances to root).",
                            type=str)
     vis_group.add_argument('--tip_size_threshold', type=int, default=REASONABLE_NUMBER_OF_TIPS,
                            help="recursively remove the tips of size less than threshold-th largest tip"
                                 "from the compressed map (set to 1e10 to keep all tips). "
                                 "The larger it is the less tips will be trimmed.")
-    vis_group.add_argument('--timeline_type', type=str, default=TIMELINE_TIPS,
+    vis_group.add_argument('--timeline_type', type=str, default=TIMELINE_SAMPLED,
                            help="type of timeline visualisation: at each date/distance to root selected on the slider "
-                                "either ({tips}) all the lineages that do not end up with  a tip sampled not after "
-                                "this date/distance to root are hidden; "
-                                "or ({nodes}) all the nodes whose date/distance to root is after this date are hidden; "
-                                "or ({ltt}) all the nodes whose branch started after this date/distance to root "
+                                "either ({sampled}) - all the lineages sampled after it are hidden; "
+                                "or ({nodes}) - all the nodes with a more recent date/larger distance to root are hidden; "
+                                "or ({ltt}) - all the nodes whose branch started after this date/distance to root "
                                 "are hidden, and the external branches are cut to the specified date/distance to root "
-                                "if needed;".format(tips=TIMELINE_TIPS, ltt=TIMELINE_LTT, nodes=TIMELINE_NODES),
-                           choices=[TIMELINE_TIPS, TIMELINE_NODES, TIMELINE_LTT])
+                                "if needed;".format(sampled=TIMELINE_SAMPLED, ltt=TIMELINE_LTT, nodes=TIMELINE_NODES),
+                           choices=[TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT])
 
     out_group = parser.add_argument_group('output-related arguments')
     out_group.add_argument('-o', '--out_data', required=False, type=str,

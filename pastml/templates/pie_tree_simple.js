@@ -192,18 +192,34 @@ if (slider !== null) {
 
     slider.oninput = function() {
         output.innerHTML = years[this.value];
+
+        cy.startBatch();
+
         removed.restore();
         removed = cy.remove("[mile>" + this.value + "]");
 
+        var nn_attr = 'node_name_' + this.value;
+        var en_attr = 'edge_name_' + this.value;
+        var ml_attr = 'minLen_' + this.value;
+        var ml;
+
         var list = cy.$("");
         for (var i=0, ele; ele = list[i]; i++) {
-            if (ele.data('node_name_' + this.value) !== undefined) {
-                ele.data('node_name', ele.data('node_name_' + this.value));
+            if (ele.data(nn_attr) !== undefined) {
+                ele.data('node_name', ele.data(nn_attr));
             }
-            if (ele.data('edge_name_' + this.value) !== undefined) {
-                ele.data('edge_name', ele.data('edge_name_' + this.value));
+            ml = ele.data('minLen');
+            if (ele.data(en_attr) !== undefined) {
+                ele.data('edge_name', ele.data(en_attr));
+            }
+            if (ele.data(ml_attr) !== undefined && ele.data(ml_attr) != ml) {
+                ele.target().position('y', (ele.source().position('y') +
+                ele.data(ml_attr) * (ele.target().position('y') - ele.source().position('y')) / ml));
+                ele.data('minLen', ele.data(ml_attr));
             }
         }
+
+        cy.endBatch();
     }
 }
 
