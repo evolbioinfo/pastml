@@ -366,7 +366,9 @@ def save_as_cytoscape_html(tree, out_html, column2states, name_feature='name',
             """.format(i=i, percent=round(100 / n, 2), colour=name2colour[cat])
         clazz2css[_clazz_list2css_class(clazz_list)] = css
     graph = template.render(clazz2css=clazz2css.items(), elements=json_dict, title=graph_name,
-                            years=['{:g}'.format(_) for _ in milestones])
+                            years=['{:g}'.format(_) for _ in milestones],
+                            tips='samples' if TIMELINE_SAMPLED == timeline_type else ('lineages ending' if TIMELINE_LTT == timeline_type else 'external nodes'),
+                            internal_nodes='internal nodes' if TIMELINE_NODES == timeline_type else 'diversification events')
     slider = env.get_template('time_slider.html').render(min_date=0, max_date=len(milestones) - 1, name=age_label) \
         if len(milestones) > 1 else ''
 
@@ -452,7 +454,10 @@ def visualize(tree, column2states, name_column=None, html=None, html_compressed=
 
     if html_compressed:
         tree_compressed, tree = compress_tree(tree, columns=column2states.keys(), tip_size_threshold=tip_size_threshold)
-
+        save_as_cytoscape_html(tree, html + "_trimmed.html", column2states=column2states, name2colour=name2colour,
+                               n2tooltip={n: get_category_str(n) for n in tree.traverse()},
+                               name_feature='name', compressed_tree=None, age_label=age_label,
+                               timeline_type=timeline_type)
         save_as_cytoscape_html(tree, html_compressed, column2states=column2states, name2colour=name2colour,
                                n2tooltip={n: get_category_str(n) for n in tree_compressed.traverse()},
                                name_feature=name_column, compressed_tree=tree_compressed,

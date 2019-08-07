@@ -148,9 +148,9 @@ function addQtips() {
                 } else {
                     tooltip += '<br>id: ' + this.data('node_roots') + '<br>';
                 }
-                tooltip += '<br>tips inside: ' + this.data('node_in_tips');
-                tooltip += '<br>total tips in the subtree: ' + this.data('node_all_tips');
-                tooltip += '<br>internal nodes inside: ' + this.data('node_in_ns');
+                tooltip += '<br>{{tips}} inside: ' + this.data('node_in_tips');
+                tooltip += '<br>total {{tips}} in the subtree: ' + this.data('node_all_tips');
+                tooltip += '<br>{{internal_nodes}} inside: ' + this.data('node_in_ns');
                 return tooltip;
             },
         show: {event: 'mouseover'},

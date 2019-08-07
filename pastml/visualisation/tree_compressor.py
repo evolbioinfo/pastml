@@ -74,7 +74,8 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
         else:
             logging.getLogger('pastml').debug('Set tip size threshold to {} (the size of the {}-th largest tip).'
                                               .format(threshold, tip_size_threshold))
-            remove_small_tips(compressed_tree, to_be_removed=lambda _: get_tsize(_) < threshold)
+            remove_small_tips(compressed_tree=compressed_tree, full_tree=tree,
+                              to_be_removed=lambda _: get_tsize(_) < threshold)
             remove_mediators(compressed_tree, columns)
             collapse_horizontally(compressed_tree, columns, get_bin)
     return compressed_tree, tree
@@ -124,12 +125,12 @@ def collapse_horizontally(tree, columns, tips2bin):
             'Collapsed {} sets of equivalent configurations horizontally.'.format(collapsed_configurations))
 
 
-def remove_small_tips(tree, to_be_removed):
+def remove_small_tips(compressed_tree, full_tree, to_be_removed):
     num_removed = 0
     changed = True
     while changed:
         changed = False
-        for l in tree.get_leaves():
+        for l in compressed_tree.get_leaves():
             parent = l.up
             if parent and to_be_removed(l):
                 num_removed += 1
@@ -142,6 +143,21 @@ def remove_small_tips(tree, to_be_removed):
                     for _ in ii:
                         _.up.remove_child(_)
                 changed = True
+
+    # if the full tree now contains non-sampled tips,
+    # remove them from the tree and from the corresponding collapsed nodes
+    todo = list(full_tree)
+    while todo:
+        t = todo.pop()
+        if not getattr(t, IS_TIP, False):
+            parent = t.up
+            t.up.remove_child(t)
+            if parent.is_leaf():
+                todo.append(parent)
+            for ini_list in getattr(getattr(t, COMPRESSED_NODE), INTERNAL_NODES_INSIDE):
+                if t in ini_list:
+                    ini_list.remove(t)
+
     logging.getLogger('pastml').debug(
         'Recursively removed {} tips of size smaller than the threshold.'.format(num_removed))
 
