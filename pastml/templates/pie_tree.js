@@ -1,27 +1,13 @@
-
 var layoutOptions = {
-    name: 'dagre',
-    nodesep: 10, // the separation between adjacent nodes in the same rank
-    edgeSep: 10, // the separation between adjacent edges in the same rank
-    rankSep: 80, // the separation between adjacent ranks
-    rankDir: 'TB', // 'TB' for top to bottom flow, 'LR' for left to right,
-    ranker: 'longest-path', // Type of algorithm to assign a rank to each node in the input graph. Possible values: 'network-simplex', 'tight-tree' or 'longest-path'
-    minLen: 1, // number of ranks to keep between the source and target of the edge
-
-    // general layout options
-    fit: true, // whether to fit to viewport
-    padding: 1, // fit padding
-    spacingFactor: undefined, // Applies a multiplicative factor (>0) to expand or compress the overall area that the nodes take up
-    nodeDimensionsIncludeLabels: true, // whether labels should be included in determining the space used by a node
-    animate: false, // whether to transition the node positions
-    animateFilter: function( node, i ){ return true; }, // whether to animate specific nodes when animation is on; non-animated nodes immediately go to their final positions
-    animationDuration: 500, // duration of animation in ms if enabled
-    animationEasing: undefined, // easing of animation if enabled
-    boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
-    transform: function( node, pos ){ return pos; }, // a function that applies a transform to the final node position
-    ready: function(){}, // on layoutready
-    stop: function(){} // on layoutstop
-  };
+  name: 'preset',
+  positions: function(node){
+    node.position('x', node.data('node_x'));
+    node.position('y', node.data('node_y'));
+    return node.position();
+  },
+  fit: true, // whether to fit to viewport
+  padding: 1, // padding on fit
+};
 
 var cy = cytoscape({
   container: document.getElementById('cy'),
@@ -188,10 +174,11 @@ if (slider !== null) {
 
     slider.oninput = function() {
         output.innerHTML = years[this.value];
+
+        cy.startBatch();
         removed.restore();
         removed = cy.remove("[mile>" + this.value + "]");
-        var list = cy.$("");
-        for (var i=0, ele; ele = list[i]; i++) {
+        cy.$("").forEach(function( ele ){
             if (ele.data('node_name_' + this.value) !== undefined) {
                 ele.data('node_name', ele.data('node_name_' + this.value));
             }
@@ -232,6 +219,7 @@ if (slider !== null) {
                 ele.removeData('node_meta');
             }
         }
+        cy.endBatch();
     }
 }
 

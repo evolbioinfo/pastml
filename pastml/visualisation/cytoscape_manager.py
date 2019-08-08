@@ -117,123 +117,20 @@ def set_cyto_features_tree(n, state):
     n.add_feature(EDGE_NAME, n.dist)
 
 
-def _tree2json(tree, column2states, name_feature, node2tooltip, get_date, milestones=None, compressed_tree=None,
-               timeline_type=TIMELINE_SAMPLED):
-    working_tree = compressed_tree if compressed_tree else tree
-    e_size_scaling, font_scaling, size_scaling, transform_e_size, transform_size = get_size_transformations(working_tree)
+def _tree2json_compressed(tree, compressed_tree, column2states, name_feature, node2tooltip, get_date, milestones=None):
+    e_size_scaling, font_scaling, size_scaling, transform_e_size, transform_size = \
+        get_size_transformations(compressed_tree)
 
-    is_compressed = compressed_tree is not None
-
-    if is_compressed:
-        n2state = {}
-        for n in working_tree.traverse():
-            state = get_column_value_str(n, name_feature, format_list=False, list_value='') if name_feature else ''
-            n2state[n.name] = state
-            root_names = [_.name for _ in getattr(n, ROOTS)]
-            set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling,
-                                         transform_size, transform_e_size, state, root_names)
-
-        def filter_by_date(items, date):
-            return [_ for _ in items if get_date(_) <= date]
-
-        if len(milestones) > 1:
-            nodes = list(working_tree.traverse())
-            for i in range(len(milestones) - 1, -1, -1):
-                milestone = milestones[i]
-                nodes_i = []
-
-                # remove too recent nodes from the original tree
-                for n in tree.traverse('postorder'):
-                    if n.is_root():
-                        continue
-                    if get_date(n) > milestone:
-                        n.up.remove_child(n)
-
-                suffix = '_{}'.format(i)
-                for n in nodes:
-                    state = n2state[n.name]
-                    tips_inside, internal_nodes_inside, roots = getattr(n, TIPS_INSIDE, []), \
-                                                                getattr(n, INTERNAL_NODES_INSIDE, []), \
-                                                                getattr(n, ROOTS, [])
-                    tips_inside_i, internal_nodes_inside_i, roots_i = [], [], []
-                    for ti, ini, root in zip(tips_inside, internal_nodes_inside, roots):
-                        if get_date(root) <= milestone:
-                            roots_i.append(root)
-
-                            ti = filter_by_date(ti, milestone)
-                            ini = filter_by_date(ini, milestone)
-
-                            tips_inside_i.append(ti + [_ for _ in ini if _.is_leaf()])
-                            internal_nodes_inside_i.append([_ for _ in ini if not _.is_leaf()])
-                    n.add_features(**{TIPS_INSIDE: tips_inside_i, INTERNAL_NODES_INSIDE: internal_nodes_inside_i,
-                                      ROOTS: roots_i})
-                    if roots_i:
-                        n.add_feature(MILESTONE, i)
-                        root_names = [getattr(_, BRANCH_NAME) if getattr(_, DATE) > milestone else _.name for _ in roots_i]
-                        set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling, transform_size,
-                                                     transform_e_size, state, root_names=root_names, suffix=suffix)
-                        nodes_i.append(n)
-                nodes = nodes_i
-    else:
-        root_date = getattr(working_tree, DATE)
-        width = len(working_tree)
-        height_factor = 300 * width / (max(getattr(_, DATE) for _ in working_tree) - root_date + working_tree.dist)
-        zero_dist = min(min(_.dist for _ in working_tree.traverse() if _.dist > 0), 300) * height_factor / 2
-
-        name2x, name2y = {}, {}
-        for t, x in zip(working_tree, range(width)):
-            name2x[t.name] = 600 * x
-
-        for n in working_tree.traverse('postorder'):
-            state = get_column_value_str(n, name_feature, format_list=False, list_value='') if name_feature else ''
-            n.add_feature('node_root_id', n.name)
-            if not n.is_leaf():
-                name2x[n.name] = np.mean([name2x[_.name] for _ in n.children])
-            name2y[n.name] = (getattr(n, DATE) - root_date) * height_factor
-            for c in n.children:
-                if name2y[c.name] == name2y[n.name]:
-                    name2y[c.name] += zero_dist
-            set_cyto_features_tree(n, state)
-
-        if len(milestones) > 1:
-            def binary_search(start, end, value, array):
-                if start >= end - 1:
-                    return start
-                i = int((start + end) / 2)
-                if array[i] == value or array[i] > value and (i == start or value > array[i - 1]):
-                    return i
-                if array[i] > value:
-                    return binary_search(start, i, value, array)
-                return binary_search(i + 1, end, value, array)
-
-            for n in working_tree.traverse('preorder'):
-                ms_i = 0 if n.is_root() else binary_search(getattr(n.up, MILESTONE),
-                                                           len(milestones), get_date(n), milestones)
-                n.add_feature(MILESTONE, ms_i)
-                for i in range(len(milestones) - 1, ms_i - 1, -1):
-                    milestone = milestones[i]
-                    suffix = '_{}'.format(i)
-                    if TIMELINE_LTT == timeline_type:
-                        # if it is LTT also cut the branches if needed
-                        if getattr(n, DATE) > milestone:
-                            n.add_feature('{}{}'.format(EDGE_NAME, suffix), np.round(milestone - getattr(n.up, DATE), 3))
-                        else:
-                            n.add_feature('{}{}'.format(EDGE_NAME, suffix), np.round(n.dist, 3))
-
-    clazzes = set()
-    nodes, edges = [], []
-
-    todo = Queue()
-    todo.put_nowait(working_tree)
-    node2id = {working_tree: 0}
-    i = 1
-
-    sort_key = lambda n: (get_column_value_str(n, name_feature, format_list=True, list_value='<unresolved>')
-                          if name_feature else '',
-                          *(get_column_value_str(n, column, format_list=True, list_value='<unresolved>')
-                            for column in column2states.keys()), -getattr(n, NODE_SIZE, 0), -getattr(n, EDGE_SIZE, 1),
+    sort_key = lambda n: (getattr(n, UNRESOLVED, 0),
+                          get_column_value_str(n, name_feature, format_list=True) if name_feature else '',
+                          *(get_column_value_str(n, column, format_list=True) for column in column2states.keys()),
+                          -getattr(n, NUM_TIPS_INSIDE),
+                          -len(getattr(n, ROOTS)),
                           n.name)
-
+    todo = Queue()
+    todo.put_nowait(compressed_tree)
+    node2id = {compressed_tree: 0}
+    i = 1
     while not todo.empty():
         n = todo.get_nowait()
         for c in sorted(n.children, key=sort_key):
@@ -241,10 +138,158 @@ def _tree2json(tree, column2states, name_feature, node2tooltip, get_date, milest
             i += 1
             todo.put_nowait(c)
 
+    n2state = {}
+    for n in compressed_tree.traverse():
+        state = get_column_value_str(n, name_feature, format_list=False, list_value='') if name_feature else ''
+        n2state[n.name] = state
+        root_names = [_.name for _ in getattr(n, ROOTS)]
+        set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling,
+                                     transform_size, transform_e_size, state, root_names)
+
+    n2width = {}
+    min_size = 2 * min(getattr(_, NODE_SIZE) for _ in compressed_tree.traverse())
+    for n in compressed_tree.traverse('postorder'):
+        n2width[n.name] = max(getattr(n, NODE_SIZE), sum(n2width[c.name] for c in n.children) + min_size * (len(n.children) - 1))
+
+    name2x, name2y = {}, {compressed_tree.name: 0}
+    n2offset = {compressed_tree.name: 0}
+    for n in compressed_tree.traverse('preorder'):
+        name2x[n.name] = n2offset[n.name] + n2width[n.name] / 2
+        offset = n2offset[n.name]
+        if not n.is_leaf():
+            for c in sorted(n.children, key=lambda c: node2id[c]):
+                n2offset[c.name] = offset
+                offset += n2width[c.name] + min_size
+                name2y[c.name] = name2y[n.name] + getattr(n, NODE_SIZE) / 2 + getattr(c, NODE_SIZE) / 2 + min_size
+    for n in compressed_tree.traverse('postorder'):
+        if not n.is_leaf():
+            name2x[n.name] = np.mean([name2x[c.name] for c in n.children])
+
+    def filter_by_date(items, date):
+        return [_ for _ in items if get_date(_) <= date]
+
+    if len(milestones) > 1:
+        nodes = list(compressed_tree.traverse())
+        for i in range(len(milestones) - 1, -1, -1):
+            milestone = milestones[i]
+            nodes_i = []
+
+            # remove too recent nodes from the original tree
+            for n in tree.traverse('postorder'):
+                if n.is_root():
+                    continue
+                if get_date(n) > milestone:
+                    n.up.remove_child(n)
+
+            suffix = '_{}'.format(i)
+            for n in nodes:
+                state = n2state[n.name]
+                tips_inside, internal_nodes_inside, roots = getattr(n, TIPS_INSIDE, []), \
+                                                            getattr(n, INTERNAL_NODES_INSIDE, []), \
+                                                            getattr(n, ROOTS, [])
+                tips_inside_i, internal_nodes_inside_i, roots_i = [], [], []
+                for ti, ini, root in zip(tips_inside, internal_nodes_inside, roots):
+                    if get_date(root) <= milestone:
+                        roots_i.append(root)
+
+                        ti = filter_by_date(ti, milestone)
+                        ini = filter_by_date(ini, milestone)
+
+                        tips_inside_i.append(ti + [_ for _ in ini if _.is_leaf()])
+                        internal_nodes_inside_i.append([_ for _ in ini if not _.is_leaf()])
+                n.add_features(**{TIPS_INSIDE: tips_inside_i, INTERNAL_NODES_INSIDE: internal_nodes_inside_i,
+                                  ROOTS: roots_i})
+                if roots_i:
+                    n.add_feature(MILESTONE, i)
+                    root_names = [getattr(_, BRANCH_NAME) if getattr(_, DATE) > milestone else _.name for _ in roots_i]
+                    set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling, transform_size,
+                                                 transform_e_size, state, root_names=root_names, suffix=suffix)
+                    nodes_i.append(n)
+            nodes = nodes_i
+
+    clazzes = set()
+    nodes, edges = [], []
+
     one_column = next(iter(column2states.keys())) if len(column2states) == 1 else None
 
-    for n, n_id in sorted(node2id.items(), key=lambda ni: ni[1]):
-        if n == working_tree and not is_compressed:
+    for n, n_id in node2id.items():
+        if one_column:
+            values = getattr(n, one_column, set())
+            clazz = tuple(sorted(values))
+        else:
+            clazz = tuple('{}_{}'.format(column, get_column_value_str(n, column, format_list=False, list_value=''))
+                          for column in sorted(column2states.keys()))
+        if clazz:
+            clazzes.add(clazz)
+        nodes.append(get_node(n, n_id, tooltip=node2tooltip[n], clazz=clazz, x=name2x[n.name], y=name2y[n.name]))
+
+        for child in sorted(n.children, key=lambda _: node2id[_]):
+            edge_attributes = {feature: getattr(child, feature) for feature in child.features
+                               if feature.startswith('edge_') or feature == MILESTONE}
+            source_name = n_id
+            edges.append(get_edge(source_name, node2id[child], **edge_attributes))
+
+    json_dict = {NODES: nodes, EDGES: edges}
+    return json_dict, sorted(clazzes)
+
+
+def _tree2json(tree, column2states, name_feature, node2tooltip, get_date, milestones=None,
+               timeline_type=TIMELINE_SAMPLED):
+
+    root_date = getattr(tree, DATE)
+    width = len(tree)
+    height_factor = 300 * width / (max(getattr(_, DATE) for _ in tree) - root_date + tree.dist)
+    zero_dist = min(min(_.dist for _ in tree.traverse() if _.dist > 0), 300) * height_factor / 2
+
+    name2x, name2y = {}, {}
+    for t, x in zip(tree, range(width)):
+        name2x[t.name] = 600 * x
+
+    for n in tree.traverse('postorder'):
+        state = get_column_value_str(n, name_feature, format_list=False, list_value='') if name_feature else ''
+        n.add_feature('node_root_id', n.name)
+        if not n.is_leaf():
+            name2x[n.name] = np.mean([name2x[_.name] for _ in n.children])
+        name2y[n.name] = (getattr(n, DATE) - root_date) * height_factor
+        for c in n.children:
+            if name2y[c.name] == name2y[n.name]:
+                name2y[c.name] += zero_dist
+        set_cyto_features_tree(n, state)
+
+    if len(milestones) > 1:
+        def binary_search(start, end, value, array):
+            if start >= end - 1:
+                return start
+            i = int((start + end) / 2)
+            if array[i] == value or array[i] > value and (i == start or value > array[i - 1]):
+                return i
+            if array[i] > value:
+                return binary_search(start, i, value, array)
+            return binary_search(i + 1, end, value, array)
+
+        for n in tree.traverse('preorder'):
+            ms_i = 0 if n.is_root() else binary_search(getattr(n.up, MILESTONE),
+                                                       len(milestones), get_date(n), milestones)
+            n.add_feature(MILESTONE, ms_i)
+            for i in range(len(milestones) - 1, ms_i - 1, -1):
+                milestone = milestones[i]
+                suffix = '_{}'.format(i)
+                if TIMELINE_LTT == timeline_type:
+                    # if it is LTT also cut the branches if needed
+                    if getattr(n, DATE) > milestone:
+                        n.add_feature('{}{}'.format(EDGE_NAME, suffix), np.round(milestone - getattr(n.up, DATE), 3))
+                    else:
+                        n.add_feature('{}{}'.format(EDGE_NAME, suffix), np.round(n.dist, 3))
+
+    clazzes = set()
+    nodes, edges = [], []
+
+    one_column = next(iter(column2states.keys())) if len(column2states) == 1 else None
+
+    node2id = {n: n_id for (n_id, n) in enumerate(tree.traverse())}
+
+    for n_id, n in enumerate(tree.traverse()):
+        if n == tree:
             fake_id = 'fake_node_{}'.format(n_id)
             nodes.append(get_fake_node(fake_id, name2x[n.name], name2y[n.name] - n.dist * height_factor))
             edges.append(get_edge(fake_id, n_id, **{feature: getattr(n, feature) for feature in n.features
@@ -257,21 +302,17 @@ def _tree2json(tree, column2states, name_feature, node2tooltip, get_date, milest
                           for column in sorted(column2states.keys()))
         if clazz:
             clazzes.add(clazz)
-        if not is_compressed:
-            nodes.append(get_node(n, n_id, tooltip=node2tooltip[n], clazz=clazz, x=name2x[n.name], y=name2y[n.name]))
-        else:
-            nodes.append(get_node(n, n_id, tooltip=node2tooltip[n], clazz=clazz, x=None, y=None))
+        nodes.append(get_node(n, n_id, tooltip=node2tooltip[n], clazz=clazz, x=name2x[n.name], y=name2y[n.name]))
 
-        for child in sorted(n.children, key=lambda _: node2id[_]):
+        for child in n.children:
             edge_attributes = {feature: getattr(child, feature) for feature in child.features
                                if feature.startswith('edge_') or feature == MILESTONE}
             source_name = n_id
-            if not is_compressed:
-                target_name = 'fake_node_{}'.format(node2id[child])
-                nodes.append(get_fake_node(target_name, x=name2x[child.name], y=name2y[n.name]))
-                edges.append(get_edge(source_name, target_name, fake=1,
-                                      **{k: v for (k, v) in edge_attributes.items() if EDGE_NAME not in k}))
-                source_name = target_name
+            target_name = 'fake_node_{}'.format(node2id[child])
+            nodes.append(get_fake_node(target_name, x=name2x[child.name], y=name2y[n.name]))
+            edges.append(get_edge(source_name, target_name, fake=1,
+                                  **{k: v for (k, v) in edge_attributes.items() if EDGE_NAME not in k}))
+            source_name = target_name
             edges.append(get_edge(source_name, node2id[child], **edge_attributes))
 
     json_dict = {NODES: nodes, EDGES: edges}
@@ -347,10 +388,14 @@ def save_as_cytoscape_html(tree, out_html, column2states, name_feature='name',
                          dates[len(dates) // 2], dates[5 * len(dates) // 8], dates[3 * len(dates) // 4],
                          dates[7 * len(dates) // 8], dates[-1]})
 
-    json_dict, clazzes \
-        = _tree2json(tree, column2states, name_feature=name_feature, get_date=get_date,
-                     node2tooltip=n2tooltip, milestones=milestones, compressed_tree=compressed_tree,
-                     timeline_type=timeline_type)
+    if compressed_tree is not None:
+        json_dict, clazzes \
+            = _tree2json_compressed(tree, compressed_tree, column2states, name_feature=name_feature, get_date=get_date,
+                                    node2tooltip=n2tooltip, milestones=milestones)
+    else:
+        json_dict, clazzes \
+            = _tree2json(tree, column2states, name_feature=name_feature, get_date=get_date,
+                         node2tooltip=n2tooltip, milestones=milestones, timeline_type=timeline_type)
     env = Environment(loader=PackageLoader('pastml'))
     template = env.get_template('pie_tree.js') if compressed_tree is not None \
         else env.get_template('pie_tree_simple.js')
@@ -400,7 +445,7 @@ def _get_edge(**data):
     return {DATA: data}
 
 
-def get_column_value_str(n, column, format_list=True, list_value='<unresolved>'):
+def get_column_value_str(n, column, format_list=True, list_value=''):
     values = getattr(n, column, set())
     if isinstance(values, str):
         return values

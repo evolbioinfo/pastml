@@ -174,8 +174,7 @@ function resetLayout() {
         var initial_dist_attr = 'edge_name_' + slider.max;
         var cur_dist, initial_dist;
 
-        var list = cy.edges();
-        for (var i=0, ele; ele = list[i]; i++) {
+        cy.edges().forEach(function( ele ){
             cur_dist = ele.data(cur_dist_attr);
             initial_dist = ele.data(initial_dist_attr);
             if (cur_dist !== undefined && cur_dist != initial_dist) {
@@ -208,8 +207,7 @@ if (slider !== null) {
         var initial_dist_attr = 'edge_name_' + this.max;
         var old_dist, cur_dist;
 
-        var list = cy.edges();
-        for (var i=0, ele; ele = list[i]; i++) {
+        cy.edges().forEach(function( ele ){
             old_dist = ele.data('edge_name');
             cur_dist = ele.data(cur_dist_attr);
             if (cur_dist !== undefined && cur_dist != old_dist) {
