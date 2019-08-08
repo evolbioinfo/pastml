@@ -7,6 +7,8 @@ setup(
     include_package_data=True,
     package_data={'pastml': [os.path.join('templates', '*.html'), os.path.join('templates', '*.js'),
                              os.path.join('..', 'README.md')]},
+    description='Ancestral character reconstruction and visualisation for rooted phylogenetic trees.',
+    long_description_content_type="text/markdown",
     long_description=open('README.md').read(),
     classifiers=[
         'Development Status :: 5 - Production/Stable',
@@ -17,7 +19,6 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
     version='1.9.16',
-    description='Ancestral character reconstruction and visualisation for rooted phylogenetic trees.',
     author='Anna Zhukova',
     author_email='anna.zhukova@pasteur.fr',
     url='https://github.com/evolbioinfo/pastml',
