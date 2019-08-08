@@ -160,7 +160,17 @@ function fit() {
 }
 
 function resetLayout() {
+    cy.startBatch();
     cy.layout(layoutOptions).run();
+    if (removed !== undefined) {
+        removed.forEach(function( ele ) {
+            if (ele.data('node_x') !== undefined) {
+                ele.position('x', ele.data('node_x'));
+                ele.position('y', ele.data('node_y'));
+            }
+        });
+    }
+    cy.endBatch();
 }
 
 var years = {{years}};
@@ -178,7 +188,7 @@ if (slider !== null) {
         cy.startBatch();
         removed.restore();
         removed = cy.remove("[mile>" + this.value + "]");
-        cy.$("").forEach(function( ele ){
+        cy.$("").forEach(function( ele ) {
             if (ele.data('node_name_' + this.value) !== undefined) {
                 ele.data('node_name', ele.data('node_name_' + this.value));
             }
@@ -218,7 +228,7 @@ if (slider !== null) {
             } else if (ele.data('node_meta') !== undefined) {
                 ele.removeData('node_meta');
             }
-        }
+        });
         cy.endBatch();
     }
 }

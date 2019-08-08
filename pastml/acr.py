@@ -468,7 +468,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     if html or html_compressed:
         logger.debug('\n=============VISUALISATION=====================')
         visualize(root, column2states=column2states, html=html, html_compressed=html_compressed,
-                  name_column=name_column, tip_size_threshold=tip_size_threshold, age_label=age_label,
+                  name_column=name_column, tip_size_threshold=tip_size_threshold, date_label=age_label,
                   timeline_type=timeline_type)
 
     async_result.wait()

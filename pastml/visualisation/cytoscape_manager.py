@@ -5,10 +5,12 @@ from queue import Queue
 import numpy as np
 from jinja2 import Environment, PackageLoader
 
+from pastml.tree import DATE
 from pastml.visualisation.colour_generator import get_enough_colours, WHITE
 from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, TIPS_INSIDE, TIPS_BELOW, \
     REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP
-from pastml.tree import DATE, LEVEL
+
+MAX_TIPS_FOR_FULL_TREE_VISUALISATION = 5000
 
 TIMELINE_SAMPLED = 'SAMPLED'
 TIMELINE_NODES = 'NODES'
@@ -342,9 +344,8 @@ def get_size_transformations(tree):
     return e_size_scaling, font_scaling, size_scaling, transform_e_size, transform_size
 
 
-def save_as_cytoscape_html(tree, out_html, column2states, name_feature='name',
-                           name2colour=None, n2tooltip=None, compressed_tree=None,
-                           age_label='Dist. to root', timeline_type=TIMELINE_SAMPLED):
+def save_as_cytoscape_html(tree, out_html, column2states, name_feature, name2colour, n2tooltip, compressed_tree,
+                           milestone_label, timeline_type, milestones, get_date):
     """
     Converts a tree to an html representation using Cytoscape.js.
 
@@ -365,28 +366,6 @@ def save_as_cytoscape_html(tree, out_html, column2states, name_feature='name',
     :param out_html: path where to save the resulting html file.
     """
     graph_name = os.path.splitext(os.path.basename(out_html))[0]
-
-    if TIMELINE_NODES == timeline_type:
-        def get_date(node):
-            return getattr(node, DATE)
-    elif TIMELINE_SAMPLED == timeline_type:
-        max_date = max(getattr(_, DATE) for _ in tree)
-
-        def get_date(node):
-            tips = [_ for _ in node if getattr(_, IS_TIP, False)]
-            return min(getattr(_, DATE) for _ in tips) if tips else max_date
-    elif TIMELINE_LTT == timeline_type:
-        def get_date(node):
-            return getattr(node, DATE) if node.is_root() else (getattr(node.up, DATE) + 1e-6)
-    else:
-        raise ValueError('Unknown timeline type: {}. Allowed ones are {}, {} and {}.'
-                         .format(timeline_type, TIMELINE_NODES, TIMELINE_SAMPLED, TIMELINE_LTT))
-
-    dates = sorted([getattr(_, DATE) for _ in (tree.traverse()
-                                               if timeline_type in [TIMELINE_LTT, TIMELINE_NODES] else tree)])
-    milestones = sorted({dates[0], dates[len(dates) // 8], dates[len(dates) // 4], dates[3 * len(dates) // 8],
-                         dates[len(dates) // 2], dates[5 * len(dates) // 8], dates[3 * len(dates) // 4],
-                         dates[7 * len(dates) // 8], dates[-1]})
 
     if compressed_tree is not None:
         json_dict, clazzes \
@@ -412,10 +391,12 @@ def save_as_cytoscape_html(tree, out_html, column2states, name_feature='name',
         clazz2css[_clazz_list2css_class(clazz_list)] = css
     graph = template.render(clazz2css=clazz2css.items(), elements=json_dict, title=graph_name,
                             years=['{:g}'.format(_) for _ in milestones],
-                            tips='samples' if TIMELINE_SAMPLED == timeline_type else ('lineages ending' if TIMELINE_LTT == timeline_type else 'external nodes'),
-                            internal_nodes='internal nodes' if TIMELINE_NODES == timeline_type else 'diversification events')
-    slider = env.get_template('time_slider.html').render(min_date=0, max_date=len(milestones) - 1, name=age_label) \
-        if len(milestones) > 1 else ''
+                            tips='samples' if TIMELINE_SAMPLED == timeline_type
+                            else ('lineages ending' if TIMELINE_LTT == timeline_type else 'external nodes'),
+                            internal_nodes='internal nodes' if TIMELINE_NODES == timeline_type
+                            else 'diversification events')
+    slider = env.get_template('time_slider.html').render(min_date=0, max_date=len(milestones) - 1,
+                                                         name=milestone_label) if len(milestones) > 1 else ''
 
     template = env.get_template('index.html')
     page = template.render(graph=graph, title=graph_name, slider=slider)
@@ -453,7 +434,7 @@ def get_column_value_str(n, column, format_list=True, list_value=''):
 
 
 def visualize(tree, column2states, name_column=None, html=None, html_compressed=None,
-              tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, age_label='Dist. to root', timeline_type=TIMELINE_SAMPLED):
+              tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, date_label='Dist. to root', timeline_type=TIMELINE_SAMPLED):
 
     one_column = next(iter(column2states.keys())) if len(column2states) == 1 else None
 
@@ -487,23 +468,42 @@ def visualize(tree, column2states, name_column=None, html=None, html_compressed=
         return '<br>'.join('{}: {}'.format(column, get_column_value_str(n, column, format_list=True))
                            for column in sorted(column2states.keys()))
 
+    if TIMELINE_NODES == timeline_type:
+        def get_date(node):
+            return getattr(node, DATE)
+    elif TIMELINE_SAMPLED == timeline_type:
+        max_date = max(getattr(_, DATE) for _ in tree)
+
+        def get_date(node):
+            tips = [_ for _ in node if getattr(_, IS_TIP, False)]
+            return min(getattr(_, DATE) for _ in tips) if tips else max_date
+    elif TIMELINE_LTT == timeline_type:
+        def get_date(node):
+            return getattr(node, DATE) if node.is_root() else (getattr(node.up, DATE) + 1e-6)
+    else:
+        raise ValueError('Unknown timeline type: {}. Allowed ones are {}, {} and {}.'
+                         .format(timeline_type, TIMELINE_NODES, TIMELINE_SAMPLED, TIMELINE_LTT))
+
+    dates = sorted([getattr(_, DATE) for _ in (tree.traverse()
+                                               if timeline_type in [TIMELINE_LTT, TIMELINE_NODES] else tree)])
+    milestones = sorted({dates[0], dates[len(dates) // 8], dates[len(dates) // 4], dates[3 * len(dates) // 8],
+                         dates[len(dates) // 2], dates[5 * len(dates) // 8], dates[3 * len(dates) // 4],
+                         dates[7 * len(dates) // 8], dates[-1]})
+
     if html:
-        if len(tree) > 500:
-            logging.error('Your tree is too large to be visualised without compression, '
-                          'check out upload to iTOL option instead')
+        if len(tree) > MAX_TIPS_FOR_FULL_TREE_VISUALISATION:
+            logging.getLogger('pastml').error('The full tree will not be visualised as it is too large ({} tips): '
+                                              'the limit is {} tips. Check out upload to iTOL option instead.'
+                                              .format(len(tree), MAX_TIPS_FOR_FULL_TREE_VISUALISATION))
         else:
             save_as_cytoscape_html(tree, html, column2states=column2states, name2colour=name2colour,
                                    n2tooltip={n: get_category_str(n) for n in tree.traverse()},
-                                   name_feature='name', compressed_tree=None, age_label=age_label,
-                                   timeline_type=timeline_type)
+                                   name_feature='name', compressed_tree=None, milestone_label=date_label,
+                                   timeline_type=timeline_type, milestones=milestones, get_date=get_date)
 
     if html_compressed:
         tree_compressed, tree = compress_tree(tree, columns=column2states.keys(), tip_size_threshold=tip_size_threshold)
-        save_as_cytoscape_html(tree, html + "_trimmed.html", column2states=column2states, name2colour=name2colour,
-                               n2tooltip={n: get_category_str(n) for n in tree.traverse()},
-                               name_feature='name', compressed_tree=None, age_label=age_label,
-                               timeline_type=timeline_type)
         save_as_cytoscape_html(tree, html_compressed, column2states=column2states, name2colour=name2colour,
                                n2tooltip={n: get_category_str(n) for n in tree_compressed.traverse()},
                                name_feature=name_column, compressed_tree=tree_compressed,
-                               age_label=age_label, timeline_type=timeline_type)
+                               milestone_label=date_label, timeline_type=timeline_type, milestones=milestones, get_date=get_date)

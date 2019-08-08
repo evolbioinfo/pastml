@@ -172,16 +172,36 @@ function resetLayout() {
     if (slider !== null) {
         var cur_dist_attr = 'edge_name_' + slider.value;
         var initial_dist_attr = 'edge_name_' + slider.max;
-        var cur_dist, initial_dist;
+        var cur_dist, initial_dist, mile;
 
-        cy.edges().forEach(function( ele ){
+        if (removed !== undefined) {
+            removed.forEach(function( ele ) {
+                if (ele.isEdge()) {
+                    ele.target().position('x', ele.target().data('node_x'));
+                    ele.target().position('y', ele.target().data('node_y'));
+
+                    // the targets of hidden nodes might need to be moved to the last visible position for LTT timeline
+                    if (ele.data(initial_dist_attr) !== undefined) {
+                        mile = ele.target().data('mile');
+                        if (mile !== undefined) {
+                            initial_dist = ele.data(initial_dist_attr);
+                            cur_dist = ele.data('edge_name_' + mile);
+                            ele.target().position('y', (ele.source().position('y') +
+                            cur_dist * (ele.target().position('y') - ele.source().position('y')) / initial_dist));
+                        }
+                    }
+                }
+            });
+        }
+
+        cy.edges().forEach(function( ele ) {
             cur_dist = ele.data(cur_dist_attr);
             initial_dist = ele.data(initial_dist_attr);
             if (cur_dist !== undefined && cur_dist != initial_dist) {
                 ele.target().position('y', (ele.source().position('y') +
                 cur_dist * (ele.target().position('y') - ele.source().position('y')) / initial_dist));
             }
-        }
+        });
     }
     cy.endBatch();
 }
@@ -221,7 +241,7 @@ if (slider !== null) {
                 + cur_dist * (ele.target().position('y') - ele.source().position('y')) / old_dist));
                 ele.data('edge_name', cur_dist);
             }
-        }
+        });
         cy.endBatch();
     }
 }
