@@ -22,7 +22,7 @@ from pastml.tree import read_tree, name_tree, collapse_zero_branches, annotate_d
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 from pastml.visualisation.itol_manager import generate_itol_annotations
 
-PASTML_VERSION = '1.9.16'
+PASTML_VERSION = '1.9.18'
 
 warnings.filterwarnings("ignore", append=True)
 

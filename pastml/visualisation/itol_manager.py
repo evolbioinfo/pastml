@@ -8,7 +8,7 @@ from pastml import METHOD, CHARACTER, STATES
 from pastml.visualisation.colour_generator import get_enough_colours
 from itolapi import Itol
 
-from tree import DATE
+from pastml.tree import DATE
 
 STYLE_FILE_HEADER_TEMPLATE = """DATASET_STYLE
 

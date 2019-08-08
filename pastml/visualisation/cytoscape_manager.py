@@ -107,7 +107,6 @@ def set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling, 
 
     edge_size = len(roots)
     if edge_size > 1:
-        n.add_feature('edge_meta{}'.format(suffix), 1)
         n.add_feature('node_meta{}'.format(suffix), 1)
     n.add_feature('{}{}'.format(EDGE_NAME, suffix), str(edge_size) if edge_size != 1 else '')
     e_size = e_size_scaling(transform_e_size(edge_size))

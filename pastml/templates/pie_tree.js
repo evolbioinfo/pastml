@@ -85,13 +85,10 @@ var cy = cytoscape({
         'text-background-padding' : 4,
         'min-zoomed-font-size': 10,
       })
-    .selector('edge[edge_meta]')
+    .selector('edge[edge_name>1]')
       .css({
         'line-color': '#383838',
         'target-arrow-color': '#383838',
-      })
-    .selector('edge[edge_name]')
-      .css({
         'content': 'data(edge_name)',
       })
     .selector('edge[edge_size]')
@@ -183,48 +180,42 @@ if (slider !== null) {
     var removed = cy.collection();
 
     slider.oninput = function() {
-        output.innerHTML = years[this.value];
+        var mile = this.value;
+        output.innerHTML = years[mile];
 
         cy.startBatch();
         removed.restore();
-        removed = cy.remove("[mile>" + this.value + "]");
+        removed = cy.remove("[mile>" + mile + "]");
         cy.$("").forEach(function( ele ) {
-            if (ele.data('node_name_' + this.value) !== undefined) {
-                ele.data('node_name', ele.data('node_name_' + this.value));
+            if (ele.data('node_name_' + mile) !== undefined) {
+                ele.data('node_name', ele.data('node_name_' + mile));
             }
-            if (ele.data('node_roots_' + this.value) !== undefined) {
-                ele.data('node_roots', ele.data('node_roots_' + this.value));
+            if (ele.data('node_roots_' + mile) !== undefined) {
+                ele.data('node_roots', ele.data('node_roots_' + mile));
             }
-            if (ele.data('node_fontsize_' + this.value) !== undefined) {
-                ele.data('node_fontsize', ele.data('node_fontsize_' + this.value));
+            if (ele.data('node_fontsize_' + mile) !== undefined) {
+                ele.data('node_fontsize', ele.data('node_fontsize_' + mile));
             }
-            if (ele.data('node_in_tips_' + this.value) !== undefined) {
-                ele.data('node_in_tips', ele.data('node_in_tips_' + this.value));
+            if (ele.data('node_in_tips_' + mile) !== undefined) {
+                ele.data('node_in_tips', ele.data('node_in_tips_' + mile));
             }
-            if (ele.data('node_in_ns_' + this.value) !== undefined) {
-                ele.data('node_in_ns', ele.data('node_in_ns_' + this.value));
+            if (ele.data('node_in_ns_' + mile) !== undefined) {
+                ele.data('node_in_ns', ele.data('node_in_ns_' + mile));
             }
-            if (ele.data('node_all_tips_' + this.value) !== undefined) {
-                ele.data('node_all_tips', ele.data('node_all_tips_' + this.value));
+            if (ele.data('node_all_tips_' + mile) !== undefined) {
+                ele.data('node_all_tips', ele.data('node_all_tips_' + mile));
             }
-            if (ele.data('node_size_' + this.value) !== undefined) {
-                ele.data('node_size', ele.data('node_size_' + this.value));
+            if (ele.data('node_size_' + mile) !== undefined) {
+                ele.data('node_size', ele.data('node_size_' + mile));
             }
-            if (ele.data('edge_name_' + this.value) !== undefined) {
-                ele.data('edge_name', ele.data('edge_name_' + this.value));
+            if (ele.data('edge_name_' + mile) !== undefined) {
+                ele.data('edge_name', ele.data('edge_name_' + mile));
             }
-            if (ele.data('edge_size_' + this.value) !== undefined) {
-                ele.data('edge_size', ele.data('edge_size_' + this.value));
+            if (ele.data('edge_size_' + mile) !== undefined) {
+                ele.data('edge_size', ele.data('edge_size_' + mile));
             }
-            if (ele.data('edge_meta_' + this.value) !== undefined) {
-                ele.data('edge_meta', ele.data('edge_meta_' + this.value))
-            } else if (ele.data('edge_meta') !== undefined) {
-                ele.removeData('edge_meta');
-                cy.remove(ele);
-                cy.add(ele);
-            }
-            if (ele.data('node_meta_' + this.value) !== undefined) {
-                ele.data('node_meta', ele.data('node_meta_' + this.value));
+            if (ele.data('node_meta_' + mile) !== undefined) {
+                ele.data('node_meta', ele.data('node_meta_' + mile));
             } else if (ele.data('node_meta') !== undefined) {
                 ele.removeData('node_meta');
             }
