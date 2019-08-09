@@ -35,7 +35,6 @@ MARGINAL_ML_METHODS = {MPPA, MAP}
 ML_METHODS = MARGINAL_ML_METHODS | {JOINT}
 META_ML_METHODS = {ML, ALL}
 
-
 BU_LH = 'BOTTOM_UP_LIKELIHOOD'
 TD_LH = 'TOP_DOWN_LIKELIHOOD'
 LH = 'LIKELIHOOD'
@@ -106,9 +105,9 @@ def get_pij_method(model=F81, frequencies=None, kappa=None):
         return lambda t: get_hky_pij(t, frequencies, kappa)
 
 
-def get_bottom_up_likelihood(tree, character, frequencies, sf, kappa=None, is_marginal=True, model=F81):
+def get_bottom_up_loglikelihood(tree, character, frequencies, sf, kappa=None, is_marginal=True, model=F81):
     """
-    Calculates the bottom-up likelihood for the given tree.
+    Calculates the bottom-up loglikelihood for the given tree.
     The likelihood for each node is stored in the corresponding feature,
     given by get_personalised_feature_name(feature, BU_LH).
 
@@ -184,18 +183,18 @@ def rescale(likelihood_array, fraction_of_limit):
     return factors
 
 
-def optimize_likelihood_params(tree, character, frequencies, sf, kappa, avg_br_len,
+def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br_len,
                                optimise_sf=True, optimise_frequencies=True, optimise_kappa=True,
                                model=F81):
     """
-    Optimizes the likelihood parameters (state frequencies and scaling factor) for the given tree.
+    Optimizes the likelihood parameters (state frequencies and scaling factor) for the given trees.
 
     :param model: model of character evolution
     :type model: str
     :param avg_br_len: avg branch length
     :type avg_br_len: float
-    :param tree: tree of interest
-    :type tree: ete3.Tree
+    :param forest: trees of interest
+    :type forest: list(ete3.Tree)
     :param character: character for which the likelihood is optimised
     :type character: str
     :param frequencies: array of initial state frequencies
@@ -232,8 +231,8 @@ def optimize_likelihood_params(tree, character, frequencies, sf, kappa, avg_br_l
         if np.any(pd.isnull(ps)):
             return np.nan
         freqs, sf_val, kappa_val = get_real_params_from_optimised(ps)
-        res = get_bottom_up_likelihood(tree=tree, character=character, frequencies=freqs,
-                                       sf=sf_val, kappa=kappa_val, is_marginal=True, model=model)
+        res = sum(get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=freqs, sf=sf_val,
+                                              kappa=kappa_val, is_marginal=True, model=model) for tree in forest)
         return np.inf if pd.isnull(res) else -res
 
     for i in range(10):
@@ -624,33 +623,43 @@ def get_state2allowed_states(states, by_name=True):
     return all_ones, state2array
 
 
-def ml_acr(tree, character, prediction_method, model, states, avg_br_len, num_nodes, num_tips, freqs=None, sf=None,
+def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_nodes, num_tips, freqs=None, sf=None,
            kappa=None, force_joint=True):
     """
-    Calculates ML states on the tree and stores them in the corresponding feature.
+    Calculates ML states on the trees and stores them in the corresponding feature.
 
-    :param states: numpy array of possible states
-    :param prediction_method: str, MPPA (marginal approximation), MAP (max a posteriori) or JOINT
-    :param tree: ete3.Tree, the tree of interest
-    :param character: str, character for which the ML states are reconstructed
-    :param model: str, evolutionary model, F81 (Felsenstein 81-like), JC (Jukes-Cantor-like) or EFT (estimate from tips)
-    :param avg_br_len: float, average non-zero branch length of the tree.
-    :param freqs: numpy array of predefined frequencies (or None if they are to be estimated)
-    :param sf: float, predefined scaling factor (or None if it is to be estimated)
-    :return: dict, mapping between reconstruction parameters and values
+    :param states: possible states
+    :type states: np.array(str)
+    :param prediction_method: MPPA (marginal approximation), MAP (max a posteriori), JOINT or ML
+    :type prediction_method: str
+    :param forest: trees of interest
+    :type forest: list(ete3.Tree)
+    :param character: character for which the ML states are reconstructed
+    :type character: str
+    :param model: evolutionary model, F81 (Felsenstein 81-like), JC (Jukes-Cantor-like) or EFT (estimate from tips)
+    :type model: str
+    :param avg_br_len: average non-zero branch length of the tree.
+    :type avg_br_len: float
+    :param freqs: array of predefined frequencies (or None if they are to be estimated)
+    :type freqs: np.array(float)
+    :param sf: predefined scaling factor (or None if it is to be estimated)
+    :type sf: float
+    :return: mapping between reconstruction parameters and values
+    :rtype: dict
     """
     n = len(states)
     state2index = dict(zip(states, range(n)))
     missing_data = 0.
     observed_frequencies = np.zeros(n, np.float64)
-    for _ in tree:
-        state = getattr(_, character, set())
-        if state:
-            num_node_states = len(state)
-            for _ in state:
-                observed_frequencies[state2index[_]] += 1. / num_node_states
-        else:
-            missing_data += 1
+    for tree in forest:
+        for _ in tree:
+            state = getattr(_, character, set())
+            if state:
+                num_node_states = len(state)
+                for _ in state:
+                    observed_frequencies[state2index[_]] += 1. / num_node_states
+            else:
+                missing_data += 1
     total_count = observed_frequencies.sum() + missing_data
     observed_frequencies /= observed_frequencies.sum()
     missing_data /= total_count
@@ -679,8 +688,9 @@ def ml_acr(tree, character, prediction_method, model, states, avg_br_len, num_no
     else:
         frequencies = np.ones(n, dtype=np.float64) / n
 
-    initialize_allowed_states(tree, character, states)
-    alter_zero_tip_allowed_states(tree, character)
+    for tree in forest:
+        initialize_allowed_states(tree, character, states)
+        alter_zero_tip_allowed_states(tree, character)
     if sf:
         optimise_sf = False
     else:
@@ -695,8 +705,8 @@ def ml_acr(tree, character, prediction_method, model, states, avg_br_len, num_no
     else:
         optimise_kappa = False
 
-    likelihood = get_bottom_up_likelihood(tree=tree, character=character, frequencies=frequencies, sf=sf, kappa=kappa,
-                                          is_marginal=True, model=model)
+    likelihood = sum(get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=frequencies, sf=sf,
+                                                 kappa=kappa, is_marginal=True, model=model) for tree in forest)
     if not optimise_sf and not optimise_frequencies and not optimise_kappa:
         logger.debug('All the parameters are fixed for {}:{}{}{}{}.'
                      .format(character,
@@ -718,8 +728,8 @@ def ml_acr(tree, character, prediction_method, model, states, avg_br_len, num_no
                              '\n\tkappa:\t{:.3f}'.format(kappa) if HKY == model else '',
                              '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
         if optimise_sf:
-            (_, sf, _), likelihood = optimize_likelihood_params(tree=tree, character=character, frequencies=frequencies,
-                                                                sf=sf, kappa=kappa,
+            (_, sf, _), likelihood = optimize_likelihood_params(forest=forest, character=character,
+                                                                frequencies=frequencies, sf=sf, kappa=kappa,
                                                                 optimise_frequencies=False, optimise_sf=optimise_sf,
                                                                 optimise_kappa=False, avg_br_len=avg_br_len,
                                                                 model=model)
@@ -731,7 +741,7 @@ def ml_acr(tree, character, prediction_method, model, states, avg_br_len, num_no
                                      '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
         if optimise_frequencies or optimise_kappa:
             (frequencies, sf, kappa), likelihood = \
-                optimize_likelihood_params(tree=tree, character=character, frequencies=frequencies, sf=sf, kappa=kappa,
+                optimize_likelihood_params(forest=forest, character=character, frequencies=frequencies, sf=sf, kappa=kappa,
                                            optimise_frequencies=optimise_frequencies, optimise_sf=optimise_sf,
                                            optimise_kappa=optimise_kappa, avg_br_len=avg_br_len, model=model)
 
@@ -757,18 +767,21 @@ def ml_acr(tree, character, prediction_method, model, states, avg_br_len, num_no
         if method == prediction_method or is_meta_ml(prediction_method):
             method_character = get_personalized_feature_name(character, method) \
                 if prediction_method != method else character
-            convert_allowed_states2feature(tree, character, states, method_character)
+            for tree in forest:
+                convert_allowed_states2feature(tree, character, states, method_character)
             res = result.copy()
             res[CHARACTER] = method_character
             res[METHOD] = method
             results.append(res)
 
     def process_restricted_likelihood_and_states(method):
-        alter_zero_tip_allowed_states(tree, character)
-        restricted_likelihood = get_bottom_up_likelihood(tree=tree, character=character,
-                                                         frequencies=frequencies, sf=sf, kappa=kappa,
-                                                         is_marginal=True, model=model)
-        unalter_zero_tip_allowed_states(tree, character, state2index)
+        for tree in forest:
+            alter_zero_tip_allowed_states(tree, character)
+        restricted_likelihood = sum(get_bottom_up_loglikelihood(tree=tree, character=character,
+                                                                frequencies=frequencies, sf=sf, kappa=kappa,
+                                                                is_marginal=True, model=model) for tree in forest)
+        for tree in forest:
+            unalter_zero_tip_allowed_states(tree, character, state2index)
         note_restricted_likelihood(method, restricted_likelihood)
         process_reconstructed_states(method)
 
@@ -779,43 +792,53 @@ def ml_acr(tree, character, prediction_method, model, states, avg_br_len, num_no
 
     if prediction_method != MAP:
         # Calculate joint restricted likelihood
-        restricted_likelihood = get_bottom_up_likelihood(tree=tree, character=character,
-                                                         frequencies=frequencies, sf=sf, kappa=kappa,
-                                                         is_marginal=False, model=model)
+        restricted_likelihood = sum(get_bottom_up_loglikelihood(tree=tree, character=character,
+                                                                frequencies=frequencies, sf=sf, kappa=kappa,
+                                                                is_marginal=False, model=model) for tree in forest)
         note_restricted_likelihood(JOINT, restricted_likelihood)
-        unalter_zero_tip_joint_states(tree, character, state2index)
-        choose_ancestral_states_joint(tree, character, states, frequencies)
+        for tree in forest:
+            unalter_zero_tip_joint_states(tree, character, state2index)
+            choose_ancestral_states_joint(tree, character, states, frequencies)
         process_reconstructed_states(JOINT)
 
     if is_marginal(prediction_method):
-        initialize_allowed_states(tree, character, states)
-        alter_zero_tip_allowed_states(tree, character)
-        get_bottom_up_likelihood(tree=tree, character=character, frequencies=frequencies, sf=sf, kappa=kappa,
-                                 is_marginal=True, model=model)
-        calculate_top_down_likelihood(tree, character, frequencies, sf, kappa=kappa, model=model)
-        unalter_zero_tip_allowed_states(tree, character, state2index)
-        calculate_marginal_likelihoods(tree, character, frequencies)
-        # check_marginal_likelihoods(tree, feature)
-        result[MARGINAL_PROBABILITIES] = convert_likelihoods_to_probabilities(tree, character, states)
+        result[MARGINAL_PROBABILITIES] = []
+        for tree in forest:
+            initialize_allowed_states(tree, character, states)
+            alter_zero_tip_allowed_states(tree, character)
+            get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=frequencies, sf=sf, kappa=kappa,
+                                        is_marginal=True, model=model)
+            calculate_top_down_likelihood(tree, character, frequencies, sf, kappa=kappa, model=model)
+            unalter_zero_tip_allowed_states(tree, character, state2index)
+            calculate_marginal_likelihoods(tree, character, frequencies)
+            # check_marginal_likelihoods(tree, feature)
+            result[MARGINAL_PROBABILITIES].append(convert_likelihoods_to_probabilities(tree, character, states))
 
-        choose_ancestral_states_map(tree, character, states)
+            choose_ancestral_states_map(tree, character, states)
         process_restricted_likelihood_and_states(MAP)
+        result[MARGINAL_PROBABILITIES] = pd.concat(result[MARGINAL_PROBABILITIES], copy=False)
 
         if MPPA == prediction_method or is_meta_ml(prediction_method):
 
             if ALL == prediction_method:
-                pars_acr_results = parsimonious_acr(tree, character, MP, states, num_nodes, num_tips)
+                pars_acr_results = parsimonious_acr(forest, character, MP, states, num_nodes, num_tips)
                 results.extend(pars_acr_results)
                 for pars_acr_res in pars_acr_results:
-                    _parsimonious_states2allowed_states(tree, pars_acr_res[CHARACTER], character, state2index)
-                    alter_zero_tip_allowed_states(tree, character)
-                    restricted_likelihood = get_bottom_up_likelihood(tree=tree, character=character,
-                                                                     frequencies=frequencies, sf=sf, kappa=kappa,
-                                                                     is_marginal=True, model=model)
+                    for tree in forest:
+                        _parsimonious_states2allowed_states(tree, pars_acr_res[CHARACTER], character, state2index)
+                        alter_zero_tip_allowed_states(tree, character)
+                    restricted_likelihood = \
+                        sum(get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=frequencies,
+                                                        sf=sf, kappa=kappa, is_marginal=True, model=model)
+                            for tree in forest)
                     note_restricted_likelihood(pars_acr_res[METHOD], restricted_likelihood)
 
-            result[NUM_SCENARIOS], result[NUM_UNRESOLVED_NODES], result[NUM_STATES_PER_NODE] = \
-                choose_ancestral_states_mppa(tree, character, states, force_joint=force_joint)
+            result[NUM_SCENARIOS], result[NUM_UNRESOLVED_NODES], result[NUM_STATES_PER_NODE] = 1, 0, 0
+            for tree in forest:
+                ns, nun, nspn = choose_ancestral_states_mppa(tree, character, states, force_joint=force_joint)
+                result[NUM_SCENARIOS] *= ns
+                result[NUM_UNRESOLVED_NODES] += nun
+                result[NUM_STATES_PER_NODE] += nspn
             result[NUM_STATES_PER_NODE] /= num_nodes
             result[PERC_UNRESOLVED] = result[NUM_UNRESOLVED_NODES] * 100 / num_nodes
             logger.debug('{} node{} unresolved ({:.2f}%) for {} by {}, '

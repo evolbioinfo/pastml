@@ -3,7 +3,7 @@ import logging
 import pandas as pd
 
 
-def get_tree_stats(tree):
+def get_forest_stats(forest):
     len_sum = 0
     num_zero_nodes = 0
     max_polynomy = 0
@@ -13,19 +13,20 @@ def get_tree_stats(tree):
     num_zero_tips = 0
     tip_len_sum = 0
 
-    for node in tree.traverse():
-        num_nodes += 1
-        len_sum += node.dist
-        max_polynomy = max(len(node.children), max_polynomy)
-        max_len = max(max_len, node.dist)
-        if not node.dist:
-            num_zero_nodes += 1
-
-        if node.is_leaf():
-            num_tips += 1
-            tip_len_sum += node.dist
+    for tree in forest:
+        for node in tree.traverse():
+            num_nodes += 1
+            len_sum += node.dist
+            max_polynomy = max(len(node.children), max_polynomy)
+            max_len = max(max_len, node.dist)
             if not node.dist:
-                num_zero_tips += 1
+                num_zero_nodes += 1
+
+            if node.is_leaf():
+                num_tips += 1
+                tip_len_sum += node.dist
+                if not node.dist:
+                    num_zero_tips += 1
 
     avg_br_len = len_sum / (num_nodes - num_zero_nodes)
     logging.getLogger('pastml').debug('\n=============TREE STATISTICS===================\n'
@@ -44,13 +45,14 @@ def get_tree_stats(tree):
     return avg_br_len, num_nodes, num_tips
 
 
-def preannotate_tree(df, tree):
+def preannotate_forest(df, forest):
     df.fillna('', inplace=True)
     gb = df.groupby(df.index)
     gdf = pd.DataFrame(columns=df.columns)
     for c in df.columns:
         gdf[c] = gb[c].apply(lambda vs: {v for v in vs if not pd.isnull(v) and v != ''})
-    for node in tree.traverse('postorder'):
-        if node.name in gdf.index:
-            node.add_features(**gdf.loc[node.name, :].to_dict())
+    for tree in forest:
+        for node in tree.traverse('postorder'):
+            if node.name in gdf.index:
+                node.add_features(**gdf.loc[node.name, :].to_dict())
     return df.columns

@@ -5,6 +5,7 @@ from multiprocessing.pool import ThreadPool
 
 import numpy as np
 import pandas as pd
+from ete3 import Tree
 
 from pastml.models.f81_like import F81, JC, EFT
 from pastml.ml import SCALING_FACTOR, MODEL, FREQUENCIES, MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
@@ -12,13 +13,13 @@ from pastml.ml import SCALING_FACTOR, MODEL, FREQUENCIES, MARGINAL_PROBABILITIES
 from pastml.models.hky import KAPPA, HKY_STATES, HKY
 from pastml.models.jtt import JTT_STATES, JTT
 from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, NUM_SCENARIOS
-from pastml.annotation import preannotate_tree, get_tree_stats
+from pastml.annotation import preannotate_forest, get_forest_stats
 from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file, get_pastml_work_dir
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
     get_default_mp_method
-from pastml.tree import read_tree, name_tree, collapse_zero_branches, annotate_dates, DATE
+from pastml.tree import read_tree, name_tree, collapse_zero_branches, annotate_dates, DATE, read_forest
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 from pastml.visualisation.itol_manager import generate_itol_annotations
 
@@ -150,7 +151,7 @@ def _serialize_acr(args):
                                           .format(acr_result[CHARACTER], out_mp_file))
 
 
-def reconstruct_ancestral_states(tree, character, states, prediction_method=MPPA, model=F81,
+def reconstruct_ancestral_states(forest, character, states, prediction_method=MPPA, model=F81,
                                  params=None, avg_br_len=None, num_nodes=None, num_tips=None,
                                  force_joint=True):
     """
@@ -158,9 +159,9 @@ def reconstruct_ancestral_states(tree, character, states, prediction_method=MPPA
 
     :param character: character whose ancestral states are to be reconstructed.
     :type character: str
-    :param tree: tree whose ancestral state are to be reconstructed,
+    :param forest: trees whose ancestral states are to be reconstructed,
         annotated with the feature specified as `character` containing node states when known.
-    :type tree: ete3.Tree
+    :type forest: list(ete3.Tree)
     :param states: possible character states.
     :type states: numpy.array
     :param avg_br_len: (optional) average non-zero branch length for this tree. If not specified, will be calculated.
@@ -194,26 +195,29 @@ def reconstruct_ancestral_states(tree, character, states, prediction_method=MPPA
     if COPY == prediction_method:
         return {CHARACTER: character, STATES: states, METHOD: prediction_method}
     if not num_nodes:
-        num_nodes = sum(1 for _ in tree.traverse())
+        num_nodes = sum(sum(1 for _ in tree.traverse()) for tree in forest)
     if not num_tips:
-        num_tips = len(tree)
+        num_tips = sum(len(tree) for tree in forest)
     if is_ml(prediction_method):
         if avg_br_len is None:
-            avg_br_len = np.mean(n.dist for n in tree.traverse() if n.dist)
+            dists = []
+            for tree in forest:
+                dists.extend(n.dist for n in tree.traverse() if n.dist)
+            avg_br_len = np.mean(dists)
         freqs, sf, kappa = None, None, None
         if params is not None:
             freqs, sf, kappa = _parse_pastml_parameters(params, states)
-        return ml_acr(tree=tree, character=character, prediction_method=prediction_method, model=model, states=states,
+        return ml_acr(forest=forest, character=character, prediction_method=prediction_method, model=model, states=states,
                       avg_br_len=avg_br_len, num_nodes=num_nodes, num_tips=num_tips, freqs=freqs, sf=sf, kappa=kappa,
                       force_joint=force_joint)
     if is_parsimonious(prediction_method):
-        return parsimonious_acr(tree, character, prediction_method, states, num_nodes, num_tips)
+        return parsimonious_acr(forest, character, prediction_method, states, num_nodes, num_tips)
 
     raise ValueError('Method {} is unknown, should be one of ML ({}), one of MP ({}) or {}'
                      .format(prediction_method, ', '.join(ML_METHODS), ', '.join(MP_METHODS), COPY))
 
 
-def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None, force_joint=True):
+def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, force_joint=True):
     """
     Reconstructs ancestral states for the given tree and
     all the characters specified as columns of the given annotation dataframe.
@@ -221,8 +225,8 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None, for
     :param df: dataframe indexed with tree node names
         and containing characters for which ACR should be performed as columns.
     :type df: pandas.DataFrame
-    :param tree: tree whose ancestral state are to be reconstructed.
-    :type tree: ete3.Tree
+    :param forest: tree or list of trees whose ancestral states are to be reconstructed.
+    :type forest: ete3.Tree or list(ete3.Tree)
     :param model: (optional, default is F81) model(s) to be used by PASTML,
         can be either one model to be used for all the characters,
         or a list of different models (in the same order as the annotation dataframe columns)
@@ -246,11 +250,16 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None, for
     """
     for c in df.columns:
         df[c] = df[c].apply(lambda _: '' if pd.isna(_) else _.encode('ASCII', 'replace').decode())
-    columns = preannotate_tree(df, tree)
-    name_tree(tree)
-    collapse_zero_branches(tree, features_to_be_merged=df.columns)
 
-    avg_br_len, num_nodes, num_tips = get_tree_stats(tree)
+    if isinstance(forest, Tree):
+        forest = [forest]
+
+    columns = preannotate_forest(df, forest)
+    for i, tree in enumerate(forest):
+        name_tree(tree, suffix='' if len(forest) == 1 else '_{}'.format(i))
+    collapse_zero_branches(forest, features_to_be_merged=df.columns)
+
+    avg_br_len, num_nodes, num_tips = get_forest_stats(forest)
 
     logging.getLogger('pastml').debug('\n=============ACR===============================')
 
@@ -278,7 +287,7 @@ def acr(tree, df, prediction_method=MPPA, model=F81, column2parameters=None, for
 
     with ThreadPool() as pool:
         acr_results = \
-            pool.map(func=_work, iterable=((tree, column, get_states(method, model, column), method, model,
+            pool.map(func=_work, iterable=((forest, column, get_states(method, model, column), method, model,
                                             column2parameters[column] if column in column2parameters else None)
                                            for (column, method, model) in zip(columns, prediction_methods, models)))
 
@@ -304,9 +313,9 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
                     itol_tree_name=None):
     """
-    Applies PastML to the given tree with the specified states and visualises the result (as html maps).
+    Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
-    :param tree: path to the input tree in newick format (must be rooted).
+    :param tree: path to the input tree(s) in newick format (must be rooted).
     :type tree: str
 
     :param data: path to the annotation file in tab/csv format with the first row containing the column names.
@@ -367,8 +376,8 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         (must be one of those specified in ``columns``, if ``columns`` are specified).
         If the annotation table contains only one column, it will be used by default.
     :type name_column: str
-    :param root_date: (optional) date of the root node (only to be specified if the tree is dated),
-        if specified it is used to visualise a timeline based on dates (otherwise it is based on distances to root).
+    :param root_date: (optional) date(s) of the root(s) (for dated tree(s) only),
+        if specified, used to visualise a timeline based on dates (otherwise it is based on distances to root).
     :type root_date: str or pandas.datetime or float
     :param tip_size_threshold: (optional, by default is 15) recursively remove the tips
         of size less than threshold-th largest tip from the compressed map (set to 1e10 to keep all).
@@ -416,12 +425,12 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
 
     age_label = 'Dist. to root' if root_date is None else 'Date'
 
-    root, df, name_column, root_date = \
+    roots, df, name_column, root_dates = \
         _validate_input(columns, data, data_sep, root_date if html_compressed or html or upload_to_itol else None,
                         id_index, name_column if html_compressed else None, tree,
                         copy_only=COPY == prediction_method or (isinstance(prediction_method, list)
                                                                 and all(COPY == _ for _ in prediction_method)))
-    annotate_dates(root, root_date=root_date)
+    annotate_dates(roots, root_dates=root_dates)
 
     if parameters:
         if isinstance(parameters, str):
@@ -439,14 +448,14 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         work_dir = get_pastml_work_dir(tree)
     os.makedirs(work_dir, exist_ok=True)
 
-    acr_results = acr(root, df, prediction_method=prediction_method, model=model, column2parameters=parameters,
+    acr_results = acr(roots, df, prediction_method=prediction_method, model=model, column2parameters=parameters,
                       force_joint=forced_joint)
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
 
     if not out_data:
         out_data = os.path.join(work_dir, get_combined_ancestral_state_file())
 
-    state_df = _serialize_predicted_states(sorted(column2states.keys()), out_data, root)
+    state_df = _serialize_predicted_states(sorted(column2states.keys()), out_data, roots)
 
     # a meta-method would have added a suffix to the name feature
     if html_compressed and name_column and name_column not in column2states:
@@ -458,7 +467,9 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     itol_result = None
     pool = ThreadPool()
     new_tree = os.path.join(work_dir, get_named_tree_file(tree))
-    root.write(outfile=new_tree, format_root_node=True, format=3)
+    nwks = [root.write(format_root_node=True, format=3) for root in roots]
+    with open(new_tree, 'w+') as f:
+        f.write('\n'.join(nwks))
     async_result = pool.map_async(func=_serialize_acr, iterable=((acr_res, work_dir) for acr_res in acr_results))
     if upload_to_itol:
         itol_result = pool.apply_async(func=generate_itol_annotations,
@@ -467,7 +478,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
 
     if html or html_compressed:
         logger.debug('\n=============VISUALISATION=====================')
-        visualize(root, column2states=column2states, html=html, html_compressed=html_compressed,
+        visualize(roots, column2states=column2states, html=html, html_compressed=html_compressed,
                   name_column=name_column, tip_size_threshold=tip_size_threshold, date_label=age_label,
                   timeline_type=timeline_type)
 
@@ -476,38 +487,45 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         itol_result.wait()
     pool.close()
 
-    return root
+
+def parse_date(d):
+    try:
+        return float(d)
+    except ValueError:
+        try:
+            return datetime2numeric(pd.to_datetime(d, infer_datetime_format=True))
+        except ValueError:
+            raise ValueError('Could not infer the date format for root date "{}", please check it.'
+                             .format(d))
 
 
-def _validate_input(columns, data, data_sep, root_date, id_index, name_column, tree_nwk,
+def _validate_input(columns, data, data_sep, root_dates, id_index, name_column, tree_nwk,
                     copy_only):
     logger = logging.getLogger('pastml')
     logger.debug('\n=============INPUT DATA VALIDATION=============')
-    root = read_tree(tree_nwk)
+    roots = read_forest(tree_nwk)
     num_neg = 0
-    for _ in root.traverse():
-        if _.dist < 0:
-            num_neg += 1
-            _.dist = 0
+    for root in roots:
+        for _ in root.traverse():
+            if _.dist < 0:
+                num_neg += 1
+                _.dist = 0
     if num_neg:
-        logger.warning('Input tree contained {} negative branches: we put them to zero.'.format(num_neg))
-    logger.debug('Read the tree {}.'.format(tree_nwk))
+        logger.warning('Input tree{} contained {} negative branches: we put them to zero.'
+                       .format('s' if len(roots) > 0 else '', num_neg))
+    logger.debug('Read the tree{} {}.'.format('s' if len(roots) > 0 else '', tree_nwk))
 
     df = pd.read_csv(data, sep=data_sep, index_col=id_index, header=0, dtype=str)
     df.index = df.index.map(str)
     logger.debug('Read the annotation file {}.'.format(data))
 
     # As the date column is only used for visualisation if there is no visualisation we are not gonna validate it
-    if root_date is not None:
-        try:
-            root_date = float(root_date)
-        except ValueError:
-            try:
-                root_date = pd.to_datetime(root_date, infer_datetime_format=True)
-                root_date = datetime2numeric(root_date)
-            except ValueError:
-                raise ValueError('Could not infer the date format for root date "{}", please check it.'
-                                 .format(root_date))
+    if root_dates is not None:
+        root_dates = [parse_date(d) for d in (root_dates if isinstance(root_dates, list) else [root_dates])]
+        if 1 < len(root_dates) < len(roots):
+            raise ValueError('{} trees are given, but only {} root dates.'.format(len(roots), len(root_dates)))
+        elif 1 == len(root_dates):
+            root_dates *= len(roots)
 
     if columns:
         if isinstance(columns, str):
@@ -523,12 +541,12 @@ def _validate_input(columns, data, data_sep, root_date, id_index, name_column, t
 
     df.columns = [col_name2cat(column) for column in df.columns]
 
-    node_names = {n.name for n in root.traverse() if n.name}
+    node_names = set.union(*[{n.name for n in root.traverse() if n.name} for root in roots])
     df_index_names = set(df.index)
     filtered_df = df.loc[node_names & df_index_names, :]
     if not filtered_df.shape[0]:
         tip_name_representatives = []
-        for _ in root.iter_leaves():
+        for _ in roots[0].iter_leaves():
             if len(tip_name_representatives) < 3:
                 tip_name_representatives.append(_.name)
             else:
@@ -561,36 +579,37 @@ def _validate_input(columns, data, data_sep, root_date, id_index, name_column, t
                          'PASTML cannot infer ancestral states for a tree with too many tip states.'
                          .format(percentage_unique.idxmax(), 100 * max_unique_percentage))
     logger.debug('Finished input validation.')
-    return root, df, name_column, root_date
+    return roots, df, name_column, root_dates
 
 
-def _serialize_predicted_states(columns, out_data, root):
+def _serialize_predicted_states(columns, out_data, roots):
     ids, data = [], []
     # Not using DataFrames to speed up document writing
     with open(out_data, 'w+') as f:
         f.write('node\t{}\n'.format('\t'.join(columns)))
-        for node in root.traverse():
-            vs = [node.dist, getattr(node, DATE)]
-            column2values = {}
-            for column in columns:
-                value = getattr(node, column, set())
-                vs.append(value)
-                if value:
-                    column2values[column] = sorted(value, reverse=True)
-            data.append(vs)
-            ids.append(node.name)
-            while column2values:
-                f.write('{}'.format(node.name))
+        for root in roots:
+            for node in root.traverse():
+                vs = [node.dist, getattr(node, DATE)]
+                column2values = {}
                 for column in columns:
-                    if column in column2values:
-                        values = column2values[column]
-                        value = values.pop()
-                        if not values:
-                            del column2values[column]
-                    else:
-                        value = ''
-                    f.write('\t{}'.format(value))
-                f.write('\n')
+                    value = getattr(node, column, set())
+                    vs.append(value)
+                    if value:
+                        column2values[column] = sorted(value, reverse=True)
+                data.append(vs)
+                ids.append(node.name)
+                while column2values:
+                    f.write('{}'.format(node.name))
+                    for column in columns:
+                        if column in column2values:
+                            values = column2values[column]
+                            value = values.pop()
+                            if not values:
+                                del column2values[column]
+                        else:
+                            value = ''
+                        f.write('\t{}'.format(value))
+                    f.write('\n')
     logging.getLogger('pastml').debug('Serialized reconstructed states to {}.'.format(out_data))
     return pd.DataFrame(index=ids, data=data, columns=['dist', DATE] + columns)
 
@@ -619,7 +638,7 @@ def main():
                                                  "for rooted phylogenetic trees.", prog='pastml')
 
     tree_group = parser.add_argument_group('tree-related arguments')
-    tree_group.add_argument('-t', '--tree', help="input tree in newick format (must be rooted).",
+    tree_group.add_argument('-t', '--tree', help="input tree(s) in newick format (must be rooted).",
                             type=str, required=True)
 
     annotation_group = parser.add_argument_group('annotation-file-related arguments')
@@ -693,10 +712,10 @@ def main():
                                 "(must be one of those specified via -c, --columns). "
                                 "If the annotation table contains only one column it will be used by default.")
     vis_group.add_argument('--root_date', required=False, default=None,
-                           help="date of the root node (only to be specified if the tree is dated), "
-                                "if specified it is used to visualise a timeline based on dates "
+                           help="date(s) of the root(s) (for dated tree(s) only), "
+                                "if specified, used to visualise a timeline based on dates "
                                 "(otherwise it is based on distances to root).",
-                           type=str)
+                           type=str, nargs='*')
     vis_group.add_argument('--tip_size_threshold', type=int, default=REASONABLE_NUMBER_OF_TIPS,
                            help="recursively remove the tips of size less than threshold-th largest tip"
                                 "from the compressed map (set to 1e10 to keep all tips). "

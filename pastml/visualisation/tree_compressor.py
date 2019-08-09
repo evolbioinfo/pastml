@@ -78,7 +78,7 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
                               to_be_removed=lambda _: get_tsize(_) < threshold)
             remove_mediators(compressed_tree, columns)
             collapse_horizontally(compressed_tree, columns, get_bin)
-    return compressed_tree, tree
+    return compressed_tree
 
 
 def collapse_horizontally(tree, columns, tips2bin):
