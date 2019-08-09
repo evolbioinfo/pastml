@@ -292,8 +292,8 @@ def _forest2json(forest, columns, name_feature, get_date, milestones=None, timel
 
         for tree in forest:
             for n in tree.traverse('preorder'):
-                ms_i = 0 if n.is_root() else binary_search(getattr(n.up, MILESTONE),
-                                                           len(milestones), get_date(n), milestones)
+                ms_i = binary_search(0 if n.is_root() else getattr(n.up, MILESTONE),
+                                     len(milestones), get_date(n), milestones)
                 n.add_feature(MILESTONE, ms_i)
                 for i in range(len(milestones) - 1, ms_i - 1, -1):
                     milestone = milestones[i]
@@ -537,6 +537,20 @@ def visualize(forest, column2states, name_column=None, html=None, html_compresse
     if html_compressed:
         compressed_forest = [compress_tree(tree, columns=column2states.keys(), tip_size_threshold=tip_size_threshold)
                              for tree in forest]
+
+        # If we trimmed a few tips while compressing and they happened to be the oldest/newest ones,
+        # we should update the milestones accordingly.
+        first_date, last_date = np.inf, -np.inf
+        for tree in forest:
+            for _ in (tree.traverse() if timeline_type in [TIMELINE_LTT, TIMELINE_NODES] else tree):
+                first_date = min(first_date, getattr(_, DATE))
+                last_date = max(last_date, getattr(_, DATE))
+        milestones = [ms for ms in milestones if first_date <= ms <= last_date]
+        if milestones[0] > first_date:
+            milestones.insert(0, first_date)
+        if milestones[-1] < last_date:
+            milestones.append(last_date)
+
         save_as_cytoscape_html(forest, html_compressed, column2states=column2states, name2colour=name2colour,
                                name_feature=name_column, compressed_forest=compressed_forest,
                                milestone_label=date_label, timeline_type=timeline_type,
