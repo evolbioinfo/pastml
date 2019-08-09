@@ -166,7 +166,7 @@ def _forest2json_compressed(forest, compressed_forest, columns, name_feature, ge
     tree_offset = 0
     for compressed_tree in compressed_forest:
         n2offset[compressed_tree] = tree_offset
-        tree_offset += n2width[compressed_tree] + min_size
+        tree_offset += n2width[compressed_tree] + 2 * min_size
         for n in compressed_tree.traverse('preorder'):
             n2x[n] = n2offset[n] + n2width[n] / 2
             offset = n2offset[n]
@@ -260,8 +260,9 @@ def _forest2json(forest, columns, name_feature, get_date, milestones=None, timel
 
     # Calculate node coordinates
     n2x, n2y = {}, {}
-    x = 0
+    x = -600
     for tree in forest:
+        x += 600
         for t in tree:
             n2x[t] = x
             x += 600
