@@ -7,23 +7,23 @@ import numpy as np
 import pandas as pd
 from ete3 import Tree
 
-from pastml.models.f81_like import F81, JC, EFT
-from pastml.ml import SCALING_FACTOR, MODEL, FREQUENCIES, MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
-    ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method
-from pastml.models.hky import KAPPA, HKY_STATES, HKY
-from pastml.models.jtt import JTT_STATES, JTT
 from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, NUM_SCENARIOS
 from pastml.annotation import preannotate_forest, get_forest_stats
-from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file, get_pastml_work_dir
+from pastml.ml import SCALING_FACTOR, MODEL, FREQUENCIES, MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
+    ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method
+from pastml.models.f81_like import F81, JC, EFT
+from pastml.models.hky import KAPPA, HKY_STATES, HKY
+from pastml.models.jtt import JTT_STATES, JTT
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
     get_default_mp_method
-from pastml.tree import read_tree, name_tree, collapse_zero_branches, annotate_dates, DATE, read_forest
-from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
+from pastml.tree import name_tree, collapse_zero_branches, annotate_dates, DATE, read_forest
+from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT
 from pastml.visualisation.itol_manager import generate_itol_annotations
+from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 
-PASTML_VERSION = '1.9.18'
+PASTML_VERSION = '1.9.19'
 
 warnings.filterwarnings("ignore", append=True)
 
