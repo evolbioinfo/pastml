@@ -248,12 +248,12 @@ def parsimonious_acr(forest, character, prediction_method, states, num_nodes, nu
     def process_result(method, feature):
         out_feature = get_personalized_feature_name(character, method) if prediction_method != method else character
         res = result.copy()
-        result[NUM_SCENARIOS], result[NUM_UNRESOLVED_NODES], result[NUM_STATES_PER_NODE] = 1, 0, 0
+        res[NUM_SCENARIOS], res[NUM_UNRESOLVED_NODES], res[NUM_STATES_PER_NODE] = 1, 0, 0
         for tree in forest:
             ns, nun, nspn = choose_parsimonious_states(tree, feature, out_feature)
-            result[NUM_SCENARIOS] *= ns
-            result[NUM_UNRESOLVED_NODES] += nun
-            result[NUM_STATES_PER_NODE] += nspn
+            res[NUM_SCENARIOS] *= ns
+            res[NUM_UNRESOLVED_NODES] += nun
+            res[NUM_STATES_PER_NODE] += nspn
         res[NUM_STATES_PER_NODE] /= num_nodes
         res[PERC_UNRESOLVED] = res[NUM_UNRESOLVED_NODES] * 100 / num_nodes
         logger.debug('{} node{} unresolved ({:.2f}%) for {} by {}, '
