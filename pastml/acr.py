@@ -378,7 +378,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     :type name_column: str
     :param root_date: (optional) date(s) of the root(s) (for dated tree(s) only),
         if specified, used to visualise a timeline based on dates (otherwise it is based on distances to root).
-    :type root_date: str or pandas.datetime or float
+    :type root_date: str or pandas.datetime or float or list
     :param tip_size_threshold: (optional, by default is 15) recursively remove the tips
         of size less than threshold-th largest tip from the compressed map (set to 1e10 to keep all).
         The larger it is the less tips will be trimmed.
