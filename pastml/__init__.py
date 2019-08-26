@@ -1,4 +1,3 @@
-
 METHOD = 'method'
 STATES = 'states'
 CHARACTER = 'character'

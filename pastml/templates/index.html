@@ -115,6 +115,7 @@ a.cy-button:link, a.cy-button:visited, a.cy-button:hover {
     <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape.min.js"></script>
     <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/jquery.min.js"></script>
     <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/jquery.qtip.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape-svg.js"></script>
     <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape-qtip.js"></script>
     <link rel="stylesheet" type="text/css" href="https://pastml.pasteur.fr/static/css/jquery.qtip.min.css"/>
     <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"/>
@@ -135,8 +136,8 @@ a.cy-button:link, a.cy-button:visited, a.cy-button:hover {
     <a class="cy-button" href="#" id="downloader" onclick="toImage()" download="{{title}}.jpg">
         <span class="glyphicon glyphicon-save"></span><span class="buttontext">  Save (jpg)</span>
     </a>
-    <a class="cy-button" href="#" id="fullscreen" onclick="toggleFullScreen()">
-        <span id="fsspan" class="glyphicon glyphicon-fullscreen"></span><span id="fstext" class="buttontext">  Full screen</span>
+    <a class="cy-button" href="#" id="downloader_svg" onclick="saveAsSvg()" download="{{title}}.svg">
+        <span class="glyphicon glyphicon-save"></span><span class="buttontext">  Save (svg)</span>
     </a>
     {{slider}}
 </div></div>

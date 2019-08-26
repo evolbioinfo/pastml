@@ -18,7 +18,7 @@ setup(
         'Topic :: Software Development',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-    version='1.9.19',
+    version='1.9.20',
     author='Anna Zhukova',
     author_email='anna.zhukova@pasteur.fr',
     url='https://github.com/evolbioinfo/pastml',

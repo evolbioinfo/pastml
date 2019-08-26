@@ -161,6 +161,12 @@ function toImage(){
     document.getElementById("downloader").href = cy.jpg({ full: false, quality: 1.0, scale: 2}).replace(/^data:image\/[^;]/, 'data:application/octet-stream');
 }
 
+function saveAsSvg() {
+    var svgContent = cy.svg({scale: 1, full: true});
+    var blob = new Blob([svgContent], {type:"image/svg+xml;charset=utf-8"});
+    document.getElementById("downloader_svg").href = URL.createObjectURL(blob);
+}
+
 function fit() {
     cy.fit();
 }

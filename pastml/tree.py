@@ -1,7 +1,6 @@
 import logging
 from collections import Counter
 
-import pandas as pd
 from ete3 import Tree
 
 LEVEL = 'level'
