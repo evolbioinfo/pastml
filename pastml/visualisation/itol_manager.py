@@ -8,6 +8,8 @@ from pastml import METHOD, CHARACTER, STATES
 from pastml.visualisation.colour_generator import get_enough_colours
 from itolapi import Itol
 
+from pastml.tree import DATE
+
 STYLE_FILE_HEADER_TEMPLATE = """DATASET_STYLE
 
 SEPARATOR TAB
@@ -54,7 +56,7 @@ POPUP_CONTENT_TEMPLATE = "<b>{key}: </b>" \
                          "<span style='white-space:nowrap;'>{value}</span></div>"
 
 
-def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col, tip2date,
+def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
                               tree_path, itol_id=None, itol_project=None, itol_tree_name=None):
     annotation_files = []
     popup_file = os.path.join(work_dir, 'iTOL_popup_info.txt')
@@ -79,7 +81,8 @@ def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
                              method='{}{}'.format(acr_result[METHOD],
                                                   ('+{}'.format(acr_result[MODEL]) if MODEL in acr_result else ''))))
         col_df = state_df[state_df[column].apply(len) == 1]
-        col_df['itol_colour'] = col_df[column].apply(lambda _: value2colour[next(iter(_))])
+        col_df['itol_label'] = col_df[column].apply(lambda _: next(iter(_)))
+        col_df['itol_colour'] = col_df['itol_label'].apply(lambda _: value2colour[_])
         col_df[['itol_type', 'itol_node', 'itol_colour', 'itol_size', 'itol_style']].to_csv(style_file, sep='\t',
                                                                                             header=False, mode='a')
         annotation_files.append(style_file)
@@ -90,16 +93,15 @@ def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
             csf.write(COLORSTRIP_FILE_HEADER_TEMPLATE.format(column=column, colours='\t'.join(colours),
                                                              states='\t'.join(states),
                                                              shapes='\t'.join(['1'] * len(states))))
-        col_df[['itol_colour', column]].to_csv(colorstrip_file, sep='\t', header=False, mode='a')
+        col_df[['itol_colour', 'itol_label']].to_csv(colorstrip_file, sep='\t', header=False, mode='a')
         annotation_files.append(colorstrip_file)
         logging.getLogger('pastml').debug('Generated iTol colorstrip file for {}: {}.'.format(column, colorstrip_file))
 
-    state_df = state_df[list(column2states.keys()) + ['dist']]
+    state_df = state_df[list(column2states.keys()) + ['dist', DATE]]
     for c in column2states.keys():
         state_df[c] = state_df[c].apply(lambda _: ' or '.join(sorted(_)))
-    state_df.columns = ['ACR {} predicted state'.format(c) for c in column2states.keys()] + ['Node dist']
+    state_df.columns = ['ACR {} predicted state'.format(c) for c in column2states.keys()] + ['Node dist', date_col]
     state_df['Node id'] = state_df.index
-    state_df.loc[list(tip2date.keys()), date_col] = list(tip2date.values())
 
     for acr_result in acrs:
         if is_marginal(acr_result[METHOD]):

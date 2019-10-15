@@ -6,6 +6,8 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     package_data={'pastml': [os.path.join('templates', '*.html'), os.path.join('templates', '*.js'),
+                             os.path.join('templates', 'js', '*.js'), os.path.join('templates', 'css', '*.css'),
+                             os.path.join('templates', 'fonts', '*'),
                              os.path.join('..', 'README.md')]},
     long_description=open('README.md').read(),
     classifiers=[
@@ -16,7 +18,7 @@ setup(
         'Topic :: Software Development',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-    version='1.9.8',
+    version='1.9.21',
     description='Ancestral character reconstruction and visualisation for rooted phylogenetic trees.',
     author='Anna Zhukova',
     author_email='anna.zhukova@pasteur.fr',

@@ -1,27 +1,13 @@
-
 var layoutOptions = {
-    name: '{{layout}}',
-    nodesep: 10, // the separation between adjacent nodes in the same rank
-    edgeSep: 10, // the separation between adjacent edges in the same rank
-    rankSep: 80, // the separation between adjacent ranks
-    rankDir: 'TB', // 'TB' for top to bottom flow, 'LR' for left to right,
-    ranker: 'longest-path', // Type of algorithm to assign a rank to each node in the input graph. Possible values: 'network-simplex', 'tight-tree' or 'longest-path'
-    minLen: 1, // number of ranks to keep between the source and target of the edge
-
-    // general layout options
-    fit: true, // whether to fit to viewport
-    padding: 1, // fit padding
-    spacingFactor: undefined, // Applies a multiplicative factor (>0) to expand or compress the overall area that the nodes take up
-    nodeDimensionsIncludeLabels: true, // whether labels should be included in determining the space used by a node
-    animate: false, // whether to transition the node positions
-    animateFilter: function( node, i ){ return true; }, // whether to animate specific nodes when animation is on; non-animated nodes immediately go to their final positions
-    animationDuration: 500, // duration of animation in ms if enabled
-    animationEasing: undefined, // easing of animation if enabled
-    boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
-    transform: function( node, pos ){ return pos; }, // a function that applies a transform to the final node position
-    ready: function(){}, // on layoutready
-    stop: function(){} // on layoutstop
-  };
+  name: 'preset',
+  positions: function(node){
+    node.position('x', node.data('node_x'));
+    node.position('y', node.data('node_y'));
+    return node.position();
+  },
+  fit: true, // whether to fit to viewport
+  padding: 1, // padding on fit
+};
 
 var cy = cytoscape({
   container: document.getElementById('cy'),
@@ -99,13 +85,10 @@ var cy = cytoscape({
         'text-background-padding' : 4,
         'min-zoomed-font-size': 10,
       })
-    .selector('edge[edge_meta]')
+    .selector('edge[edge_name>1]')
       .css({
         'line-color': '#383838',
         'target-arrow-color': '#383838',
-      })
-    .selector('edge[edge_name]')
-      .css({
         'content': 'data(edge_name)',
       })
     .selector('edge[edge_size]')
@@ -144,13 +127,13 @@ function addQtips() {
         content: function(){
                 var tooltip = '<br><div style="overflow: auto;"><span style="white-space:nowrap;">' + this.data('tooltip') + '</span></div>';
                 if (this.data('node_meta') !== undefined) {
-                    tooltip += '<br><div style="overflow: auto;"><span style="white-space:nowrap;">ids: ' + this.data('node_names') + '</span></div>';
+                    tooltip += '<br><div style="overflow: auto;"><span style="white-space:nowrap;">ids: ' + this.data('node_roots') + '</span></div>';
                 } else {
-                    tooltip += '<br>id: ' + this.data('node_names') + '<br>';
+                    tooltip += '<br>id: ' + this.data('node_roots') + '<br>';
                 }
-                tooltip += '<br>tips inside: ' + this.data('node_in_tips');
-                tooltip += '<br>total tips in the subtree: ' + this.data('node_all_tips');
-                tooltip += '<br>internal nodes inside: ' + this.data('node_in_ns');
+                tooltip += '<br>{{tips}} inside: ' + this.data('node_in_tips');
+                tooltip += '<br>total {{tips}} in the subtree: ' + this.data('node_all_tips');
+                tooltip += '<br>{{internal_nodes}} inside: ' + this.data('node_in_ns');
                 return tooltip;
             },
         show: {event: 'mouseover'},
@@ -169,12 +152,28 @@ function toImage(){
     document.getElementById("downloader").href = cy.jpg({ full: false, quality: 1.0, scale: 2}).replace(/^data:image\/[^;]/, 'data:application/octet-stream');
 }
 
+function saveAsSvg() {
+    var svgContent = cy.svg({scale: 1, full: true});
+    var blob = new Blob([svgContent], {type:"image/svg+xml;charset=utf-8"});
+    document.getElementById("downloader_svg").href = URL.createObjectURL(blob);
+}
+
 function fit() {
     cy.fit();
 }
 
 function resetLayout() {
+    cy.startBatch();
     cy.layout(layoutOptions).run();
+    if (removed !== undefined) {
+        removed.forEach(function( ele ) {
+            if (ele.data('node_x') !== undefined) {
+                ele.position('x', ele.data('node_x'));
+                ele.position('y', ele.data('node_y'));
+            }
+        });
+    }
+    cy.endBatch();
 }
 
 var years = {{years}};
@@ -187,51 +186,47 @@ if (slider !== null) {
     var removed = cy.collection();
 
     slider.oninput = function() {
-        output.innerHTML = years[this.value];
+        var mile = this.value;
+        output.innerHTML = years[mile];
+
+        cy.startBatch();
         removed.restore();
-        removed = cy.remove("[date>" + this.value + "]");
-        var list = cy.$("");
-        for (var i=0, ele; ele = list[i]; i++) {
-            if (ele.data('node_name_' + this.value) !== undefined) {
-                ele.data('node_name', ele.data('node_name_' + this.value));
+        removed = cy.remove("[mile>" + mile + "]");
+        cy.$("").forEach(function( ele ) {
+            if (ele.data('node_name_' + mile) !== undefined) {
+                ele.data('node_name', ele.data('node_name_' + mile));
             }
-            if (ele.data('node_names_' + this.value) !== undefined) {
-                ele.data('node_names', ele.data('node_names_' + this.value));
+            if (ele.data('node_roots_' + mile) !== undefined) {
+                ele.data('node_roots', ele.data('node_roots_' + mile));
             }
-            if (ele.data('node_fontsize_' + this.value) !== undefined) {
-                ele.data('node_fontsize', ele.data('node_fontsize_' + this.value));
+            if (ele.data('node_fontsize_' + mile) !== undefined) {
+                ele.data('node_fontsize', ele.data('node_fontsize_' + mile));
             }
-            if (ele.data('node_in_tips_' + this.value) !== undefined) {
-                ele.data('node_in_tips', ele.data('node_in_tips_' + this.value));
+            if (ele.data('node_in_tips_' + mile) !== undefined) {
+                ele.data('node_in_tips', ele.data('node_in_tips_' + mile));
             }
-            if (ele.data('node_in_ns_' + this.value) !== undefined) {
-                ele.data('node_in_ns', ele.data('node_in_ns_' + this.value));
+            if (ele.data('node_in_ns_' + mile) !== undefined) {
+                ele.data('node_in_ns', ele.data('node_in_ns_' + mile));
             }
-            if (ele.data('node_all_tips_' + this.value) !== undefined) {
-                ele.data('node_all_tips', ele.data('node_all_tips_' + this.value));
+            if (ele.data('node_all_tips_' + mile) !== undefined) {
+                ele.data('node_all_tips', ele.data('node_all_tips_' + mile));
             }
-            if (ele.data('node_size_' + this.value) !== undefined) {
-                ele.data('node_size', ele.data('node_size_' + this.value));
+            if (ele.data('node_size_' + mile) !== undefined) {
+                ele.data('node_size', ele.data('node_size_' + mile));
             }
-            if (ele.data('edge_name_' + this.value) !== undefined) {
-                ele.data('edge_name', ele.data('edge_name_' + this.value));
+            if (ele.data('edge_name_' + mile) !== undefined) {
+                ele.data('edge_name', ele.data('edge_name_' + mile));
             }
-            if (ele.data('edge_size_' + this.value) !== undefined) {
-                ele.data('edge_size', ele.data('edge_size_' + this.value));
+            if (ele.data('edge_size_' + mile) !== undefined) {
+                ele.data('edge_size', ele.data('edge_size_' + mile));
             }
-            if (ele.data('edge_meta_' + this.value) !== undefined) {
-                ele.data('edge_meta', ele.data('edge_meta_' + this.value))
-            } else if (ele.data('edge_meta') !== undefined) {
-                ele.removeData('edge_meta');
-                cy.remove(ele);
-                cy.add(ele);
-            }
-            if (ele.data('node_meta_' + this.value) !== undefined) {
-                ele.data('node_meta', ele.data('node_meta_' + this.value));
+            if (ele.data('node_meta_' + mile) !== undefined) {
+                ele.data('node_meta', ele.data('node_meta_' + mile));
             } else if (ele.data('node_meta') !== undefined) {
                 ele.removeData('node_meta');
             }
-        }
+        });
+        cy.endBatch();
     }
 }
 

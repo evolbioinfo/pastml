@@ -30,9 +30,13 @@ def get_enough_colours(num_unique_values):
     """
     if num_unique_values in NUM2COLOURS:
         return NUM2COLOURS[num_unique_values]
-    return ['#%02x%02x%02x' % tuple(rgb) for rgb in
-            (map(lambda x: int(x * 255), colorsys.hsv_to_rgb(*hsv))
-             for hsv in ((_ / num_unique_values, 0.5, .8) for _ in range(1, num_unique_values + 1)))]
+    vs = ['#%02x%02x%02x' % tuple(rgb) for rgb in
+          (map(lambda x: int(x * 255), colorsys.hsv_to_rgb(*hsv)) for hsv in
+           ((_ / num_unique_values, 0.25 * (1 + (_ % 3)), .8) for _ in range(1, num_unique_values + 1)))]
+    if num_unique_values < 20:
+        return vs[::5] + vs[1::5] + vs[2::5] + vs[3::5] + vs[4::5]
+    return vs[::10] + vs[1::10] + vs[2::10] + vs[3::10] + vs[4::10] \
+           + vs[5::10] + vs[6::10] + vs[7::10] + vs[8::10] + vs[9::10]
 
 
 def hex_to_rgb(value):
