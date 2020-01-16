@@ -1,0 +1,16 @@
+parameter	value
+character	Country_MAP
+log_likelihood	-123.17320272163585
+log_likelihood_restricted_JOINT	-128.36066667766738
+log_likelihood_restricted_MAP	-128.64427147966296
+method	MAP
+model	EFT
+num_nodes	277
+num_tips	154
+scaling_factor	5.379728001444666
+state_changes_per_avg_branch	0.1494328664924594
+Africa	0.3246753246753247
+Albania	0.2077922077922078
+EastEurope	0.06493506493506493
+Greece	0.2597402597402597
+WestEurope	0.14285714285714285

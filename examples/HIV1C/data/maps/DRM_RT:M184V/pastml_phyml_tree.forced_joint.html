@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+  font-family: helvetica,serif;
+  font-size: 14px;
+}
+
+#cy {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 10;
+  background-color: #FFFFFF;
+}
+
+h1 {
+  opacity: 0.5;
+  font-size: 1em;
+}
+
+.floating {
+    max-width: 30%;
+    width: 120px;
+    float: right;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+}
+
+.cy-button {
+    background-color: #555555;
+    border: none;
+    color: white;
+    padding: 6px 0px;
+    width: 100%;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 3px 10px 0 rgba(0,0,0,0.19);
+}
+
+a.cy-button:link, a.cy-button:visited, a.cy-button:hover {
+    color: white;
+    text-decoration: none;
+}
+
+
+.slidertext {
+    width: 100%;
+    color: #555555;
+    border: none;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+}
+
+.slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 15px;
+    text-align: center;
+    border-radius: 5px;
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.7;
+    -webkit-transition: .2s;
+    transition: opacity .2s;
+    margin: 10px 0px;
+    display: inline-block;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 3px 10px 0 rgba(0,0,0,0.19);
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: #555555;
+    cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: #555555;
+    cursor: pointer;
+}
+
+@media all and (max-width: 600px) {
+    .buttontext {
+        display: none;
+    }
+}
+
+
+</style>
+<meta charset=utf-8 />
+<meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
+<title>pastml_phyml_tree.forced_joint</title>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/dagre.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape-dagre.js"></script>
+
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/jquery.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/jquery.qtip.min.js"></script>
+    <script  type='text/javascript' src="https://pastml.pasteur.fr/static/js/cytoscape-qtip.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://pastml.pasteur.fr/static/css/jquery.qtip.min.css"/>
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"/>
+<meta http-Equiv="Cache-Control" Content="no-cache" />
+<meta http-Equiv="Pragma" Content="no-cache" />
+<meta http-Equiv="Expires" Content="0" />
+</head>
+<body>
+<div id="fullscreenDiv">
+<div id="cy"></div>
+<div class="floating">
+    <a class="cy-button" href="#" id="fit" onclick="fit()">
+        <span class="glyphicon glyphicon-resize-full"></span><span class="buttontext">  Fit screen</span>
+    </a>
+    <a class="cy-button" href="#" id="reset" onclick="resetLayout()">
+        <span class="glyphicon glyphicon-picture"></span><span class="buttontext">  Layout</span>
+    </a>
+    <a class="cy-button" href="#" id="downloader" onclick="toImage()" download="pastml_phyml_tree.forced_joint.jpg">
+        <span class="glyphicon glyphicon-save"></span><span class="buttontext">  Save (jpg)</span>
+    </a>
+    <a class="cy-button" href="#" id="fullscreen" onclick="toggleFullScreen()">
+        <span id="fsspan" class="glyphicon glyphicon-fullscreen"></span><span id="fstext" class="buttontext">  Full screen</span>
+    </a>
+    
+<div class="slidecontainer">
+  <input type="range" min="0" max="5" value="5" class="slider" id="myRange" step="1">
+  <div class="slidertext">Year: <span id="demo"></span></div>
+</div>
+</div></div>
+<!-- Load appplication code at the end to ensure DOM is loaded -->
+<script type="text/javascript">
+var layoutOptions = {
+    name: 'dagre',
+    nodesep: 10, // the separation between adjacent nodes in the same rank
+    edgeSep: 10, // the separation between adjacent edges in the same rank
+    rankSep: 80, // the separation between adjacent ranks
+    rankDir: 'TB', // 'TB' for top to bottom flow, 'LR' for left to right,
+    ranker: 'longest-path', // Type of algorithm to assign a rank to each node in the input graph. Possible values: 'network-simplex', 'tight-tree' or 'longest-path'
+    minLen: 1, // number of ranks to keep between the source and target of the edge
+
+    // general layout options
+    fit: true, // whether to fit to viewport
+    padding: 1, // fit padding
+    spacingFactor: undefined, // Applies a multiplicative factor (>0) to expand or compress the overall area that the nodes take up
+    nodeDimensionsIncludeLabels: true, // whether labels should be included in determining the space used by a node
+    animate: false, // whether to transition the node positions
+    animateFilter: function( node, i ){ return true; }, // whether to animate specific nodes when animation is on; non-animated nodes immediately go to their final positions
+    animationDuration: 500, // duration of animation in ms if enabled
+    animationEasing: undefined, // easing of animation if enabled
+    boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
+    transform: function( node, pos ){ return pos; }, // a function that applies a transform to the final node position
+    ready: function(){}, // on layoutready
+    stop: function(){} // on layoutstop
+  };
+
+var cy = cytoscape({
+  container: document.getElementById('cy'),
+
+  style: cytoscape.stylesheet()
+    .selector('node')
+      .css({
+        'width': 300,
+        'height': 300,
+        'content': '',
+        'shape': 'ellipse',
+        'pie-size': '100%',
+        'background-color': '#909090',
+        'color': '#383838',
+        'text-opacity': 1,
+        'text-valign': 'center',
+        'text-halign': 'center',
+        'font-size': 80,
+        'text-halign' : 'center',
+        'text-valign' : 'center',
+        'min-zoomed-font-size': 12,
+        'text-background-color' : '#ffffff',
+        'text-background-shape' : 'roundrectangle',
+        'text-background-opacity': .3,
+        'text-background-padding' : 1,
+      })
+    .selector('node[node_name]')
+      .css({
+        'content': 'data(node_name)',
+      })
+    .selector('node[tip]')
+      .css({
+        'width': 400,
+        'height': 400,
+        'font-size': 100,
+      })
+    .selector('node[unresolved]')
+      .css({
+        'shape': 'octagon',
+        'pie-size': '92%',
+        'width': 500,
+        'height': 500,
+        'font-size': 125,
+      })
+    .selector('node[node_size]')
+      .css({
+        'width': 'data(node_size)',
+        'height': 'data(node_size)',
+      })
+    .selector('node[node_fontsize]')
+      .css({
+        'font-size': 'data(node_fontsize)',
+      })
+    
+    .selector(".resistant")
+        .css({
+        
+                'pie-1-background-color': "#d95f02",
+                'pie-1-background-size': '100.0\%',
+            
+        })
+    
+    .selector(".resistant-sensitive")
+        .css({
+        
+                'pie-1-background-color': "#d95f02",
+                'pie-1-background-size': '50.0\%',
+            
+                'pie-2-background-color': "#1b9e77",
+                'pie-2-background-size': '50.0\%',
+            
+        })
+    
+    .selector(".sensitive")
+        .css({
+        
+                'pie-1-background-color': "#1b9e77",
+                'pie-1-background-size': '100.0\%',
+            
+        })
+    
+    .selector('edge')
+      .css({
+        'width': 50,
+        'font-size': 80,
+        'color': 'black',
+        'content': '',
+        'curve-style': 'bezier',
+        'target-arrow-shape': 'triangle',
+        'target-arrow-color': '#909090',
+        'opacity': 0.8,
+        'text-opacity': 1,
+        'line-color': '#909090',
+        'text-background-color' : '#ffffff',
+        'text-background-shape' : 'roundrectangle',
+        'text-background-opacity': 1,
+        'text-background-padding' : 4,
+        'min-zoomed-font-size': 10,
+      })
+    .selector('edge[edge_meta]')
+      .css({
+        'line-color': '#383838',
+        'target-arrow-color': '#383838',
+      })
+    .selector('edge[edge_name]')
+      .css({
+        'content': 'data(edge_name)',
+      })
+    .selector('edge[edge_size]')
+      .css({
+        'width': 'data(edge_size)',
+        'font-size': 'data(edge_size)',
+      })
+    .selector(':selected')
+      .css({
+        'background-color': 'black',
+        'line-color': 'black',
+        'target-arrow-color': 'black',
+        'source-arrow-color': 'black',
+        'pie-size': '60%',
+        'opacity': 1
+      })
+    .selector('.faded')
+      .css({
+        'opacity': 0.25,
+        'text-opacity': 0
+      }),
+
+  elements: {'nodes': [{'data': {'node_in_tips_1': ' 18', 'node_names_0': 'ROOT', 'node_all_tips_3': ' 1510', 'node_fontsize_5': 239, 'node_fontsize_2': 153, 'node_all_tips_4': ' 3552', 'node_names': 'ROOT', 'node_all_tips_2': ' 89', 'node_fontsize_1': 116, 'node_name_5': 'sensitive 2829', 'node_fontsize_0': 83, 'node_in_ns_3': ' 2364', 'node_all_tips_1': ' 18', 'node_in_tips_0': ' 2', 'node_in_ns_0': ' 43', 'node_size_2': 846, 'node_names_5': 'ROOT', 'node_in_ns_1': ' 182', 'node_size_4': 1597, 'node_name_3': 'sensitive 1366', 'node_fontsize': 239, 'node_in_tips_5': ' 2829', 'node_name_1': 'sensitive 18', 'node_size_1': 520, 'node_fontsize_3': 223, 'node_in_tips_4': ' 2794', 'node_in_ns_5': ' 2934', 'node_name_4': 'sensitive 2794', 'node_in_tips_2': ' 80', 'node_size_3': 1458, 'node_size': 1600, 'node_size_0': 233, 'node_name_2': 'sensitive 80', 'date': 0, 'node_in_ns': ' 2934', 'node_all_tips_5': ' 3614', 'node_names_4': 'ROOT', 'node_names_3': 'ROOT', 'node_name_0': 'sensitive 2', 'node_all_tips': ' 3619', 'node_in_ns_2': ' 471', 'node_names_1': 'ROOT', 'node_name': 'sensitive 2832', 'node_in_ns_4': ' 2931', 'node_in_tips_3': ' 1366', 'node_names_2': 'ROOT', 'node_size_5': 1599, 'node_fontsize_4': 239, 'node_all_tips_0': ' 2', 'node_in_tips': ' 2832', 'id': 0, 'tooltip': 'RTM184V: sensitive'}, 'classes': 'sensitive'}, {'data': {'node_all_tips_3': ' 39', 'node_fontsize_5': 151, 'node_all_tips_4': ' 251', 'node_names': 'node_3596', 'node_name_5': 'resistant 72', 'node_in_ns_3': ' 104', 'node_names_5': 'node_3596', 'node_size_4': 822, 'node_name_3': 'resistant 5', 'node_fontsize': 151, 'node_in_tips_5': ' 72', 'node_fontsize_3': 93, 'node_in_tips_4': ' 72', 'node_in_ns_5': ' 180', 'node_name_4': 'resistant 72', 'node_size_3': 315, 'node_size': 822, 'date': 3, 'node_in_ns': ' 180', 'node_all_tips_5': ' 260', 'node_names_4': 'node_3596', 'node_names_3': 'node_3596', 'node_all_tips': ' 260', 'node_name': 'resistant 72', 'node_in_ns_4': ' 180', 'node_in_tips_3': ' 5', 'node_size_5': 822, 'node_fontsize_4': 151, 'node_in_tips': ' 72', 'id': 1, 'tooltip': 'RTM184V: resistant'}, 'classes': 'resistant'}, {'data': {'node_all_tips_3': ' 1-2', 'node_fontsize_5': 87, 'node_fontsize_2': 80, 'node_all_tips_4': ' 1-3', 'node_names': 'AF394462, AM933272, AY589877, AY589881, AY589882, AY589884, AY589888, AY589891, AY589893, AY589896, AY589897, AY589902, AY589903, AY589904, AY589907, AY589908, AY589914, AY589915, AY589917, AY589933, AY589936, AY749169, DQ113042, DQ113084, DQ113384, DQ826640, DQ877762, DQ877890, DQ878136, DQ878240, DQ878534, DQ878592, EF186964, EF186978, EF186986, EU854479, EU854482, EU854484, EU854495, EU854501, EU854503, EU854507, EU854509, EU854513, EU854520, EU854532, EU854536, EU854540, EU854548, EU854550, EU854553, EU854559, EU854561, FJ388901, FJ388913, FJ445702, FJ445706, FJ445709, FJ445714, FJ445715, FJ445723, FJ445724, FJ445729, FJ653087, GQ409573, GQ409590, GQ409622, GQ433813, GQ848120, GU324882, HE588156, HM002507, HM002515, HM002517, HM120046, HM191526, HM191528, HM191530, HM191547, HQ843636, KM050669, KU168263, MF373192, node_1134, node_1180, node_1244, node_2224, node_2738, node_2978', 'node_all_tips_2': ' 1', 'node_name_5': 'resistant 1-3', 'node_in_ns_3': ' 0-1', 'node_size_2': 200, 'node_names_5': 'AF394462, AM933272, AY589877, AY589881, AY589882, AY589884, AY589888, AY589891, AY589893, AY589896, AY589897, AY589902, AY589903, AY589904, AY589907, AY589908, AY589914, AY589915, AY589917, AY589933, AY589936, AY749169, DQ113042, DQ113084, DQ113384, DQ826640, DQ877762, DQ877890, DQ878136, DQ878240, DQ878534, DQ878592, EF186964, EF186978, EF186986, EU854479, EU854482, EU854484, EU854495, EU854501, EU854503, EU854507, EU854509, EU854513, EU854520, EU854532, EU854536, EU854540, EU854548, EU854550, EU854553, EU854559, EU854561, FJ388901, FJ388913, FJ445702, FJ445706, FJ445709, FJ445714, FJ445715, FJ445723, FJ445724, FJ445729, FJ653087, GQ409573, GQ409590, GQ409622, GQ433813, GQ848120, GU324882, HE588156, HM002507, HM002515, HM002517, HM120046, HM191526, HM191528, HM191530, HM191547, HQ843636, KM050669, KU168263, MF373192, node_1134, node_1180, node_1244, node_2224, node_2738, node_2978', 'node_size_4': 263, 'node_fontsize': 87, 'node_in_tips_5': ' 1-3', 'node_name_3': 'resistant 1-2', 'node_fontsize_3': 83, 'node_in_tips_4': ' 1-3', 'node_in_ns_5': ' 0-2', 'node_name_4': 'resistant 1-3', 'node_in_tips_2': ' 1', 'node_size_3': 233, 'node_meta_4': 1, 'node_size': 263, 'node_meta': 1, 'node_name_2': 'resistant 1', 'date': 2, 'node_in_ns': ' 0-2', 'node_all_tips_5': ' 1-3', 'node_names_4': 'AF394462, AM933272, AY589877, AY589881, AY589882, AY589884, AY589888, AY589891, AY589893, AY589896, AY589897, AY589902, AY589903, AY589904, AY589907, AY589908, AY589914, AY589915, AY589917, AY589933, AY589936, AY749169, DQ113042, DQ113084, DQ113384, DQ826640, DQ877762, DQ877890, DQ878136, DQ878240, DQ878534, DQ878592, EF186964, EF186978, EF186986, EU854479, EU854482, EU854484, EU854495, EU854501, EU854503, EU854507, EU854509, EU854513, EU854520, EU854532, EU854536, EU854540, EU854548, EU854550, EU854553, EU854559, EU854561, FJ388901, FJ388913, FJ445702, FJ445706, FJ445709, FJ445714, FJ445715, FJ445723, FJ445724, FJ445729, FJ653087, GQ409573, GQ409590, GQ409622, GQ433813, GQ848120, GU324882, HE588156, HM002507, HM002515, HM002517, HM120046, HM191526, HM191528, HM191530, HM191547, HQ843636, KM050669, KU168263, node_1134, node_1180, node_1244, node_2224, node_2738, node_2978', 'node_names_3': 'AF394462, AM933272, AY589877, AY589881, AY589882, AY589884, AY589888, AY589891, AY589893, AY589896, AY589897, AY589902, AY589903, AY589904, AY589907, AY589908, AY589914, AY589915, AY589917, AY589933, AY589936, AY749169, DQ113042, DQ113084, DQ113384, DQ877762, DQ877890, DQ878136, DQ878240, DQ878534, DQ878592, FJ445702, FJ445706, FJ445709, FJ445714, FJ445715, GQ848120, HE588156, node_1244, node_2978', 'node_all_tips': ' 1-3', 'node_meta_3': 1, 'node_in_ns_2': ' 0', 'node_name': 'resistant 1-3', 'node_in_ns_4': ' 0-2', 'node_in_tips_3': ' 1-2', 'node_meta_5': 1, 'node_size_5': 263, 'node_fontsize_4': 87, 'node_names_2': 'GQ848120', 'node_in_tips': ' 1-3', 'id': 2, 'tip': 1, 'tooltip': 'RTM184V: resistant'}, 'classes': 'resistant'}, {'data': {'node_all_tips_3': ' 44', 'node_fontsize_5': 80, 'node_fontsize_2': 80, 'node_all_tips_4': ' 372', 'node_names': 'node_630', 'node_all_tips_2': ' 7', 'node_name_5': ' 0', 'node_in_ns_3': ' 21', 'node_size_2': 266, 'node_names_5': 'node_630', 'node_size_4': 266, 'unresolved': 1, 'node_name_3': ' 0', 'node_fontsize': 80, 'node_in_tips_5': ' 0', 'node_fontsize_3': 80, 'node_in_tips_4': ' 0', 'node_in_ns_5': ' 41', 'node_name_4': ' 0', 'node_in_tips_2': ' 0', 'node_size_3': 266, 'node_size': 266, 'node_name_2': ' 0', 'date': 2, 'node_in_ns': ' 41', 'node_all_tips_5': ' 389', 'node_names_4': 'node_630', 'node_names_3': 'node_630', 'node_all_tips': ' 391', 'node_in_ns_2': ' 3', 'node_name': ' 0', 'node_in_ns_4': ' 41', 'node_in_tips_3': ' 0', 'node_names_2': 'node_630', 'node_size_5': 266, 'node_fontsize_4': 80, 'node_in_tips': ' 0', 'id': 3, 'tooltip': 'RTM184V: resistant or sensitive'}, 'classes': 'resistant-sensitive'}, {'data': {'node_all_tips_3': ' 1-2', 'node_fontsize_5': 80, 'node_all_tips_4': ' 2-7', 'node_names': 'node_3338, node_3352, node_3362, node_3372, node_3377, node_3385, node_3395, node_3401, node_3411, node_3456, node_3497, node_3504, node_3514, node_3522, node_3567, node_3576', 'node_name_5': ' 0', 'node_in_ns_3': ' 1', 'node_names_5': 'node_3338, node_3352, node_3362, node_3372, node_3377, node_3385, node_3395, node_3401, node_3411, node_3456, node_3497, node_3504, node_3514, node_3522, node_3567, node_3576', 'node_size_4': 266, 'unresolved': 1, 'node_fontsize': 80, 'node_in_tips_5': ' 0', 'node_name_3': ' 0', 'node_fontsize_3': 80, 'node_in_tips_4': ' 0', 'node_in_ns_5': ' 1', 'node_name_4': ' 0', 'node_size_3': 266, 'node_meta_4': 1, 'node_size': 266, 'node_meta': 1, 'date': 3, 'node_in_ns': ' 1', 'node_all_tips_5': ' 2-7', 'node_names_4': 'node_3338, node_3352, node_3362, node_3372, node_3377, node_3385, node_3395, node_3401, node_3411, node_3456, node_3497, node_3504, node_3514, node_3522, node_3567, node_3576', 'node_names_3': 'node_3352, node_3362, node_3456, node_3497, node_3504, node_3514, node_3567', 'node_all_tips': ' 2-7', 'node_meta_3': 1, 'node_name': ' 0', 'node_in_ns_4': ' 1', 'node_in_tips_3': ' 0', 'node_meta_5': 1, 'node_size_5': 266, 'node_fontsize_4': 80, 'node_in_tips': ' 0', 'id': 4, 'tooltip': 'RTM184V: resistant or sensitive'}, 'classes': 'resistant-sensitive'}, {'data': {'node_all_tips_3': ' 1', 'node_fontsize_5': 80, 'node_all_tips_4': ' 2-3', 'node_names': 'node_3346, node_3429, node_3432, node_3450, node_3473', 'node_name_5': ' 0', 'node_in_ns_3': ' 1-2', 'node_names_5': 'node_3346, node_3429, node_3432, node_3450, node_3473', 'node_size_4': 266, 'unresolved': 1, 'node_fontsize': 80, 'node_in_tips_5': ' 0', 'node_name_3': ' 0', 'node_fontsize_3': 80, 'node_in_tips_4': ' 0', 'node_in_ns_5': ' 2', 'node_name_4': ' 0', 'node_size_3': 266, 'node_meta_4': 1, 'node_size': 266, 'node_meta': 1, 'date': 3, 'node_in_ns': ' 2', 'node_all_tips_5': ' 3', 'node_names_4': 'node_3346, node_3429, node_3432, node_3450, node_3473', 'node_names_3': 'node_3346, node_3429, node_3450', 'node_all_tips': ' 3', 'node_meta_3': 1, 'node_name': ' 0', 'node_in_ns_4': ' 2', 'node_in_tips_3': ' 0', 'node_meta_5': 1, 'node_size_5': 266, 'node_fontsize_4': 80, 'node_in_tips': ' 0', 'id': 5, 'tooltip': 'RTM184V: resistant or sensitive'}, 'classes': 'resistant-sensitive'}, {'data': {'node_all_tips_3': ' 1-2', 'node_fontsize_5': 80, 'node_all_tips_4': ' 4-5', 'node_names': 'node_3545, node_3556, node_3581', 'node_name_5': ' 0', 'node_in_ns_3': ' 1-3', 'node_names_5': 'node_3545, node_3556, node_3581', 'node_size_4': 266, 'unresolved': 1, 'node_fontsize': 80, 'node_in_tips_5': ' 0', 'node_name_3': ' 0', 'node_fontsize_3': 80, 'node_in_tips_4': ' 0', 'node_in_ns_5': ' 3', 'node_name_4': ' 0', 'node_size_3': 266, 'node_meta_4': 1, 'node_size': 266, 'node_meta': 1, 'date': 3, 'node_in_ns': ' 3', 'node_all_tips_5': ' 4-5', 'node_names_4': 'node_3545, node_3556, node_3581', 'node_names_3': 'node_3545, node_3556, node_3581', 'node_all_tips': ' 4-5', 'node_meta_3': 1, 'node_name': ' 0', 'node_in_ns_4': ' 3', 'node_in_tips_3': ' 0', 'node_meta_5': 1, 'node_size_5': 266, 'node_fontsize_4': 80, 'node_in_tips': ' 0', 'id': 6, 'tooltip': 'RTM184V: resistant or sensitive'}, 'classes': 'resistant-sensitive'}, {'data': {'node_all_tips_3': ' 1-2', 'node_fontsize_5': 90, 'node_all_tips_4': ' 1-4', 'node_names': 'AY213521, AY213550, AY390188, AY727522, AY727525, DQ190951, DQ191006, DQ344002, DQ518524, DQ518527, DQ518533, DQ518540, EF379159, EF379168, EF379174, EF379178, EF379181, EF379191, EF379199, EF379203, EF379206, EF379212, EF379213, EU340713, EU340722, EU340736, EU340746, EU340747, FJ030696, FJ481654, FJ591203, FJ591232, FJ591264, FJ591296, FJ591316, FJ591327, FJ591334, FJ591389, FJ591402, FJ591403, FJ591414, FJ591444, FJ591456, FJ591470, FJ591507, FJ591555, FJ591590, FJ591651, FJ591836, FJ591955, FJ591958, FJ784199, GQ294621, GQ401303, GQ401305, GQ401321, GQ401322, GQ401326, GQ401330, HM024864, HM534017, HM534020, HM534022, HM534043, HM534122, HM534190, HM534197, HQ127550, JX140663, KT427810, KU749392, KU749393, KY496624, node_3368, node_3382, node_3447, node_3459, node_3489, node_3495, node_3517, node_3535, node_3540', 'node_name_5': 'sensitive 1-4', 'node_in_ns_3': ' 0-1', 'node_names_5': 'AY213521, AY213550, AY390188, AY727522, AY727525, DQ190951, DQ191006, DQ344002, DQ518524, DQ518527, DQ518533, DQ518540, EF379159, EF379168, EF379174, EF379178, EF379181, EF379191, EF379199, EF379203, EF379206, EF379212, EF379213, EU340713, EU340722, EU340736, EU340746, EU340747, FJ030696, FJ481654, FJ591203, FJ591232, FJ591264, FJ591296, FJ591316, FJ591327, FJ591334, FJ591389, FJ591402, FJ591403, FJ591414, FJ591444, FJ591456, FJ591470, FJ591507, FJ591555, FJ591590, FJ591651, FJ591836, FJ591955, FJ591958, FJ784199, GQ294621, GQ401303, GQ401305, GQ401321, GQ401322, GQ401326, GQ401330, HM024864, HM534017, HM534020, HM534022, HM534043, HM534122, HM534190, HM534197, HQ127550, JX140663, KT427810, KU749392, KU749393, KY496624, node_3368, node_3382, node_3447, node_3459, node_3489, node_3495, node_3517, node_3535, node_3540', 'node_size_4': 290, 'node_fontsize': 90, 'node_in_tips_5': ' 1-4', 'node_name_3': 'sensitive 1-2', 'node_fontsize_3': 83, 'node_in_tips_4': ' 1-4', 'node_in_ns_5': ' 0-3', 'node_name_4': 'sensitive 1-4', 'node_size_3': 233, 'node_meta_4': 1, 'node_size': 290, 'node_meta': 1, 'date': 3, 'node_in_ns': ' 0-3', 'node_all_tips_5': ' 1-4', 'node_names_4': 'AY213521, AY213550, AY390188, AY727522, AY727525, DQ190951, DQ191006, DQ344002, DQ518524, DQ518527, DQ518533, DQ518540, EF379159, EF379168, EF379174, EF379178, EF379181, EF379191, EF379199, EF379203, EF379206, EF379212, EF379213, EU340713, EU340722, EU340736, EU340746, EU340747, FJ030696, FJ481654, FJ591203, FJ591232, FJ591264, FJ591296, FJ591316, FJ591327, FJ591334, FJ591389, FJ591402, FJ591403, FJ591414, FJ591444, FJ591456, FJ591470, FJ591507, FJ591555, FJ591590, FJ591651, FJ591836, FJ591955, FJ591958, FJ784199, GQ294621, GQ401303, GQ401305, GQ401321, GQ401322, GQ401326, GQ401330, HM024864, HM534017, HM534020, HM534022, HM534043, HM534122, HM534190, HM534197, HQ127550, JX140663, node_3368, node_3382, node_3447, node_3459, node_3489, node_3495, node_3517, node_3535, node_3540', 'node_names_3': 'AY213521, AY213550, AY390188, DQ190951, DQ191006, DQ344002, FJ030696, FJ591836, FJ591955, FJ591958, FJ784199, node_3382, node_3489, node_3535', 'node_all_tips': ' 1-4', 'node_meta_3': 1, 'node_name': 'sensitive 1-4', 'node_in_ns_4': ' 0-3', 'node_in_tips_3': ' 1-2', 'node_meta_5': 1, 'node_size_5': 290, 'node_fontsize_4': 90, 'node_in_tips': ' 1-4', 'id': 7, 'tip': 1, 'tooltip': 'RTM184V: sensitive'}, 'classes': 'sensitive'}, {'data': {'node_all_tips_3': ' 37', 'node_fontsize_5': 172, 'node_fontsize_2': 90, 'node_all_tips_4': ' 292', 'node_names': 'node_625', 'node_all_tips_2': ' 7', 'node_name_5': 'sensitive 163', 'node_in_ns_3': ' 85', 'node_size_2': 290, 'node_names_5': 'node_625', 'node_size_4': 999, 'node_name_3': 'sensitive 24', 'node_fontsize': 172, 'node_in_tips_5': ' 163', 'node_fontsize_3': 123, 'node_in_tips_4': ' 157', 'node_in_ns_5': ' 175', 'node_name_4': 'sensitive 157', 'node_in_tips_2': ' 4', 'node_size_3': 578, 'node_size': 1009, 'node_name_2': 'sensitive 4', 'date': 2, 'node_in_ns': ' 175', 'node_all_tips_5': ' 307', 'node_names_4': 'node_625', 'node_names_3': 'node_625', 'node_all_tips': ' 308', 'node_in_ns_2': ' 34', 'node_name': 'sensitive 164', 'node_in_ns_4': ' 175', 'node_in_tips_3': ' 24', 'node_names_2': 'node_625', 'node_size_5': 1007, 'node_fontsize_4': 171, 'node_in_tips': ' 164', 'id': 8, 'tooltip': 'RTM184V: sensitive'}, 'classes': 'sensitive'}, {'data': {'node_all_tips_3': ' 1', 'node_fontsize_5': 93, 'node_all_tips_4': ' 1-5', 'node_names': 'AY746377, DQ826617, EF186927, EF186935, EF694033, EU030412, EU110054, EU248356, EU447778, EU683759, EU683766, EU683770, EU683776, EU683786, EU683796, EU683801, FJ878938, FJ878953, FJ878961, HQ456670, node_242, node_267, node_273, node_277, node_286, node_295, node_297, node_315, node_628', 'node_name_5': 'sensitive 1-5', 'node_in_ns_3': ' 0-2', 'node_names_5': 'AY746377, DQ826617, EF186927, EF186935, EU030412, EU110054, EU248356, EU447778, EU683759, EU683766, EU683770, EU683776, EU683786, EU683796, EU683801, FJ878938, FJ878953, FJ878961, HQ456670, node_242, node_267, node_273, node_277, node_286, node_295, node_297, node_315, node_628', 'node_size_4': 315, 'node_fontsize': 93, 'node_in_tips_5': ' 1-5', 'node_name_3': 'sensitive 1', 'node_fontsize_3': 80, 'node_in_tips_4': ' 1-5', 'node_in_ns_5': ' 0-4', 'node_name_4': 'sensitive 1-5', 'node_size_3': 200, 'node_meta_4': 1, 'node_size': 315, 'node_meta': 1, 'date': 3, 'node_in_ns': ' 0-4', 'node_all_tips_5': ' 1-5', 'node_names_4': 'AY746377, DQ826617, EF186927, EF186935, EU030412, EU110054, EU248356, EU447778, EU683759, EU683766, EU683770, EU683776, EU683786, EU683796, EU683801, FJ878938, FJ878953, FJ878961, HQ456670, node_242, node_267, node_273, node_277, node_286, node_295, node_297, node_315, node_628', 'node_names_3': 'AY746377, EU248356, node_277, node_286', 'node_all_tips': ' 1-5', 'node_meta_3': 1, 'node_name': 'sensitive 1-5', 'node_in_ns_4': ' 0-4', 'node_in_tips_3': ' 1', 'node_meta_5': 1, 'node_size_5': 315, 'node_fontsize_4': 93, 'node_in_tips': ' 1-5', 'id': 9, 'tip': 1, 'tooltip': 'RTM184V: sensitive'}, 'classes': 'sensitive'}, {'data': {'node_all_tips_3': ' 1', 'node_fontsize_5': 80, 'node_all_tips_4': ' 1', 'node_names': 'FJ591489, FJ591967', 'node_name_5': 'sensitive 1', 'node_in_ns_3': ' 0', 'node_names_5': 'FJ591489, FJ591967', 'node_size_4': 200, 'node_fontsize': 80, 'node_in_tips_5': ' 1', 'node_name_3': 'sensitive 1', 'node_fontsize_3': 80, 'node_in_tips_4': ' 1', 'node_in_ns_5': ' 0', 'node_name_4': 'sensitive 1', 'node_size_3': 200, 'node_meta_4': 1, 'node_size': 200, 'node_meta': 1, 'date': 3, 'node_in_ns': ' 0', 'node_all_tips_5': ' 1', 'node_names_4': 'FJ591489, FJ591967', 'node_names_3': 'FJ591967', 'node_all_tips': ' 1', 'node_name': 'sensitive 1', 'node_in_ns_4': ' 0', 'node_in_tips_3': ' 1', 'node_meta_5': 1, 'node_size_5': 200, 'node_fontsize_4': 80, 'node_in_tips': ' 1', 'id': 10, 'tip': 1, 'tooltip': 'RTM184V: sensitive'}, 'classes': 'sensitive'}, {'data': {'node_all_tips_3': ' 1', 'node_fontsize_5': 80, 'node_all_tips_4': ' 1', 'node_names': 'DQ344003, DQ518520, EU340715', 'node_name_5': 'sensitive 1', 'node_in_ns_3': ' 0', 'node_names_5': 'DQ344003, DQ518520, EU340715', 'node_size_4': 200, 'node_fontsize': 80, 'node_in_tips_5': ' 1', 'node_name_3': 'sensitive 1', 'node_fontsize_3': 80, 'node_in_tips_4': ' 1', 'node_in_ns_5': ' 0', 'node_name_4': 'sensitive 1', 'node_size_3': 200, 'node_meta_4': 1, 'node_size': 200, 'node_meta': 1, 'date': 3, 'node_in_ns': ' 0', 'node_all_tips_5': ' 1', 'node_names_4': 'DQ344003, DQ518520, EU340715', 'node_names_3': 'DQ344003', 'node_all_tips': ' 1', 'node_name': 'sensitive 1', 'node_in_ns_4': ' 0', 'node_in_tips_3': ' 1', 'node_meta_5': 1, 'node_size_5': 200, 'node_fontsize_4': 80, 'node_in_tips': ' 1', 'id': 11, 'tip': 1, 'tooltip': 'RTM184V: sensitive'}, 'classes': 'sensitive'}, {'data': {'node_all_tips_3': ' 2', 'node_fontsize_5': 83, 'node_all_tips_4': ' 1-2', 'node_names': 'EF379211, EU340730, FJ591529, node_3542', 'node_name_5': 'sensitive 1-2', 'node_in_ns_3': ' 1', 'node_names_5': 'EF379211, EU340730, FJ591529, node_3542', 'node_size_4': 233, 'node_fontsize': 83, 'node_in_tips_5': ' 1-2', 'node_name_3': 'sensitive 2', 'node_fontsize_3': 83, 'node_in_tips_4': ' 1-2', 'node_in_ns_5': ' 0-1', 'node_name_4': 'sensitive 1-2', 'node_size_3': 233, 'node_meta_4': 1, 'node_size': 233, 'node_meta': 1, 'date': 3, 'node_in_ns': ' 0-1', 'node_all_tips_5': ' 1-2', 'node_names_4': 'EF379211, EU340730, FJ591529, node_3542', 'node_names_3': 'node_3542', 'node_all_tips': ' 1-2', 'node_name': 'sensitive 1-2', 'node_in_ns_4': ' 0-1', 'node_in_tips_3': ' 2', 'node_meta_5': 1, 'node_size_5': 233, 'node_fontsize_4': 83, 'node_in_tips': ' 1-2', 'id': 12, 'tip': 1, 'tooltip': 'RTM184V: sensitive'}, 'classes': 'sensitive'}, {'data': {'node_all_tips_3': ' 2', 'node_fontsize_5': 80, 'node_all_tips_4': ' 30', 'node_names': 'node_388', 'node_name_5': ' 0', 'node_in_ns_3': ' 8', 'node_names_5': 'node_388', 'node_size_4': 266, 'unresolved': 1, 'node_name_3': ' 0', 'node_fontsize': 80, 'node_in_tips_5': ' 0', 'node_fontsize_3': 80, 'node_in_tips_4': ' 0', 'node_in_ns_5': ' 30', 'node_name_4': ' 0', 'node_size_3': 266, 'node_size': 266, 'date': 3, 'node_in_ns': ' 30', 'node_all_tips_5': ' 32', 'node_names_4': 'node_388', 'node_names_3': 'node_388', 'node_all_tips': ' 32', 'node_name': ' 0', 'node_in_ns_4': ' 30', 'node_in_tips_3': ' 0', 'node_size_5': 266, 'node_fontsize_4': 80, 'node_in_tips': ' 0', 'id': 13, 'tooltip': 'RTM184V: resistant or sensitive'}, 'classes': 'resistant-sensitive'}, {'data': {'node_all_tips_3': ' 7', 'node_fontsize_5': 80, 'node_fontsize_2': 80, 'node_all_tips_4': ' 63', 'node_names': 'node_580', 'node_all_tips_2': ' 1', 'node_name_5': ' 0', 'node_in_ns_3': ' 3', 'node_size_2': 266, 'node_names_5': 'node_580', 'node_size_4': 266, 'unresolved': 1, 'node_name_3': ' 0', 'node_fontsize': 80, 'node_in_tips_5': ' 0', 'node_fontsize_3': 80, 'node_in_tips_4': ' 0', 'node_in_ns_5': ' 16', 'node_name_4': ' 0', 'node_in_tips_2': ' 0', 'node_size_3': 266, 'node_size': 266, 'node_name_2': ' 0', 'date': 2, 'node_in_ns': ' 16', 'node_all_tips_5': ' 69', 'node_names_4': 'node_580', 'node_names_3': 'node_580', 'node_all_tips': ' 69', 'node_in_ns_2': ' 2', 'node_name': ' 0', 'node_in_ns_4': ' 16', 'node_in_tips_3': ' 0', 'node_names_2': 'node_580', 'node_size_5': 266, 'node_fontsize_4': 80, 'node_in_tips': ' 0', 'id': 14, 'tooltip': 'RTM184V: resistant or sensitive'}, 'classes': 'resistant-sensitive'}, {'data': {'node_all_tips_3': ' 1', 'node_fontsize_5': 83, 'node_all_tips_4': ' 1-2', 'node_names': 'AY787522, DQ826605, DQ826612, DQ826645, DQ826660, EF186939, EF186954, EU110072, EU158882, EU484324, EU683793, FJ878956, FJ878965, FJ907488, JQ898250, JQ898254, JQ898261, JQ898265, KC870038, KF835515, KU341723, KU341731, node_375', 'node_name_5': 'sensitive 1-2', 'node_in_ns_3': ' 0', 'node_names_5': 'AY787522, DQ826605, DQ826612, DQ826645, DQ826660, EF186939, EF186954, EU110072, EU158882, EU484324, EU683793, FJ878956, FJ878965, FJ907488, JQ898250, JQ898254, JQ898261, JQ898265, KC870038, KF835515, KU341723, KU341731, node_375', 'node_size_4': 233, 'node_fontsize': 83, 'node_in_tips_5': ' 1-2', 'node_name_3': 'sensitive 1', 'node_fontsize_3': 80, 'node_in_tips_4': ' 1-2', 'node_in_ns_5': ' 0-1', 'node_name_4': 'sensitive 1-2', 'node_size_3': 200, 'node_meta_4': 1, 'node_size': 233, 'node_meta': 1, 'date': 3, 'node_in_ns': ' 0-1', 'node_all_tips_5': ' 1-2', 'node_names_4': 'AY787522, DQ826605, DQ826612, DQ826645, DQ826660, EF186939, EF186954, EU110072, EU158882, EU484324, EU683793, FJ878956, FJ878965, FJ907488, JQ898250, JQ898254, JQ898261, JQ898265, KF835515, KU341731, node_375', 'node_names_3': 'AY787522, KU341731', 'node_all_tips': ' 1-2', 'node_meta_3': 1, 'node_name': 'sensitive 1-2', 'node_in_ns_4': ' 0-1', 'node_in_tips_3': ' 1', 'node_meta_5': 1, 'node_size_5': 233, 'node_fontsize_4': 83, 'node_in_tips': ' 1-2', 'id': 15, 'tip': 1, 'tooltip': 'RTM184V: sensitive'}, 'classes': 'sensitive'}, {'data': {'node_all_tips_3': ' 5', 'node_fontsize_5': 126, 'node_fontsize_2': 80, 'node_all_tips_4': ' 26', 'node_names': 'node_540', 'node_all_tips_2': ' 1', 'node_name_5': 'sensitive 27', 'node_in_ns_3': ' 12', 'node_size_2': 200, 'node_names_5': 'node_540', 'node_size_4': 578, 'node_name_3': 'sensitive 5', 'node_fontsize': 126, 'node_in_tips_5': ' 27', 'node_fontsize_3': 93, 'node_in_tips_4': ' 24', 'node_in_ns_5': ' 28', 'node_name_4': 'sensitive 24', 'node_in_tips_2': ' 1', 'node_size_3': 315, 'node_size': 603, 'node_name_2': 'sensitive 1', 'date': 2, 'node_in_ns': ' 28', 'node_all_tips_5': ' 29', 'node_names_4': 'node_540', 'node_names_3': 'node_540', 'node_all_tips': ' 29', 'node_in_ns_2': ' 3', 'node_name': 'sensitive 27', 'node_in_ns_4': ' 28', 'node_in_tips_3': ' 5', 'node_names_2': 'node_540', 'node_size_5': 603, 'node_fontsize_4': 123, 'node_in_tips': ' 27', 'id': 16, 'tip': 1, 'tooltip': 'RTM184V: sensitive'}, 'classes': 'sensitive'}, {'data': {'node_fontsize_5': 87, 'node_all_tips_4': ' 1-3', 'node_names': 'EU110057, EU110058, EU110065, EU110078, EU158892, EU683773, EU683775, KX069219, KX069228, node_541, node_543, node_571', 'node_name_5': 'sensitive 1-3', 'node_names_5': 'EU110057, EU110058, EU110065, EU110078, EU158892, EU683773, EU683775, KX069219, KX069228, node_541, node_543, node_571', 'node_size_4': 263, 'node_fontsize': 87, 'node_in_tips_5': ' 1-3', 'node_in_tips_4': ' 1-3', 'node_in_ns_5': ' 0-2', 'node_name_4': 'sensitive 1-3', 'node_meta_4': 1, 'node_size': 263, 'node_meta': 1, 'date': 4, 'node_in_ns': ' 0-2', 'node_all_tips_5': ' 1-3', 'node_names_4': 'EU110057, EU110058, EU110065, EU110078, EU158892, EU683773, EU683775, node_541, node_543, node_571', 'node_all_tips': ' 1-3', 'node_name': 'sensitive 1-3', 'node_in_ns_4': ' 0-2', 'node_meta_5': 1, 'node_size_5': 263, 'node_fontsize_4': 87, 'node_in_tips': ' 1-3', 'id': 17, 'tip': 1, 'tooltip': 'RTM184V: sensitive'}, 'classes': 'sensitive'}], 'edges': [{'data': {'source': 0, 'target': 1, 'edge_name_3': '', 'edge_size': 50, 'edge_name': '', 'edge_name_5': '', 'edge_size_5': 50, 'edge_name_4': '', 'date': 3, 'edge_size_4': 50, 'edge_size_3': 50}}, {'data': {'source': 0, 'target': 2, 'edge_name_3': '40', 'edge_size': 150, 'edge_name': '89', 'edge_name_5': '89', 'edge_meta': 1, 'edge_size_2': 50, 'edge_size_5': 150, 'edge_meta_4': 1, 'edge_meta_5': 1, 'edge_name_4': '88', 'edge_name_2': '', 'edge_meta_3': 1, 'date': 2, 'edge_size_4': 148, 'edge_size_3': 94}}, {'data': {'source': 0, 'target': 3, 'edge_name_3': '', 'edge_size': 50, 'edge_name': '', 'edge_name_5': '', 'edge_size_2': 50, 'edge_size_5': 50, 'edge_name_2': '', 'edge_name_4': '', 'date': 2, 'edge_size_4': 50, 'edge_size_3': 50}}, {'data': {'source': 1, 'target': 4, 'edge_name_3': '7', 'edge_size': 67, 'edge_name': '16', 'edge_name_5': '16', 'edge_meta': 1, 'edge_size_5': 67, 'edge_meta_5': 1, 'edge_meta_4': 1, 'edge_name_4': '16', 'edge_meta_3': 1, 'date': 3, 'edge_size_4': 67, 'edge_size_3': 56}}, {'data': {'source': 1, 'target': 5, 'edge_name_3': '3', 'edge_size': 54, 'edge_name': '5', 'edge_name_5': '5', 'edge_meta': 1, 'edge_size_5': 54, 'edge_meta_5': 1, 'edge_meta_4': 1, 'edge_name_4': '5', 'edge_meta_3': 1, 'date': 3, 'edge_size_4': 54, 'edge_size_3': 52}}, {'data': {'source': 1, 'target': 6, 'edge_name_3': '3', 'edge_size': 52, 'edge_name': '3', 'edge_name_5': '3', 'edge_meta': 1, 'edge_size_5': 52, 'edge_meta_5': 1, 'edge_meta_4': 1, 'edge_name_4': '3', 'edge_meta_3': 1, 'date': 3, 'edge_size_4': 52, 'edge_size_3': 52}}, {'data': {'source': 1, 'target': 7, 'edge_name_3': '14', 'edge_size': 142, 'edge_name': '82', 'edge_name_5': '82', 'edge_meta': 1, 'edge_size_5': 142, 'edge_meta_4': 1, 'edge_meta_5': 1, 'edge_name_4': '78', 'edge_meta_3': 1, 'date': 3, 'edge_size_4': 137, 'edge_size_3': 64}}, {'data': {'source': 3, 'target': 8, 'edge_name_3': '', 'edge_size': 50, 'edge_name': '', 'edge_name_5': '', 'edge_size_2': 50, 'edge_size_5': 50, 'edge_name_2': '', 'edge_name_4': '', 'date': 2, 'edge_size_4': 50, 'edge_size_3': 50}}, {'data': {'source': 3, 'target': 9, 'edge_name_3': '4', 'edge_size': 81, 'edge_name': '29', 'edge_name_5': '28', 'edge_meta': 1, 'edge_size_5': 80, 'edge_meta_4': 1, 'edge_meta_5': 1, 'edge_name_4': '28', 'edge_meta_3': 1, 'date': 3, 'edge_size_4': 80, 'edge_size_3': 53}}, {'data': {'source': 4, 'target': 10, 'edge_name_3': '', 'edge_size': 51, 'edge_name': '2', 'edge_name_5': '2', 'edge_meta': 1, 'edge_size_5': 51, 'edge_meta_4': 1, 'edge_meta_5': 1, 'edge_name_4': '2', 'date': 3, 'edge_size_4': 51, 'edge_size_3': 50}}, {'data': {'source': 5, 'target': 11, 'edge_name_3': '', 'edge_size': 52, 'edge_name': '3', 'edge_name_5': '3', 'edge_meta': 1, 'edge_size_5': 52, 'edge_meta_4': 1, 'edge_meta_5': 1, 'edge_name_4': '3', 'date': 3, 'edge_size_4': 52, 'edge_size_3': 50}}, {'data': {'source': 6, 'target': 12, 'edge_name_3': '', 'edge_size': 53, 'edge_name': '4', 'edge_name_5': '4', 'edge_meta': 1, 'edge_size_5': 53, 'edge_meta_4': 1, 'edge_meta_5': 1, 'edge_name_4': '4', 'date': 3, 'edge_size_4': 53, 'edge_size_3': 50}}, {'data': {'source': 8, 'target': 13, 'edge_name_3': '', 'edge_size': 50, 'edge_name': '', 'edge_name_5': '', 'edge_size_5': 50, 'edge_name_4': '', 'date': 3, 'edge_size_4': 50, 'edge_size_3': 50}}, {'data': {'source': 8, 'target': 14, 'edge_name_3': '', 'edge_size': 50, 'edge_name': '', 'edge_name_5': '', 'edge_size_2': 50, 'edge_size_5': 50, 'edge_name_2': '', 'edge_name_4': '', 'date': 2, 'edge_size_4': 50, 'edge_size_3': 50}}, {'data': {'source': 13, 'target': 15, 'edge_name_3': '2', 'edge_size': 75, 'edge_name': '23', 'edge_name_5': '23', 'edge_meta': 1, 'edge_size_5': 75, 'edge_meta_4': 1, 'edge_meta_5': 1, 'edge_name_4': '21', 'edge_meta_3': 1, 'date': 3, 'edge_size_4': 72, 'edge_size_3': 51}}, {'data': {'source': 14, 'target': 16, 'edge_name_3': '', 'edge_size': 50, 'edge_name': '', 'edge_name_5': '', 'edge_size_2': 50, 'edge_size_5': 50, 'edge_name_2': '', 'edge_name_4': '', 'date': 2, 'edge_size_4': 50, 'edge_size_3': 50}}, {'data': {'source': 14, 'target': 17, 'edge_size': 62, 'edge_name': '12', 'edge_name_5': '12', 'edge_meta': 1, 'edge_size_5': 62, 'edge_meta_4': 1, 'edge_meta_5': 1, 'edge_name_4': '10', 'date': 4, 'edge_size_4': 60}}]},
+
+  layout: layoutOptions,
+
+  ready: function(){
+    window.cy = this;
+  }
+});
+
+function addQtips() {
+    cy.filter(function(ele, i, eles) {
+        return ele.isNode() && ele.data('tooltip') !== undefined;
+    } ).qtip({
+        content: function(){
+                var tooltip = '<br><div style="overflow: auto;"><span style="white-space:nowrap;">' + this.data('tooltip') + '</span></div>';
+                if (this.data('node_meta') !== undefined) {
+                    tooltip += '<br><div style="overflow: auto;"><span style="white-space:nowrap;">ids: ' + this.data('node_names') + '</span></div>';
+                } else {
+                    tooltip += '<br>id: ' + this.data('node_names') + '<br>';
+                }
+                tooltip += '<br>tips inside: ' + this.data('node_in_tips');
+                tooltip += '<br>total tips in the subtree: ' + this.data('node_all_tips');
+                tooltip += '<br>internal nodes inside: ' + this.data('node_in_ns');
+                return tooltip;
+            },
+        show: {event: 'mouseover'},
+        hide: {event: 'mouseout'},
+        style: {classes: 'qtip-bootstrap'},
+        position: {at: 'center bottom'}
+    });
+}
+
+cy.minZoom(.001);
+cy.maxZoom(20);
+addQtips();
+
+
+function toImage(){
+    document.getElementById("downloader").href = cy.jpg({ full: false, quality: 1.0, scale: 2}).replace(/^data:image\/[^;]/, 'data:application/octet-stream');
+}
+
+function fit() {
+    cy.fit();
+}
+
+function resetLayout() {
+    cy.layout(layoutOptions).run();
+}
+
+var years = ['1986', '1991.8', '1997.6', '2003.4', '2009.2', '2015'];
+var slider = document.getElementById("myRange");
+if (slider !== null) {
+    var output = document.getElementById("demo");
+    output.innerHTML = years[slider.value]; // Display the default slider value
+
+    // Update the current slider value (each time you drag the slider handle)
+    var removed = cy.collection();
+
+    slider.oninput = function() {
+        output.innerHTML = years[this.value];
+        removed.restore();
+        removed = cy.remove("[date>" + this.value + "]");
+        var list = cy.$("");
+        for (var i=0, ele; ele = list[i]; i++) {
+            if (ele.data('node_name_' + this.value) !== undefined) {
+                ele.data('node_name', ele.data('node_name_' + this.value));
+            }
+            if (ele.data('node_names_' + this.value) !== undefined) {
+                ele.data('node_names', ele.data('node_names_' + this.value));
+            }
+            if (ele.data('node_fontsize_' + this.value) !== undefined) {
+                ele.data('node_fontsize', ele.data('node_fontsize_' + this.value));
+            }
+            if (ele.data('node_in_tips_' + this.value) !== undefined) {
+                ele.data('node_in_tips', ele.data('node_in_tips_' + this.value));
+            }
+            if (ele.data('node_in_ns_' + this.value) !== undefined) {
+                ele.data('node_in_ns', ele.data('node_in_ns_' + this.value));
+            }
+            if (ele.data('node_all_tips_' + this.value) !== undefined) {
+                ele.data('node_all_tips', ele.data('node_all_tips_' + this.value));
+            }
+            if (ele.data('node_size_' + this.value) !== undefined) {
+                ele.data('node_size', ele.data('node_size_' + this.value));
+            }
+            if (ele.data('edge_name_' + this.value) !== undefined) {
+                ele.data('edge_name', ele.data('edge_name_' + this.value));
+            }
+            if (ele.data('edge_size_' + this.value) !== undefined) {
+                ele.data('edge_size', ele.data('edge_size_' + this.value));
+            }
+            if (ele.data('edge_meta_' + this.value) !== undefined) {
+                ele.data('edge_meta', ele.data('edge_meta_' + this.value))
+            } else if (ele.data('edge_meta') !== undefined) {
+                ele.removeData('edge_meta');
+                cy.remove(ele);
+                cy.add(ele);
+            }
+            if (ele.data('node_meta_' + this.value) !== undefined) {
+                ele.data('node_meta', ele.data('node_meta_' + this.value));
+            } else if (ele.data('node_meta') !== undefined) {
+                ele.removeData('node_meta');
+            }
+        }
+    }
+}
+
+function toggleFullScreen() {
+  var elem = document.getElementById("fullscreenDiv");
+  if ((document.fullScreenElement && document.fullScreenElement !== null) ||
+   (!document.mozFullScreen && !document.webkitIsFullScreen)) {
+    if (elem.requestFullScreen) {
+      elem.requestFullScreen();
+    } else if (elem.mozRequestFullScreen) {
+      elem.mozRequestFullScreen();
+    } else if (elem.webkitRequestFullScreen) {
+      elem.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+    }
+    document.getElementById("fsspan").className = "glyphicon glyphicon-resize-small"
+    document.getElementById("fstext").innerHTML = "  Exit full screen"
+  } else {
+    if (document.cancelFullScreen) {
+      document.cancelFullScreen();
+    } else if (document.mozCancelFullScreen) {
+      document.mozCancelFullScreen();
+    } else if (document.webkitCancelFullScreen) {
+      document.webkitCancelFullScreen();
+    }
+    document.getElementById("fsspan").className = "glyphicon glyphicon-fullscreen"
+    document.getElementById("fstext").innerHTML = "  Full screen"
+  }
+}</script>
+</body>
+</html>
