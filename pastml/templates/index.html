@@ -138,6 +138,9 @@ a.cy-button:link, a.cy-button:visited, a.cy-button:hover {
     <a class="cy-button" href="#" id="downloader_svg" onclick="saveAsSvg()" download="{{title}}.svg">
         <span class="glyphicon glyphicon-save"></span><span class="buttontext">  Save (svg)</span>
     </a>
+    <a class="cy-button" href="#" id="fullscreen" onclick="toggleFullScreen()">
+        <span id="fsspan" class="glyphicon glyphicon-fullscreen"></span><span id="fstext" class="buttontext">  Full screen</span>
+    </a>
     {{slider}}
 </div></div>
 <!-- Load appplication code at the end to ensure DOM is loaded -->

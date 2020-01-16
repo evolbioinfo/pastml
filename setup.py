@@ -24,7 +24,7 @@ setup(
     author_email='anna.zhukova@pasteur.fr',
     url='https://github.com/evolbioinfo/pastml',
     keywords=['PASTML', 'visualisation', 'phylogeny', 'ancestral character reconstruction'],
-    install_requires=['ete3', 'pandas', 'numpy', 'jinja2', 'scipy', 'itolapi'],
+    install_requires=['ete3', 'pandas', 'numpy', 'jinja2', 'scipy', 'itolapi', 'biopython'],
     entry_points={
             'console_scripts': [
                 'pastml = pastml.acr:main',
