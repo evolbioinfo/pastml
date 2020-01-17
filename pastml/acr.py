@@ -24,7 +24,7 @@ from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, 
 from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 
-PASTML_VERSION = '1.9.22'
+PASTML_VERSION = '1.9.23'
 
 warnings.filterwarnings("ignore", append=True)
 
@@ -510,7 +510,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         logger.debug('\n=============VISUALISATION=====================')
         visualize(roots, column2states=column2states, html=html, html_compressed=html_compressed,
                   name_column=name_column, tip_size_threshold=tip_size_threshold, date_label=age_label,
-                  timeline_type=timeline_type, work_dir=work_dir, local_css_js=not offline)
+                  timeline_type=timeline_type, work_dir=work_dir, local_css_js=offline)
 
     async_result.wait()
     if itol_result:
