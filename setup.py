@@ -10,6 +10,7 @@ setup(
                              os.path.join('templates', 'fonts', '*'),
                              os.path.join('..', 'README.md')]},
     long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
