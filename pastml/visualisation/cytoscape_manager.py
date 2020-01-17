@@ -1,6 +1,8 @@
 import logging
 import os
+from glob import glob
 from queue import Queue
+from shutil import copyfile
 
 import numpy as np
 from jinja2 import Environment, PackageLoader
@@ -9,6 +11,13 @@ from pastml.tree import DATE
 from pastml.visualisation.colour_generator import get_enough_colours, WHITE
 from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, TIPS_INSIDE, TIPS_BELOW, \
     REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP
+
+JS_LIST = ["https://pastml.pasteur.fr/static/js/cytoscape.min.js",
+           "https://pastml.pasteur.fr/static/js/jquery.min.js",
+           "https://pastml.pasteur.fr/static/js/jquery.qtip.min.js",
+           "https://pastml.pasteur.fr/static/js/cytoscape-qtip.js"]
+CSS_LIST = ["https://pastml.pasteur.fr/static/css/jquery.qtip.min.css",
+            "https://pastml.pasteur.fr/static/css/bootstrap.min.css"]
 
 MAX_TIPS_FOR_FULL_TREE_VISUALISATION = 5000
 
@@ -383,7 +392,7 @@ def get_tooltip(n, columns):
 
 
 def save_as_cytoscape_html(forest, out_html, column2states, name_feature, name2colour, compressed_forest,
-                           milestone_label, timeline_type, milestones, get_date):
+                           milestone_label, timeline_type, milestones, get_date, work_dir, local_css_js=False):
     """
     Converts a forest to an html representation using Cytoscape.js.
 
@@ -408,7 +417,8 @@ def save_as_cytoscape_html(forest, out_html, column2states, name_feature, name2c
         json_dict, clazzes \
             = _forest2json(forest, columns, name_feature=name_feature, get_date=get_date, milestones=milestones,
                            timeline_type=timeline_type)
-    env = Environment(loader=PackageLoader('pastml'))
+    loader = PackageLoader('pastml')
+    env = Environment(loader=loader)
     template = env.get_template('pie_tree.js') if compressed_forest is not None \
         else env.get_template('pie_tree_simple.js')
 
@@ -432,9 +442,32 @@ def save_as_cytoscape_html(forest, out_html, column2states, name_feature, name2c
                                                          name=milestone_label) if len(milestones) > 1 else ''
 
     template = env.get_template('index.html')
-    page = template.render(graph=graph, title=graph_name, slider=slider)
-
     os.makedirs(os.path.abspath(os.path.dirname(out_html)), exist_ok=True)
+
+    if local_css_js:
+        js_list = []
+        os.makedirs(os.path.join(work_dir, 'js'), exist_ok=True)
+        os.makedirs(os.path.join(work_dir, 'css'), exist_ok=True)
+        os.makedirs(os.path.join(work_dir, 'fonts'), exist_ok=True)
+
+        template_dir = os.path.join(os.path.abspath(os.path.split(__file__)[0]), '..', 'templates')
+        for _ in sorted(glob(os.path.join(template_dir, 'js', '*.js'))):
+            cp = os.path.join(work_dir, 'js', os.path.split(_)[1])
+            copyfile(_, cp)
+            js_list.append(cp)
+        css_list = []
+        for _ in glob(os.path.join(template_dir, 'css', '*.css')):
+            cp = os.path.join(work_dir, 'css', os.path.split(_)[1])
+            copyfile(_, cp)
+            css_list.append(cp)
+        for _ in glob(os.path.join(template_dir, 'fonts', '*.*')):
+            cp = os.path.join(work_dir, 'fonts', os.path.split(_)[1])
+            copyfile(_, cp)
+    else:
+        js_list = JS_LIST
+        css_list = CSS_LIST
+    page = template.render(graph=graph, title=graph_name, slider=slider, js_list=js_list, css_list=css_list)
+
     with open(out_html, 'w+') as fp:
         fp.write(page)
 
@@ -466,8 +499,9 @@ def get_column_value_str(n, column, format_list=True, list_value=''):
     return ' or '.join(sorted(values)) if format_list or len(values) == 1 else list_value
 
 
-def visualize(forest, column2states, name_column=None, html=None, html_compressed=None,
-              tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, date_label='Dist. to root', timeline_type=TIMELINE_SAMPLED):
+def visualize(forest, column2states, work_dir, name_column=None, html=None, html_compressed=None,
+              tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, date_label='Dist. to root', timeline_type=TIMELINE_SAMPLED,
+              local_css_js=False):
 
     one_column = next(iter(column2states.keys())) if len(column2states) == 1 else None
 
@@ -533,7 +567,8 @@ def visualize(forest, column2states, name_column=None, html=None, html_compresse
         else:
             save_as_cytoscape_html(forest, html, column2states=column2states, name2colour=name2colour,
                                    name_feature='name', compressed_forest=None, milestone_label=date_label,
-                                   timeline_type=timeline_type, milestones=milestones, get_date=get_date)
+                                   timeline_type=timeline_type, milestones=milestones, get_date=get_date,
+                                   work_dir=work_dir, local_css_js=local_css_js)
 
     if html_compressed:
         compressed_forest = [compress_tree(tree, columns=column2states.keys(), tip_size_threshold=tip_size_threshold)
@@ -555,4 +590,4 @@ def visualize(forest, column2states, name_column=None, html=None, html_compresse
         save_as_cytoscape_html(forest, html_compressed, column2states=column2states, name2colour=name2colour,
                                name_feature=name_column, compressed_forest=compressed_forest,
                                milestone_label=date_label, timeline_type=timeline_type,
-                               milestones=milestones, get_date=get_date)
+                               milestones=milestones, get_date=get_date, work_dir=work_dir, local_css_js=local_css_js)

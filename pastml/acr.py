@@ -5,6 +5,7 @@ from multiprocessing.pool import ThreadPool
 
 import numpy as np
 import pandas as pd
+from Bio.Phylo import NewickIO, write
 from ete3 import Tree
 
 from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, NUM_SCENARIOS
@@ -23,7 +24,7 @@ from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, 
 from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 
-PASTML_VERSION = '1.9.20'
+PASTML_VERSION = '1.9.22'
 
 warnings.filterwarnings("ignore", append=True)
 
@@ -311,7 +312,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                     tip_size_threshold=REASONABLE_NUMBER_OF_TIPS,
                     out_data=None, html_compressed=None, html=None, work_dir=None,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
-                    itol_tree_name=None):
+                    itol_tree_name=None, offline=False):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -403,6 +404,13 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         and marginal probability (for marginal ML methods (pastml.ml.MPPA, pastml.ml.MAP) only) files are to be stored.
         Default is <path_to_input_file>/<input_file_name>_pastml. If the folder does not exist, it will be created.
     :type work_dir: str
+    :param offline: (optional, default is False) By default (offline=False) PastML assumes
+        that there is an internet connection available,
+        which permits it to fetch CSS and JS scripts needed for visualisation online.
+        With offline=True, PastML will store all the needed CSS/JS scripts in the folder specified by work_dir,
+        so that internet connection is not needed
+        (but you must not move the output html files to any location other that the one specified by html/html_compressed.
+    :type offline: bool
 
     :param verbose: (optional, default is False) print information on the progress of the analysis.
     :type verbose: bool
@@ -463,13 +471,35 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         name_column = ml_name_column if ml_name_column in column2states \
             else get_personalized_feature_name(name_column, get_default_mp_method())
 
-
     itol_result = None
     pool = ThreadPool()
     new_tree = os.path.join(work_dir, get_named_tree_file(tree))
-    nwks = [root.write(format_root_node=True, format=3) for root in roots]
+    features = list(column2states.keys())
+    nwks = [root.write(format_root_node=True, format=3, features=[DATE] + features) for root in roots]
     with open(new_tree, 'w+') as f:
         f.write('\n'.join(nwks))
+    try:
+        nexus = new_tree.replace('.nwk', '.nexus')
+        if '.nexus' not in nexus:
+            nexus = '{}.nexus'.format(nexus)
+        write(NewickIO.parse(nwks), nexus, 'nexus')
+        with open(nexus, 'r') as f:
+            nexus_str = f.read().replace('&&NHX:', '&')
+            for feature in features:
+                # # fixing multiple locations: going from A|B|C to {A, B, C}
+                # any_state = '|'.join(column2states[feature])
+                # for multistate in re.findall('[:]{}[=](?:{})(?:[|](?:{}))+'
+                # .format(feature, any_state, any_state), nexus_str):
+                #     nexus_str = nexus_str.replace(multistate,
+                #                                   ':{}={{{}}}'.format(feature,
+                #                                                         multistate.replace(':{}='.format(feature), '')
+                #                                                         .replace('|', ',')))
+                nexus_str = nexus_str.replace(':{}='.format(feature), ',{}='.format(feature))
+        with open(nexus, 'w') as f:
+            f.write(nexus_str)
+    except Exception as e:
+        logger.error('Did not manage to save the annotated tree in nexus format due to the following error: {}'.format(e))
+        pass
     async_result = pool.map_async(func=_serialize_acr, iterable=((acr_res, work_dir) for acr_res in acr_results))
     if upload_to_itol:
         itol_result = pool.apply_async(func=generate_itol_annotations,
@@ -480,7 +510,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         logger.debug('\n=============VISUALISATION=====================')
         visualize(roots, column2states=column2states, html=html, html_compressed=html_compressed,
                   name_column=name_column, tip_size_threshold=tip_size_threshold, date_label=age_label,
-                  timeline_type=timeline_type)
+                  timeline_type=timeline_type, work_dir=work_dir, local_css_js=not offline)
 
     async_result.wait()
     if itol_result:
@@ -555,7 +585,7 @@ def _validate_input(columns, data, data_sep, root_dates, id_index, name_column, 
                          'Check your annotation file.'
                          .format(', '.join(tip_name_representatives),
                                  ', '.join(list(df_index_names)[: min(len(df_index_names), 3)])))
-    logger.debug('Checked that tip names correspond to annotation file index.')
+    logger.debug('Checked that (at least some of) tip names correspond to annotation file index.')
 
     if name_column:
         name_column = col_name2cat(name_column)
@@ -565,7 +595,8 @@ def _validate_input(columns, data, data_sep, root_dates, id_index, name_column, 
     elif len(df.columns) == 1:
         name_column = df.columns[0]
 
-    percentage_unknown = filtered_df.isnull().sum(axis=0) / filtered_df.shape[0]
+    num_tips = sum(len(tree) for tree in roots)
+    percentage_unknown = (num_tips - (len(filtered_df) - filtered_df.isnull().sum(axis=0))) / num_tips
     max_unknown_percentage = percentage_unknown.max()
     if max_unknown_percentage >= (.9 if not copy_only else 1):
         raise ValueError('{:.1f}% of tip annotations for column "{}" are unknown, '
@@ -728,6 +759,14 @@ def main():
                                 "are hidden, and the external branches are cut to the specified date/distance to root "
                                 "if needed;".format(sampled=TIMELINE_SAMPLED, ltt=TIMELINE_LTT, nodes=TIMELINE_NODES),
                            choices=[TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT])
+    vis_group.add_argument('--offline', action='store_true',
+                           help="By default (without --offline option) PastML assumes "
+                                "that there is an internet connection available, "
+                                "which permits it to fetch CSS and JS scripts needed for visualisation online."
+                                "With --offline option turned on, PastML will store all the needed CSS/JS scripts "
+                                "in the folder specified by --work_dir, so that internet connection is not needed "
+                                "(but you must not move the output html files to any location "
+                                "other that the one specified by --html/--html_compressed).")
 
     out_group = parser.add_argument_group('output-related arguments')
     out_group.add_argument('-o', '--out_data', required=False, type=str,

@@ -183,7 +183,7 @@ def rescale(likelihood_array, fraction_of_limit):
     return factors
 
 
-def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br_len,
+def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br_len, observed_frequencies,
                                optimise_sf=True, optimise_frequencies=True, optimise_kappa=True,
                                model=F81):
     """
@@ -235,16 +235,29 @@ def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br
                                               kappa=kappa_val, is_marginal=True, model=model) for tree in forest)
         return np.inf if pd.isnull(res) else -res
 
-    for i in range(10):
+    x0_JC = np.hstack((frequencies[:-1] / frequencies[-1] if optimise_frequencies else [],
+                       [sf] if optimise_sf else [],
+                       [kappa] if optimise_kappa else []))
+    x0_EFT = x0_JC if not optimise_frequencies else \
+        np.hstack((observed_frequencies[:-1] / observed_frequencies[-1], [sf] if optimise_sf else [],
+                   [kappa] if optimise_kappa else []))
+    log_lh_JC = -get_v(x0_JC)
+    log_lh_EFT = log_lh_JC if not optimise_frequencies else -get_v(x0_EFT)
+
+    best_log_lh = max(log_lh_JC, log_lh_EFT)
+
+    for i in range(100):
         if i == 0:
-            vs = np.hstack((frequencies[:-1] / frequencies[-1] if optimise_frequencies else [],
-                            [sf] if optimise_sf else [],
-                            [kappa] if optimise_kappa else []))
+            vs = x0_JC
+        elif optimise_frequencies and i == 1:
+            vs = x0_EFT
         else:
             vs = np.random.uniform(bounds[:, 0], bounds[:, 1])
         fres = minimize(get_v, x0=vs, method='L-BFGS-B', bounds=bounds)
         if fres.success and not np.any(np.isnan(fres.x)):
-            return get_real_params_from_optimised(fres.x), -fres.fun
+            if -fres.fun >= best_log_lh:
+                return get_real_params_from_optimised(fres.x), -fres.fun
+    return get_real_params_from_optimised(x0_JC if log_lh_JC >= log_lh_EFT else x0_EFT), best_log_lh
 
 
 def calculate_top_down_likelihood(tree, character, frequencies, sf, kappa=None, model=F81):
@@ -732,7 +745,7 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
                                                                 frequencies=frequencies, sf=sf, kappa=kappa,
                                                                 optimise_frequencies=False, optimise_sf=optimise_sf,
                                                                 optimise_kappa=False, avg_br_len=avg_br_len,
-                                                                model=model)
+                                                                model=model, observed_frequencies=observed_frequencies)
             if optimise_frequencies or optimise_kappa:
                 logger.debug('Pre-optimised SF for {}:{}{}.'
                              .format(character,
@@ -741,9 +754,11 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
                                      '\n\tlog likelihood:\t{:.3f}'.format(likelihood)))
         if optimise_frequencies or optimise_kappa:
             (frequencies, sf, kappa), likelihood = \
-                optimize_likelihood_params(forest=forest, character=character, frequencies=frequencies, sf=sf, kappa=kappa,
-                                           optimise_frequencies=optimise_frequencies, optimise_sf=optimise_sf,
-                                           optimise_kappa=optimise_kappa, avg_br_len=avg_br_len, model=model)
+                optimize_likelihood_params(forest=forest, character=character, frequencies=frequencies,
+                                           sf=sf, kappa=kappa, optimise_frequencies=optimise_frequencies,
+                                           optimise_sf=optimise_sf,
+                                           optimise_kappa=optimise_kappa, avg_br_len=avg_br_len, model=model,
+                                           observed_frequencies=observed_frequencies)
 
         logger.debug('Optimised {} values:{}{}{}{}'
                      .format(character,
