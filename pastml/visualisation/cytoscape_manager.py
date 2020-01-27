@@ -12,10 +12,11 @@ from pastml.visualisation.colour_generator import get_enough_colours, WHITE
 from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, TIPS_INSIDE, TIPS_BELOW, \
     REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP
 
-JS_LIST = ["https://pastml.pasteur.fr/static/js/cytoscape.min.js",
-           "https://pastml.pasteur.fr/static/js/jquery.min.js",
+JS_LIST = ["https://pastml.pasteur.fr/static/js/jquery.min.js",
            "https://pastml.pasteur.fr/static/js/jquery.qtip.min.js",
-           "https://pastml.pasteur.fr/static/js/cytoscape-qtip.js"]
+           "https://pastml.pasteur.fr/static/js/cytoscape.min.js",
+           "https://pastml.pasteur.fr/static/js/cytoscape-qtip.js",
+           "https://pastml.pasteur.fr/static/js/cytoscape-svg.js"]
 CSS_LIST = ["https://pastml.pasteur.fr/static/css/jquery.qtip.min.css",
             "https://pastml.pasteur.fr/static/css/bootstrap.min.css"]
 

@@ -24,7 +24,7 @@ from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, 
 from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 
-PASTML_VERSION = '1.9.23'
+PASTML_VERSION = '1.9.24'
 
 warnings.filterwarnings("ignore", append=True)
 
