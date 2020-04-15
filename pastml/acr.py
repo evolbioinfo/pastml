@@ -208,7 +208,8 @@ def reconstruct_ancestral_states(forest, character, states, prediction_method=MP
         freqs, sf, kappa = None, None, None
         if params is not None:
             freqs, sf, kappa = _parse_pastml_parameters(params, states)
-        return ml_acr(forest=forest, character=character, prediction_method=prediction_method, model=model, states=states,
+        return ml_acr(forest=forest, character=character, prediction_method=prediction_method, model=model,
+                      states=states,
                       avg_br_len=avg_br_len, num_nodes=num_nodes, num_tips=num_tips, freqs=freqs, sf=sf, kappa=kappa,
                       force_joint=force_joint)
     if is_parsimonious(prediction_method):
@@ -218,7 +219,7 @@ def reconstruct_ancestral_states(forest, character, states, prediction_method=MP
                      .format(prediction_method, ', '.join(ML_METHODS), ', '.join(MP_METHODS), COPY))
 
 
-def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, force_joint=True):
+def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, force_joint=True, threads=0):
     """
     Reconstructs ancestral states for the given tree and
     all the characters specified as columns of the given annotation dataframe.
@@ -245,6 +246,11 @@ def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, f
     :param force_joint: (optional, default is True) whether the JOINT state should be added to the MPPA prediction
         even when not selected by the Brier score
     :type force_joint: bool
+
+    :param threads: (optional, default is 0, which stands for automatic) number of threads PastML can use for parallesation.
+        By default detected automatically based on the system. Note that PastML will at most use as many threads
+        as the number of characters (-c option) being analysed plus one.
+    :type threads: int
 
     :return: list of ACR result dictionaries, one per character.
     :rtype: list(dict)
@@ -286,11 +292,19 @@ def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, f
         df[column] = df[column].apply(lambda _: _ if _ in state_set else '')
         return states
 
-    with ThreadPool() as pool:
-        acr_results = \
-            pool.map(func=_work, iterable=((forest, column, get_states(method, model, column), method, model,
-                                            column2parameters[column] if column in column2parameters else None)
-                                           for (column, method, model) in zip(columns, prediction_methods, models)))
+    if threads < 1:
+        threads = max(os.cpu_count(), 1)
+
+    if threads > 1:
+        with ThreadPool(processes=threads - 1) as pool:
+            acr_results = \
+                pool.map(func=_work, iterable=((forest, column, get_states(method, model, column), method, model,
+                                                column2parameters[column] if column in column2parameters else None)
+                                               for (column, method, model) in zip(columns, prediction_methods, models)))
+    else:
+        acr_results = [_work((forest, column, get_states(method, model, column), method, model,
+                              column2parameters[column] if column in column2parameters else None))
+                       for (column, method, model) in zip(columns, prediction_methods, models)]
 
     result = []
     for acr_res in acr_results:
@@ -312,7 +326,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                     tip_size_threshold=REASONABLE_NUMBER_OF_TIPS,
                     out_data=None, html_compressed=None, html=None, work_dir=None,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
-                    itol_tree_name=None, offline=False):
+                    itol_tree_name=None, offline=False, threads=0):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -415,6 +429,11 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     :param verbose: (optional, default is False) print information on the progress of the analysis.
     :type verbose: bool
 
+    :param threads: (optional, default is 0, which stands for automatic) number of threads PastML can use for parallesation.
+        By default detected automatically based on the system. Note that PastML will at most use as many threads
+        as the number of characters (-c option) being analysed plus one.
+    :type threads: int
+
     :param upload_to_itol: (optional, default is False) whether the annotated tree should be uploaded to iTOL
         (https://itol.embl.de/)
     :type upload_to_itol: bool
@@ -456,8 +475,11 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         work_dir = get_pastml_work_dir(tree)
     os.makedirs(work_dir, exist_ok=True)
 
+    if threads < 1:
+        threads = max(os.cpu_count(), 1)
+
     acr_results = acr(roots, df, prediction_method=prediction_method, model=model, column2parameters=parameters,
-                      force_joint=forced_joint)
+                      force_joint=forced_joint, threads=threads)
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
 
     if not out_data:
@@ -472,7 +494,6 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
             else get_personalized_feature_name(name_column, get_default_mp_method())
 
     itol_result = None
-    pool = ThreadPool()
     new_tree = os.path.join(work_dir, get_named_tree_file(tree))
     features = list(column2states.keys())
     nwks = [root.write(format_root_node=True, format=3, features=[DATE] + features) for root in roots]
@@ -498,13 +519,23 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         with open(nexus, 'w') as f:
             f.write(nexus_str)
     except Exception as e:
-        logger.error('Did not manage to save the annotated tree in nexus format due to the following error: {}'.format(e))
+        logger.error(
+            'Did not manage to save the annotated tree in nexus format due to the following error: {}'.format(e))
         pass
-    async_result = pool.map_async(func=_serialize_acr, iterable=((acr_res, work_dir) for acr_res in acr_results))
-    if upload_to_itol:
-        itol_result = pool.apply_async(func=generate_itol_annotations,
-                                       args=(column2states, work_dir, acr_results, state_df, age_label,
-                                             new_tree, itol_id, itol_project, itol_tree_name))
+
+    if threads > 1:
+        pool = ThreadPool(processes=threads - 1)
+        async_result = pool.map_async(func=_serialize_acr, iterable=((acr_res, work_dir) for acr_res in acr_results))
+        if upload_to_itol:
+            itol_result = pool.apply_async(func=generate_itol_annotations,
+                                           args=(column2states, work_dir, acr_results, state_df, age_label,
+                                                 new_tree, itol_id, itol_project, itol_tree_name))
+    else:
+        for acr_res in acr_results:
+            _serialize_acr((acr_res, work_dir))
+        if upload_to_itol:
+            generate_itol_annotations(column2states, work_dir, acr_results, state_df, age_label,
+                                      new_tree, itol_id, itol_project, itol_tree_name)
 
     if html or html_compressed:
         logger.debug('\n=============VISUALISATION=====================')
@@ -512,10 +543,11 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                   name_column=name_column, tip_size_threshold=tip_size_threshold, date_label=age_label,
                   timeline_type=timeline_type, work_dir=work_dir, local_css_js=offline)
 
-    async_result.wait()
-    if itol_result:
-        itol_result.wait()
-    pool.close()
+    if threads > 1:
+        async_result.wait()
+        if upload_to_itol:
+            itol_result.wait()
+        pool.close()
 
 
 def parse_date(d):
@@ -785,6 +817,12 @@ def main():
                            help="print information on the progress of the analysis (to console)")
 
     parser.add_argument('--version', action='version', version='%(prog)s {version}'.format(version=PASTML_VERSION))
+
+    parser.add_argument('--threads', required=False, default=0, type=int,
+                        help="Number of threads PastML can use for parallesation. "
+                             "By default detected automatically based on the system. "
+                             "Note that PastML will at most use as many threads "
+                             "as the number of characters (-c option) being analysed plus one.")
 
     itol_group = parser.add_argument_group('iTOL-related arguments')
     itol_group.add_argument('--upload_to_itol', action='store_true',

@@ -817,7 +817,7 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
         process_reconstructed_states(JOINT)
 
     if is_marginal(prediction_method):
-        result[MARGINAL_PROBABILITIES] = []
+        mps = []
         for tree in forest:
             initialize_allowed_states(tree, character, states)
             alter_zero_tip_allowed_states(tree, character)
@@ -827,11 +827,11 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
             unalter_zero_tip_allowed_states(tree, character, state2index)
             calculate_marginal_likelihoods(tree, character, frequencies)
             # check_marginal_likelihoods(tree, feature)
-            result[MARGINAL_PROBABILITIES].append(convert_likelihoods_to_probabilities(tree, character, states))
+            mps.append(convert_likelihoods_to_probabilities(tree, character, states))
 
             choose_ancestral_states_map(tree, character, states)
+        result[MARGINAL_PROBABILITIES] = pd.concat(mps, copy=False) if len(mps) != 1 else mps[0]
         process_restricted_likelihood_and_states(MAP)
-        result[MARGINAL_PROBABILITIES] = pd.concat(result[MARGINAL_PROBABILITIES], copy=False)
 
         if MPPA == prediction_method or is_meta_ml(prediction_method):
 
