@@ -5,7 +5,6 @@ from multiprocessing.pool import ThreadPool
 
 import numpy as np
 import pandas as pd
-from datetime import datetime
 from Bio.Phylo import NewickIO, write
 from ete3 import Tree
 
@@ -27,14 +26,14 @@ from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, 
 from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 
-PASTML_VERSION = '1.9.25'
+PASTML_VERSION = '1.9.26'
 
 warnings.filterwarnings("ignore", append=True)
 
 COPY = 'COPY'
 
 
-def _parse_pastml_parameters(params, states):
+def _parse_pastml_parameters(params, states, reoptimise=False):
     logger = logging.getLogger('pastml')
     frequencies, sf, kappa = None, None, None
     if not isinstance(params, str) and not isinstance(params, dict):
@@ -61,24 +60,28 @@ def _parse_pastml_parameters(params, states):
     params = {str(k.encode('ASCII', 'replace').decode()): v for (k, v) in params.items()}
     frequencies_specified = set(states) & set(params.keys())
     if frequencies_specified:
-        if len(frequencies_specified) < len(states):
+        if len(frequencies_specified) < len(states) and not reoptimise:
             logger.error('Some frequency parameters are specified, but missing the following states: {}, '
                          'ignoring specified frequencies.'.format(', '.join(set(states) - frequencies_specified)))
         else:
-            frequencies = np.array([params[state] for state in states])
             try:
+                min_freq = min(float(params[state]) for state in frequencies_specified if float(params[state]) > 0) / 10
+                frequencies = np.array([params[state] if state in params.keys() else min_freq for state in states])
                 frequencies = frequencies.astype(np.float64)
-                if np.round(frequencies.sum() - 1, 3) != 0:
+                if np.round(frequencies.sum() - 1, 3) != 0 and not reoptimise:
                     logger.error('Specified frequencies ({}) do not sum up to one,'
                                  'ignoring them.'.format(frequencies))
                     frequencies = None
                 elif np.any(frequencies < 0):
-                    logger.error('Some of the specified frequencies ({}) are negative,'
-                                 'ignoring them.'.format(frequencies))
-                    frequencies = None
+                    if not reoptimise:
+                        logger.error('Some of the specified frequencies ({}) are negative,'
+                                     'ignoring them.'.format(frequencies))
+                        frequencies = None
+                    else:
+                        frequencies = np.maximum(frequencies, min_freq)
                 frequencies /= frequencies.sum()
             except:
-                logger.error('Specified frequencies ({}) must not be negative, ignoring them.'.format(frequencies))
+                logger.error('Specified frequencies ({}) must be float, ignoring them.'.format(frequencies))
                 frequencies = None
     if SCALING_FACTOR in params:
         sf = params[SCALING_FACTOR]
@@ -140,7 +143,7 @@ def _serialize_acr(args):
 
 
 def reconstruct_ancestral_states(forest, character, states, prediction_method=MPPA, model=F81,
-                                 params=None, avg_br_len=None, num_nodes=None, num_tips=None,
+                                 params=None, reoptimise=False, avg_br_len=None, num_nodes=None, num_tips=None,
                                  force_joint=True):
     """
     Reconstructs ancestral states for the given character on the given tree.
@@ -171,6 +174,9 @@ def reconstruct_ancestral_states(forest, character, states, prediction_method=MP
         e.g. set to 1 to keep the original branches). Could also be in a form path_to_param_file.
         Only makes sense for ML methods.
     :type params: dict or str
+    :param reoptimise: (False by default) if set to True and the parameters are specified,
+        they will be considered as an optimisation starting point instead, and the parameters will be optimised.
+    :type reoptimise: bool
 
     :return: ACR result dictionary whose values depend on the prediction method.
     :rtype: dict
@@ -198,7 +204,7 @@ def reconstruct_ancestral_states(forest, character, states, prediction_method=MP
         return ml_acr(forest=forest, character=character, prediction_method=prediction_method, model=model,
                       states=states,
                       avg_br_len=avg_br_len, num_nodes=num_nodes, num_tips=num_tips, freqs=freqs, sf=sf, kappa=kappa,
-                      force_joint=force_joint)
+                      force_joint=force_joint, reoptimise=reoptimise)
     if is_parsimonious(prediction_method):
         return parsimonious_acr(forest, character, prediction_method, states, num_nodes, num_tips)
 
@@ -206,7 +212,8 @@ def reconstruct_ancestral_states(forest, character, states, prediction_method=MP
                      .format(prediction_method, ', '.join(ML_METHODS), ', '.join(MP_METHODS), COPY))
 
 
-def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, force_joint=True, threads=0):
+def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, force_joint=True, threads=0,
+        reoptimise=False):
     """
     Reconstructs ancestral states for the given tree and
     all the characters specified as columns of the given annotation dataframe.
@@ -230,6 +237,9 @@ def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, f
         or pastml.ml.SCALING_FACTOR (then the value should be the scaling factor for three branches,
         e.g. set to 1 to keep the original branches). Could also be in a form {column: path_to_param_file}.
     :type column2parameters: dict
+    :param reoptimise: (False by default) if set to True and the parameters are specified,
+        they will be considered as an optimisation starting point instead, and the parameters will be optimised.
+    :type reoptimise: bool
     :param force_joint: (optional, default is True) whether the JOINT state should be added to the MPPA prediction
         even when not selected by the Brier score
     :type force_joint: bool
@@ -286,11 +296,12 @@ def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, f
         with ThreadPool(processes=threads - 1) as pool:
             acr_results = \
                 pool.map(func=_work, iterable=((forest, column, get_states(method, model, column), method, model,
-                                                column2parameters[column] if column in column2parameters else None)
+                                                (column2parameters[column] if column in column2parameters else None),
+                                                reoptimise)
                                                for (column, method, model) in zip(columns, prediction_methods, models)))
     else:
         acr_results = [_work((forest, column, get_states(method, model, column), method, model,
-                              column2parameters[column] if column in column2parameters else None))
+                              (column2parameters[column] if column in column2parameters else None), reoptimise))
                        for (column, method, model) in zip(columns, prediction_methods, models)]
 
     result = []
@@ -313,7 +324,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                     tip_size_threshold=REASONABLE_NUMBER_OF_TIPS,
                     out_data=None, html_compressed=None, html=None, work_dir=None,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
-                    itol_tree_name=None, offline=False, threads=0):
+                    itol_tree_name=None, offline=False, threads=0, reoptimise=False):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -372,6 +383,9 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         and parameter value - the float frequency value, between 0 and 1),
         and tree branch scaling factor (parameter name pastml.ml.SCALING_FACTOR).
     :type parameters: str or list(str) or dict
+    :param reoptimise: (False by default) if set to True and the parameters are specified,
+        they will be considered as an optimisation starting point instead, and optimised.
+    :type reoptimise: bool
 
     :param name_column: (optional) name of the annotation table column to be used for node names
         in the compressed map visualisation
@@ -466,7 +480,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         threads = max(os.cpu_count(), 1)
 
     acr_results = acr(roots, df, prediction_method=prediction_method, model=model, column2parameters=parameters,
-                      force_joint=forced_joint, threads=threads)
+                      force_joint=forced_joint, threads=threads, reoptimise=reoptimise)
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
 
     if not out_data:
@@ -766,6 +780,9 @@ def main():
                                 '(parameter name should be the corresponding state, '
                                 'and parameter value - the float frequency value, between 0 and 1),'
                                 'and tree branch scaling factor (parameter name {}).'.format(SCALING_FACTOR))
+    acr_group.add_argument('--reoptimise', action='store_true',
+                           help='if the parameters are specified, they will be considered as an optimisation '
+                                'starting point instead and optimised.')
 
     vis_group = parser.add_argument_group('visualisation-related arguments')
     vis_group.add_argument('-n', '--name_column', type=str, default=None,
