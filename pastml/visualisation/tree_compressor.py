@@ -15,6 +15,7 @@ TIPS_INSIDE = 'in_tips'
 INTERNAL_NODES_INSIDE = 'in_ns'
 TIPS_BELOW = 'all_tips'
 ROOTS = 'roots'
+ROOT_DATES = 'root_dates'
 
 COMPRESSED_NODE = 'compressed_node'
 

@@ -12,7 +12,7 @@ from pastml import numeric2datetime, datetime2numeric
 from pastml.tree import DATE
 from pastml.visualisation.colour_generator import get_enough_colours, WHITE
 from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, TIPS_INSIDE, TIPS_BELOW, \
-    REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP
+    REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP, ROOT_DATES
 
 JS_LIST = ["https://pastml.pasteur.fr/static/js/jquery.min.js",
            "https://pastml.pasteur.fr/static/js/jquery.qtip.min.js",
@@ -55,9 +55,9 @@ FONT_SIZE = 'node_fontsize'
 MILESTONE = 'mile'
 
 
-DATE_LABEL = 'Date'
+DATE_LABEL = 'date'
 
-DIST_TO_ROOT_LABEL = 'Dist. to root'
+DIST_TO_ROOT_LABEL = 'dist. to root'
 
 def get_fake_node(n_id, x, y):
     attributes = {ID: n_id, 'fake': 1}
@@ -95,7 +95,7 @@ def get_scaling_function(y_m, y_M, x_m, x_M):
 
 
 def set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling, transform_size, transform_e_size, state,
-                                 root_names, suffix=''):
+                                 root_names, root_dates, suffix=''):
     tips_inside, internal_nodes_inside, roots = getattr(n, TIPS_INSIDE, []), \
                                                 getattr(n, INTERNAL_NODES_INSIDE, []), \
                                                 getattr(n, ROOTS, [])
@@ -119,7 +119,10 @@ def set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling, 
     n.add_feature('node_{}{}'.format(TIPS_INSIDE, suffix), tips_inside_str)
     n.add_feature('node_{}{}'.format(INTERNAL_NODES_INSIDE, suffix), internal_ns_inside_str)
     n.add_feature('node_{}{}'.format(TIPS_BELOW, suffix), tips_below_str)
-    n.add_feature('node_{}{}'.format(ROOTS, suffix), ', '.join(sorted(root_names)))
+    root_name2date = dict(zip(root_names, root_dates))
+    root_names = sorted(root_names)
+    n.add_feature('node_{}{}'.format(ROOTS, suffix), ', '.join(root_names))
+    n.add_feature('node_{}{}'.format(ROOT_DATES, suffix), ', '.join(str(root_name2date[_]) for _ in root_names))
 
     edge_size = len(roots)
     if edge_size > 1:
@@ -134,7 +137,8 @@ def set_cyto_features_tree(n, state):
     n.add_feature(EDGE_NAME, n.dist)
 
 
-def _forest2json_compressed(forest, compressed_forest, columns, name_feature, get_date, milestones=None):
+def _forest2json_compressed(forest, compressed_forest, columns, name_feature, get_date, milestones=None,
+                            dates_are_dates=True):
     e_size_scaling, font_scaling, size_scaling, transform_e_size, transform_size = \
         get_size_transformations(compressed_forest)
 
@@ -165,8 +169,14 @@ def _forest2json_compressed(forest, compressed_forest, columns, name_feature, ge
             state = get_column_value_str(n, name_feature, format_list=False, list_value='') if name_feature else ''
             n2state[n] = state
             root_names = [_.name for _ in getattr(n, ROOTS)]
+            root_dates = [getattr(_, DATE) for _ in getattr(n, ROOTS)]
+            if dates_are_dates:
+                try:
+                    root_dates = [numeric2datetime(_).strftime("%d %b %Y") for _ in root_dates]
+                except:
+                    pass
             set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling,
-                                         transform_size, transform_e_size, state, root_names)
+                                         transform_size, transform_e_size, state, root_names, root_dates)
 
     # Calculate node coordinates
     min_size = 2 * min(min(getattr(_, NODE_SIZE) for _ in compressed_tree.traverse())
@@ -234,8 +244,15 @@ def _forest2json_compressed(forest, compressed_forest, columns, name_feature, ge
                     if roots_i:
                         n.add_feature(MILESTONE, i)
                         root_names = [getattr(_, BRANCH_NAME) if getattr(_, DATE) > milestone else _.name for _ in roots_i]
+                        root_dates = [getattr(_, DATE) for _ in roots_i]
+                        if dates_are_dates:
+                            try:
+                                root_dates = [numeric2datetime(_).strftime("%d %b %Y") for _ in root_dates]
+                            except:
+                                pass
                         set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling, transform_size,
-                                                     transform_e_size, state, root_names=root_names, suffix=suffix)
+                                                     transform_e_size, state, root_names=root_names, suffix=suffix,
+                                                     root_dates=root_dates)
                         nodes_i.append(n)
                 nodes = nodes_i
 
@@ -267,7 +284,8 @@ def _forest2json_compressed(forest, compressed_forest, columns, name_feature, ge
     return json_dict, sorted(clazzes)
 
 
-def _forest2json(forest, columns, name_feature, get_date, milestones=None, timeline_type=TIMELINE_SAMPLED):
+def _forest2json(forest, columns, name_feature, get_date, milestones=None, timeline_type=TIMELINE_SAMPLED,
+                 dates_are_dates=True):
 
     min_root_date = min(getattr(tree, DATE) for tree in forest)
     width = sum(len(tree) for tree in forest)
@@ -287,6 +305,12 @@ def _forest2json(forest, columns, name_feature, get_date, milestones=None, timel
         for n in tree.traverse('postorder'):
             state = get_column_value_str(n, name_feature, format_list=False, list_value='') if name_feature else ''
             n.add_feature('node_root_id', n.name)
+            n.add_feature('node_root_date', getattr(n, DATE))
+            if dates_are_dates:
+                try:
+                    n.add_feature('node_root_date', numeric2datetime(getattr(n, DATE)).strftime("%d %b %Y"))
+                except:
+                    pass
             if not n.is_leaf():
                 n2x[n] = np.mean([n2x[_] for _ in n.children])
             n2y[n] = (getattr(n, DATE) - min_root_date) * height_factor
@@ -422,11 +446,11 @@ def save_as_cytoscape_html(forest, out_html, column2states, name_feature, name2c
     if compressed_forest is not None:
         json_dict, clazzes \
             = _forest2json_compressed(forest, compressed_forest, columns, name_feature=name_feature, get_date=get_date,
-                                      milestones=milestones)
+                                      milestones=milestones, dates_are_dates=milestone_label == DATE_LABEL)
     else:
         json_dict, clazzes \
             = _forest2json(forest, columns, name_feature=name_feature, get_date=get_date, milestones=milestones,
-                           timeline_type=timeline_type)
+                           timeline_type=timeline_type, dates_are_dates=milestone_label == DATE_LABEL)
     loader = PackageLoader('pastml')
     env = Environment(loader=loader)
     template = env.get_template('pie_tree.js') if compressed_forest is not None \
@@ -447,7 +471,8 @@ def save_as_cytoscape_html(forest, out_html, column2states, name_feature, name2c
                             tips='samples' if TIMELINE_SAMPLED == timeline_type
                             else ('lineages ending' if TIMELINE_LTT == timeline_type else 'external nodes'),
                             internal_nodes='internal nodes' if TIMELINE_NODES == timeline_type
-                            else 'diversification events')
+                            else 'diversification events',
+                            age_label=milestone_label)
     slider = env.get_template('time_slider.html').render(min_date=0, max_date=len(milestones) - 1,
                                                          name=milestone_label) if len(milestones) > 1 else ''
 

@@ -139,7 +139,8 @@ function addQtips() {
     } ).qtip({
         content: function(){
                 return '<br><div style="overflow: auto;"><span style="white-space:nowrap;">'
-                + this.data('tooltip') + '</span></div>' + '<br>id: ' + this.data('node_root_id');
+                + this.data('tooltip') + '</span></div>' + '<br>id: ' + this.data('node_root_id')
+                + '<br>{{age_label}}: ' + this.data('node_root_date');
             },
         show: {event: 'mouseover'},
         hide: {event: 'mouseout'},

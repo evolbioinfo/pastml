@@ -128,8 +128,10 @@ function addQtips() {
                 var tooltip = '<br><div style="overflow: auto;"><span style="white-space:nowrap;">' + this.data('tooltip') + '</span></div>';
                 if (this.data('node_meta') !== undefined) {
                     tooltip += '<br><div style="overflow: auto;"><span style="white-space:nowrap;">ids: ' + this.data('node_roots') + '</span></div>';
+                    tooltip += '<br><div style="overflow: auto;"><span style="white-space:nowrap;">{{age_label}}: ' + this.data('node_root_dates') + '</span></div>';
                 } else {
                     tooltip += '<br>id: ' + this.data('node_roots') + '<br>';
+                    tooltip += '<br>{{age_label}}: ' + this.data('node_root_dates') + '<br>';
                 }
                 tooltip += '<br>{{tips}} inside: ' + this.data('node_in_tips');
                 tooltip += '<br>total {{tips}} in the subtree: ' + this.data('node_all_tips');
@@ -198,6 +200,9 @@ if (slider !== null) {
             }
             if (ele.data('node_roots_' + mile) !== undefined) {
                 ele.data('node_roots', ele.data('node_roots_' + mile));
+            }
+            if (ele.data('node_root_dates_' + mile) !== undefined) {
+                ele.data('node_root_dates', ele.data('node_root_dates_' + mile));
             }
             if (ele.data('node_fontsize_' + mile) !== undefined) {
                 ele.data('node_fontsize', ele.data('node_fontsize_' + mile));

@@ -14,6 +14,14 @@ class DateConversionTest(unittest.TestCase):
         d = datetime(2020, 12, 31)
         self.assertEqual(d, numeric2datetime(datetime2numeric(d)), msg='Was supposed to be 31 Dec 2020')
 
+    def test_31_Dec_1994(self):
+        d = datetime(1994, 12, 31)
+        self.assertEqual(d, numeric2datetime(datetime2numeric(d)), msg='Was supposed to be 31 Dec 1994')
+
+    def test_1_Jan_1995(self):
+        d = datetime(1995, 1, 1)
+        self.assertEqual(d, numeric2datetime(datetime2numeric(d)), msg='Was supposed to be 1 Jan 1995')
+
     def test_29_Feb_2020(self):
         d = datetime(2020, 2, 29)
         self.assertEqual(d, numeric2datetime(datetime2numeric(d)), msg='Was supposed to be 29 Feb 2020')
