@@ -5,10 +5,12 @@ from multiprocessing.pool import ThreadPool
 
 import numpy as np
 import pandas as pd
+from datetime import datetime
 from Bio.Phylo import NewickIO, write
 from ete3 import Tree
 
-from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, NUM_SCENARIOS
+from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, NUM_SCENARIOS, \
+    numeric2datetime, datetime2numeric
 from pastml.annotation import preannotate_forest, get_forest_stats
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file, get_pastml_work_dir
@@ -20,7 +22,8 @@ from pastml.models.jtt import JTT_STATES, JTT
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
     get_default_mp_method
 from pastml.tree import name_tree, collapse_zero_branches, annotate_dates, DATE, read_forest
-from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT
+from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT, \
+    DIST_TO_ROOT_LABEL, DATE_LABEL
 from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 
@@ -29,22 +32,6 @@ PASTML_VERSION = '1.9.25'
 warnings.filterwarnings("ignore", append=True)
 
 COPY = 'COPY'
-
-
-def datetime2numeric(d):
-    """
-    Converts a datetime date to numeric format.
-    For example: 2016-12-31 -> 2016.9972677595629; 2016-1-1 -> 2016.0
-    :param d: a date to be converted
-    :type d: np.datetime
-    :return: numeric representation of the date
-    :rtype: float
-    """
-    first_jan_this_year = pd.datetime(year=d.year, month=1, day=1)
-    day_of_this_year = d - first_jan_this_year
-    first_jan_next_year = pd.datetime(year=d.year + 1, month=1, day=1)
-    days_in_this_year = first_jan_next_year - first_jan_this_year
-    return d.year + day_of_this_year / days_in_this_year
 
 
 def _parse_pastml_parameters(params, states):
@@ -450,7 +437,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     """
     logger = _set_up_pastml_logger(verbose)
 
-    age_label = 'Dist. to root' if root_date is None else 'Date'
+    age_label = DIST_TO_ROOT_LABEL if root_date is None else DATE_LABEL
 
     roots, df, name_column, root_dates = \
         _validate_input(columns, data, data_sep, root_date if html_compressed or html or upload_to_itol else None,
@@ -527,6 +514,12 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         pool = ThreadPool(processes=threads - 1)
         async_result = pool.map_async(func=_serialize_acr, iterable=((acr_res, work_dir) for acr_res in acr_results))
         if upload_to_itol:
+            if DATE_LABEL == age_label:
+                try:
+                    dates = state_df[DATE].apply(lambda _: numeric2datetime(_).strftime("%d %b %Y"))
+                    state_df[DATE] = dates
+                except:
+                    pass
             itol_result = pool.apply_async(func=generate_itol_annotations,
                                            args=(column2states, work_dir, acr_results, state_df, age_label,
                                                  new_tree, itol_id, itol_project, itol_tree_name))
@@ -534,6 +527,12 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         for acr_res in acr_results:
             _serialize_acr((acr_res, work_dir))
         if upload_to_itol:
+            if DATE_LABEL == age_label:
+                try:
+                    dates = state_df[DATE].apply(lambda _: numeric2datetime(_).strftime("%d %b %Y"))
+                    state_df[DATE] = dates
+                except:
+                    pass
             generate_itol_annotations(column2states, work_dir, acr_results, state_df, age_label,
                                       new_tree, itol_id, itol_project, itol_tree_name)
 

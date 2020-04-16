@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import datetime
 from glob import glob
 from queue import Queue
 from shutil import copyfile
@@ -7,6 +8,7 @@ from shutil import copyfile
 import numpy as np
 from jinja2 import Environment, PackageLoader
 
+from pastml import numeric2datetime, datetime2numeric
 from pastml.tree import DATE
 from pastml.visualisation.colour_generator import get_enough_colours, WHITE
 from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, TIPS_INSIDE, TIPS_BELOW, \
@@ -52,6 +54,10 @@ FONT_SIZE = 'node_fontsize'
 
 MILESTONE = 'mile'
 
+
+DATE_LABEL = 'Date'
+
+DIST_TO_ROOT_LABEL = 'Dist. to root'
 
 def get_fake_node(n_id, x, y):
     attributes = {ID: n_id, 'fake': 1}
@@ -393,7 +399,8 @@ def get_tooltip(n, columns):
 
 
 def save_as_cytoscape_html(forest, out_html, column2states, name_feature, name2colour, compressed_forest,
-                           milestone_label, timeline_type, milestones, get_date, work_dir, local_css_js=False):
+                           milestone_label, timeline_type, milestones, get_date, work_dir, local_css_js=False,
+                           milestone_labels=None):
     """
     Converts a forest to an html representation using Cytoscape.js.
 
@@ -409,6 +416,8 @@ def save_as_cytoscape_html(forest, out_html, column2states, name_feature, name2c
     """
     graph_name = os.path.splitext(os.path.basename(out_html))[0]
     columns = sorted(column2states.keys())
+    if milestone_labels is None:
+        milestone_labels = ['{:g}'.format(_) for _ in milestones]
 
     if compressed_forest is not None:
         json_dict, clazzes \
@@ -434,7 +443,7 @@ def save_as_cytoscape_html(forest, out_html, column2states, name_feature, name2c
             """.format(i=i, percent=round(100 / n, 2), colour=name2colour[cat])
         clazz2css[_clazz_list2css_class(clazz_list)] = css
     graph = template.render(clazz2css=clazz2css.items(), elements=json_dict, title=graph_name,
-                            years=['{:g}'.format(_) for _ in milestones],
+                            years=milestone_labels,
                             tips='samples' if TIMELINE_SAMPLED == timeline_type
                             else ('lineages ending' if TIMELINE_LTT == timeline_type else 'external nodes'),
                             internal_nodes='internal nodes' if TIMELINE_NODES == timeline_type
@@ -553,9 +562,70 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
         dates.extend([getattr(_, DATE) for _ in (tree.traverse()
                                                  if timeline_type in [TIMELINE_LTT, TIMELINE_NODES] else tree)])
     dates = sorted(dates)
-    milestones = sorted({dates[0], dates[len(dates) // 8], dates[len(dates) // 4], dates[3 * len(dates) // 8],
-                         dates[len(dates) // 2], dates[5 * len(dates) // 8], dates[3 * len(dates) // 4],
-                         dates[7 * len(dates) // 8], dates[-1]})
+    milestones = None
+    milestone_dates = None
+    if DATE_LABEL == date_label:
+        try:
+            min_date = numeric2datetime(dates[0])
+            max_date = numeric2datetime(dates[-1])
+            year_span = max_date.year - min_date.year
+            if 2 < year_span <= 10:
+                milestone_dates = [min_date] \
+                                  + [datetime(year=y, month=1, day=1) for y in range(min_date.year + 1, max_date.year + 1)] \
+                                  + ([max_date] if max_date.month != 1 or max_date.day != 1 else [])
+            elif year_span > 10:
+                d_year = year_span // 8
+                milestone_dates = [min_date]
+                y = min_date.year + d_year
+                while y < max_date.year:
+                    milestone_dates.append(datetime(year=y, month=1, day=1))
+                    y += d_year
+                milestone_dates.append(max_date)
+            else:
+                if year_span == 0:
+                    month_span = max_date.month - min_date.month
+                else:
+                    month_span = max_date.month + (12 - min_date.month) + (year_span - 1) * 12
+                if 2 < month_span <= 10:
+                    milestone_dates = [min_date]
+                    for i in range(1, month_span):
+                        milestone_dates.append(datetime(year=min_date.year + (min_date.month + i - 1) // 12,
+                                                        month=(min_date.month + i - 1) % 12 + 1, day=1))
+                    milestone_dates.append(max_date)
+                elif month_span > 10:
+                    d_month = month_span // 8
+                    milestone_dates = [min_date]
+                    m = min_date.month + d_month
+                    while m < min_date.month + month_span:
+                        milestone_dates.append(datetime(year=min_date.year + max(0, m - 1) // 12,
+                                                        month=(m - 1) % 12 + 1, day=1))
+                        m += d_month
+                    milestone_dates.append(max_date)
+                else:
+                    day_span = (max_date - min_date).days
+                    if 2 < day_span <= 10:
+                        milestone_dates = [min_date]
+                        delta = datetime(2020, 1, 2) - datetime(2020, 1, 1)
+                        for i in range(1, day_span):
+                            milestone_dates.append(milestone_dates[-1] + delta)
+                        milestone_dates.append(max_date)
+                    elif day_span > 10:
+                        milestone_dates = [min_date]
+                        d_day = day_span // 8
+                        delta = datetime(2020, 1, 1 + d_day) - datetime(2020, 1, 1)
+                        while milestone_dates[-1] + delta < max_date:
+                            milestone_dates.append(milestone_dates[-1] + delta)
+                        milestone_dates.append(max_date)
+            if milestone_dates:
+                milestones = [datetime2numeric(_) for _ in milestone_dates]
+                milestone_labels = [_.strftime("%d %b %Y") for _ in milestone_dates]
+        except:
+            pass
+    if milestones is None:
+        milestones = sorted({dates[0], dates[len(dates) // 8], dates[len(dates) // 4], dates[3 * len(dates) // 8],
+                             dates[len(dates) // 2], dates[5 * len(dates) // 8], dates[3 * len(dates) // 4],
+                             dates[7 * len(dates) // 8], dates[-1]})
+        milestone_labels = ['{:g}'.format(_) for _ in milestones]
 
     if html:
         total_num_tips = sum(len(tree) for tree in forest)
@@ -569,7 +639,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
             save_as_cytoscape_html(forest, html, column2states=column2states, name2colour=name2colour,
                                    name_feature='name', compressed_forest=None, milestone_label=date_label,
                                    timeline_type=timeline_type, milestones=milestones, get_date=get_date,
-                                   work_dir=work_dir, local_css_js=local_css_js)
+                                   work_dir=work_dir, local_css_js=local_css_js, milestone_labels=milestone_labels)
 
     if html_compressed:
         compressed_forest = [compress_tree(tree, columns=column2states.keys(), tip_size_threshold=tip_size_threshold)
@@ -582,13 +652,20 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
             for _ in (tree.traverse() if timeline_type in [TIMELINE_LTT, TIMELINE_NODES] else tree):
                 first_date = min(first_date, getattr(_, DATE))
                 last_date = max(last_date, getattr(_, DATE))
+
         milestones = [ms for ms in milestones if first_date <= ms <= last_date]
         if milestones[0] > first_date:
             milestones.insert(0, first_date)
         if milestones[-1] < last_date:
             milestones.append(last_date)
 
+        if milestone_dates:
+            milestone_labels = [numeric2datetime(d).strftime("%d %b %Y") for d in milestones]
+        else:
+            milestone_labels = ['{:g}'.format(_) for _ in milestones]
+
         save_as_cytoscape_html(forest, html_compressed, column2states=column2states, name2colour=name2colour,
                                name_feature=name_column, compressed_forest=compressed_forest,
                                milestone_label=date_label, timeline_type=timeline_type,
-                               milestones=milestones, get_date=get_date, work_dir=work_dir, local_css_js=local_css_js)
+                               milestones=milestones, get_date=get_date, work_dir=work_dir, local_css_js=local_css_js,
+                               milestone_labels=milestone_labels)

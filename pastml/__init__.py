@@ -1,3 +1,5 @@
+from datetime import datetime
+
 METHOD = 'method'
 STATES = 'states'
 CHARACTER = 'character'
@@ -8,6 +10,44 @@ NUM_STATES_PER_NODE = 'num_states_per_node_avg'
 PERC_UNRESOLVED = 'percentage_of_unresolved_nodes'
 NUM_NODES = 'num_nodes'
 NUM_TIPS = 'num_tips'
+
+
+def datetime2numeric(d):
+    """
+    Converts a datetime date to numeric format.
+    For example: 2016-12-31 -> 2016.9972677595629; 2016-1-1 -> 2016.0
+    :param d: a date to be converted
+    :type d: np.datetime
+    :return: numeric representation of the date
+    :rtype: float
+    """
+    first_jan_this_year = datetime(year=d.year, month=1, day=1)
+    day_of_this_year = d - first_jan_this_year
+    first_jan_next_year = datetime(year=d.year + 1, month=1, day=1)
+    days_in_this_year = first_jan_next_year - first_jan_this_year
+    return d.year + day_of_this_year / days_in_this_year
+
+
+def numeric2datetime(d):
+    """
+    Converts a numeric date to  datetime format.
+    For example: 2016.9972677595629 -> 2016-12-31; 2016.0 ->  2016-1-1
+    :param d: numeric representation of a date to be converted
+    :type d: float
+    :return: the converted date
+    :rtype: np.datetime
+    """
+    year = int(d)
+    first_jan_this_year = datetime(year=year, month=1, day=1)
+    first_jan_next_year = datetime(year=year + 1, month=1, day=1)
+    days_in_this_year = first_jan_next_year - first_jan_this_year
+    day_of_this_year = int(round(days_in_this_year.days * (d % 1), 6)) + 1
+    for m in range(1, 13):
+        days_in_m = (datetime(year=year if m < 12 else (year + 1), month=m % 12 + 1, day=1)
+                     - datetime(year=year, month=m, day=1)).days
+        if days_in_m >= day_of_this_year:
+            return datetime(year=year, month=m, day=day_of_this_year)
+        day_of_this_year -= days_in_m
 
 
 def col_name2cat(column):
