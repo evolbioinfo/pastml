@@ -7,7 +7,7 @@ from pastml.ml import is_ml, is_marginal, is_meta_ml, get_default_ml_method
 PASTML_WORK_DIR = '{tree}_pastml'
 
 COMBINED_ANCESTRAL_STATE_TAB = 'combined_ancestral_states.tab'
-NAMED_TREE_NWK = 'named.tree_{tree}'
+NAMED_TREE_NWK = 'named.tree_{tree}.nwk'
 
 PASTML_ML_PARAMS_TAB = 'params.character_{state}.method_{method}.model_{model}.tab'
 PASTML_MP_PARAMS_TAB = 'params.character_{state}.method_{method}.tab'
@@ -70,7 +70,8 @@ def get_named_tree_file(tree):
     :param tree: str, the input tree in newick format.
     :return: str, filename
     """
-    return NAMED_TREE_NWK.format(tree=os.path.basename(tree))
+    tree_name = os.path.splitext(os.path.basename(tree))[0]
+    return NAMED_TREE_NWK.format(tree=tree_name if tree_name else 'tree')
 
 
 def get_pastml_marginal_prob_file(method, model, column):

@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime
+from collections import defaultdict
 from glob import glob
 from queue import Queue
 from shutil import copyfile
@@ -8,8 +8,9 @@ from shutil import copyfile
 import numpy as np
 from jinja2 import Environment, PackageLoader
 
-from pastml import numeric2datetime, datetime2numeric
-from pastml.tree import DATE
+from pastml import numeric2datetime
+from pastml.tree import DATE, DATE_CI
+from pastml.visualisation import get_formatted_date
 from pastml.visualisation.colour_generator import get_enough_colours, WHITE
 from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, TIPS_INSIDE, TIPS_BELOW, \
     REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP, ROOT_DATES
@@ -163,18 +164,15 @@ def _forest2json_compressed(forest, compressed_forest, columns, name_feature, ge
                 todo.put_nowait(c)
 
     n2state = {}
+
+
     # Set the cytoscape features
     for compressed_tree in compressed_forest:
         for n in compressed_tree.traverse():
             state = get_column_value_str(n, name_feature, format_list=False, list_value='') if name_feature else ''
             n2state[n] = state
             root_names = [_.name for _ in getattr(n, ROOTS)]
-            root_dates = [getattr(_, DATE) for _ in getattr(n, ROOTS)]
-            if dates_are_dates:
-                try:
-                    root_dates = [numeric2datetime(_).strftime("%d %b %Y") for _ in root_dates]
-                except:
-                    pass
+            root_dates = [get_formatted_date(_, dates_are_dates) for _ in getattr(n, ROOTS)]
             set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling,
                                          transform_size, transform_e_size, state, root_names, root_dates)
 
@@ -305,12 +303,7 @@ def _forest2json(forest, columns, name_feature, get_date, milestones=None, timel
         for n in tree.traverse('postorder'):
             state = get_column_value_str(n, name_feature, format_list=False, list_value='') if name_feature else ''
             n.add_feature('node_root_id', n.name)
-            n.add_feature('node_root_date', getattr(n, DATE))
-            if dates_are_dates:
-                try:
-                    n.add_feature('node_root_date', numeric2datetime(getattr(n, DATE)).strftime("%d %b %Y"))
-                except:
-                    pass
+            n.add_feature('node_root_date', get_formatted_date(n, dates_are_dates))
             if not n.is_leaf():
                 n2x[n] = np.mean([n2x[_] for _ in n.children])
             n2y[n] = (getattr(n, DATE) - min_root_date) * height_factor
@@ -537,10 +530,10 @@ def get_column_value_str(n, column, format_list=True, list_value=''):
 def visualize(forest, column2states, work_dir, name_column=None, html=None, html_compressed=None,
               tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, date_label='Dist. to root', timeline_type=TIMELINE_SAMPLED,
               local_css_js=False):
-
     one_column = next(iter(column2states.keys())) if len(column2states) == 1 else None
 
     name2colour = {}
+    state2color = None
     for column, states in column2states.items():
         num_unique_values = len(states)
         colours = get_enough_colours(num_unique_values)
@@ -614,6 +607,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
                                    work_dir=work_dir, local_css_js=local_css_js, milestone_labels=milestone_labels)
 
     if html_compressed:
+        resolve_polytomies(column2states, forest, name_column, state2color)
         compressed_forest = [compress_tree(tree, columns=column2states.keys(), tip_size_threshold=tip_size_threshold)
                              for tree in forest]
 
@@ -644,3 +638,49 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
                                milestone_label=date_label, timeline_type=timeline_type,
                                milestones=milestones, get_date=get_date, work_dir=work_dir, local_css_js=local_css_js,
                                milestone_labels=milestone_labels)
+
+
+def resolve_polytomies(column2states, forest, name_column, state2color):
+    columns = sorted(column2states.keys())
+
+    def get_prediction(n):
+        return tuple(tuple(sorted(getattr(n, c, set()))) for c in columns)
+
+    for tree in forest:
+        todo = [tree]
+        while todo:
+            n = todo.pop()
+            todo.extend(n.children)
+            if len(n.children) > 2:
+                n_date = getattr(n, DATE)
+                n_ci = getattr(n, DATE_CI, None)
+                state2children = defaultdict(list)
+                for c in n.children:
+                    state2children[get_prediction(c)].append(c)
+                if len(state2children) > 1:
+                    i = 0
+                    for children in state2children.values():
+                        if len(children) > 1:
+                            pol = n.add_child(dist=0, name='{}.polytomy_{}'.format(n.name, i))
+                            i += 1
+                            child = children[0]
+                            pol.add_feature(DATE, n_date)
+                            pol.add_feature(DATE_CI, n_ci)
+                            for c in columns:
+                                pol.add_feature(c, getattr(child, c))
+                            if hasattr(child, UNRESOLVED):
+                                pol.add_feature(UNRESOLVED, getattr(child, UNRESOLVED))
+                            if name_column is not None:
+                                sts = getattr(pol, name_column, set())
+                                if len(sts) == 1:
+                                    col = state2color[next(iter(sts))]
+                                    if getattr(n, name_column, set()) == sts:
+                                        pol.add_feature('edge_color', col)
+                                    for c in children:
+                                        c.add_feature('edge_color', col)
+                            pol.add_feature(BRANCH_NAME, '{}-{}'.format(n.name, pol.name))
+                            for c in children:
+                                c.add_feature(BRANCH_NAME, '{}-{}'.format(pol.name, c.name))
+                            for c in children:
+                                n.remove_child(c)
+                                pol.add_child(c)

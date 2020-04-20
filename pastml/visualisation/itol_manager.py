@@ -150,8 +150,9 @@ def upload_to_itol(tree_path, dataset_paths, tree_name=None, tree_description=No
     status = itol_uploader.upload()
     if not status:
         logging.getLogger('pastml').error(
-            'Failed to upload your tree to iTOL, please check your internet connection and itol settings{}.'
-                .format((', e.g. your iTOL batch upload id ({}){}'
+            'Failed to upload your tree to iTOL because of "{}". Please check your internet connection and itol settings{}.'
+                .format(itol_uploader.comm.upload_output,
+                        (', e.g. your iTOL batch upload id ({}){}'
                          .format(upload_id,
                                  (' and whether the project {} exists'.format(project_name) if project_name else '')))
                         if upload_id else ''))

@@ -20,13 +20,14 @@ from pastml.models.hky import KAPPA, HKY_STATES, HKY
 from pastml.models.jtt import JTT_STATES, JTT
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
     get_default_mp_method
-from pastml.tree import name_tree, collapse_zero_branches, annotate_dates, DATE, read_forest
+from pastml.tree import name_tree, collapse_zero_branches, annotate_dates, DATE, read_forest, DATE_CI
 from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT, \
     DIST_TO_ROOT_LABEL, DATE_LABEL
 from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
+from pastml.visualisation import get_formatted_date
 
-PASTML_VERSION = '1.9.26'
+PASTML_VERSION = '1.9.27'
 
 warnings.filterwarnings("ignore", append=True)
 
@@ -451,13 +452,15 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     """
     logger = _set_up_pastml_logger(verbose)
 
-    age_label = DIST_TO_ROOT_LABEL if root_date is None else DATE_LABEL
-
     roots, df, name_column, root_dates = \
         _validate_input(columns, data, data_sep, root_date if html_compressed or html or upload_to_itol else None,
                         id_index, name_column if html_compressed else None, tree,
                         copy_only=COPY == prediction_method or (isinstance(prediction_method, list)
                                                                 and all(COPY == _ for _ in prediction_method)))
+
+    age_label = DIST_TO_ROOT_LABEL \
+        if (root_date is None and not next((True for root in roots if getattr(root, DATE, None) is not None), False)) \
+        else DATE_LABEL
     annotate_dates(roots, root_dates=root_dates)
 
     if parameters:
@@ -486,7 +489,8 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     if not out_data:
         out_data = os.path.join(work_dir, get_combined_ancestral_state_file())
 
-    state_df = _serialize_predicted_states(sorted(column2states.keys()), out_data, roots)
+    state_df = _serialize_predicted_states(sorted(column2states.keys()), out_data, roots,
+                                           dates_are_dates=age_label==DATE_LABEL)
 
     # a meta-method would have added a suffix to the name feature
     if html_compressed and name_column and name_column not in column2states:
@@ -497,7 +501,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     itol_result = None
     new_tree = os.path.join(work_dir, get_named_tree_file(tree))
     features = list(column2states.keys())
-    nwks = [root.write(format_root_node=True, format=3, features=[DATE] + features) for root in roots]
+    nwks = [root.write(format_root_node=True, format=3, features=[DATE, DATE_CI] + features) for root in roots]
     with open(new_tree, 'w+') as f:
         f.write('\n'.join(nwks))
     try:
@@ -508,14 +512,6 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         with open(nexus, 'r') as f:
             nexus_str = f.read().replace('&&NHX:', '&')
             for feature in features:
-                # # fixing multiple locations: going from A|B|C to {A, B, C}
-                # any_state = '|'.join(column2states[feature])
-                # for multistate in re.findall('[:]{}[=](?:{})(?:[|](?:{}))+'
-                # .format(feature, any_state, any_state), nexus_str):
-                #     nexus_str = nexus_str.replace(multistate,
-                #                                   ':{}={{{}}}'.format(feature,
-                #                                                         multistate.replace(':{}='.format(feature), '')
-                #                                                         .replace('|', ',')))
                 nexus_str = nexus_str.replace(':{}='.format(feature), ',{}='.format(feature))
         with open(nexus, 'w') as f:
             f.write(nexus_str)
@@ -658,14 +654,14 @@ def _validate_input(columns, data, data_sep, root_dates, id_index, name_column, 
     return roots, df, name_column, root_dates
 
 
-def _serialize_predicted_states(columns, out_data, roots):
+def _serialize_predicted_states(columns, out_data, roots, dates_are_dates=True):
     ids, data = [], []
     # Not using DataFrames to speed up document writing
     with open(out_data, 'w+') as f:
         f.write('node\t{}\n'.format('\t'.join(columns)))
         for root in roots:
             for node in root.traverse():
-                vs = [node.dist, getattr(node, DATE)]
+                vs = [node.dist, get_formatted_date(node, dates_are_dates)]
                 column2values = {}
                 for column in columns:
                     value = getattr(node, column, set())
