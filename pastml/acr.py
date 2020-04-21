@@ -27,7 +27,7 @@ from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 from pastml.visualisation import get_formatted_date
 
-PASTML_VERSION = '1.9.27'
+PASTML_VERSION = '1.9.28'
 
 warnings.filterwarnings("ignore", append=True)
 
@@ -611,7 +611,6 @@ def _validate_input(columns, data, data_sep, root_dates, id_index, name_column, 
         df = df[columns]
 
     df.columns = [col_name2cat(column) for column in df.columns]
-
     node_names = set.union(*[{n.name for n in root.traverse() if n.name} for root in roots])
     df_index_names = set(df.index)
     filtered_df = df.loc[node_names & df_index_names, :]

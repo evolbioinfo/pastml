@@ -11,8 +11,9 @@ DATE = 'date'
 DATE_CI = 'date_CI'
 
 DATE_REGEX = r'[+-]*[\d]+[.\d]*(?:[e][+-][\d]+){0,1}'
-DATE_COMMENT_REGEX = '[&]date[=]"({})"'.format(DATE_REGEX)
-CI_DATE_REGEX = '[&]CI_date[=]"({}) ({})"'.format(DATE_REGEX, DATE_REGEX)
+DATE_COMMENT_REGEX = '[&,:]date[=]["]{{0,1}}({})["]{{0,1}}'.format(DATE_REGEX)
+CI_DATE_REGEX_LSD = '[&,:]CI_date[=]["]{{0,1}}({}) ({})["]{{0,1}}'.format(DATE_REGEX, DATE_REGEX)
+CI_DATE_REGEX_PASTML = '[&,:]date_CI[=]["]{{0,1}}({})[|]({})["]{{0,1}}'.format(DATE_REGEX, DATE_REGEX)
 
 
 def get_dist_to_root(tip):
@@ -34,6 +35,16 @@ def annotate_dates(forest, root_dates=None):
                     node.add_feature(DATE, root_date if root_date else 0)
                 else:
                     node.add_feature(DATE, getattr(node.up, DATE) + node.dist)
+            else:
+                node.add_feature(DATE, float(getattr(node, DATE)))
+            ci = getattr(node, DATE_CI, None)
+            if ci and not isinstance(ci, list) and not isinstance(ci, tuple):
+                node.del_feature(DATE_CI)
+                if isinstance(ci, str) and '|' in ci:
+                    try:
+                        node.add_feature(DATE_CI, [float(_) for _ in ci.split('|')])
+                    except:
+                        pass
 
 
 def name_tree(tree, suffix=""):
@@ -128,18 +139,22 @@ def remove_certain_leaves(tr, to_remove=lambda node: False):
 
 
 def read_forest(tree_path):
+    roots = parse_nexus(tree_path)
     try:
-        return parse_nexus(tree_path)
+        roots = parse_nexus(tree_path)
+        if roots:
+            return roots
     except:
-        with open(tree_path, 'r') as f:
-            nwks = f.read().replace('\n', '').split(';')
-        if not nwks:
-            raise ValueError('Could not find any trees (in newick or nexus format) in the file {}.'.format(tree_path))
-        return [read_tree(nwk + ';') for nwk in nwks[:-1]]
+        pass
+    with open(tree_path, 'r') as f:
+        nwks = f.read().replace('\n', '').split(';')
+    if not nwks:
+        raise ValueError('Could not find any trees (in newick or nexus format) in the file {}.'.format(tree_path))
+    return [read_tree(nwk + ';') for nwk in nwks[:-1]]
 
 
 def read_tree(tree_path):
-    for f in (3, 2, 5, 1, 0, 3, 4, 6, 7, 8, 9):
+    for f in (3, 2, 5, 0, 1, 4, 6, 7, 8, 9):
         try:
             return Tree(tree_path, format=f)
         except:
@@ -150,7 +165,6 @@ def read_tree(tree_path):
 def parse_nexus(tree_path):
     trees = []
     for nex_tree in read_nexus(tree_path):
-
         todo = [(nex_tree.root, None)]
         tree = None
         while todo:
@@ -169,11 +183,21 @@ def parse_nexus(tree_path):
             # Parse LSD2 dates and CIs
             date, ci = None, None
             comment = getattr(clade, 'comment', None)
-            if comment is not None:
+            if isinstance(comment, str):
                 date = next(iter(re.findall(DATE_COMMENT_REGEX, comment)), None)
-            ci_attr = getattr(clade, 'branch_length' if not parent else 'confidence', None)
-            if ci_attr is not None:
-                ci = next(iter(re.findall(CI_DATE_REGEX, ci_attr)), None)
+                ci = next(iter(re.findall(CI_DATE_REGEX_LSD, comment)), None)
+                if ci is None:
+                    ci = next(iter(re.findall(CI_DATE_REGEX_PASTML, comment)), None)
+            comment = getattr(clade, 'branch_length', None)
+            if not ci and not parent and isinstance(comment, str):
+                ci = next(iter(re.findall(CI_DATE_REGEX_LSD, comment)), None)
+                if ci is None:
+                    ci = next(iter(re.findall(CI_DATE_REGEX_PASTML, comment)), None)
+            comment = getattr(clade, 'confidence', None)
+            if ci is None and comment is not None and isinstance(comment, str):
+                ci = next(iter(re.findall(CI_DATE_REGEX_LSD, comment)), None)
+                if ci is None:
+                    ci = next(iter(re.findall(CI_DATE_REGEX_PASTML, comment)), None)
 
             if date is not None:
                 try:

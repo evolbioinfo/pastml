@@ -55,4 +55,7 @@ def preannotate_forest(df, forest):
         for node in tree.traverse('postorder'):
             if node.name in gdf.index:
                 node.add_features(**gdf.loc[node.name, :].to_dict())
+            else:
+                for c in df.columns:
+                    node.del_feature(c)
     return df.columns
