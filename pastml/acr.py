@@ -27,7 +27,7 @@ from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 from pastml.visualisation import get_formatted_date
 
-PASTML_VERSION = '1.9.29'
+PASTML_VERSION = '1.9.29.1'
 
 warnings.filterwarnings("ignore", append=True)
 
@@ -532,6 +532,19 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
             'Did not manage to save the annotated tree in nexus format due to the following error: {}'.format(e))
         pass
 
+    if upload_to_itol or html or html_compressed:
+        if colours:
+            if isinstance(colours, str):
+                colours = [colours]
+            if isinstance(colours, list):
+                colours = dict(zip(df.columns, colours))
+            elif isinstance(colours, dict):
+                colours = {col_name2cat(col): cls for (col, cls) in colours.items()}
+            else:
+                raise ValueError('Colours should be either a list or a dict, got {}.'.format(type(colours)))
+        else:
+            colours = {}
+
     if threads > 1:
         pool = ThreadPool(processes=threads - 1)
         async_result = pool.map_async(func=_serialize_acr, iterable=((acr_res, work_dir) for acr_res in acr_results))
@@ -544,7 +557,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                     pass
             itol_result = pool.apply_async(func=generate_itol_annotations,
                                            args=(column2states, work_dir, acr_results, state_df, age_label,
-                                                 new_tree, itol_id, itol_project, itol_tree_name))
+                                                 new_tree, itol_id, itol_project, itol_tree_name, colours))
     else:
         for acr_res in acr_results:
             _serialize_acr((acr_res, work_dir))
@@ -556,21 +569,10 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                 except:
                     pass
             generate_itol_annotations(column2states, work_dir, acr_results, state_df, age_label,
-                                      new_tree, itol_id, itol_project, itol_tree_name)
+                                      new_tree, itol_id, itol_project, itol_tree_name, colours)
 
     if html or html_compressed:
         logger.debug('\n=============VISUALISATION=====================')
-        if colours:
-            if isinstance(colours, str):
-                colours = [colours]
-            if isinstance(colours, list):
-                colours = dict(zip(df.columns, colours))
-            elif isinstance(colours, dict):
-                colours = {col_name2cat(col): cls for (col, cls) in colours.items()}
-            else:
-                raise ValueError('Colours should be either a list or a dict, got {}.'.format(type(colours)))
-        else:
-            colours = {}
         visualize(roots, column2states=column2states, html=html, html_compressed=html_compressed,
                   name_column=name_column, tip_size_threshold=tip_size_threshold, date_label=age_label,
                   timeline_type=timeline_type, work_dir=work_dir, local_css_js=offline, column2colours=colours)
@@ -833,7 +835,7 @@ def main():
                                 "in the folder specified by --work_dir, so that internet connection is not needed "
                                 "(but you must not move the output html files to any location "
                                 "other that the one specified by --html/--html_compressed).")
-    acr_group.add_argument('--colours', type=str, nargs='*',
+    vis_group.add_argument('--colours', type=str, nargs='*',
                            help='optional way to specify the colours used for character state visualisation. '
                                 'Should be in the same order '
                                 'as the ancestral characters (see -c, --columns) '

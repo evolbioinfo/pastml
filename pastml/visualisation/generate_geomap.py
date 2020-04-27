@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from jinja2 import Environment, PackageLoader
 
-from pastml.visualisation.colour_generator import get_enough_colours
+from pastml.visualisation.colour_generator import get_enough_colours, parse_colours
 from pastml.tree import read_tree
 
 ISO_EXISTS = False
@@ -48,12 +48,17 @@ def main():
     out_group = parser.add_argument_group('output-related arguments')
     out_group.add_argument('-o', '--html', required=False, default=None, type=str,
                            help="the output map visualisation file (html).")
+    out_group.add_argument('--colours', type=str, required=False, default=None,
+                           help='optional way to specify the colours used for location visualisation. '
+                                'Should be a path to a tab-delimited file, with two columns: '
+                                'the first one containing possible locations, '
+                                'and the second, named "colour", containing colours, in HEX format (e.g. #a6cee3).')
     params = parser.parse_args()
 
     generate_map(**vars(params))
 
 
-def generate_map(data, country, location, html, tree=None, data_sep='\t', id_index=0):
+def generate_map(data, country, location, html, tree=None, data_sep='\t', id_index=0, colours=None):
     df = pd.read_csv(data, sep=data_sep, header=0, index_col=id_index)
     if country not in df.columns:
         raise ValueError('The country column {} not found among the annotation columns: {}.'
@@ -80,7 +85,11 @@ def generate_map(data, country, location, html, tree=None, data_sep='\t', id_ind
                                .format(c, iso2num[iso], iso2loc_num[iso], iso2loc[iso]))
                    for (c, iso) in country2iso.items()}
     locations = sorted([_ for _ in df[location].unique() if not pd.isnull(_)])
-    colours = get_enough_colours(len(locations))
+    num_unique_values = len(locations)
+    if colours:
+        colours = parse_colours(colours, locations)
+    else:
+        colours = get_enough_colours(num_unique_values)
     iso2colour = {iso: colours[locations.index(loc)] for iso, loc in iso2loc.items()}
 
     env = Environment(loader=PackageLoader('pastml'))

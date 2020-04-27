@@ -5,7 +5,7 @@ import pandas as pd
 
 from pastml.ml import is_marginal, MARGINAL_PROBABILITIES, MODEL
 from pastml import METHOD, CHARACTER, STATES
-from pastml.visualisation.colour_generator import get_enough_colours
+from pastml.visualisation.colour_generator import get_enough_colours, parse_colours
 from itolapi import Itol
 
 from pastml.tree import DATE
@@ -57,7 +57,8 @@ POPUP_CONTENT_TEMPLATE = "<b>{key}: </b>" \
 
 
 def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
-                              tree_path, itol_id=None, itol_project=None, itol_tree_name=None):
+                              tree_path, itol_id=None, itol_project=None, itol_tree_name=None,
+                              column2colours=None):
     annotation_files = []
     popup_file = os.path.join(work_dir, 'iTOL_popup_info.txt')
     with open(popup_file, 'w+') as pf:
@@ -71,7 +72,11 @@ def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
     for acr_result in acrs:
         column = acr_result[CHARACTER]
         states = acr_result[STATES]
-        colours = get_enough_colours(len(states))
+        num_unique_values = len(states)
+        if column2colours and column in column2colours:
+            colours = parse_colours(column2colours[column], states)
+        else:
+            colours = get_enough_colours(num_unique_values)
         value2colour = dict(zip(states, colours))
         style_file = os.path.join(work_dir, 'iTOL_style-{}.txt'.format(column))
         with open(style_file, 'w+') as sf:
