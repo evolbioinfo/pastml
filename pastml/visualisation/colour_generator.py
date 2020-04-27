@@ -1,4 +1,8 @@
 import colorsys
+import os
+import re
+
+import pandas as pd
 
 NUM2COLOURS = {
     1: ['#1b9e77'],
@@ -42,3 +46,40 @@ def get_enough_colours(num_unique_values):
 def hex_to_rgb(value):
     value = value.lstrip('#')
     return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def parse_colours(colours, states):
+    if not isinstance(colours, str) and not isinstance(colours, dict):
+        raise ValueError('Colours must be specified either as a dict or as a path to a csv file, not as {}!'
+                         .format(type(colours)))
+    if isinstance(colours, str):
+        if not os.path.exists(colours):
+            raise ValueError('The specified colour file ({}) does not exist.'
+                             .format(colours))
+        try:
+            colour_dict = pd.read_csv(colours, header=0, index_col=0, sep='\t')
+            if 'colour' not in colour_dict.columns:
+                raise ValueError('Could not find the "colour" column in the parameter file {}. '
+                                 'It should be a tab-delimited file with two columns, '
+                                 'the first one containing character states, '
+                                 'and the second, named "colour", containing colours if HEX format, e.g. #7566cc.')
+            colour_dict = colour_dict.to_dict()['colour']
+            colours = colour_dict
+        except:
+            raise ValueError('The specified colour file {} is malformatted, '
+                             'should be a tab-delimited file with two columns, '
+                             'the first one containing character states, '
+                             'and the second, named "colour", containing colours if HEX format, e.g. #7566cc.'
+                             .format(colours))
+    colours = {str(k.encode('ASCII', 'replace').decode()).strip(): v for (k, v) in colours.items()}
+    colours_specified = set(states) & set(colours.keys())
+    if len(colours_specified) < len(states):
+        raise ValueError('Some colour parameters are specified, but missing the following states: {}'
+                         .format(', '.join(set(states) - colours_specified)))
+    else:
+        for state in colours_specified:
+            colour = colours[state]
+            if not re.findall('^[#]([a-zA-Z0-9]{6}|[a-zA-Z0-9]{8})$', colour):
+                raise ValueError('The colour {} specified for {} is not in HEX format (e.g. #7566cc).'.format(colour, state))
+    return [colours[s] for s in states]
+

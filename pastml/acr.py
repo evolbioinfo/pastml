@@ -27,7 +27,7 @@ from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 from pastml.visualisation import get_formatted_date
 
-PASTML_VERSION = '1.9.28.1'
+PASTML_VERSION = '1.9.29'
 
 warnings.filterwarnings("ignore", append=True)
 
@@ -322,7 +322,7 @@ def _quote(str_list):
 def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                     columns=None, prediction_method=MPPA, model=F81, parameters=None,
                     name_column=None, root_date=None, timeline_type=TIMELINE_SAMPLED,
-                    tip_size_threshold=REASONABLE_NUMBER_OF_TIPS,
+                    tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, colours=None,
                     out_data=None, html_compressed=None, html=None, work_dir=None,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
                     itol_tree_name=None, offline=False, threads=0, reoptimise=False):
@@ -409,6 +409,18 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         after this date/distance to root are hidden, and the external branches are cut
         to the specified date/distance to root if needed;
     :type timeline_type: str
+    :param colours: optional way to specify the colours used for character state visualisation.
+        Could be specified as
+        (1a) a dict {column: {state: colour}},
+        where column corresponds to the character for which these parameters should be used,
+        or (1b) in a form {column: path_to_colour_file};
+        or (2) as a list of paths to colour files
+        (in the same order as ``columns`` argument that specifies characters)
+        possibly given only for the first few characters;
+        or (3) as a path to colour file (only for the first character).
+        Each file should be tab-delimited, with two columns: the first one containing character states,
+        and the second, named "colour", containing colours, in HEX format (e.g. #a6cee3).
+    :type colours: str or list(str) or dict
 
     :param out_data: path to the output annotation file with the reconstructed ancestral character states.
     :type out_data: str
@@ -548,9 +560,20 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
 
     if html or html_compressed:
         logger.debug('\n=============VISUALISATION=====================')
+        if colours:
+            if isinstance(colours, str):
+                colours = [colours]
+            if isinstance(colours, list):
+                colours = dict(zip(df.columns, colours))
+            elif isinstance(colours, dict):
+                colours = {col_name2cat(col): cls for (col, cls) in colours.items()}
+            else:
+                raise ValueError('Colours should be either a list or a dict, got {}.'.format(type(colours)))
+        else:
+            colours = {}
         visualize(roots, column2states=column2states, html=html, html_compressed=html_compressed,
                   name_column=name_column, tip_size_threshold=tip_size_threshold, date_label=age_label,
-                  timeline_type=timeline_type, work_dir=work_dir, local_css_js=offline)
+                  timeline_type=timeline_type, work_dir=work_dir, local_css_js=offline, column2colours=colours)
 
     if threads > 1:
         async_result.wait()
@@ -810,6 +833,15 @@ def main():
                                 "in the folder specified by --work_dir, so that internet connection is not needed "
                                 "(but you must not move the output html files to any location "
                                 "other that the one specified by --html/--html_compressed).")
+    acr_group.add_argument('--colours', type=str, nargs='*',
+                           help='optional way to specify the colours used for character state visualisation. '
+                                'Should be in the same order '
+                                'as the ancestral characters (see -c, --columns) '
+                                'for which the reconstruction is to be preformed. '
+                                'Could be given only for the first few characters. '
+                                'Each file should be tab-delimited, with two columns: '
+                                'the first one containing character states, '
+                                'and the second, named "colour", containing colours, in HEX format (e.g. #a6cee3).')
 
     out_group = parser.add_argument_group('output-related arguments')
     out_group.add_argument('-o', '--out_data', required=False, type=str,

@@ -10,6 +10,7 @@ COMBINED_ANCESTRAL_STATE_TAB = 'combined_ancestral_states.tab'
 NAMED_TREE_NWK = 'named.tree_{tree}.nwk'
 
 PASTML_ML_PARAMS_TAB = 'params.character_{state}.method_{method}.model_{model}.tab'
+PASTML_COLOUR_TAB = 'colours.character_{state}.tab'
 PASTML_MP_PARAMS_TAB = 'params.character_{state}.method_{method}.tab'
 PASTML_MARGINAL_PROBS_TAB = 'marginal_probabilities.character_{state}.model_{model}.tab'
 
@@ -40,6 +41,18 @@ def get_pastml_parameter_file(method, model, column):
     template = PASTML_ML_PARAMS_TAB if ml else PASTML_MP_PARAMS_TAB
     column, method = get_column_method(column, method)
     return template.format(state=column, method=method, model=model)
+
+
+def get_pastml_colour_file(column):
+    """
+    Get the filename where the PastML colours used for visualisation are saved.
+    This file is inside the work_dir that can be specified for the pastml_pipeline method.
+
+    :param column: str, the column for which ancestral states are reconstructed with PASTML.
+    :return: str, filename
+    """
+    template = PASTML_COLOUR_TAB
+    return template.format(state=column)
 
 
 def get_combined_ancestral_state_file():

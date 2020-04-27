@@ -8,10 +8,11 @@ from shutil import copyfile
 import numpy as np
 from jinja2 import Environment, PackageLoader
 
+from pastml.file import get_pastml_colour_file
 from pastml import numeric2datetime
 from pastml.tree import DATE, DATE_CI
 from pastml.visualisation import get_formatted_date
-from pastml.visualisation.colour_generator import get_enough_colours, WHITE
+from pastml.visualisation.colour_generator import get_enough_colours, WHITE, parse_colours
 from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, TIPS_INSIDE, TIPS_BELOW, \
     REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP, ROOT_DATES
 
@@ -529,28 +530,38 @@ def get_column_value_str(n, column, format_list=True, list_value=''):
 
 def visualize(forest, column2states, work_dir, name_column=None, html=None, html_compressed=None,
               tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, date_label='Dist. to root', timeline_type=TIMELINE_SAMPLED,
-              local_css_js=False):
+              local_css_js=False, column2colours=None):
     one_column = next(iter(column2states.keys())) if len(column2states) == 1 else None
 
     name2colour = {}
     state2color = None
     for column, states in column2states.items():
         num_unique_values = len(states)
-        colours = get_enough_colours(num_unique_values)
+        if column2colours and column in column2colours:
+            colours = parse_colours(column2colours[column], states)
+        else:
+            colours = get_enough_colours(num_unique_values)
         for value, col in zip(states, colours):
             name2colour[value if one_column else '{}_{}'.format(column, value)] = col
-        logging.getLogger('pastml').debug('Mapped states to colours for {} as following: {} -> {}.'
-                                          .format(column, states, colours))
+        state2color = dict(zip(states, colours))
         # let ambiguous values be white
         if one_column is None:
             name2colour['{}_'.format(column)] = WHITE
         if column == name_column:
-            state2color = dict(zip(states, colours))
             for tree in forest:
                 for n in tree.traverse():
                     sts = getattr(n, column, set())
                     if len(sts) == 1 and not n.is_root() and getattr(n.up, column, set()) == sts:
                         n.add_feature('edge_color', state2color[next(iter(sts))])
+        out_colour_file = os.path.join(work_dir, get_pastml_colour_file(column))
+        # Not using DataFrames to speed up document writing
+        with open(out_colour_file, 'w+') as f:
+            f.write('state\tcolour\n')
+            for s in sorted(states):
+                f.write('{}\t{}\n'.format(s, state2color[s]))
+        logging.getLogger('pastml').debug('Mapped states to colours for {} as following: {} -> {}, '
+                                          'and serialized this mapping to {}.'
+                                          .format(column, states, colours, out_colour_file))
     for tree in forest:
         for node in tree.traverse():
             if node.is_leaf():
