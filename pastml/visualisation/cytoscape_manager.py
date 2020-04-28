@@ -14,7 +14,7 @@ from pastml.tree import DATE, DATE_CI
 from pastml.visualisation import get_formatted_date
 from pastml.visualisation.colour_generator import get_enough_colours, WHITE, parse_colours
 from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, TIPS_INSIDE, TIPS_BELOW, \
-    REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP, ROOT_DATES
+    REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP, ROOT_DATES, IN_FOCUS
 
 JS_LIST = ["https://pastml.pasteur.fr/static/js/jquery.min.js",
            "https://pastml.pasteur.fr/static/js/jquery.qtip.min.js",
@@ -528,9 +528,9 @@ def get_column_value_str(n, column, format_list=True, list_value=''):
     return ' or '.join(sorted(values)) if format_list or len(values) == 1 else list_value
 
 
-def visualize(forest, column2states, work_dir, name_column=None, html=None, html_compressed=None,
+def visualize(forest, column2states, work_dir, name_column=None, html=None, html_compressed=None, html_mixed=None,
               tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, date_label='Dist. to root', timeline_type=TIMELINE_SAMPLED,
-              local_css_js=False, column2colours=None):
+              local_css_js=False, column2colours=None, focus=None):
     one_column = next(iter(column2states.keys())) if len(column2states) == 1 else None
 
     name2colour = {}
@@ -568,8 +568,11 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
                 node.add_feature(IS_TIP, True)
             node.add_feature(BRANCH_NAME, '{}-{}'.format(node.up.name if not node.is_root() else '', node.name))
             for column in column2states.keys():
-                if len(getattr(node, column, set())) != 1:
+                col_state = getattr(node, column, set())
+                if len(col_state) != 1:
                     node.add_feature(UNRESOLVED, 1)
+                if col_state and focus and not col_state - focus[column]:
+                    node.add_feature(IN_FOCUS, True)
 
     if TIMELINE_NODES == timeline_type:
         def get_date(node):
@@ -681,6 +684,8 @@ def resolve_polytomies(column2states, forest, name_column, state2color):
                                 pol.add_feature(c, getattr(child, c))
                             if hasattr(child, UNRESOLVED):
                                 pol.add_feature(UNRESOLVED, getattr(child, UNRESOLVED))
+                            if hasattr(child, IN_FOCUS):
+                                pol.add_feature(IN_FOCUS, getattr(child, IN_FOCUS))
                             if name_column is not None:
                                 sts = getattr(pol, name_column, set())
                                 if len(sts) == 1:

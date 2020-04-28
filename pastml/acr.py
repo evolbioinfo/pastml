@@ -1,6 +1,7 @@
 import logging
 import os
 import warnings
+from collections import defaultdict
 from multiprocessing.pool import ThreadPool
 
 import numpy as np
@@ -323,9 +324,9 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                     columns=None, prediction_method=MPPA, model=F81, parameters=None,
                     name_column=None, root_date=None, timeline_type=TIMELINE_SAMPLED,
                     tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, colours=None,
-                    out_data=None, html_compressed=None, html=None, work_dir=None,
+                    out_data=None, html_compressed=None, html=None, html_mixed=None, work_dir=None,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
-                    itol_tree_name=None, offline=False, threads=0, reoptimise=False):
+                    itol_tree_name=None, offline=False, threads=0, reoptimise=False, focus=None):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -400,6 +401,11 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         of size less than threshold-th largest tip from the compressed map (set to 1e10 to keep all).
         The larger it is the less tips will be trimmed.
     :type tip_size_threshold: int
+    :param focus: optional way to put a focus on certain character state values,
+        so that the nodes in these states are displayed
+        even if they do not pass the trimming threshold (tip_size_threshold argument).
+        Should be in the form character:state.
+    :type focus: str or list(str)
     :param timeline_type: (optional, by default is pastml.visualisation.cytoscape_manager.TIMELINE_SAMPLED)
         type of timeline visualisation: at each date/distance to root selected on the slider, either
         (pastml.visualisation.cytoscape_manager.TIMELINE_SAMPLED) all the lineages sampled after it are hidden; "
@@ -428,6 +434,9 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     :type html_compressed: str
     :param html: (optional) path to the output tree visualisation file (html).
     :type html: str
+    :param html_mixed: (optional) path to the output mostly compressed map visualisation file (html),
+        where the nodes in states specified with the focus argument are uncompressed.
+    :type html_mixed: str
     :param work_dir: (optional) path to the folder where pastml parameter, named tree
         and marginal probability (for marginal ML methods (pastml.ml.MPPA, pastml.ml.MAP) only) files are to be stored.
         Default is <path_to_input_file>/<input_file_name>_pastml. If the folder does not exist, it will be created.
@@ -571,11 +580,50 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
             generate_itol_annotations(column2states, work_dir, acr_results, state_df, age_label,
                                       new_tree, itol_id, itol_project, itol_tree_name, colours)
 
-    if html or html_compressed:
+    if html or html_compressed or html_mixed:
         logger.debug('\n=============VISUALISATION=====================')
-        visualize(roots, column2states=column2states, html=html, html_compressed=html_compressed,
+
+        if (html_compressed or html_mixed) and focus:
+            def parse_col_val(cv):
+                cv = str(cv).strip()
+                colon_pos = cv.find(':')
+                if colon_pos == -1:
+                    if len(column2states) == 1 and cv in next(iter(column2states.values())):
+                        return next(iter(column2states.keys())), cv
+                    else:
+                        raise ValueError('Focus values should be in a form character:state, got {} instead.'.format(cv))
+                col, state = col_name2cat(cv[:colon_pos]), cv[colon_pos + 1:]
+                if col not in column2states:
+                    ml_col = get_personalized_feature_name(col, get_default_ml_method())
+                    if ml_col in column2states:
+                        col = ml_col
+                    else:
+                        mp_col = get_personalized_feature_name(col, get_default_mp_method())
+                        if mp_col in column2states:
+                            col = mp_col
+                        else:
+                            raise ValueError('Character {} specified for focus values is not found in metadata.'.format(
+                                cv[:colon_pos]))
+                if state not in column2states[col]:
+                    raise ValueError(
+                        'Character {} state {} not found among possible states in metadata.'.format(cv[:colon_pos],
+                                                                                                    state))
+                return col, state
+
+            if isinstance(focus, str):
+                focus = list(focus)
+            if not isinstance(focus, list):
+                raise ValueError(
+                    'Focus argument should be either a string or a list of strings, got {} instead.'.format(
+                        type(focus)))
+            focus_cv = [parse_col_val(_) for _ in focus]
+            focus = defaultdict(set)
+            for c, v in focus_cv:
+                focus[c].add(v)
+
+        visualize(roots, column2states=column2states, html=html, html_compressed=html_compressed, html_mixed=html_mixed,
                   name_column=name_column, tip_size_threshold=tip_size_threshold, date_label=age_label,
-                  timeline_type=timeline_type, work_dir=work_dir, local_css_js=offline, column2colours=colours)
+                  timeline_type=timeline_type, work_dir=work_dir, local_css_js=offline, column2colours=colours, focus=focus)
 
     if threads > 1:
         async_result.wait()
@@ -844,6 +892,11 @@ def main():
                                 'Each file should be tab-delimited, with two columns: '
                                 'the first one containing character states, '
                                 'and the second, named "colour", containing colours, in HEX format (e.g. #a6cee3).')
+    vis_group.add_argument('--focus', type=str, nargs='*',
+                           help='optional way to put a focus on certain character state values, '
+                                'so that the nodes in these states are displayed '
+                                'even if they do not pass the trimming threshold (--tip_size_threshold). '
+                                'Should be in the form character:state.')
 
     out_group = parser.add_argument_group('output-related arguments')
     out_group.add_argument('-o', '--out_data', required=False, type=str,
@@ -858,6 +911,9 @@ def main():
                            help="path to the output compressed map visualisation file (html).")
     out_group.add_argument('-l', '--html', required=False, default=None, type=str,
                            help="path to the output full tree visualisation file (html).")
+    out_group.add_argument('--html_mixed', required=False, default=None, type=str,
+                           help="path to the output mostly compressed map visualisation file (html), "
+                                "where the nodes in states specified with --focus are uncompressed.")
     out_group.add_argument('-v', '--verbose', action='store_true',
                            help="print information on the progress of the analysis (to console)")
 
