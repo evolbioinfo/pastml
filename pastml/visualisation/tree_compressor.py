@@ -112,9 +112,8 @@ def collapse_horizontally(tree, columns, tips2bin):
     for n in tree.traverse('postorder'):
         config2children = defaultdict(list)
         for _ in n.children:
-            if not getattr(_, IN_FOCUS, False):
-                # use (size, states, child_configurations) as configuration (ignore branch width)
-                config2children[get_configuration(_)[1]].append(_)
+            # use (size, states, child_configurations) as configuration (ignore branch width)
+            config2children[get_configuration(_)[1]].append(_)
         for children in (_ for _ in config2children.values() if len(_) > 1):
             collapsed_configurations += 1
             child = children[0]
