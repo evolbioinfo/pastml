@@ -14,7 +14,8 @@ from pastml.tree import DATE, DATE_CI
 from pastml.visualisation import get_formatted_date
 from pastml.visualisation.colour_generator import get_enough_colours, WHITE, parse_colours
 from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, TIPS_INSIDE, TIPS_BELOW, \
-    REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP, ROOT_DATES, IN_FOCUS
+    REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP, ROOT_DATES, IN_FOCUS, AROUND_FOCUS, \
+    UP_FOCUS, IS_POLYTOMY
 
 JS_LIST = ["https://pastml.pasteur.fr/static/js/jquery.min.js",
            "https://pastml.pasteur.fr/static/js/jquery.qtip.min.js",
@@ -56,10 +57,10 @@ FONT_SIZE = 'node_fontsize'
 
 MILESTONE = 'mile'
 
-
 DATE_LABEL = 'date'
 
 DIST_TO_ROOT_LABEL = 'dist. to root'
+
 
 def get_fake_node(n_id, x, y):
     attributes = {ID: n_id, 'fake': 1}
@@ -98,16 +99,17 @@ def get_scaling_function(y_m, y_M, x_m, x_M):
 
 def set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling, transform_size, transform_e_size, state,
                                  root_names, root_dates, suffix=''):
-    tips_inside, internal_nodes_inside, roots = getattr(n, TIPS_INSIDE, []), \
-                                                getattr(n, INTERNAL_NODES_INSIDE, []), \
-                                                getattr(n, ROOTS, [])
+    tips_inside, tips_below, internal_nodes_inside, roots = \
+        getattr(n, TIPS_INSIDE, []), getattr(n, TIPS_BELOW, []), getattr(n, INTERNAL_NODES_INSIDE, []), getattr(n,
+                                                                                                                ROOTS,
+                                                                                                                [])
 
     def get_min_max_str(values, default_value=0):
         min_v, max_v = (min(len(_) for _ in values), max(len(_) for _ in values)) \
             if values else (default_value, default_value)
         return ' {}'.format('{}-{}'.format(min_v, max_v) if min_v != max_v else min_v), min_v, max_v
 
-    tips_below_str, _, max_n_tips_below = get_min_max_str([list(_) for _ in roots])
+    tips_below_str, _, max_n_tips_below = get_min_max_str(tips_below)
     tips_inside_str, _, max_n_tips = get_min_max_str(tips_inside)
     internal_ns_inside_str, _, _ = get_min_max_str(internal_nodes_inside)
     n.add_feature('{}{}'.format(NODE_NAME, suffix), '{}{}'.format(state, tips_inside_str))
@@ -165,7 +167,6 @@ def _forest2json_compressed(forest, compressed_forest, columns, name_feature, ge
                 todo.put_nowait(c)
 
     n2state = {}
-
 
     # Set the cytoscape features
     for compressed_tree in compressed_forest:
@@ -225,24 +226,29 @@ def _forest2json_compressed(forest, compressed_forest, columns, name_feature, ge
                 suffix = '_{}'.format(i)
                 for n in nodes:
                     state = n2state[n]
-                    tips_inside, internal_nodes_inside, roots = getattr(n, TIPS_INSIDE, []), \
-                                                                getattr(n, INTERNAL_NODES_INSIDE, []), \
-                                                                getattr(n, ROOTS, [])
-                    tips_inside_i, internal_nodes_inside_i, roots_i = [], [], []
-                    for ti, ini, root in zip(tips_inside, internal_nodes_inside, roots):
+                    tips_inside, tips_below, internal_nodes_inside, roots = getattr(n, TIPS_INSIDE, []), \
+                                                                            getattr(n, TIPS_BELOW, []), \
+                                                                            getattr(n, INTERNAL_NODES_INSIDE, []), \
+                                                                            getattr(n, ROOTS, [])
+                    tips_inside_i, tips_below_i, internal_nodes_inside_i, roots_i = [], [], [], []
+                    for ti, tb, ini, root in zip(tips_inside, tips_below, internal_nodes_inside, roots):
                         if get_date(root) <= milestone:
                             roots_i.append(root)
 
                             ti = filter_by_date(ti, milestone)
+                            tb = [_ for _ in tb if getattr(_, DATE) <= milestone]
                             ini = filter_by_date(ini, milestone)
 
                             tips_inside_i.append(ti + [_ for _ in ini if _.is_leaf()])
+                            tips_below_i.append(tb)
                             internal_nodes_inside_i.append([_ for _ in ini if not _.is_leaf()])
-                    n.add_features(**{TIPS_INSIDE: tips_inside_i, INTERNAL_NODES_INSIDE: internal_nodes_inside_i,
+                    n.add_features(**{TIPS_INSIDE: tips_inside_i, TIPS_BELOW: tips_below_i,
+                                      INTERNAL_NODES_INSIDE: internal_nodes_inside_i,
                                       ROOTS: roots_i})
                     if roots_i:
                         n.add_feature(MILESTONE, i)
-                        root_names = [getattr(_, BRANCH_NAME) if getattr(_, DATE) > milestone else _.name for _ in roots_i]
+                        root_names = [getattr(_, BRANCH_NAME) if getattr(_, DATE) > milestone else _.name for _ in
+                                      roots_i]
                         root_dates = [getattr(_, DATE) for _ in roots_i]
                         if dates_are_dates:
                             try:
@@ -285,10 +291,10 @@ def _forest2json_compressed(forest, compressed_forest, columns, name_feature, ge
 
 def _forest2json(forest, columns, name_feature, get_date, milestones=None, timeline_type=TIMELINE_SAMPLED,
                  dates_are_dates=True):
-
     min_root_date = min(getattr(tree, DATE) for tree in forest)
     width = sum(len(tree) for tree in forest)
-    height_factor = 300 * width / max((max(getattr(_, DATE) for _ in tree) - min_root_date + tree.dist) for tree in forest)
+    height_factor = 300 * width / max(
+        (max(getattr(_, DATE) for _ in tree) - min_root_date + tree.dist) for tree in forest)
     zero_dist = min(min(min(_.dist for _ in tree.traverse() if _.dist > 0) for tree in forest), 300) * height_factor / 2
 
     # Calculate node coordinates
@@ -336,7 +342,8 @@ def _forest2json(forest, columns, name_feature, get_date, milestones=None, timel
                     if TIMELINE_LTT == timeline_type:
                         # if it is LTT also cut the branches if needed
                         if getattr(n, DATE) > milestone:
-                            n.add_feature('{}{}'.format(EDGE_NAME, suffix), np.round(milestone - getattr(n.up, DATE), 3))
+                            n.add_feature('{}{}'.format(EDGE_NAME, suffix),
+                                          np.round(milestone - getattr(n.up, DATE), 3))
                         else:
                             n.add_feature('{}{}'.format(EDGE_NAME, suffix), np.round(n.dist, 3))
 
@@ -573,6 +580,10 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
                     node.add_feature(UNRESOLVED, 1)
                 if col_state and focus and not col_state - focus[column]:
                     node.add_feature(IN_FOCUS, True)
+                    if not node.is_root():
+                        node.up.add_feature(UP_FOCUS, True)
+                    for c in node.children:
+                        c.add_feature(AROUND_FOCUS, True)
 
     if TIMELINE_NODES == timeline_type:
         def get_date(node):
@@ -620,9 +631,10 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
                                    timeline_type=timeline_type, milestones=milestones, get_date=get_date,
                                    work_dir=work_dir, local_css_js=local_css_js, milestone_labels=milestone_labels)
 
-    if html_compressed:
-        resolve_polytomies(column2states, forest, name_column, state2color)
-        compressed_forest = [compress_tree(tree, columns=column2states.keys(), tip_size_threshold=tip_size_threshold)
+    if html_compressed or html_mixed:
+        resolve_polytomies(column2states, forest, name_column, state2color, mixed=not html_compressed)
+        compressed_forest = [compress_tree(tree, columns=column2states.keys(), tip_size_threshold=tip_size_threshold,
+                                           mixed=not html_compressed)
                              for tree in forest]
 
         # If we trimmed a few tips while compressing and they happened to be the oldest/newest ones,
@@ -647,14 +659,15 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
         if milestone_labels is None:
             milestone_labels = ['{:g}'.format(_) for _ in milestones]
 
-        save_as_cytoscape_html(forest, html_compressed, column2states=column2states, name2colour=name2colour,
+        save_as_cytoscape_html(forest, html_compressed if html_compressed else html_mixed,
+                               column2states=column2states, name2colour=name2colour,
                                name_feature=name_column, compressed_forest=compressed_forest,
                                milestone_label=date_label, timeline_type=timeline_type,
                                milestones=milestones, get_date=get_date, work_dir=work_dir, local_css_js=local_css_js,
                                milestone_labels=milestone_labels)
 
 
-def resolve_polytomies(column2states, forest, name_column, state2color):
+def resolve_polytomies(column2states, forest, name_column, state2color, mixed=False):
     columns = sorted(column2states.keys())
 
     def get_prediction(n):
@@ -664,39 +677,43 @@ def resolve_polytomies(column2states, forest, name_column, state2color):
         todo = [tree]
         while todo:
             n = todo.pop()
+            n_state = get_prediction(n)
             todo.extend(n.children)
             if len(n.children) > 2:
                 n_date = getattr(n, DATE)
                 n_ci = getattr(n, DATE_CI, None)
                 state2children = defaultdict(list)
                 for c in n.children:
-                    state2children[get_prediction(c)].append(c)
-                if len(state2children) > 1:
-                    i = 0
-                    for children in state2children.values():
-                        if len(children) > 1:
-                            pol = n.add_child(dist=0, name='{}.polytomy_{}'.format(n.name, i))
-                            i += 1
-                            child = children[0]
-                            pol.add_feature(DATE, n_date)
-                            pol.add_feature(DATE_CI, n_ci)
-                            for c in columns:
-                                pol.add_feature(c, getattr(child, c))
-                            if hasattr(child, UNRESOLVED):
-                                pol.add_feature(UNRESOLVED, getattr(child, UNRESOLVED))
-                            if hasattr(child, IN_FOCUS):
-                                pol.add_feature(IN_FOCUS, getattr(child, IN_FOCUS))
-                            if name_column is not None:
-                                sts = getattr(pol, name_column, set())
-                                if len(sts) == 1:
-                                    col = state2color[next(iter(sts))]
-                                    if getattr(n, name_column, set()) == sts:
-                                        pol.add_feature('edge_color', col)
-                                    for c in children:
-                                        c.add_feature('edge_color', col)
-                            pol.add_feature(BRANCH_NAME, '{}-{}'.format(n.name, pol.name))
-                            for c in children:
-                                c.add_feature(BRANCH_NAME, '{}-{}'.format(pol.name, c.name))
-                            for c in children:
-                                n.remove_child(c)
-                                pol.add_child(c)
+                    if not mixed or not getattr(c, IN_FOCUS, False):
+                        state2children[get_prediction(c)].append(c)
+                i = 0
+                for state, children in state2children.items():
+                    if (state != n_state or getattr(n, UP_FOCUS, False)) and len(children) > 1:
+                        pol = n.add_child(dist=0, name='{}.polytomy_{}'.format(n.name, i))
+                        pol.add_feature(IS_POLYTOMY, True)
+                        i += 1
+                        child = children[0]
+                        pol.add_feature(DATE, n_date)
+                        pol.add_feature(DATE_CI, n_ci)
+                        for c in columns:
+                            pol.add_feature(c, getattr(child, c))
+                        if hasattr(child, UNRESOLVED):
+                            pol.add_feature(UNRESOLVED, getattr(child, UNRESOLVED))
+                        if hasattr(child, IN_FOCUS):
+                            pol.add_feature(IN_FOCUS, getattr(child, IN_FOCUS))
+                        if hasattr(child, AROUND_FOCUS):
+                            pol.add_feature(AROUND_FOCUS, getattr(child, AROUND_FOCUS))
+                        if name_column is not None:
+                            sts = getattr(pol, name_column, set())
+                            if len(sts) == 1:
+                                col = state2color[next(iter(sts))]
+                                if getattr(n, name_column, set()) == sts:
+                                    pol.add_feature('edge_color', col)
+                                for c in children:
+                                    c.add_feature('edge_color', col)
+                        pol.add_feature(BRANCH_NAME, '{}-{}'.format(n.name, pol.name))
+                        for c in children:
+                            c.add_feature(BRANCH_NAME, '{}-{}'.format(pol.name, c.name))
+                        for c in children:
+                            n.remove_child(c)
+                            pol.add_child(c)

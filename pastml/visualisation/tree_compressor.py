@@ -22,22 +22,27 @@ COMPRESSED_NODE = 'compressed_node'
 METACHILD = 'metachild'
 
 IN_FOCUS = 'in_focus'
+AROUND_FOCUS = 'around_focus'
+UP_FOCUS = 'up_focus'
+
+IS_POLYTOMY = 'polytomy'
 
 
-def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS):
+def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, mixed=False):
     compressed_tree = tree.copy()
 
     for n_compressed, n in zip(compressed_tree.traverse('postorder'), tree.traverse('postorder')):
+        n_compressed.add_feature(TIPS_BELOW, [list(n_compressed.iter_leaves())])
         n_compressed.add_feature(TIPS_INSIDE, [])
         n_compressed.add_feature(INTERNAL_NODES_INSIDE, [])
         n_compressed.add_feature(ROOTS, [n])
         if n_compressed.is_leaf():
             getattr(n_compressed, TIPS_INSIDE).append(n)
-        else:
+        elif not getattr(n_compressed, IS_POLYTOMY, False):
             getattr(n_compressed, INTERNAL_NODES_INSIDE).append(n)
         n.add_feature(COMPRESSED_NODE, n_compressed)
 
-    collapse_vertically(compressed_tree, columns)
+    collapse_vertically(compressed_tree, columns, mixed=mixed)
 
     for n in compressed_tree.traverse():
         n.add_feature(NUM_TIPS_INSIDE, len(getattr(n, TIPS_INSIDE)))
@@ -45,12 +50,12 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
         n.add_feature(INTERNAL_NODES_INSIDE, [getattr(n, INTERNAL_NODES_INSIDE)])
 
     get_bin = lambda _: _
-    collapse_horizontally(compressed_tree, columns, get_bin)
+    collapse_horizontally(compressed_tree, columns, get_bin, mixed=mixed)
 
     if can_merge_diff_sizes and len(compressed_tree) > tip_size_threshold:
         get_bin = lambda _: int(np.log10(max(1, _)))
         logging.getLogger('pastml').debug('Allowed merging nodes of different sizes.')
-        collapse_horizontally(compressed_tree, columns, get_bin)
+        collapse_horizontally(compressed_tree, columns, get_bin, mixed=mixed)
 
     if len(compressed_tree) > tip_size_threshold:
         for n in compressed_tree.traverse('preorder'):
@@ -58,7 +63,7 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
             n.add_feature('multiplier', multiplier)
 
         def get_tsize(n):
-            if getattr(n, IN_FOCUS, False):
+            if getattr(n, IN_FOCUS, False) or getattr(n, AROUND_FOCUS, False):
                 return np.inf
             return getattr(n, NUM_TIPS_INSIDE) * getattr(n, 'multiplier')
 
@@ -90,11 +95,11 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
             remove_small_tips(compressed_tree=compressed_tree, full_tree=tree,
                               to_be_removed=lambda _: get_tsize(_) < threshold)
             remove_mediators(compressed_tree, columns)
-            collapse_horizontally(compressed_tree, columns, get_bin)
+            collapse_horizontally(compressed_tree, columns, get_bin, mixed=mixed)
     return compressed_tree
 
 
-def collapse_horizontally(tree, columns, tips2bin):
+def collapse_horizontally(tree, columns, tips2bin, mixed=False):
     config_cache = {}
 
     def get_configuration(n):
@@ -112,8 +117,9 @@ def collapse_horizontally(tree, columns, tips2bin):
     for n in tree.traverse('postorder'):
         config2children = defaultdict(list)
         for _ in n.children:
-            # use (size, states, child_configurations) as configuration (ignore branch width)
-            config2children[get_configuration(_)[1]].append(_)
+            if not mixed or not getattr(_, IN_FOCUS, False):
+                # use (size, states, child_configurations) as configuration (ignore branch width)
+                config2children[get_configuration(_)[1]].append(_)
         for children in (_ for _ in config2children.values() if len(_) > 1):
             collapsed_configurations += 1
             child = children[0]
@@ -175,15 +181,19 @@ def remove_small_tips(compressed_tree, full_tree, to_be_removed):
         'Recursively removed {} tips of size smaller than the threshold.'.format(num_removed))
 
 
-def collapse_vertically(tree, columns):
+def collapse_vertically(tree, columns, mixed=False):
     """
     Collapses a child node into its parent if they are in the same state.
     :param columns: a list of characters
     :param tree: ete3.Tree
+    :param mixed: if True then the nodes in focus will not get collapsed
     :return: void, modifies the input tree
     """
 
     def _same_states(node1, node2, columns):
+        if mixed and (getattr(node1, IN_FOCUS, False) or getattr(node1, UP_FOCUS, False)
+                      or getattr(node2, IN_FOCUS, False) or getattr(node2, UP_FOCUS, False)):
+            return False
         for column in columns:
             if getattr(node1, column, set()) != getattr(node2, column, set()):
                 return False
@@ -237,7 +247,7 @@ def remove_mediators(tree, columns):
             parent_states = getattr(parent, column, set())
             child_states = getattr(child, column, set())
             # if mediator has unresolved states, it should hesitate between the parent and the child:
-            if states != child_states | parent_states:
+            if len(states) < 2 or states != child_states | parent_states:
                 compatible = False
                 break
 
