@@ -27,7 +27,7 @@ from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 from pastml.visualisation import get_formatted_date
 
-PASTML_VERSION = '1.9.29.1'
+PASTML_VERSION = '1.9.29.2'
 
 warnings.filterwarnings("ignore", append=True)
 

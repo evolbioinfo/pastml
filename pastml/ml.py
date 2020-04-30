@@ -146,11 +146,11 @@ def get_bottom_up_loglikelihood(tree, character, frequencies, sf, kappa=None, is
 
             factors += rescale(child_likelihoods, fraction_of_limit=len(node.children))
             likelihood_array *= child_likelihoods
+            factors += rescale(likelihood_array, fraction_of_limit=len(node.up.children) if not node.is_root() else 1)
 
-        if np.all(likelihood_array == 0):
+        if np.all(likelihood_array == 0) or np.any(np.isnan(likelihood_array)):
             return -np.inf
 
-        factors += rescale(likelihood_array, fraction_of_limit=len(node.up.children) if not node.is_root() else 1)
         node.add_feature(lh_feature, likelihood_array)
         node.add_feature(lh_sf_feature, factors + sum(getattr(_, lh_sf_feature) for _ in node.children))
     root_likelihoods = getattr(tree, lh_feature) * frequencies
@@ -723,6 +723,12 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
 
     likelihood = sum(get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=frequencies, sf=sf,
                                                  kappa=kappa, is_marginal=True, model=model) for tree in forest)
+    if np.any(np.isnan(likelihood) or likelihood == -np.inf):
+        raise PastMLLikelihoodError('Failed to calculate the likelihood for your tree, '
+                                    'please check that you do not have contradicting {} states specified '
+                                    'for internal tree nodes, '
+                                    'and if not - submit a bug at https://github.com/evolbioinfo/pastml/issues'
+                                    .format(character))
     if not optimise_sf and not optimise_frequencies and not optimise_kappa:
         logger.debug('All the parameters are fixed for {}:{}{}{}{}.'
                      .format(character,
@@ -749,6 +755,12 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
                                                                 optimise_frequencies=False, optimise_sf=optimise_sf,
                                                                 optimise_kappa=False, avg_br_len=avg_br_len,
                                                                 model=model, observed_frequencies=observed_frequencies)
+            if np.any(np.isnan(likelihood) or likelihood == -np.inf):
+                raise PastMLLikelihoodError('Failed to optimise the likelihood for your tree, '
+                                            'please check that you do not have contradicting {} states specified '
+                                            'for internal tree nodes, '
+                                            'and if not - submit a bug at https://github.com/evolbioinfo/pastml/issues'
+                                            .format(character))
             if optimise_frequencies or optimise_kappa:
                 logger.debug('Pre-optimised SF for {}:{}{}.'
                              .format(character,
@@ -762,7 +774,12 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
                                            optimise_sf=optimise_sf,
                                            optimise_kappa=optimise_kappa, avg_br_len=avg_br_len, model=model,
                                            observed_frequencies=observed_frequencies)
-
+            if np.any(np.isnan(likelihood) or likelihood == -np.inf):
+                raise PastMLLikelihoodError('Failed to calculate the likelihood for your tree, '
+                                            'please check that you do not have contradicting {} states specified '
+                                            'for internal tree nodes, '
+                                            'and if not - submit a bug at https://github.com/evolbioinfo/pastml/issues'
+                                            .format(character))
         logger.debug('Optimised {} values:{}{}{}{}'
                      .format(character,
                              ''.join('\n\tfrequency of {}:\t{:.6f}'.format(state, frequencies[
@@ -829,7 +846,7 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
             calculate_top_down_likelihood(tree, character, frequencies, sf, kappa=kappa, model=model)
             unalter_zero_tip_allowed_states(tree, character, state2index)
             calculate_marginal_likelihoods(tree, character, frequencies)
-            # check_marginal_likelihoods(tree, feature)
+            # check_marginal_likelihoods(tree, character)
             mps.append(convert_likelihoods_to_probabilities(tree, character, states))
 
             choose_ancestral_states_map(tree, character, states)
@@ -885,3 +902,15 @@ def _parsimonious_states2allowed_states(tree, ps_feature, feature, state2index):
         for state in pars_states:
             allowed_states[state2index[state]] = 1
         node.add_feature(allowed_state_feature, allowed_states)
+
+
+class PastMLLikelihoodError(Exception):
+
+    def __init__(self, *args):
+        self.message = args[0] if args else None
+
+    def __str__(self):
+        if self.message:
+            return 'PastMLLikelihoodError, {}'.format(self.message)
+        else:
+            return 'PastMLLikelihoodError has been raised.'
