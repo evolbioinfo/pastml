@@ -22,7 +22,7 @@ COMPRESSED_NODE = 'compressed_node'
 METACHILD = 'metachild'
 
 IN_FOCUS = 'in_focus'
-AROUND_FOCUS = 'around_focus'
+DOWN_FOCUS = 'down_focus'
 UP_FOCUS = 'up_focus'
 
 IS_POLYTOMY = 'polytomy'
@@ -63,7 +63,7 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
             n.add_feature('multiplier', multiplier)
 
         def get_tsize(n):
-            if getattr(n, IN_FOCUS, False) or getattr(n, AROUND_FOCUS, False):
+            if getattr(n, IN_FOCUS, False) or getattr(n, DOWN_FOCUS, False) or getattr(n, UP_FOCUS, False):
                 return np.inf
             return getattr(n, NUM_TIPS_INSIDE) * getattr(n, 'multiplier')
 
@@ -114,10 +114,14 @@ def collapse_horizontally(tree, columns, tips2bin, mixed=False):
 
     collapsed_configurations = 0
 
+    uncompressable_ids = set()
     for n in tree.traverse('postorder'):
         config2children = defaultdict(list)
         for _ in n.children:
-            if not mixed or not getattr(_, IN_FOCUS, False):
+            if mixed and (getattr(_, IN_FOCUS, False) or _.name in uncompressable_ids):
+                uncompressable_ids.add(_.name)
+                uncompressable_ids.add(n.name)
+            else:
                 # use (size, states, child_configurations) as configuration (ignore branch width)
                 config2children[get_configuration(_)[1]].append(_)
         for children in (_ for _ in config2children.values() if len(_) > 1):
@@ -191,11 +195,15 @@ def collapse_vertically(tree, columns, mixed=False):
     """
 
     def _same_states(node1, node2, columns):
-        if mixed and (getattr(node1, IN_FOCUS, False) or getattr(node1, UP_FOCUS, False)
-                      or getattr(node2, IN_FOCUS, False) or getattr(node2, UP_FOCUS, False)):
-            return False
         for column in columns:
             if getattr(node1, column, set()) != getattr(node2, column, set()):
+                return False
+        if mixed:
+            if getattr(node1, IN_FOCUS, False) or getattr(node2, IN_FOCUS, False):
+                return False
+            if getattr(node1, UP_FOCUS, False) or getattr(node2, UP_FOCUS, False):
+                node1.add_feature(UP_FOCUS, True)
+                node2.add_feature(UP_FOCUS, True)
                 return False
         return True
 

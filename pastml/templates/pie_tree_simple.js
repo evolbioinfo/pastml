@@ -94,6 +94,12 @@ var cy = cytoscape({
         'text-background-opacity': 1,
         'text-background-padding' : 4,
         'min-zoomed-font-size': 10,
+        'line-style': 'solid',
+        'line-dash-pattern': [200, 20],
+      })
+    .selector('edge[polytomy]')
+      .css({
+        'line-style': 'dashed',
       })
     .selector('edge[fake]')
       .css({

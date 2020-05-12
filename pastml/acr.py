@@ -124,10 +124,7 @@ def _serialize_acr(args):
         f.write('pastml_version\t{}\n'.format(PASTML_VERSION))
         for name in sorted(acr_result.keys()):
             if name not in [FREQUENCIES, STATES, MARGINAL_PROBABILITIES]:
-                if NUM_SCENARIOS == name:
-                    f.write('{}\t{:g}\n'.format(name, acr_result[name]))
-                else:
-                    f.write('{}\t{}\n'.format(name, acr_result[name]))
+                f.write('{}\t{}\n'.format(name, acr_result[name]))
         if is_ml(acr_result[METHOD]):
             for state, freq in zip(acr_result[STATES], acr_result[FREQUENCIES]):
                 f.write('{}\t{}\n'.format(state, freq))
@@ -161,6 +158,7 @@ def reconstruct_ancestral_states(forest, character, states, prediction_method=MP
     :type avg_br_len: float
     :param model: (optional, default is F81) state evolution model to be used by PASTML.
     :type model: str
+    :param prediction_method: (optional, default is MPPA) ancestral state prediction method to be used by PASTML.
     :param prediction_method: (optional, default is MPPA) ancestral state prediction method to be used by PASTML.
     :type prediction_method: str
     :param num_nodes: (optional) total number of nodes in the given tree (including tips).
@@ -326,7 +324,8 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                     tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, colours=None,
                     out_data=None, html_compressed=None, html=None, html_mixed=None, work_dir=None,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
-                    itol_tree_name=None, offline=False, threads=0, reoptimise=False, focus=None):
+                    itol_tree_name=None, offline=False, threads=0, reoptimise=False, focus=None,
+                    resolve_polytomies=False):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -427,6 +426,11 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         Each file should be tab-delimited, with two columns: the first one containing character states,
         and the second, named "colour", containing colours, in HEX format (e.g. #a6cee3).
     :type colours: str or list(str) or dict
+    :param resolve_polytomies: (default False) when True, the polytomies with a state change
+        (i.e. a parent node, P, in state A has more than 2 children, including m > 1 children, C_1, ..., C_m, in state B)
+        are resolved by grouping together same-state (different from the parent state) nodes
+        (i.e. a new internal node N in state B is created and becomes the child of P and the parent of C_1, ..., C_m).
+    :type resolve_polytomies: bool
 
     :param out_data: path to the output annotation file with the reconstructed ancestral character states.
     :type out_data: str
@@ -521,8 +525,8 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
 
     itol_result = None
     new_tree = os.path.join(work_dir, get_named_tree_file(tree))
-    features = list(column2states.keys())
-    nwks = [root.write(format_root_node=True, format=3, features=[DATE, DATE_CI] + features) for root in roots]
+    features = [DATE, DATE_CI] + list(column2states.keys())
+    nwks = [root.write(format_root_node=True, format=3, features=features) for root in roots]
     with open(new_tree, 'w+') as f:
         f.write('\n'.join(nwks))
     try:
@@ -623,7 +627,8 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
 
         visualize(roots, column2states=column2states, html=html, html_compressed=html_compressed, html_mixed=html_mixed,
                   name_column=name_column, tip_size_threshold=tip_size_threshold, date_label=age_label,
-                  timeline_type=timeline_type, work_dir=work_dir, local_css_js=offline, column2colours=colours, focus=focus)
+                  timeline_type=timeline_type, work_dir=work_dir, local_css_js=offline, column2colours=colours, focus=focus,
+                  should_resolve_polytomies=resolve_polytomies)
 
     if threads > 1:
         async_result.wait()
@@ -897,6 +902,13 @@ def main():
                                 'so that the nodes in these states are displayed '
                                 'even if they do not pass the trimming threshold (--tip_size_threshold). '
                                 'Should be in the form character:state.')
+    vis_group.add_argument('--resolve_polytomies', action='store_true',
+                           help='When specified, the polytomies with a state change '
+                                '(i.e. a parent node, P, in state A has more than 2 children, '
+                                'including m > 1 children, C_1, ..., C_m, in state B) are resolved '
+                                'by grouping together same-state (different from the parent state) nodes '
+                                '(i.e. a new internal node N in state B is created and becomes the child of P '
+                                'and the parent of C_1, ..., C_m).')
 
     out_group = parser.add_argument_group('output-related arguments')
     out_group.add_argument('-o', '--out_data', required=False, type=str,

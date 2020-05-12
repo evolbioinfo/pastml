@@ -79,11 +79,17 @@ var cy = cytoscape({
         'opacity': 0.8,
         'text-opacity': 1,
         'line-color': '#909090',
+        'line-style': 'solid',
         'text-background-color' : '#ffffff',
         'text-background-shape' : 'roundrectangle',
         'text-background-opacity': 1,
         'text-background-padding' : 4,
         'min-zoomed-font-size': 10,
+        'line-dash-pattern': [100, 10],
+      })
+    .selector('edge[polytomy]')
+      .css({
+        'line-style': 'dashed',
       })
     .selector('edge[edge_name>1]')
       .css({

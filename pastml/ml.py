@@ -133,7 +133,8 @@ def get_bottom_up_loglikelihood(tree, character, frequencies, sf, kappa=None, is
 
     get_pij = get_pij_method(model, frequencies, kappa)
     for node in tree.traverse('postorder'):
-        likelihood_array = np.ones(len(frequencies), dtype=np.float64) * getattr(node, allowed_state_feature)
+        log_likelihood_array = np.log10(np.ones(len(frequencies), dtype=np.float64)
+                                        * getattr(node, allowed_state_feature))
         factors = 0
         for child in node.children:
             child_likelihoods = get_pij(child.dist * sf) * getattr(child, lh_feature)
@@ -143,43 +144,36 @@ def get_bottom_up_loglikelihood(tree, character, frequencies, sf, kappa=None, is
                 child_states = child_likelihoods.argmax(axis=1)
                 child.add_feature(lh_joint_state_feature, child_states)
                 child_likelihoods = child_likelihoods.max(axis=1)
-
-            factors += rescale(child_likelihoods, fraction_of_limit=len(node.children))
-            likelihood_array *= child_likelihoods
-            factors += rescale(likelihood_array, fraction_of_limit=len(node.up.children) if not node.is_root() else 1)
-
-        if np.all(likelihood_array == 0) or np.any(np.isnan(likelihood_array)):
-            return -np.inf
-
-        node.add_feature(lh_feature, likelihood_array)
+            child_likelihoods = np.maximum(child_likelihoods, 0)
+            log_likelihood_array += np.log10(child_likelihoods)
+            factors += rescale_log(log_likelihood_array)
+        node.add_feature(lh_feature, np.power(10, log_likelihood_array))
         node.add_feature(lh_sf_feature, factors + sum(getattr(_, lh_sf_feature) for _ in node.children))
     root_likelihoods = getattr(tree, lh_feature) * frequencies
     root_likelihoods = root_likelihoods.sum() if is_marginal else root_likelihoods.max()
     return np.log(root_likelihoods) - getattr(tree, lh_sf_feature) * np.log(10)
 
 
-def rescale(likelihood_array, fraction_of_limit):
+def rescale_log(loglikelihood_array):
     """
     Rescales the likelihood array if it gets too small/large, by multiplying it by a factor of 10.
-    :param fraction_of_limit: int, to be rescaled the min (max) non-zero likelihood value should be
-    smaller that MIN_VALUE / fraction_of_limit (larger than MAX_LIMIT / fraction_of_limit).
-    :param likelihood_array: numpy array containing the likelihood to be rescaled
+    :param loglikelihood_array: numpy array containing the loglikelihood to be rescaled
     :return: float, factor of 10 by which the likelihood array has been multiplies.
     """
 
-    max_limit = MAX_VALUE / fraction_of_limit
-    min_limit = MIN_VALUE / fraction_of_limit
+    max_limit = MAX_VALUE
+    min_limit = MIN_VALUE
 
-    min_lh_value = np.log10(np.min(likelihood_array[np.nonzero(likelihood_array)]))
-    max_lh_value = np.log10(np.max(likelihood_array[np.nonzero(likelihood_array)]))
+    non_zero_loglh_array = loglikelihood_array[loglikelihood_array > -np.inf]
+    min_lh_value = np.min(non_zero_loglh_array)
+    max_lh_value = np.max(non_zero_loglh_array)
 
     factors = 0
     if max_lh_value > max_limit:
         factors = max_limit - max_lh_value - 1
-        likelihood_array *= np.power(10, factors)
     elif min_lh_value < min_limit:
-        factors = min(-min_lh_value, max_limit - max_lh_value)
-        likelihood_array *= np.power(10, factors)
+        factors = min(min_limit - min_lh_value + 1, max_limit - max_lh_value - 1)
+    loglikelihood_array += factors
     return factors
 
 
@@ -289,33 +283,35 @@ def calculate_top_down_likelihood(tree, character, frequencies, sf, kappa=None, 
     :return: void, stores the node top-down likelihoods in the get_personalised_feature_name(feature, TD_LH) feature.
     """
 
-    lh_feature = get_personalized_feature_name(character, TD_LH)
-    lh_sf_feature = get_personalized_feature_name(character, TD_LH_SF)
+    td_lh_feature = get_personalized_feature_name(character, TD_LH)
+    td_lh_sf_feature = get_personalized_feature_name(character, TD_LH_SF)
     bu_lh_feature = get_personalized_feature_name(character, BU_LH)
     bu_lh_sf_feature = get_personalized_feature_name(character, BU_LH_SF)
 
     get_pij = get_pij_method(model, frequencies, kappa)
     for node in tree.traverse('preorder'):
         if node.is_root():
-            node.add_feature(lh_feature, np.ones(len(frequencies), np.float64))
-            node.add_feature(lh_sf_feature, 0)
+            node.add_feature(td_lh_feature, np.ones(len(frequencies), np.float64))
+            node.add_feature(td_lh_sf_feature, 0)
             continue
 
         parent = node.up
-        parent_bu_likelihood = getattr(parent, bu_lh_feature)
 
         node_pjis = np.transpose(get_pij(node.dist * sf))
         node_contribution = getattr(node, bu_lh_feature).dot(node_pjis)
+        node_contribution[node_contribution <= 0] = 1
 
-        parent_likelihood = getattr(parent, lh_feature) * parent_bu_likelihood
-        parent_likelihood[np.nonzero(parent_likelihood)] /= node_contribution[np.nonzero(parent_likelihood)]
-        factors = getattr(parent, lh_sf_feature) + getattr(parent, bu_lh_sf_feature) - getattr(node, bu_lh_sf_feature)
+        parent_loglikelihood = np.log10(getattr(parent, td_lh_feature)) \
+                               + np.log10(getattr(parent, bu_lh_feature)) - np.log10(node_contribution)
+        factors = getattr(parent, td_lh_sf_feature) \
+                  + getattr(parent, bu_lh_sf_feature) - getattr(node, bu_lh_sf_feature)
+        factors += rescale_log(parent_loglikelihood)
+        parent_likelihood = np.power(10, parent_loglikelihood)
 
         td_likelihood = parent_likelihood.dot(node_pjis)
-        factors += rescale(td_likelihood, fraction_of_limit=len(node.children) if not node.is_leaf() else 1)
 
-        node.add_feature(lh_feature, td_likelihood)
-        node.add_feature(lh_sf_feature, factors)
+        node.add_feature(td_lh_feature, td_likelihood)
+        node.add_feature(td_lh_sf_feature, factors)
 
 
 def initialize_allowed_states(tree, feature, states):
@@ -456,10 +452,11 @@ def calculate_marginal_likelihoods(tree, feature, frequencies):
     allowed_state_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
 
     for node in tree.traverse('preorder'):
-        likelihood = getattr(node, bu_lh_feature) * getattr(node, td_lh_feature) * frequencies \
-                     * getattr(node, allowed_state_feature)
-        node.add_feature(lh_feature, likelihood)
-        node.add_feature(lh_sf_feature, getattr(node, td_lh_sf_feature) + getattr(node, bu_lh_sf_feature))
+        loglikelihood = np.log10(getattr(node, bu_lh_feature)) + np.log10(getattr(node, td_lh_feature)) \
+                        + np.log10(frequencies * getattr(node, allowed_state_feature))
+        factors = rescale_log(loglikelihood)
+        node.add_feature(lh_feature, np.power(10, loglikelihood))
+        node.add_feature(lh_sf_feature, factors + getattr(node, td_lh_sf_feature) + getattr(node, bu_lh_sf_feature))
 
         node.del_feature(bu_lh_feature)
         node.del_feature(bu_lh_sf_feature)
@@ -723,7 +720,7 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
 
     likelihood = sum(get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=frequencies, sf=sf,
                                                  kappa=kappa, is_marginal=True, model=model) for tree in forest)
-    if np.any(np.isnan(likelihood) or likelihood == -np.inf):
+    if np.isnan(likelihood) or likelihood == -np.inf:
         raise PastMLLikelihoodError('Failed to calculate the likelihood for your tree, '
                                     'please check that you do not have contradicting {} states specified '
                                     'for internal tree nodes, '
