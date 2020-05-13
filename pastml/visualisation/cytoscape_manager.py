@@ -578,6 +578,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
                                           'and serialized this mapping to {}.'
                                           .format(column, states, colours, out_colour_file))
     for tree in forest:
+        nodes_in_focus = set()
         for node in tree.traverse():
             if node.is_leaf():
                 node.add_feature(IS_TIP, True)
@@ -586,12 +587,15 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
                 col_state = getattr(node, column, set())
                 if len(col_state) != 1:
                     node.add_feature(UNRESOLVED, 1)
-                if col_state and focus and not col_state - focus[column]:
-                    node.add_feature(IN_FOCUS, True)
-                    if not node.is_root():
-                        node.up.add_feature(UP_FOCUS, True)
-                    for c in node.children:
-                        c.add_feature(DOWN_FOCUS, True)
+                if focus and col_state & focus[column]:
+                    nodes_in_focus.add(node)
+        for node in nodes_in_focus:
+            node.add_feature(IN_FOCUS, True)
+            if not node.is_root() and node.up not in nodes_in_focus:
+                node.up.add_feature(UP_FOCUS, True)
+            for c in node.children:
+                if c not in nodes_in_focus:
+                    c.add_feature(DOWN_FOCUS, True)
 
     if TIMELINE_NODES == timeline_type:
         def get_date(node):
