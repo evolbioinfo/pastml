@@ -143,7 +143,7 @@ def _serialize_acr(args):
 
 def reconstruct_ancestral_states(forest, character, states, prediction_method=MPPA, model=F81,
                                  params=None, reoptimise=False, avg_br_len=None, num_nodes=None, num_tips=None,
-                                 force_joint=True):
+                                 force_joint=True, tau=0):
     """
     Reconstructs ancestral states for the given character on the given tree.
 
@@ -177,6 +177,9 @@ def reconstruct_ancestral_states(forest, character, states, prediction_method=MP
     :param reoptimise: (False by default) if set to True and the parameters are specified,
         they will be considered as an optimisation starting point instead, and the parameters will be optimised.
     :type reoptimise: bool
+    :param tau: a smoothing factor to apply to branch lengths during likelihood calculation.
+        If set to zero (default), zero internal branches will be collapsed instead.
+    :type tau: float
 
     :return: ACR result dictionary whose values depend on the prediction method.
     :rtype: dict
@@ -204,7 +207,7 @@ def reconstruct_ancestral_states(forest, character, states, prediction_method=MP
         return ml_acr(forest=forest, character=character, prediction_method=prediction_method, model=model,
                       states=states,
                       avg_br_len=avg_br_len, num_nodes=num_nodes, num_tips=num_tips, freqs=freqs, sf=sf, kappa=kappa,
-                      force_joint=force_joint, reoptimise=reoptimise)
+                      force_joint=force_joint, reoptimise=reoptimise, tau=tau)
     if is_parsimonious(prediction_method):
         return parsimonious_acr(forest, character, prediction_method, states, num_nodes, num_tips)
 
@@ -213,7 +216,7 @@ def reconstruct_ancestral_states(forest, character, states, prediction_method=MP
 
 
 def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, force_joint=True, threads=0,
-        reoptimise=False):
+        reoptimise=False, tau=0):
     """
     Reconstructs ancestral states for the given tree and
     all the characters specified as columns of the given annotation dataframe.
@@ -243,6 +246,9 @@ def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, f
     :param force_joint: (optional, default is True) whether the JOINT state should be added to the MPPA prediction
         even when not selected by the Brier score
     :type force_joint: bool
+    :param tau: a smoothing factor to apply to branch lengths during likelihood calculation.
+        If set to zero (default), zero internal branches will be collapsed instead.
+    :type tau: float
 
     :param threads: (optional, default is 0, which stands for automatic) number of threads PastML can use for parallesation.
         By default detected automatically based on the system. Note that PastML will at most use as many threads
@@ -261,7 +267,9 @@ def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, f
     columns = preannotate_forest(df, forest)
     for i, tree in enumerate(forest):
         name_tree(tree, suffix='' if len(forest) == 1 else '_{}'.format(i))
-    collapse_zero_branches(forest, features_to_be_merged=df.columns)
+    tau = max(tau, 0)
+    if not tau:
+        collapse_zero_branches(forest, features_to_be_merged=df.columns)
 
     avg_br_len, num_nodes, num_tips = get_forest_stats(forest)
 
@@ -271,7 +279,7 @@ def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, f
 
     def _work(args):
         return reconstruct_ancestral_states(*args, avg_br_len=avg_br_len, num_nodes=num_nodes, num_tips=num_tips,
-                                            force_joint=force_joint)
+                                            force_joint=force_joint, tau=tau)
 
     prediction_methods = value2list(len(columns), prediction_method, MPPA)
     models = value2list(len(columns), model, F81)
@@ -325,7 +333,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                     out_data=None, html_compressed=None, html=None, html_mixed=None, work_dir=None,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
                     itol_tree_name=None, offline=False, threads=0, reoptimise=False, focus=None,
-                    resolve_polytomies=False):
+                    resolve_polytomies=False, tau=0):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -387,6 +395,9 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     :param reoptimise: (False by default) if set to True and the parameters are specified,
         they will be considered as an optimisation starting point instead, and optimised.
     :type reoptimise: bool
+    :param tau: a smoothing factor to apply to branch lengths during likelihood calculation.
+        If set to zero (default), zero internal branches will be collapsed instead.
+    :type tau: float
 
     :param name_column: (optional) name of the annotation table column to be used for node names
         in the compressed map visualisation
@@ -508,7 +519,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         threads = max(os.cpu_count(), 1)
 
     acr_results = acr(roots, df, prediction_method=prediction_method, model=model, column2parameters=parameters,
-                      force_joint=forced_joint, threads=threads, reoptimise=reoptimise)
+                      force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=tau)
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
 
     if not out_data:
@@ -856,6 +867,9 @@ def main():
     acr_group.add_argument('--reoptimise', action='store_true',
                            help='if the parameters are specified, they will be considered as an optimisation '
                                 'starting point instead and optimised.')
+    acr_group.add_argument('--tau', required=False, type=float, default=0,
+                           help='A smoothing factor to apply to branch lengths during likelihood calculation. '
+                                'If set to zero (default), zero internal branches will be collapsed instead.')
 
     vis_group = parser.add_argument_group('visualisation-related arguments')
     vis_group.add_argument('-n', '--name_column', type=str, default=None,
