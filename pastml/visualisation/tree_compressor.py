@@ -22,7 +22,7 @@ COMPRESSED_NODE = 'compressed_node'
 METACHILD = 'metachild'
 
 IN_FOCUS = 'in_focus'
-DOWN_FOCUS = 'down_focus'
+AROUND_FOCUS = 'around_focus'
 UP_FOCUS = 'up_focus'
 
 IS_POLYTOMY = 'polytomy'
@@ -63,7 +63,7 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
             n.add_feature('multiplier', multiplier)
 
         def get_tsize(n):
-            if getattr(n, IN_FOCUS, False) or getattr(n, DOWN_FOCUS, False) or getattr(n, UP_FOCUS, False):
+            if getattr(n, IN_FOCUS, False) or getattr(n, AROUND_FOCUS, False) or getattr(n, UP_FOCUS, False):
                 return np.inf
             return getattr(n, NUM_TIPS_INSIDE) * getattr(n, 'multiplier')
 
@@ -201,9 +201,11 @@ def collapse_vertically(tree, columns, mixed=False):
         if mixed:
             if getattr(node1, IN_FOCUS, False) or getattr(node2, IN_FOCUS, False):
                 return False
-            if getattr(node1, UP_FOCUS, False) or getattr(node2, UP_FOCUS, False):
-                node1.add_feature(UP_FOCUS, True)
-                node2.add_feature(UP_FOCUS, True)
+            if getattr(node1, UP_FOCUS, False) and not getattr(node2, IN_FOCUS, False) and not getattr(node2, UP_FOCUS, False):
+                node2.add_feature(AROUND_FOCUS, True)
+                return False
+            if getattr(node2, UP_FOCUS, False) and not getattr(node1, IN_FOCUS, False) and not getattr(node1, UP_FOCUS, False):
+                node1.add_feature(AROUND_FOCUS, True)
                 return False
         return True
 

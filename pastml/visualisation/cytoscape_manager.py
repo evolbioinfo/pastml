@@ -14,7 +14,7 @@ from pastml.tree import DATE, DATE_CI
 from pastml.visualisation import get_formatted_date
 from pastml.visualisation.colour_generator import get_enough_colours, WHITE, parse_colours
 from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, TIPS_INSIDE, TIPS_BELOW, \
-    REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP, ROOT_DATES, IN_FOCUS, DOWN_FOCUS, \
+    REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP, ROOT_DATES, IN_FOCUS, AROUND_FOCUS, \
     UP_FOCUS, IS_POLYTOMY
 
 JS_LIST = ["https://pastml.pasteur.fr/static/js/jquery.min.js",
@@ -595,7 +595,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
                 node.up.add_feature(UP_FOCUS, True)
             for c in node.children:
                 if c not in nodes_in_focus:
-                    c.add_feature(DOWN_FOCUS, True)
+                    c.add_feature(AROUND_FOCUS, True)
 
     if TIMELINE_NODES == timeline_type:
         def get_date(node):
@@ -701,8 +701,10 @@ def update_milestones(forest, date_label, milestone_labels, milestones, timeline
 def resolve_polytomies(column2states, forest, name_column, state2color):
     columns = sorted(column2states.keys())
 
+    col2state2i = {c: dict(zip(states, range(len(states)))) for (c, states) in column2states.items()}
+
     def get_prediction(n):
-        return tuple(tuple(sorted(getattr(n, c, set()))) for c in columns)
+        return '.'.join('-'.join(str(i) for i in sorted([col2state2i[c][_] for _ in getattr(n, c, set())])) for c in columns)
 
     for tree in forest:
         todo = [tree]
@@ -714,15 +716,13 @@ def resolve_polytomies(column2states, forest, name_column, state2color):
                 state2children = defaultdict(list)
                 for c in n.children:
                     state2children[get_prediction(c)].append(c)
-                i = 0
                 for state, children in state2children.items():
                     state_change = state != n_state
                     if (state_change or getattr(n, UP_FOCUS, False)) and len(children) > 1:
                         child = min(children, key=lambda _: _.dist)
                         dist = child.dist if state_change else 0
-                        pol = n.add_child(dist=dist, name='{}.polytomy_{}'.format(n.name, i))
+                        pol = n.add_child(dist=dist, name='{}.polytomy_{}'.format(n.name, state))
                         pol.add_feature(IS_POLYTOMY, 1)
-                        i += 1
                         pol.add_feature(DATE, getattr(child, DATE) if state_change else getattr(n, DATE))
                         pol.add_feature(DATE_CI, getattr(child, DATE_CI, None) if state_change else getattr(n, DATE_CI, None))
                         for c in columns:
@@ -731,8 +731,8 @@ def resolve_polytomies(column2states, forest, name_column, state2color):
                             pol.add_feature(UNRESOLVED, getattr(child, UNRESOLVED))
                         if hasattr(child, IN_FOCUS):
                             pol.add_feature(IN_FOCUS, getattr(child, IN_FOCUS))
-                        if hasattr(child, DOWN_FOCUS):
-                            pol.add_feature(DOWN_FOCUS, getattr(child, DOWN_FOCUS))
+                        if hasattr(child, AROUND_FOCUS):
+                            pol.add_feature(AROUND_FOCUS, getattr(child, AROUND_FOCUS))
                         if name_column is not None:
                             sts = getattr(pol, name_column, set())
                             if len(sts) == 1:
