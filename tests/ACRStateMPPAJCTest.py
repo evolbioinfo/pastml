@@ -17,7 +17,6 @@ STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')
 feature = 'Country'
 df = pd.read_csv(STATES_INPUT, index_col=0, header=0)[[feature]]
 tree = read_tree(TREE_NWK)
-collapse_zero_branches(tree)
 acr(tree, df, prediction_method=MPPA, model=JC)
 
 
@@ -40,7 +39,9 @@ class ACRStateMPPAJCTest(unittest.TestCase):
 
     def test_num_nodes(self):
         state2num = Counter()
-        for node in tree.traverse():
+        root = tree.copy()
+        collapse_zero_branches([root])
+        for node in root.traverse():
             state = getattr(node, feature)
             if len(state) > 1:
                 state2num['unresolved'] += 1

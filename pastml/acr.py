@@ -268,8 +268,6 @@ def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, f
     for i, tree in enumerate(forest):
         name_tree(tree, suffix='' if len(forest) == 1 else '_{}'.format(i))
     tau = max(tau, 0)
-    if not tau:
-        collapse_zero_branches(forest, features_to_be_merged=df.columns)
 
     avg_br_len, num_nodes, num_tips = get_forest_stats(forest)
 

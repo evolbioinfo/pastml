@@ -319,7 +319,7 @@ def calculate_top_down_likelihood(tree, character, frequencies, sf, kappa=None, 
 
         td_likelihood = parent_likelihood.dot(node_pjis)
 
-        node.add_feature(td_lh_feature, td_likelihood)
+        node.add_feature(td_lh_feature, np.maximum(td_likelihood, 0))
         node.add_feature(td_lh_sf_feature, factors)
 
 
@@ -350,96 +350,113 @@ def initialize_allowed_states(tree, feature, states):
         node.add_feature(allowed_states_feature, allowed_states)
 
 
+def get_zero_clusters_with_states(tree, feature):
+    """
+    Returns the zero-distance clusters in the given tree.
+
+    :param tree: ete3.Tree, the tree of interest
+    :return: iterator of lists of nodes that are at zero distance from each other and have states specified for them.
+    """
+    def has_state(_):
+        state = getattr(_, feature, None)
+        return state is not None and state != ''
+
+    todo = [tree]
+
+    while todo:
+        zero_cluster_with_states = []
+        extension = [todo.pop()]
+
+        while extension:
+            n = extension.pop()
+            if has_state(n):
+                zero_cluster_with_states.append(n)
+            for c in n.children:
+                if c.dist == 0:
+                    extension.append(c)
+                else:
+                    todo.append(c)
+        if len(zero_cluster_with_states) > 1:
+            yield zero_cluster_with_states
+
+
 def alter_zero_tip_allowed_states(tree, feature):
     """
-    Alters the bottom-up likelihood arrays for zero-distance tips
-    to make sure they do not contradict with other zero-distance tip siblings.
+    Alters the bottom-up likelihood arrays for zero-distance nodes
+    to make sure they do not contradict with other zero-distance node siblings/ancestors/descendants.
 
     :param tree: ete3.Tree, the tree of interest
     :param feature: str, character for which the likelihood is altered
-    :return: void, modifies the get_personalised_feature_name(feature, BU_LH) feature to zero-distance tips.
+    :return: void, modifies the get_personalised_feature_name(feature, BU_LH) feature to zero-distance nodes.
     """
-    zero_parent2tips = defaultdict(list)
-
     allowed_state_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
 
-    for tip in tree:
-        if tip.dist == 0:
-            state = getattr(tip, feature, None)
-            if state is not None and state != '':
-                zero_parent2tips[tip.up].append(tip)
-
-    # adjust zero tips to contain all the zero tip options as states
-    for parent, zero_tips in zero_parent2tips.items():
+    for zero_cluster_with_states in get_zero_clusters_with_states(tree, feature):
         # If there is a common state do nothing
         counts = None
-        for tip in zero_tips:
+        for c in zero_cluster_with_states:
             if counts is None:
-                counts = getattr(tip, allowed_state_feature).copy()
+                counts = getattr(c, allowed_state_feature).copy()
             else:
-                counts += getattr(tip, allowed_state_feature)
-        if counts.max() == len(zero_tips):
+                counts += getattr(c, allowed_state_feature)
+        if counts.max() == len(zero_cluster_with_states):
             continue
-
-        # Otherwise set all tip states to state union
+        # Otherwise set all zero-cluster node states to state union
         allowed_states = None
-        for tip in zero_tips:
+        for c in zero_cluster_with_states:
             if allowed_states is None:
-                allowed_states = getattr(tip, allowed_state_feature).copy()
+                allowed_states = getattr(c, allowed_state_feature).copy()
             else:
-                tip_allowed_states = getattr(tip, allowed_state_feature)
-                allowed_states[np.nonzero(tip_allowed_states)] = 1
-            tip.add_feature(allowed_state_feature, allowed_states)
+                allowed_states[np.nonzero(getattr(c, allowed_state_feature))] = 1
+            c.add_feature(allowed_state_feature, allowed_states)
 
 
-def unalter_zero_tip_allowed_states(tree, feature, state2index):
+def unalter_zero_node_allowed_states(tree, feature, state2index):
     """
-    Unalters the bottom-up likelihood arrays for zero-distance tips
+    Unalters the bottom-up likelihood arrays for zero-distance nodes
     to contain ones only in their states.
 
     :param state2index: dict, mapping between states and their indices in the likelihood array
     :param tree: ete3.Tree, the tree of interest
     :param feature: str, character for which the likelihood was altered
-    :return: void, modifies the get_personalised_feature_name(feature, BU_LH) feature to zero-distance tips.
+    :return: void, modifies the get_personalised_feature_name(feature, BU_LH) feature to zero-distance nodes.
     """
     allowed_state_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
-    for tip in tree:
-        if tip.dist > 0:
-            continue
-        state = getattr(tip, feature, set())
-        if state:
-            initial_allowed_states = np.zeros(len(state2index), np.int)
-            for _ in state:
-                initial_allowed_states[state2index[_]] = 1
-            allowed_states = getattr(tip, allowed_state_feature) & initial_allowed_states
-            tip.add_feature(allowed_state_feature, (allowed_states
-                                                    if np.any(allowed_states > 0) else initial_allowed_states))
+    for zero_cluster_with_states in get_zero_clusters_with_states(tree, feature):
+        for n in zero_cluster_with_states:
+            state = getattr(n, feature, set())
+            if state:
+                initial_allowed_states = np.zeros(len(state2index), np.int)
+                for _ in state:
+                    initial_allowed_states[state2index[_]] = 1
+                allowed_states = getattr(n, allowed_state_feature) & initial_allowed_states
+                n.add_feature(allowed_state_feature,
+                              (allowed_states if np.any(allowed_states > 0) else initial_allowed_states))
 
 
-def unalter_zero_tip_joint_states(tree, feature, state2index):
+def unalter_zero_node_joint_states(tree, feature, state2index):
     """
-    Unalters the joint tip states for zero-distance tips
+    Unalters the joint states for zero-distance nodes
     to contain only their states.
 
     :param state2index: dict, mapping between states and their indices in the joint state array
     :param tree: ete3.Tree, the tree of interest
     :param feature: str, character for which the likelihood was altered
-    :return: void, modifies the get_personalised_feature_name(feature, BU_LH_JOINT_STATES) feature to zero-distance tips.
+    :return: void, modifies the get_personalised_feature_name(feature, BU_LH_JOINT_STATES) feature to zero-distance nodes.
     """
     lh_joint_state_feature = get_personalized_feature_name(feature, BU_LH_JOINT_STATES)
-    for tip in tree:
-        if tip.dist > 0:
-            continue
-        state = getattr(tip, feature, set())
-        if len(state) > 1:
-            allowed_indices = {state2index[_] for _ in state}
-            allowed_index = next(iter(allowed_indices))
-            joint_states = getattr(tip, lh_joint_state_feature)
-            for i in range(len(state2index)):
-                if joint_states[i] not in allowed_indices:
-                    joint_states[i] = allowed_index
-        elif len(state) == 1:
-            tip.add_feature(lh_joint_state_feature, np.ones(len(state2index), np.int) * state2index[next(iter(state))])
+    for zero_cluster_with_states in get_zero_clusters_with_states(tree, feature):
+        for n in zero_cluster_with_states:
+            state = getattr(n, feature, set())
+            if len(state) > 1:
+                allowed_indices = {state2index[_] for _ in state}
+                allowed_index = next(iter(allowed_indices))
+                joint_states = getattr(n, lh_joint_state_feature)
+                for i in range(len(state2index)):
+                    if joint_states[i] not in allowed_indices:
+                        joint_states[i] = allowed_index
+            elif len(state) == 1:
+                n.add_feature(lh_joint_state_feature, np.ones(len(state2index), np.int) * state2index[next(iter(state))])
 
 
 def calculate_marginal_likelihoods(tree, feature, frequencies):
@@ -458,11 +475,10 @@ def calculate_marginal_likelihoods(tree, feature, frequencies):
     td_lh_sf_feature = get_personalized_feature_name(feature, TD_LH_SF)
     lh_feature = get_personalized_feature_name(feature, LH)
     lh_sf_feature = get_personalized_feature_name(feature, LH_SF)
-    allowed_state_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
 
     for node in tree.traverse('preorder'):
         loglikelihood = np.log10(getattr(node, bu_lh_feature)) + np.log10(getattr(node, td_lh_feature)) \
-                        + np.log10(frequencies * getattr(node, allowed_state_feature))
+                        + np.log10(frequencies)
         factors = rescale_log(loglikelihood)
         node.add_feature(lh_feature, np.power(10, loglikelihood))
         node.add_feature(lh_sf_feature, factors + getattr(node, td_lh_sf_feature) + getattr(node, bu_lh_sf_feature))
@@ -485,7 +501,7 @@ def check_marginal_likelihoods(tree, feature):
     lh_sf_feature = get_personalized_feature_name(feature, LH_SF)
 
     for node in tree.traverse():
-        if not node.is_root() and not (node.is_leaf() and node.dist == 0):
+        if not node.is_root():
             node_loglh = np.log10(getattr(node, lh_feature).sum()) - getattr(node, lh_sf_feature)
             parent_loglh = np.log10(getattr(node.up, lh_feature).sum()) - getattr(node.up, lh_sf_feature)
             assert (round(node_loglh, 2) == round(parent_loglh, 2))
@@ -501,11 +517,12 @@ def convert_likelihoods_to_probabilities(tree, feature, states):
     :return: pandas DataFrame, that maps node names to their marginal likelihoods.
     """
     lh_feature = get_personalized_feature_name(feature, LH)
+    allowed_state_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
 
     name2probs = {}
 
     for node in tree.traverse():
-        lh = getattr(node, lh_feature)
+        lh = getattr(node, lh_feature) * getattr(node, allowed_state_feature)
         name2probs[node.name] = lh / lh.sum()
 
     return pd.DataFrame.from_dict(name2probs, orient='index', columns=states)
@@ -828,7 +845,7 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
                                             is_marginal=True, model=model, tau=tau) for tree in forest)
         for tree in forest:
             if not tau:
-                unalter_zero_tip_allowed_states(tree, character, state2index)
+                unalter_zero_node_allowed_states(tree, character, state2index)
         note_restricted_likelihood(method, restricted_likelihood)
         process_reconstructed_states(method)
 
@@ -845,7 +862,7 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
         note_restricted_likelihood(JOINT, restricted_likelihood)
         for tree in forest:
             if not tau:
-                unalter_zero_tip_joint_states(tree, character, state2index)
+                unalter_zero_node_joint_states(tree, character, state2index)
             choose_ancestral_states_joint(tree, character, states, frequencies)
         process_reconstructed_states(JOINT)
 
@@ -858,10 +875,10 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
             get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=frequencies, sf=sf, kappa=kappa,
                                         is_marginal=True, model=model, tau=tau)
             calculate_top_down_likelihood(tree, character, frequencies, sf, kappa=kappa, model=model, tau=tau)
-            if not tau:
-                unalter_zero_tip_allowed_states(tree, character, state2index)
             calculate_marginal_likelihoods(tree, character, frequencies)
             # check_marginal_likelihoods(tree, character)
+            if not tau:
+                unalter_zero_node_allowed_states(tree, character, state2index)
             mps.append(convert_likelihoods_to_probabilities(tree, character, states))
 
             choose_ancestral_states_map(tree, character, states)

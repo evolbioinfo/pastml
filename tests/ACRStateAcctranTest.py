@@ -15,7 +15,7 @@ STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')
 feature = 'Country'
 df = pd.read_csv(STATES_INPUT, index_col=0, header=0)[[feature]]
 tree = read_tree(TREE_NWK)
-collapse_zero_branches(tree)
+collapse_zero_branches([tree])
 acr_result = acr(tree, df, prediction_method=ACCTRAN)[0]
 
 

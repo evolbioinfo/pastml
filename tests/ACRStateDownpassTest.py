@@ -15,7 +15,7 @@ STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')
 feature = 'Country'
 df = pd.read_csv(STATES_INPUT, index_col=0, header=0)[[feature]]
 tree = read_tree(TREE_NWK)
-collapse_zero_branches(tree)
+collapse_zero_branches([tree])
 acr_result = acr(tree, df, prediction_method=DOWNPASS)[0]
 
 
@@ -33,7 +33,8 @@ class ACRStateDownpassTest(unittest.TestCase):
                 state2num['unresolved'] += 1
             else:
                 state2num[next(iter(state))] += 1
-        expected_state2num = {'unresolved': 13, 'Africa': 105, 'Albania': 50, 'Greece': 65, 'WestEurope': 28, 'EastEurope': 16}
+        expected_state2num = {'unresolved': 13, 'Africa': 105, 'Albania': 50, 'Greece': 65, 'WestEurope': 28,
+                              'EastEurope': 16}
         self.assertDictEqual(expected_state2num, state2num, msg='Was supposed to have {} as states counts, got {}.'
                              .format(expected_state2num, state2num))
 
@@ -41,7 +42,7 @@ class ACRStateDownpassTest(unittest.TestCase):
         expected_state = {'Africa'}
         state = getattr(tree, feature)
         self.assertSetEqual(expected_state, state,
-                         msg='Root state was supposed to be {}, got {}.'.format(expected_state, state))
+                            msg='Root state was supposed to be {}, got {}.'.format(expected_state, state))
 
     def test_state_resolved_node_129(self):
         expected_state = {'Greece'}
@@ -49,7 +50,7 @@ class ACRStateDownpassTest(unittest.TestCase):
             if 'node_129' == node.name:
                 state = getattr(node, feature)
                 self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
-                                 .format(node.name, expected_state, state))
+                                    .format(node.name, expected_state, state))
                 break
 
     def test_state_unresolved_node_25(self):
@@ -85,7 +86,7 @@ class ACRStateDownpassTest(unittest.TestCase):
             if '01ALAY1715' == node.name:
                 state = getattr(node, feature)
                 self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
-                                 .format(node.name, expected_state, state))
+                                    .format(node.name, expected_state, state))
                 break
 
     def test_state_tip(self):
@@ -94,5 +95,5 @@ class ACRStateDownpassTest(unittest.TestCase):
             if '94SEAF9671' == node.name:
                 state = getattr(node, feature)
                 self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
-                                 .format(node.name, expected_state, state))
+                                    .format(node.name, expected_state, state))
                 break
