@@ -15,7 +15,7 @@ from pastml.annotation import preannotate_forest, get_forest_stats
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file, get_pastml_work_dir
 from pastml.ml import SCALING_FACTOR, MODEL, FREQUENCIES, MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
-    ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method
+    ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method, SMOOTHING_FACTOR
 from pastml.models.f81_like import F81, JC, EFT
 from pastml.models.hky import KAPPA, HKY_STATES, HKY
 from pastml.models.jtt import JTT_STATES, JTT
@@ -28,7 +28,7 @@ from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 from pastml.visualisation import get_formatted_date
 
-PASTML_VERSION = '1.9.29.3'
+PASTML_VERSION = '1.9.29.4'
 
 warnings.filterwarnings("ignore", append=True)
 
@@ -37,7 +37,7 @@ COPY = 'COPY'
 
 def _parse_pastml_parameters(params, states, reoptimise=False):
     logger = logging.getLogger('pastml')
-    frequencies, sf, kappa = None, None, None
+    frequencies, sf, kappa, tau = None, None, None, None
     if not isinstance(params, str) and not isinstance(params, dict):
         raise ValueError('Parameters must be specified either as a dict or as a path to a csv file, not as {}!'
                          .format(type(params)))
@@ -107,7 +107,18 @@ def _parse_pastml_parameters(params, states, reoptimise=False):
         except:
             logger.error('Kappa ({}) is not float, ignoring it.'.format(kappa))
             kappa = None
-    return frequencies, sf, kappa
+    if SMOOTHING_FACTOR in params:
+        tau = params[SMOOTHING_FACTOR]
+        try:
+            tau = np.float64(tau)
+            if tau <= 0:
+                logger.error(
+                    'Smoothing factor ({}) cannot be negative, ignoring it.'.format(tau))
+                tau = None
+        except:
+            logger.error('Smoothing factor ({}) is not float, ignoring it.'.format(tau))
+            tau = None
+    return frequencies, sf, kappa, tau
 
 
 def _serialize_acr(args):
@@ -203,7 +214,9 @@ def reconstruct_ancestral_states(forest, character, states, prediction_method=MP
             avg_br_len = np.mean(dists)
         freqs, sf, kappa = None, None, None
         if params is not None:
-            freqs, sf, kappa = _parse_pastml_parameters(params, states)
+            freqs, sf, kappa, tau_p = _parse_pastml_parameters(params, states)
+            if tau is None and tau_p is not None:
+                tau = tau_p
         return ml_acr(forest=forest, character=character, prediction_method=prediction_method, model=model,
                       states=states,
                       avg_br_len=avg_br_len, num_nodes=num_nodes, num_tips=num_tips, freqs=freqs, sf=sf, kappa=kappa,
@@ -267,7 +280,6 @@ def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, f
     columns = preannotate_forest(df, forest)
     for i, tree in enumerate(forest):
         name_tree(tree, suffix='' if len(forest) == 1 else '_{}'.format(i))
-    tau = max(tau, 0)
 
     avg_br_len, num_nodes, num_tips = get_forest_stats(forest)
 
@@ -331,7 +343,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
                     out_data=None, html_compressed=None, html=None, html_mixed=None, work_dir=None,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
                     itol_tree_name=None, offline=False, threads=0, reoptimise=False, focus=None,
-                    resolve_polytomies=False, tau=0):
+                    resolve_polytomies=False, smoothing=False):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -393,9 +405,9 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     :param reoptimise: (False by default) if set to True and the parameters are specified,
         they will be considered as an optimisation starting point instead, and optimised.
     :type reoptimise: bool
-    :param tau: a smoothing factor to apply to branch lengths during likelihood calculation.
-        If set to zero (default), zero internal branches will be collapsed instead.
-    :type tau: float
+    :param smoothing: (optional, default is False) apply a smoothing factor (optimised) to branch lengths
+        during likelihood calculation.
+    :type smoothing: bool
 
     :param name_column: (optional) name of the annotation table column to be used for node names
         in the compressed map visualisation
@@ -517,14 +529,14 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         threads = max(os.cpu_count(), 1)
 
     acr_results = acr(roots, df, prediction_method=prediction_method, model=model, column2parameters=parameters,
-                      force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=tau)
+                      force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=None if smoothing else 0)
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
 
     if not out_data:
         out_data = os.path.join(work_dir, get_combined_ancestral_state_file())
 
     state_df = _serialize_predicted_states(sorted(column2states.keys()), out_data, roots,
-                                           dates_are_dates=age_label==DATE_LABEL)
+                                           dates_are_dates=age_label == DATE_LABEL)
 
     # a meta-method would have added a suffix to the name feature
     if html_compressed and name_column and name_column not in column2states:
@@ -865,9 +877,8 @@ def main():
     acr_group.add_argument('--reoptimise', action='store_true',
                            help='if the parameters are specified, they will be considered as an optimisation '
                                 'starting point instead and optimised.')
-    acr_group.add_argument('--tau', required=False, type=float, default=0,
-                           help='A smoothing factor to apply to branch lengths during likelihood calculation. '
-                                'If set to zero (default), zero internal branches will be collapsed instead.')
+    acr_group.add_argument('--smoothing', action='store_true',
+                           help='Apply a smoothing factor (optimised) to branch lengths during likelihood calculation.')
 
     vis_group = parser.add_argument_group('visualisation-related arguments')
     vis_group.add_argument('-n', '--name_column', type=str, default=None,
