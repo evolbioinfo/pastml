@@ -729,11 +729,11 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
     logger = logging.getLogger('pastml')
     logger.debug('Observed frequencies for {}:{}{}.'
                  .format(character,
-                         ''.join('\n\tfrequency of {}:\t{:.6f}'.format(state, observed_frequencies[
-                             state2index[state]])
-                                 for state in states),
-                         '\n\tfraction of missing data:\t{:.6f}'.format(
-                             missing_data) if missing_data else ''))
+                         ''.join('\n\tfrequency of {}:\t{:.6f}'
+                                 .format(state, observed_frequencies[state2index[state]]) for state in states),
+                         '\n\tfraction of missing data:\t{:.6f}'
+                         .format(missing_data) if missing_data else '')
+                 )
 
     if freqs is not None and model not in {F81, HKY}:
         logging.warning('Some frequencies were specified in the parameter file, '
@@ -783,25 +783,25 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
     if not optimise_sf and not optimise_frequencies and not optimise_kappa and not optimise_tau:
         logger.debug('All the parameters are fixed for {}:{}{}{}{}.'
                      .format(character,
-                             ''.join('\n\tfrequency of {}:\t{:.6f}'.format(state, frequencies[
-                                 state2index[state]])
-                                     for state in states),
-                             '\n\tSF:\t{:.6f}, i.e. {:.6f} changes per avg branch'
-                             .format(sf, sf * avg_br_len),
+                             ''.join('\n\tfrequency of {}:\t{:.6f}'
+                                     .format(state, frequencies[state2index[state]]) for state in states),
                              '\n\tkappa:\t{:.6f}'.format(kappa) if HKY == model else '',
-                             '\n\ttau:\t{:.6f}'.format(tau),
-                             '\n\tlog likelihood:\t{:.6f}'.format(likelihood)))
+                             '\n\tscaling factor:\t{:.6f}, i.e. {:.6f} changes per avg branch'
+                             .format(sf, sf * avg_br_len),
+                             '\n\tsmoothing factor:\t{:.6f}'.format(tau),
+                             '\n\tlog likelihood:\t{:.6f}'.format(likelihood))
+                     )
     else:
         logger.debug('Initial values for {} parameter optimisation:{}{}{}{}.'
                      .format(character,
-                             ''.join('\n\tfrequency of {}:\t{:.6f}'.format(state, frequencies[
-                                 state2index[state]])
-                                     for state in states),
-                             '\n\tSF:\t{:.6f}, i.e. {:.6f} changes per avg branch'
-                             .format(sf, sf * avg_br_len),
+                             ''.join('\n\tfrequency of {}:\t{:.6f}'
+                                     .format(state, frequencies[state2index[state]]) for state in states),
                              '\n\tkappa:\t{:.6f}'.format(kappa) if HKY == model else '',
-                             '\n\ttau:\t{:.6f}'.format(tau),
-                             '\n\tlog likelihood:\t{:.6f}'.format(likelihood)))
+                             '\n\tscaling factor:\t{:.6f}, i.e. {:.6f} changes per avg branch'
+                             .format(sf, sf * avg_br_len),
+                             '\n\tsmoothing factor:\t{:.6f}'.format(tau),
+                             '\n\tlog likelihood:\t{:.6f}'.format(likelihood))
+                     )
         if optimise_sf or optimise_tau:
             (_, sf, _, tau), likelihood = \
                 optimize_likelihood_params(forest=forest, character=character, frequencies=frequencies, sf=sf,
@@ -816,11 +816,13 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
                                             .format(character))
             if optimise_frequencies or optimise_kappa:
                 logger.debug('Pre-optimised {} for {}:{}{}{}.'
-                             .format('SF and tau' if optimise_sf and optimise_tau else 'SF' if optimise_sf else 'tau',
+                             .format('scaling and smoothing factors' if optimise_sf and optimise_tau
+                                                                  else ('scaling factor' if optimise_sf
+                                                                        else 'smoothing factor'),
                                      character,
-                                     '\n\tSF:\t{:.6f}, i.e. {:.6f} changes per avg branch'
+                                     '\n\tscaling factor:\t{:.6f}, i.e. {:.6f} changes per avg branch'
                                      .format(sf, sf * avg_br_len) if optimise_sf else '',
-                                     '\n\ttau:\t{:.6f}'.format(tau) if optimise_tau else '',
+                                     '\n\tsmoothing factor:\t{:.6f}'.format(tau) if optimise_tau else '',
                                      '\n\tlog likelihood:\t{:.6f}'.format(likelihood)))
         if optimise_frequencies or optimise_kappa:
             (frequencies, sf, kappa, tau), likelihood = \
@@ -838,13 +840,13 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
                                             .format(character))
         logger.debug('Optimised {} values:{}{}{}{}{}'
                      .format(character,
-                             ''.join('\n\tfrequency of {}:\t{:.6f}'.format(state, frequencies[
-                                 state2index[state]])
-                                     for state in states) if optimise_frequencies else '',
-                             '\n\tSF:\t{:.6f}, i.e. {:.6f} changes per avg branch'
-                             .format(sf, sf * avg_br_len),
+                             ''.join('\n\tfrequency of {}:\t{:.6f}'
+                                     .format(state, frequencies[state2index[state]]) for state in states)
+                             if optimise_frequencies else '',
                              '\n\tkappa:\t{:.6f}'.format(kappa) if HKY == model else '',
-                             '\n\ttau:\t{:.6f}'.format(tau),
+                             '\n\tscaling factor:\t{:.6f}, i.e. {:.6f} changes per avg branch'
+                             .format(sf, sf * avg_br_len),
+                             '\n\tsmoothing factor:\t{:.6f}'.format(tau),
                              '\n\tlog likelihood:\t{:.6f}'.format(likelihood)))
 
     result = {LOG_LIKELIHOOD: likelihood, CHARACTER: character, METHOD: prediction_method, MODEL: model,

@@ -83,12 +83,12 @@ class ACRParameterOptimisationMPPAEFTTest(unittest.TestCase):
 
     def test_changes_per_avg_branch(self):
         self.assertAlmostEqual(0.149, acr_result[CHANGES_PER_AVG_BRANCH], places=3,
-                               msg='SF was supposed to be the {:.3f} changes per avg branch, got {:3f}'
+                               msg='Scaling factor was supposed to be the {:.3f} changes per avg branch, got {:3f}'
                                .format(0.149, acr_result[CHANGES_PER_AVG_BRANCH]))
 
     def test_sf(self):
         self.assertAlmostEqual(5.38, acr_result[SCALING_FACTOR], places=3,
-                               msg='SF was supposed to be the {:.3f}, got {:3f}'
+                               msg='Scaling factor was supposed to be the {:.3f}, got {:3f}'
                                .format(5.38, acr_result[SCALING_FACTOR]))
 
     def test_frequencies(self):
