@@ -897,7 +897,7 @@ def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, character, stat
                                            optimise_kappa=optimise_kappa, avg_br_len=avg_br_len,
                                            tree_len=tree_len, num_edges=num_edges, model=model,
                                            observed_frequencies=observed_frequencies,
-                                           tau=tau, optimise_tau=optimise_tau)
+                                           tau=tau, optimise_tau=False)
             if np.any(np.isnan(likelihood) or likelihood == -np.inf):
                 raise PastMLLikelihoodError('Failed to calculate the likelihood for your tree, '
                                             'please check that you do not have contradicting {} states specified '
