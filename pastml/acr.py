@@ -9,24 +9,24 @@ import pandas as pd
 from Bio.Phylo import NewickIO, write
 from ete3 import Tree
 
-from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, NUM_SCENARIOS, \
-    numeric2datetime, datetime2numeric
-from pastml.annotation import preannotate_forest, get_forest_stats
+from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, numeric2datetime, \
+    datetime2numeric
+from pastml.annotation import preannotate_forest, get_forest_stats, get_min_forest_stats
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file, get_pastml_work_dir
 from pastml.ml import SCALING_FACTOR, MODEL, FREQUENCIES, MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
     ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method, SMOOTHING_FACTOR
 from pastml.models.f81_like import F81, JC, EFT
 from pastml.models.hky import KAPPA, HKY_STATES, HKY
-from pastml.models.jtt import JTT_STATES, JTT
+from pastml.models.jtt import JTT_STATES, JTT, JTT_FREQUENCIES
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
     get_default_mp_method
-from pastml.tree import name_tree, collapse_zero_branches, annotate_dates, DATE, read_forest, DATE_CI
+from pastml.tree import name_tree, annotate_dates, DATE, read_forest, DATE_CI, resolve_trees
+from pastml.visualisation import get_formatted_date
 from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT, \
     DIST_TO_ROOT_LABEL, DATE_LABEL
 from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
-from pastml.visualisation import get_formatted_date
 
 PASTML_VERSION = '1.9.29.4'
 
@@ -152,84 +152,8 @@ def _serialize_acr(args):
                                           .format(acr_result[CHARACTER], out_mp_file))
 
 
-def reconstruct_ancestral_states(forest, character, states, prediction_method=MPPA, model=F81,
-                                 params=None, reoptimise=False, avg_br_len=None, num_nodes=None, num_tips=None,
-                                 force_joint=True, tau=0):
-    """
-    Reconstructs ancestral states for the given character on the given tree.
-
-    :param character: character whose ancestral states are to be reconstructed.
-    :type character: str
-    :param forest: trees whose ancestral states are to be reconstructed,
-        annotated with the feature specified as `character` containing node states when known.
-    :type forest: list(ete3.Tree)
-    :param states: possible character states.
-    :type states: numpy.array
-    :param avg_br_len: (optional) average non-zero branch length for this tree. If not specified, will be calculated.
-    :type avg_br_len: float
-    :param model: (optional, default is F81) state evolution model to be used by PASTML.
-    :type model: str
-    :param prediction_method: (optional, default is MPPA) ancestral state prediction method to be used by PASTML.
-    :param prediction_method: (optional, default is MPPA) ancestral state prediction method to be used by PASTML.
-    :type prediction_method: str
-    :param num_nodes: (optional) total number of nodes in the given tree (including tips).
-        If not specified, will be calculated.
-    :type num_nodes: int
-    :param num_tips: (optional) total number of tips in the given tree.
-        If not specified, will be calculated.
-    :type num_tips: int
-    :param params: an optional way to fix some parameters,
-        must be in a form {param: value},
-        where param can be a state (then the value should specify its frequency between 0 and 1),
-        or "scaling factor" (then the value should be the scaling factor for three branches,
-        e.g. set to 1 to keep the original branches). Could also be in a form path_to_param_file.
-        Only makes sense for ML methods.
-    :type params: dict or str
-    :param reoptimise: (False by default) if set to True and the parameters are specified,
-        they will be considered as an optimisation starting point instead, and the parameters will be optimised.
-    :type reoptimise: bool
-    :param tau: a smoothing factor to apply to branch lengths during likelihood calculation.
-        If set to zero (default), zero internal branches will be collapsed instead.
-    :type tau: float
-
-    :return: ACR result dictionary whose values depend on the prediction method.
-    :rtype: dict
-    """
-
-    logging.getLogger('pastml').debug('ACR settings for {}:\n\tMethod:\t{}{}.'
-                                      .format(character, prediction_method,
-                                              '\n\tModel:\t{}'.format(model)
-                                              if model and is_ml(prediction_method) else ''))
-    if COPY == prediction_method:
-        return {CHARACTER: character, STATES: states, METHOD: prediction_method}
-    if not num_nodes:
-        num_nodes = sum(sum(1 for _ in tree.traverse()) for tree in forest)
-    if not num_tips:
-        num_tips = sum(len(tree) for tree in forest)
-    if is_ml(prediction_method):
-        if avg_br_len is None:
-            dists = []
-            for tree in forest:
-                dists.extend(n.dist for n in tree.traverse() if n.dist)
-            avg_br_len = np.mean(dists)
-        freqs, sf, kappa = None, None, None
-        if params is not None:
-            freqs, sf, kappa, tau_p = _parse_pastml_parameters(params, states)
-            if tau is None and tau_p is not None:
-                tau = tau_p
-        return ml_acr(forest=forest, character=character, prediction_method=prediction_method, model=model,
-                      states=states,
-                      avg_br_len=avg_br_len, num_nodes=num_nodes, num_tips=num_tips, freqs=freqs, sf=sf, kappa=kappa,
-                      force_joint=force_joint, reoptimise=reoptimise, tau=tau)
-    if is_parsimonious(prediction_method):
-        return parsimonious_acr(forest, character, prediction_method, states, num_nodes, num_tips)
-
-    raise ValueError('Method {} is unknown, should be one of ML ({}), one of MP ({}) or {}'
-                     .format(prediction_method, ', '.join(ML_METHODS), ', '.join(MP_METHODS), COPY))
-
-
 def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, force_joint=True, threads=0,
-        reoptimise=False, tau=0):
+        reoptimise=False, tau=0, resolve_polytomies=False):
     """
     Reconstructs ancestral states for the given tree and
     all the characters specified as columns of the given annotation dataframe.
@@ -277,19 +201,15 @@ def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, f
     if isinstance(forest, Tree):
         forest = [forest]
 
-    columns = preannotate_forest(df, forest)
+    columns, gdf = preannotate_forest(forest, df=df)
     for i, tree in enumerate(forest):
         name_tree(tree, suffix='' if len(forest) == 1 else '_{}'.format(i))
 
-    avg_br_len, num_nodes, num_tips = get_forest_stats(forest)
+    tree_stats = get_forest_stats(forest)
 
     logging.getLogger('pastml').debug('\n=============ACR===============================')
 
     column2parameters = column2parameters if column2parameters else {}
-
-    def _work(args):
-        return reconstruct_ancestral_states(*args, avg_br_len=avg_br_len, num_nodes=num_nodes, num_tips=num_tips,
-                                            force_joint=force_joint, tau=tau)
 
     prediction_methods = value2list(len(columns), prediction_method, MPPA)
     models = value2list(len(columns), model, F81)
@@ -307,28 +227,147 @@ def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, f
         df[column] = df[column].apply(lambda _: _ if _ in state_set else '')
         return states
 
+    # method, model, states, params, optimise
+    character2settings = {}
+    for (character, prediction_method, model) in zip(columns, prediction_methods, models):
+        logging.getLogger('pastml') \
+            .debug('ACR settings for {}:\n\tMethod:\t{}{}.'
+                   .format(character, prediction_method,
+                           '\n\tModel:\t{}'.format(model) if model and is_ml(prediction_method) else ''))
+        states = get_states(prediction_method, model, character)
+        if COPY == prediction_method or is_parsimonious(prediction_method):
+            character2settings[character] = [prediction_method, None, states, None, None, None]
+        elif is_ml(prediction_method):
+            freqs, sf, kappa = None, None, None
+            params = column2parameters[character] if character in column2parameters else None
+            if params is not None:
+                freqs, sf, kappa, tau_p = _parse_pastml_parameters(params, states, reoptimise)
+                if tau is None and tau_p is not None:
+                    tau = tau_p
+                if freqs is not None and model not in {F81, HKY}:
+                    logging.warning('Some frequencies were specified in the parameter file, '
+                                    'but the selected model ({}) ignores them. '
+                                    'Use F81 (or HKY for nucleotide characters only) '
+                                    'for taking user-specified frequencies into account.'.format(model))
+            optimise_sf = not sf or reoptimise
+            if not sf:
+                sf = 1. / tree_stats[0]
+            optimise_tau = tau is None or reoptimise
+            if tau is None:
+                tau = 0
+            optimise_kappa = (not kappa or reoptimise) and model == HKY
+            if HKY == model and not kappa:
+                kappa = 4.
+            optimise_frequencies = model in {F81, HKY} and (freqs is None or reoptimise)
+
+            n = len(states)
+            missing_data = 0.
+            state2index = dict(zip(states, range(n)))
+            observed_frequencies = np.zeros(n, np.float64)
+            for tree in forest:
+                for _ in tree:
+                    state = getattr(_, character, set())
+                    if state:
+                        num_node_states = len(state)
+                        for _ in state:
+                            observed_frequencies[state2index[_]] += 1. / num_node_states
+                    else:
+                        missing_data += 1
+            total_count = observed_frequencies.sum() + missing_data
+            observed_frequencies /= observed_frequencies.sum()
+            missing_data /= total_count
+
+            logger = logging.getLogger('pastml')
+            logger.debug('Observed frequencies for {}:{}{}.'
+                         .format(character,
+                                 ''.join('\n\tfrequency of {}:\t{:.6f}'
+                                         .format(state, observed_frequencies[state2index[state]]) for state in states),
+                                 '\n\tfraction of missing data:\t{:.6f}'
+                                 .format(missing_data) if missing_data else '')
+                         )
+
+            if JTT == model:
+                frequencies = JTT_FREQUENCIES
+            elif EFT == model:
+                frequencies = observed_frequencies
+            elif model in {F81, HKY} and freqs is not None:
+                frequencies = freqs
+            else:
+                frequencies = np.ones(n, dtype=np.float64) / n
+            character2settings[character] = [prediction_method, model, states, [frequencies, kappa, sf, tau], \
+                                             [optimise_frequencies, optimise_kappa, optimise_sf, optimise_tau], \
+                                             observed_frequencies]
+        else:
+            raise ValueError('Method {} is unknown, should be one of ML ({}), one of MP ({}) or {}'
+                             .format(prediction_method, ', '.join(ML_METHODS), ', '.join(MP_METHODS), COPY))
+
     if threads < 1:
         threads = max(os.cpu_count(), 1)
+
+    def _work(character):
+        prediction_method, model, states, params, optimised_values, observed_frequencies = character2settings[character]
+        if COPY == prediction_method:
+            return {CHARACTER: character, STATES: states, METHOD: prediction_method}
+        if is_ml(prediction_method):
+            frequencies, kappa, sf, tau = params
+            optimise_frequencies, optimise_kappa, optimise_sf, optimise_tau = optimised_values
+            return ml_acr(forest=forest, character=character, prediction_method=prediction_method, model=model,
+                          states=states, avg_br_len=tree_stats[0], num_nodes=tree_stats[1], num_tips=tree_stats[2],
+                          tree_len=tree_stats[3],
+                          frequencies=frequencies, sf=sf, kappa=kappa,
+                          force_joint=force_joint, tau=tau,
+                          optimise_frequencies=optimise_frequencies, optimise_sf=optimise_sf,
+                          optimise_kappa=optimise_kappa, optimise_tau=optimise_tau,
+                          observed_frequencies=observed_frequencies)
+        if is_parsimonious(prediction_method):
+            return parsimonious_acr(forest=forest, character=character, prediction_method=prediction_method,
+                                    states=states, num_nodes=tree_stats[1], num_tips=tree_stats[2])
 
     if threads > 1:
         with ThreadPool(processes=threads - 1) as pool:
             acr_results = \
-                pool.map(func=_work, iterable=((forest, column, get_states(method, model, column), method, model,
-                                                (column2parameters[column] if column in column2parameters else None),
-                                                reoptimise)
-                                               for (column, method, model) in zip(columns, prediction_methods, models)))
+                pool.map(func=_work, iterable=character2settings.keys())
     else:
-        acr_results = [_work((forest, column, get_states(method, model, column), method, model,
-                              (column2parameters[column] if column in column2parameters else None), reoptimise))
-                       for (column, method, model) in zip(columns, prediction_methods, models)]
+        acr_results = [_work(character) for character in character2settings.keys()]
 
+    acr_results = flatten_lists(acr_results)
+
+    column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
+    if resolve_polytomies:
+        while True:
+            num_resolved = resolve_trees(column2states, forest)
+            if not num_resolved:
+                break
+            # we have selected states before, so now need to reset them
+            preannotate_forest(forest, gdf=gdf)
+            tree_stats[:] = get_min_forest_stats(forest)
+            for acr_res in acr_results:
+                character = acr_res[CHARACTER]
+                method = acr_res[METHOD]
+                if is_ml(method):
+                    if character not in character2settings:
+                        character = character[:character.rfind('_{}').format(method)]
+                    character2settings[character][3] = acr_res[FREQUENCIES], \
+                                                       acr_res[KAPPA] if KAPPA in acr_res else None, \
+                                                       acr_res[SCALING_FACTOR], acr_res[SMOOTHING_FACTOR]
+            if threads > 1:
+                with ThreadPool(processes=threads - 1) as pool:
+                    acr_results = \
+                        pool.map(func=_work, iterable=character2settings.keys())
+            else:
+                acr_results = [_work(character) for character in character2settings.keys()]
+            acr_results = flatten_lists(acr_results)
+
+    return acr_results
+
+
+def flatten_lists(lists):
     result = []
-    for acr_res in acr_results:
-        if isinstance(acr_res, list):
-            result.extend(acr_res)
+    for _ in lists:
+        if isinstance(_, list):
+            result.extend(_)
         else:
-            result.append(acr_res)
-
+            result.append(_)
     return result
 
 
@@ -529,7 +568,9 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
         threads = max(os.cpu_count(), 1)
 
     acr_results = acr(roots, df, prediction_method=prediction_method, model=model, column2parameters=parameters,
-                      force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=None if smoothing else 0)
+                      force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=None if smoothing else 0,
+                      resolve_polytomies=resolve_polytomies)
+
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
 
     if not out_data:
@@ -648,8 +689,8 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
 
         visualize(roots, column2states=column2states, html=html, html_compressed=html_compressed, html_mixed=html_mixed,
                   name_column=name_column, tip_size_threshold=tip_size_threshold, date_label=age_label,
-                  timeline_type=timeline_type, work_dir=work_dir, local_css_js=offline, column2colours=colours, focus=focus,
-                  should_resolve_polytomies=resolve_polytomies)
+                  timeline_type=timeline_type, work_dir=work_dir, local_css_js=offline, column2colours=colours,
+                  focus=focus)
 
     if threads > 1:
         async_result.wait()

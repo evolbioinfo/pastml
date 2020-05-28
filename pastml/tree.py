@@ -1,7 +1,7 @@
 import logging
 import os
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime
 
 from Bio import Phylo
@@ -14,6 +14,8 @@ DATE_REGEX = r'[+-]*[\d]+[.\d]*(?:[e][+-][\d]+){0,1}'
 DATE_COMMENT_REGEX = '[&,:]date[=]["]{{0,1}}({})["]{{0,1}}'.format(DATE_REGEX)
 CI_DATE_REGEX_LSD = '[&,:]CI_date[=]["]{{0,1}}({}) ({})["]{{0,1}}'.format(DATE_REGEX, DATE_REGEX)
 CI_DATE_REGEX_PASTML = '[&,:]date_CI[=]["]{{0,1}}({})[|]({})["]{{0,1}}'.format(DATE_REGEX, DATE_REGEX)
+
+IS_POLYTOMY = 'polytomy'
 
 
 def get_dist_to_root(tip):
@@ -254,3 +256,46 @@ def read_nexus(tree_path):
     trees = list(Phylo.parse(temp, 'nexus'))
     os.remove(temp)
     return trees
+
+
+def resolve_trees(column2states, forest):
+    columns = sorted(column2states.keys())
+
+    col2state2i = {c: dict(zip(states, range(len(states)))) for (c, states) in column2states.items()}
+
+    def get_prediction(n):
+        return '.'.join('-'.join(str(i) for i in sorted([col2state2i[c][_] for _ in getattr(n, c, set())]))
+                        for c in columns)
+
+    num_new_nodes = 0
+
+    for tree in forest:
+        todo = [tree]
+        while todo:
+            n = todo.pop()
+            n_state = get_prediction(n)
+            todo.extend(n.children)
+            if len(n.children) > 2:
+                state2children = defaultdict(list)
+                for c in n.children:
+                    state2children[get_prediction(c)].append(c)
+                for state, children in state2children.items():
+                    state_change = state != n_state
+                    if state_change and len(children) > 1:
+                        child = min(children, key=lambda _: _.dist)
+                        dist = child.dist if state_change else 0
+                        pol = n.add_child(dist=dist, name='{}.polytomy_{}'.format(n.name, state))
+                        pol.add_feature(IS_POLYTOMY, 1)
+                        pol.add_feature(DATE, getattr(child, DATE) if state_change else getattr(n, DATE))
+                        pol.add_feature(DATE_CI, getattr(child, DATE_CI, None) if state_change else getattr(n, DATE_CI, None))
+                        for c in columns:
+                            pol.add_feature(c, getattr(child, c))
+                        for c in children:
+                            n.remove_child(c)
+                            pol.add_child(c, dist=c.dist - dist)
+                        num_new_nodes += 1
+    if num_new_nodes:
+        logging.getLogger('pastml').debug('Created {} new internal nodes while resolving polytomies'.format(num_new_nodes))
+    else:
+        logging.getLogger('pastml').debug('Could not resolve any polytomy')
+    return num_new_nodes

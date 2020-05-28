@@ -1,5 +1,6 @@
 import logging
 from collections import defaultdict
+from pastml.tree import IS_POLYTOMY
 
 import numpy as np
 
@@ -24,8 +25,6 @@ METACHILD = 'metachild'
 IN_FOCUS = 'in_focus'
 AROUND_FOCUS = 'around_focus'
 UP_FOCUS = 'up_focus'
-
-IS_POLYTOMY = 'polytomy'
 
 
 def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, mixed=False):

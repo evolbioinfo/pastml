@@ -1,6 +1,5 @@
 import logging
 import os
-from collections import defaultdict
 from glob import glob
 from queue import Queue
 from shutil import copyfile
@@ -8,14 +7,14 @@ from shutil import copyfile
 import numpy as np
 from jinja2 import Environment, PackageLoader
 
-from pastml.file import get_pastml_colour_file
 from pastml import numeric2datetime
-from pastml.tree import DATE, DATE_CI
+from pastml.file import get_pastml_colour_file
+from pastml.tree import DATE, IS_POLYTOMY
 from pastml.visualisation import get_formatted_date
 from pastml.visualisation.colour_generator import get_enough_colours, WHITE, parse_colours
 from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, TIPS_INSIDE, TIPS_BELOW, \
     REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP, ROOT_DATES, IN_FOCUS, AROUND_FOCUS, \
-    UP_FOCUS, IS_POLYTOMY
+    UP_FOCUS
 
 JS_LIST = ["https://pastml.pasteur.fr/static/js/jquery.min.js",
            "https://pastml.pasteur.fr/static/js/jquery.qtip.min.js",
@@ -545,11 +544,26 @@ def get_column_value_str(n, column, format_list=True, list_value=''):
 
 def visualize(forest, column2states, work_dir, name_column=None, html=None, html_compressed=None, html_mixed=None,
               tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, date_label='Dist. to root', timeline_type=TIMELINE_SAMPLED,
-              local_css_js=False, column2colours=None, focus=None, should_resolve_polytomies=False):
+              local_css_js=False, column2colours=None, focus=None):
+
+    for tree in forest:
+        nodes_in_focus = set()
+        for node in tree.traverse():
+            for column in column2states.keys():
+                col_state = getattr(node, column, set())
+                if focus and col_state & focus[column]:
+                    nodes_in_focus.add(node)
+        for node in nodes_in_focus:
+            node.add_feature(IN_FOCUS, True)
+            if not node.is_root() and node.up not in nodes_in_focus:
+                node.up.add_feature(UP_FOCUS, True)
+            for c in node.children:
+                if c not in nodes_in_focus:
+                    c.add_feature(AROUND_FOCUS, True)
+
     one_column = next(iter(column2states.keys())) if len(column2states) == 1 else None
 
     name2colour = {}
-    state2color = None
     for column, states in column2states.items():
         num_unique_values = len(states)
         if column2colours and column in column2colours:
@@ -578,7 +592,6 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
                                           'and serialized this mapping to {}.'
                                           .format(column, states, colours, out_colour_file))
     for tree in forest:
-        nodes_in_focus = set()
         for node in tree.traverse():
             if node.is_leaf():
                 node.add_feature(IS_TIP, True)
@@ -587,15 +600,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
                 col_state = getattr(node, column, set())
                 if len(col_state) != 1:
                     node.add_feature(UNRESOLVED, 1)
-                if focus and col_state & focus[column]:
-                    nodes_in_focus.add(node)
-        for node in nodes_in_focus:
-            node.add_feature(IN_FOCUS, True)
-            if not node.is_root() and node.up not in nodes_in_focus:
-                node.up.add_feature(UP_FOCUS, True)
-            for c in node.children:
-                if c not in nodes_in_focus:
-                    c.add_feature(AROUND_FOCUS, True)
+                    break
 
     if TIMELINE_NODES == timeline_type:
         def get_date(node):
@@ -629,8 +634,6 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
     if milestone_labels is None:
         milestone_labels = ['{:g}'.format(_) for _ in milestones]
 
-    if should_resolve_polytomies:
-        resolve_polytomies(column2states, forest, name_column, state2color)
     if html:
         total_num_tips = sum(len(tree) for tree in forest)
         if total_num_tips > MAX_TIPS_FOR_FULL_TREE_VISUALISATION:
@@ -697,53 +700,3 @@ def update_milestones(forest, date_label, milestone_labels, milestones, timeline
         milestone_labels = ['{:g}'.format(_) for _ in milestones]
     return milestone_labels, milestones
 
-
-def resolve_polytomies(column2states, forest, name_column, state2color):
-    columns = sorted(column2states.keys())
-
-    col2state2i = {c: dict(zip(states, range(len(states)))) for (c, states) in column2states.items()}
-
-    def get_prediction(n):
-        return '.'.join('-'.join(str(i) for i in sorted([col2state2i[c][_] for _ in getattr(n, c, set())])) for c in columns)
-
-    for tree in forest:
-        todo = [tree]
-        while todo:
-            n = todo.pop()
-            n_state = get_prediction(n)
-            todo.extend(n.children)
-            if len(n.children) > 2:
-                state2children = defaultdict(list)
-                for c in n.children:
-                    state2children[get_prediction(c)].append(c)
-                for state, children in state2children.items():
-                    state_change = state != n_state
-                    if (state_change or getattr(n, UP_FOCUS, False)) and len(children) > 1:
-                        child = min(children, key=lambda _: _.dist)
-                        dist = child.dist if state_change else 0
-                        pol = n.add_child(dist=dist, name='{}.polytomy_{}'.format(n.name, state))
-                        pol.add_feature(IS_POLYTOMY, 1)
-                        pol.add_feature(DATE, getattr(child, DATE) if state_change else getattr(n, DATE))
-                        pol.add_feature(DATE_CI, getattr(child, DATE_CI, None) if state_change else getattr(n, DATE_CI, None))
-                        for c in columns:
-                            pol.add_feature(c, getattr(child, c))
-                        if hasattr(child, UNRESOLVED):
-                            pol.add_feature(UNRESOLVED, getattr(child, UNRESOLVED))
-                        if hasattr(child, IN_FOCUS):
-                            pol.add_feature(IN_FOCUS, getattr(child, IN_FOCUS))
-                        if hasattr(child, AROUND_FOCUS):
-                            pol.add_feature(AROUND_FOCUS, getattr(child, AROUND_FOCUS))
-                        if name_column is not None:
-                            sts = getattr(pol, name_column, set())
-                            if len(sts) == 1:
-                                col = state2color[next(iter(sts))]
-                                if getattr(n, name_column, set()) == sts:
-                                    pol.add_feature('edge_color', col)
-                                for c in children:
-                                    c.add_feature('edge_color', col)
-                        pol.add_feature(BRANCH_NAME, '{}-{}'.format(n.name, pol.name))
-                        for c in children:
-                            c.add_feature(BRANCH_NAME, '{}-{}'.format(pol.name, c.name))
-                        for c in children:
-                            n.remove_child(c)
-                            pol.add_child(c, dist=c.dist - dist)

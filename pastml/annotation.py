@@ -4,6 +4,28 @@ import pandas as pd
 import numpy as np
 
 
+def get_min_forest_stats(forest):
+    len_sum = 0
+    num_zero_nodes = 0
+    num_tips = 0
+    num_nodes = 0
+
+    for tree in forest:
+        for node in tree.traverse():
+            num_nodes += 1
+
+            if not node.dist:
+                num_zero_nodes += 1
+
+            len_sum += node.dist
+
+            if node.is_leaf():
+                num_tips += 1
+
+    avg_len = len_sum / (num_nodes - num_zero_nodes)
+    return [avg_len, num_nodes, num_tips, len_sum]
+
+
 def get_forest_stats(forest):
     len_sum_ext = 0
     len_sum_int = 0
@@ -67,20 +89,21 @@ def get_forest_stats(forest):
                                               avg_len_ext,
                                               avg_len_int,
                                               avg_len))
-    return avg_len, num_nodes, num_tips
+    return [avg_len, num_nodes, num_tips, len_sum_ext + len_sum_int]
 
 
-def preannotate_forest(df, forest):
-    df.fillna('', inplace=True)
-    gb = df.groupby(df.index)
-    gdf = pd.DataFrame(columns=df.columns)
-    for c in df.columns:
-        gdf[c] = gb[c].apply(lambda vs: {v for v in vs if not pd.isnull(v) and v != ''})
+def preannotate_forest(forest, df=None, gdf=None):
+    if gdf is None:
+        df.fillna('', inplace=True)
+        gb = df.groupby(df.index)
+        gdf = pd.DataFrame(columns=df.columns)
+        for c in df.columns:
+            gdf[c] = gb[c].apply(lambda vs: {v for v in vs if not pd.isnull(v) and v != ''})
     for tree in forest:
         for node in tree.traverse('postorder'):
             if node.name in gdf.index:
                 node.add_features(**gdf.loc[node.name, :].to_dict())
             else:
-                for c in df.columns:
+                for c in gdf.columns:
                     node.del_feature(c)
-    return df.columns
+    return gdf.columns, gdf
