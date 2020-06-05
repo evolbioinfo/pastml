@@ -141,7 +141,6 @@ def remove_certain_leaves(tr, to_remove=lambda node: False):
 
 
 def read_forest(tree_path):
-    roots = parse_nexus(tree_path)
     try:
         roots = parse_nexus(tree_path)
         if roots:
