@@ -14,6 +14,7 @@ DATE_REGEX = r'[+-]*[\d]+[.\d]*(?:[e][+-][\d]+){0,1}'
 DATE_COMMENT_REGEX = '[&,:]date[=]["]{{0,1}}({})["]{{0,1}}'.format(DATE_REGEX)
 CI_DATE_REGEX_LSD = '[&,:]CI_date[=]["]{{0,1}}({}) ({})["]{{0,1}}'.format(DATE_REGEX, DATE_REGEX)
 CI_DATE_REGEX_PASTML = '[&,:]date_CI[=]["]{{0,1}}({})[|]({})["]{{0,1}}'.format(DATE_REGEX, DATE_REGEX)
+COLUMN_REGEX_PASTML = '[&,]{column}[=]([^]^,]+)'
 
 IS_POLYTOMY = 'polytomy'
 
@@ -58,18 +59,27 @@ def name_tree(tree, suffix=""):
 
     :return: void, modifies the original tree
     """
-    existing_names = Counter((_.name for _ in tree.traverse() if _.name))
-    if sum(1 for _ in tree.traverse()) == len(existing_names):
+    existing_names = Counter()
+    n_nodes = 0
+    for _ in tree.traverse():
+        n_nodes += 1
+        if _.name:
+            existing_names[_.name] += 1
+            if '.polytomy_' in _.name:
+                _.add_feature(IS_POLYTOMY, 1)
+    if n_nodes == len(existing_names):
         return
     i = 0
-    existing_names = Counter()
+    new_existing_names = Counter()
     for node in tree.traverse('preorder'):
-        name = node.name if node.is_leaf() else ('root{}'.format(suffix) if node.is_root() else None)
-        while name is None or name in existing_names:
-            name = '{}{}{}'.format('t' if node.is_leaf() else 'n', i, suffix)
+        name_prefix = node.name if node.name and existing_names[node.name] < 10 \
+            else '{}{}{}'.format('t' if node.is_leaf() else 'n', i, suffix)
+        name = 'root{}'.format(suffix) if node.is_root() else name_prefix
+        while name is None or name in new_existing_names:
+            name = '{}{}{}'.format(name_prefix, i, suffix)
             i += 1
         node.name = name
-        existing_names[name] += 1
+        new_existing_names[name] += 1
 
 
 def collapse_zero_branches(forest, features_to_be_merged=None):
@@ -140,9 +150,9 @@ def remove_certain_leaves(tr, to_remove=lambda node: False):
     return tr
 
 
-def read_forest(tree_path):
+def read_forest(tree_path, columns=None):
     try:
-        roots = parse_nexus(tree_path)
+        roots = parse_nexus(tree_path, columns=columns)
         if roots:
             return roots
     except:
@@ -151,19 +161,29 @@ def read_forest(tree_path):
         nwks = f.read().replace('\n', '').split(';')
     if not nwks:
         raise ValueError('Could not find any trees (in newick or nexus format) in the file {}.'.format(tree_path))
-    return [read_tree(nwk + ';') for nwk in nwks[:-1]]
+    return [read_tree(nwk + ';', columns) for nwk in nwks[:-1]]
 
 
-def read_tree(tree_path):
+def read_tree(tree_path, columns=None):
+    tree = None
     for f in (3, 2, 5, 0, 1, 4, 6, 7, 8, 9):
         try:
-            return Tree(tree_path, format=f)
+            tree = Tree(tree_path, format=f)
+            break
         except:
             continue
-    raise ValueError('Could not read the tree {}. Is it a valid newick?'.format(tree_path))
+    if not tree:
+        raise ValueError('Could not read the tree {}. Is it a valid newick?'.format(tree_path))
+    if columns:
+        for n in tree.traverse():
+            for c in columns:
+                vs = set(getattr(n, c).split('|')) if hasattr(n, c) else set()
+                if vs:
+                    n.add_feature(c, vs)
+    return tree
 
 
-def parse_nexus(tree_path):
+def parse_nexus(tree_path, columns=None):
     trees = []
     for nex_tree in read_nexus(tree_path):
         todo = [(nex_tree.root, None)]
@@ -181,14 +201,22 @@ def parse_nexus(tree_path):
             else:
                 parent.add_child(node)
 
-            # Parse LSD2 dates and CIs
+            # Parse LSD2 dates and CIs, and PastML columns
             date, ci = None, None
+            columns2values = defaultdict(set)
             comment = getattr(clade, 'comment', None)
             if isinstance(comment, str):
                 date = next(iter(re.findall(DATE_COMMENT_REGEX, comment)), None)
                 ci = next(iter(re.findall(CI_DATE_REGEX_LSD, comment)), None)
                 if ci is None:
                     ci = next(iter(re.findall(CI_DATE_REGEX_PASTML, comment)), None)
+                if columns:
+                    for column in columns:
+                        values = \
+                            set.union(*(set(_.split('|')) for _ in re.findall(COLUMN_REGEX_PASTML.format(column=column),
+                                                                              comment)), set())
+                        if values:
+                            columns2values[column] |= values
             comment = getattr(clade, 'branch_length', None)
             if not ci and not parent and isinstance(comment, str):
                 ci = next(iter(re.findall(CI_DATE_REGEX_LSD, comment)), None)
@@ -199,7 +227,6 @@ def parse_nexus(tree_path):
                 ci = next(iter(re.findall(CI_DATE_REGEX_LSD, comment)), None)
                 if ci is None:
                     ci = next(iter(re.findall(CI_DATE_REGEX_PASTML, comment)), None)
-
             if date is not None:
                 try:
                     date = float(date)
@@ -212,6 +239,9 @@ def parse_nexus(tree_path):
                     node.add_feature(DATE_CI, ci)
                 except:
                     pass
+            if columns2values:
+                for c, vs in columns2values.items():
+                    node.add_feature(c, vs)
             todo.extend((c, node) for c in clade.clades)
         for n in tree.traverse('preorder'):
             date, ci = getattr(n, DATE, None), getattr(n, DATE_CI, None)

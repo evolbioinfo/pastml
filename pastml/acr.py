@@ -1,7 +1,7 @@
 import logging
 import os
 import warnings
-from collections import defaultdict
+from collections import defaultdict, Counter
 from multiprocessing.pool import ThreadPool
 
 import numpy as np
@@ -21,7 +21,7 @@ from pastml.models.hky import KAPPA, HKY_STATES, HKY
 from pastml.models.jtt import JTT_STATES, JTT, JTT_FREQUENCIES
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
     get_default_mp_method
-from pastml.tree import name_tree, annotate_dates, DATE, read_forest, DATE_CI, resolve_trees
+from pastml.tree import name_tree, annotate_dates, DATE, read_forest, DATE_CI, resolve_trees, IS_POLYTOMY
 from pastml.visualisation import get_formatted_date
 from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT, \
     DIST_TO_ROOT_LABEL, DATE_LABEL
@@ -152,7 +152,8 @@ def _serialize_acr(args):
                                           .format(acr_result[CHARACTER], out_mp_file))
 
 
-def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, force_joint=True, threads=0,
+def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPPA, model=F81, column2parameters=None,
+        force_joint=True, threads=0,
         reoptimise=False, tau=0, resolve_polytomies=False):
     """
     Reconstructs ancestral states for the given tree and
@@ -195,15 +196,18 @@ def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, f
     :return: list of ACR result dictionaries, one per character.
     :rtype: list(dict)
     """
-    for c in df.columns:
-        df[c] = df[c].apply(lambda _: '' if pd.isna(_) else _.encode('ASCII', 'replace').decode())
-
     if isinstance(forest, Tree):
         forest = [forest]
 
-    columns, gdf = preannotate_forest(forest, df=df)
-    for i, tree in enumerate(forest):
-        name_tree(tree, suffix='' if len(forest) == 1 else '_{}'.format(i))
+    if columns is None:
+        if df is None:
+            raise ValueError('Either the tree should be preannotated with character values '
+                             'and columns and column2states specified, '
+                             'or an annotation dataframe provided!')
+        columns = df.columns
+        column2states = {column: np.array(sorted([_ for _ in df[column].unique() if not pd.isna(_) and '' != _]))
+                         for column in columns}
+        preannotate_forest(forest, df=df)
 
     tree_stats = get_forest_stats(forest)
 
@@ -215,17 +219,29 @@ def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, f
     models = value2list(len(columns), model, F81)
 
     def get_states(method, model, column):
-        df_states = [_ for _ in df[column].unique() if pd.notnull(_) and _ != '']
+        initial_states = column2states[column]
         if not is_ml(method) or model not in {HKY, JTT}:
-            return np.sort(df_states)
+            return initial_states
         states = HKY_STATES if HKY == model else JTT_STATES
-        if not set(df_states) & set(states):
+        if not set(initial_states) & set(states):
             raise ValueError('The allowed states for model {} are {}, '
                              'but your annotation file specifies {} as states in column {}.'
-                             .format(model, ', '.join(states), ', '.join(df_states), column))
+                             .format(model, ', '.join(states), ', '.join(initial_states), column))
         state_set = set(states)
-        df[column] = df[column].apply(lambda _: _ if _ in state_set else '')
+        for root in forest:
+            for n in root.traverse():
+                if hasattr(n, column):
+                    n.add_feature(column, state_set & getattr(n, column))
         return states
+
+    # If we gonna resolve polytomies we might need to get back to the initial states so let's memorise them
+    n2c2states = defaultdict(dict)
+    for root in forest:
+        for n in root.traverse():
+            for c in columns:
+                vs = getattr(n, c, set())
+                if vs:
+                    n2c2states[n][c] = vs
 
     # method, model, states, params, optimise
     character2settings = {}
@@ -338,8 +354,17 @@ def acr(forest, df, prediction_method=MPPA, model=F81, column2parameters=None, f
             num_resolved = resolve_trees(column2states, forest)
             if not num_resolved:
                 break
+
             # we have selected states before, so now need to reset them
-            preannotate_forest(forest, gdf=gdf)
+            for root in forest:
+                for n in root.traverse():
+                    c2states = n2c2states[n]
+                    for c in columns:
+                        if c in c2states:
+                            n.add_feature(c, c2states[c])
+                        else:
+                            n.del_feature(c)
+
             tree_stats[:] = get_min_forest_stats(forest)
             for acr_res in acr_results:
                 character = acr_res[CHARACTER]
@@ -375,7 +400,7 @@ def _quote(str_list):
     return ', '.join('"{}"'.format(_) for _ in str_list) if str_list is not None else ''
 
 
-def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
+def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     columns=None, prediction_method=MPPA, model=F81, parameters=None,
                     name_column=None, root_date=None, timeline_type=TIMELINE_SAMPLED,
                     tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, colours=None,
@@ -389,7 +414,8 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     :param tree: path to the input tree(s) in newick format (must be rooted).
     :type tree: str
 
-    :param data: path to the annotation file in tab/csv format with the first row containing the column names.
+    :param data: (optional) path to the annotation file in tab/csv format with the first row containing the column names.
+        If not given, the annotations should be contained in the tree file itself.
     :type data: str
     :param data_sep: (optional, by default '\t') column separator for the annotation table.
         By default is set to tab, i.e. for tab-delimited file. Set it to ',' if your file is csv.
@@ -536,29 +562,13 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     :return: void
     """
     logger = _set_up_pastml_logger(verbose)
+    copy_only = COPY == prediction_method or (isinstance(prediction_method, list)
+                                              and all(COPY == _ for _ in prediction_method))
 
-    roots, df, name_column, root_dates = \
-        _validate_input(columns, data, data_sep, root_date if html_compressed or html or upload_to_itol else None,
-                        id_index, name_column if html_compressed else None, tree,
-                        copy_only=COPY == prediction_method or (isinstance(prediction_method, list)
-                                                                and all(COPY == _ for _ in prediction_method)))
-
-    age_label = DIST_TO_ROOT_LABEL \
-        if (root_date is None and not next((True for root in roots if getattr(root, DATE, None) is not None), False)) \
-        else DATE_LABEL
-    annotate_dates(roots, root_dates=root_dates)
-
-    if parameters:
-        if isinstance(parameters, str):
-            parameters = [parameters]
-        if isinstance(parameters, list):
-            parameters = dict(zip(df.columns, parameters))
-        elif isinstance(parameters, dict):
-            parameters = {col_name2cat(col): params for (col, params) in parameters.items()}
-        else:
-            raise ValueError('Parameters should be either a list or a dict, got {}.'.format(type(parameters)))
-    else:
-        parameters = {}
+    roots, columns, column2states, name_column, age_label, parameters = \
+        _validate_input(tree, columns, name_column if html_compressed or html_mixed else None, data, data_sep, id_index,
+                        root_date if html_compressed or html or html_mixed or upload_to_itol else None,
+                        copy_only=copy_only, parameters=parameters)
 
     if not work_dir:
         work_dir = get_pastml_work_dir(tree)
@@ -567,9 +577,10 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
     if threads < 1:
         threads = max(os.cpu_count(), 1)
 
-    acr_results = acr(roots, df, prediction_method=prediction_method, model=model, column2parameters=parameters,
+    acr_results = acr(forest=roots, columns=columns, column2states=column2states,
+                      prediction_method=prediction_method, model=model, column2parameters=parameters,
                       force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=None if smoothing else 0,
-                      resolve_polytomies=resolve_polytomies)
+                      resolve_polytomies=resolve_polytomies and not copy_only)
 
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
 
@@ -612,7 +623,7 @@ def pastml_pipeline(tree, data, data_sep='\t', id_index=0,
             if isinstance(colours, str):
                 colours = [colours]
             if isinstance(colours, list):
-                colours = dict(zip(df.columns, colours))
+                colours = dict(zip(columns, colours))
             elif isinstance(colours, dict):
                 colours = {col_name2cat(col): cls for (col, cls) in colours.items()}
             else:
@@ -710,11 +721,20 @@ def parse_date(d):
                              .format(d))
 
 
-def _validate_input(columns, data, data_sep, root_dates, id_index, name_column, tree_nwk,
-                    copy_only):
+def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_sep='\t', id_index=0,
+                    root_dates=None, copy_only=False, parameters=None):
     logger = logging.getLogger('pastml')
     logger.debug('\n=============INPUT DATA VALIDATION=============')
-    roots = read_forest(tree_nwk)
+
+    if not columns and data is None:
+        raise ValueError("If you don't provide the metadata file, "
+                         "you need to provide an annotated tree and specify the columns argument, "
+                         "which will be used to look for character annotations in your input tree.")
+
+    if columns and isinstance(columns, str):
+        columns = [columns]
+
+    roots = read_forest(tree_nwk, columns=columns if data is None else None)
     num_neg = 0
     for root in roots:
         for _ in root.traverse():
@@ -726,71 +746,124 @@ def _validate_input(columns, data, data_sep, root_dates, id_index, name_column, 
                        .format('s' if len(roots) > 0 else '', num_neg))
     logger.debug('Read the tree{} {}.'.format('s' if len(roots) > 0 else '', tree_nwk))
 
-    df = pd.read_csv(data, sep=data_sep, index_col=id_index, header=0, dtype=str)
-    df.index = df.index.map(str)
-    logger.debug('Read the annotation file {}.'.format(data))
+    column2annotated = Counter()
+    column2states = defaultdict(set)
 
-    # As the date column is only used for visualisation if there is no visualisation we are not gonna validate it
+    if data:
+        df = pd.read_csv(data, sep=data_sep, index_col=id_index, header=0, dtype=str)
+        df.index = df.index.map(str)
+        logger.debug('Read the annotation file {}.'.format(data))
+        if columns:
+            unknown_columns = set(columns) - set(df.columns)
+            if unknown_columns:
+                raise ValueError('{} of the specified columns ({}) {} not found among the annotation columns: {}.'
+                                 .format('One' if len(unknown_columns) == 1 else 'Some',
+                                         _quote(unknown_columns),
+                                         'is' if len(unknown_columns) == 1 else 'are',
+                                         _quote(df.columns)))
+            df = df[columns]
+        df.columns = [col_name2cat(column) for column in df.columns]
+        if name_column:
+            name_column = col_name2cat(name_column)
+        columns = df.columns
+
+        node_names = set.union(*[{n.name for n in root.traverse() if n.name} for root in roots])
+        df_index_names = set(df.index)
+        common_ids = node_names & df_index_names
+
+        # strip quotes if needed
+        if not common_ids:
+            node_names = {_.strip("'").strip('"') for _ in node_names}
+            common_ids = node_names & df_index_names
+            if common_ids:
+                for root in roots:
+                    for n in root.traverse():
+                        n.name = n.name.strip("'").strip('"')
+
+        filtered_df = df.loc[common_ids, :]
+        if not filtered_df.shape[0]:
+            tip_name_representatives = []
+            for _ in roots[0].iter_leaves():
+                if len(tip_name_representatives) < 3:
+                    tip_name_representatives.append(_.name)
+                else:
+                    break
+            raise ValueError(
+                'Your tree tip names (e.g. {}) do not correspond to annotation id column values (e.g. {}). '
+                'Check your annotation file.'
+                    .format(', '.join(tip_name_representatives),
+                            ', '.join(list(df_index_names)[: min(len(df_index_names), 3)])))
+        logger.debug('Checked that (at least some of) tip names correspond to annotation file index.')
+        preannotate_forest(roots, df=df)
+        for c in df.columns:
+            column2states[c] |= {_ for _ in df[c].unique() if pd.notnull(_) and _ != ''}
+
+    num_tips = 0
+    for root in roots:
+        for n in root.traverse():
+            for c in columns:
+                vs = getattr(n, c, set())
+                column2states[c] |= vs
+                if vs:
+                    column2annotated[c] += 1
+            if n.is_leaf():
+                num_tips += 1
+
+    c, num_annotated = min(column2annotated.items(), key=lambda _: _[1])
+    percentage_unknown = (num_tips - num_annotated) / num_tips
+    if percentage_unknown >= (.9 if not copy_only else 1):
+        raise ValueError('{:.1f}% of tip annotations for character "{}" are unknown, '
+                         'not enough data to infer ancestral states. '
+                         '{}'
+                         .format(percentage_unknown * 100, c,
+                                 'Check your annotation file and if its ids correspond to the tree tip/node names.'
+                                 if data
+                                 else 'You tree file should contain character state annotations, '
+                                      'otherwise consider specifying a metadata file.'))
+
+    c, states = min(column2states.items(), key=lambda _: len(_[1]))
+    if len(states) > num_tips * .5 and not copy_only:
+        raise ValueError('Character "{}" has {} unique states which is too much to infer on a {} with only {} tips. '
+                         'Make sure the character you are analysing is discreet, and if yes use a larger tree.'
+                         .format(c, states, 'tree' if len(roots) == 1 else 'forest', num_tips))
+
+    if name_column and name_column not in columns:
+        raise ValueError('The name column ("{}") should be one of those specified as columns ({}).'
+                         .format(name_column, _quote(columns)))
+    elif len(columns) == 1:
+        name_column = columns[0]
+
+    # Process root dates
     if root_dates is not None:
         root_dates = [parse_date(d) for d in (root_dates if isinstance(root_dates, list) else [root_dates])]
         if 1 < len(root_dates) < len(roots):
             raise ValueError('{} trees are given, but only {} root dates.'.format(len(roots), len(root_dates)))
         elif 1 == len(root_dates):
             root_dates *= len(roots)
-
-    if columns:
-        if isinstance(columns, str):
-            columns = [columns]
-        unknown_columns = set(columns) - set(df.columns)
-        if unknown_columns:
-            raise ValueError('{} of the specified columns ({}) {} not found among the annotation columns: {}.'
-                             .format('One' if len(unknown_columns) == 1 else 'Some',
-                                     _quote(unknown_columns),
-                                     'is' if len(unknown_columns) == 1 else 'are',
-                                     _quote(df.columns)))
-        df = df[columns]
-
-    df.columns = [col_name2cat(column) for column in df.columns]
-    node_names = set.union(*[{n.name for n in root.traverse() if n.name} for root in roots])
-    df_index_names = set(df.index)
-    filtered_df = df.loc[node_names & df_index_names, :]
-    if not filtered_df.shape[0]:
-        tip_name_representatives = []
-        for _ in roots[0].iter_leaves():
-            if len(tip_name_representatives) < 3:
-                tip_name_representatives.append(_.name)
-            else:
-                break
-        raise ValueError('Your tree tip names (e.g. {}) do not correspond to annotation id column values (e.g. {}). '
-                         'Check your annotation file.'
-                         .format(', '.join(tip_name_representatives),
-                                 ', '.join(list(df_index_names)[: min(len(df_index_names), 3)])))
-    logger.debug('Checked that (at least some of) tip names correspond to annotation file index.')
-
-    if name_column:
-        name_column = col_name2cat(name_column)
-        if name_column not in df.columns:
-            raise ValueError('The name column ("{}") should be one of those specified as columns ({}).'
-                             .format(name_column, _quote(df.columns)))
-    elif len(df.columns) == 1:
-        name_column = df.columns[0]
-
-    num_tips = sum(len(tree) for tree in roots)
-    percentage_unknown = (num_tips - (len(filtered_df) - filtered_df.isnull().sum(axis=0))) / num_tips
-    max_unknown_percentage = percentage_unknown.max()
-    if max_unknown_percentage >= (.9 if not copy_only else 1):
-        raise ValueError('{:.1f}% of tip annotations for column "{}" are unknown, '
-                         'not enough data to infer ancestral states. '
-                         'Check your annotation file and if its id column corresponds to the tree tip names.'
-                         .format(max_unknown_percentage * 100, percentage_unknown.idxmax()))
-    percentage_unique = filtered_df.nunique() / filtered_df.count()
-    max_unique_percentage = percentage_unique.max()
-    if filtered_df.count()[0] > 100 and max_unique_percentage > .5:
-        raise ValueError('The column "{}" seem to contain non-categorical data: {:.1f}% of values are unique. '
-                         'PASTML cannot infer ancestral states for a tree with too many tip states.'
-                         .format(percentage_unique.idxmax(), 100 * max_unique_percentage))
+    age_label = DIST_TO_ROOT_LABEL \
+        if (root_dates is None and not next((True for root in roots if getattr(root, DATE, None) is not None), False)) \
+        else DATE_LABEL
+    annotate_dates(roots, root_dates=root_dates)
     logger.debug('Finished input validation.')
-    return roots, df, name_column, root_dates
+
+    column2states = {c: np.array(sorted(states)) for c, states in column2states.items()}
+
+    if parameters:
+        if isinstance(parameters, str):
+            parameters = [parameters]
+        if isinstance(parameters, list):
+            parameters = dict(zip(columns, parameters))
+        elif isinstance(parameters, dict):
+            parameters = {col_name2cat(col): params for (col, params) in parameters.items()}
+        else:
+            raise ValueError('Parameters should be either a list or a dict, got {}.'.format(type(parameters)))
+    else:
+        parameters = {}
+
+    for i, tree in enumerate(roots):
+        name_tree(tree, suffix='' if len(roots) == 1 else '_{}'.format(i))
+
+    return roots, columns, column2states, name_column, age_label, parameters
 
 
 def _serialize_predicted_states(columns, out_data, roots, dates_are_dates=True):
@@ -853,9 +926,10 @@ def main():
                             type=str, required=True)
 
     annotation_group = parser.add_argument_group('annotation-file-related arguments')
-    annotation_group.add_argument('-d', '--data', required=True, type=str,
+    annotation_group.add_argument('-d', '--data', required=False, type=str, default=None,
                                   help="annotation file in tab/csv format with the first row "
-                                       "containing the column names.")
+                                       "containing the column names. "
+                                       "If not given, the annotations should be contained in the tree file itself.")
     annotation_group.add_argument('-s', '--data_sep', required=False, type=str, default='\t',
                                   help="column separator for the annotation table. "
                                        "By default is set to tab, i.e. for a tab-delimited file. "

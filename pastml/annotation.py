@@ -92,13 +92,18 @@ def get_forest_stats(forest):
     return [avg_len, num_nodes, num_tips, len_sum_ext + len_sum_int]
 
 
+def df2gdf(df):
+    df.fillna('', inplace=True)
+    gb = df.groupby(df.index)
+    gdf = pd.DataFrame(columns=df.columns)
+    for c in df.columns:
+        gdf[c] = gb[c].apply(lambda vs: {v for v in vs if not pd.isnull(v) and v != ''})
+    return gdf
+
+
 def preannotate_forest(forest, df=None, gdf=None):
     if gdf is None:
-        df.fillna('', inplace=True)
-        gb = df.groupby(df.index)
-        gdf = pd.DataFrame(columns=df.columns)
-        for c in df.columns:
-            gdf[c] = gb[c].apply(lambda vs: {v for v in vs if not pd.isnull(v) and v != ''})
+        gdf = df2gdf(df)
     for tree in forest:
         for node in tree.traverse('postorder'):
             if node.name in gdf.index:
