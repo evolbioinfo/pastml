@@ -21,14 +21,15 @@ from pastml.models.hky import KAPPA, HKY_STATES, HKY
 from pastml.models.jtt import JTT_STATES, JTT, JTT_FREQUENCIES
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
     get_default_mp_method
-from pastml.tree import name_tree, annotate_dates, DATE, read_forest, DATE_CI, resolve_trees, IS_POLYTOMY
+from pastml.tree import name_tree, annotate_dates, DATE, read_forest, DATE_CI, resolve_trees, IS_POLYTOMY, \
+    unresolve_trees
 from pastml.visualisation import get_formatted_date
 from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT, \
     DIST_TO_ROOT_LABEL, DATE_LABEL
 from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 
-PASTML_VERSION = '1.9.29.5'
+PASTML_VERSION = '1.9.29.6'
 
 warnings.filterwarnings("ignore", append=True)
 
@@ -196,6 +197,9 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
     :return: list of ACR result dictionaries, one per character.
     :rtype: list(dict)
     """
+
+    logger = logging.getLogger('pastml')
+
     if isinstance(forest, Tree):
         forest = [forest]
 
@@ -349,40 +353,51 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
     acr_results = flatten_lists(acr_results)
 
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
-    if resolve_polytomies:
-        while True:
-            num_resolved = resolve_trees(column2states, forest)
-            if not num_resolved:
-                break
+    column2copy = {acr_result[CHARACTER]: acr_result[METHOD] == COPY for acr_result in acr_results}
+    if resolve_polytomies and resolve_trees(column2states, forest):
+        level = logger.level
+        logger.setLevel(logging.ERROR)
+        # we have selected states before, so now need to reset them
+        for root in forest:
+            for n in root.traverse():
+                c2states = n2c2states[n]
+                for c in columns:
+                    if c in c2states:
+                        n.add_feature(c, c2states[c])
+                    # if it is a copy method we just need to keep the polytomy state
+                    # as there is no way to calculate a state
+                    elif not getattr(n, IS_POLYTOMY, False) or not column2copy[c]:
+                        n.del_feature(c)
 
-            # we have selected states before, so now need to reset them
-            for root in forest:
-                for n in root.traverse():
-                    c2states = n2c2states[n]
-                    for c in columns:
-                        if c in c2states:
-                            n.add_feature(c, c2states[c])
-                        else:
-                            n.del_feature(c)
-
-            tree_stats[:] = get_min_forest_stats(forest)
-            for acr_res in acr_results:
-                character = acr_res[CHARACTER]
-                method = acr_res[METHOD]
-                if is_ml(method):
-                    if character not in character2settings:
-                        character = character[:character.rfind('_{}').format(method)]
-                    character2settings[character][3] = acr_res[FREQUENCIES], \
-                                                       acr_res[KAPPA] if KAPPA in acr_res else None, \
-                                                       acr_res[SCALING_FACTOR], acr_res[SMOOTHING_FACTOR]
+        tree_stats[:] = get_min_forest_stats(forest)
+        for acr_res in acr_results:
+            character = acr_res[CHARACTER]
+            method = acr_res[METHOD]
+            if is_ml(method):
+                if character not in character2settings:
+                    character = character[:character.rfind('_{}').format(method)]
+                character2settings[character][3] = acr_res[FREQUENCIES], \
+                                                   acr_res[KAPPA] if KAPPA in acr_res else None, \
+                                                   acr_res[SCALING_FACTOR], acr_res[SMOOTHING_FACTOR]
+                character2settings[character][4] = [False, False, False, False]
+        if threads > 1:
+            with ThreadPool(processes=threads - 1) as pool:
+                acr_results = \
+                    pool.map(func=_work, iterable=character2settings.keys())
+        else:
+            acr_results = [_work(character) for character in character2settings.keys()]
+        logger.setLevel(level)
+        while unresolve_trees(column2states, forest):
+            logger.setLevel(logging.ERROR)
             if threads > 1:
                 with ThreadPool(processes=threads - 1) as pool:
                     acr_results = \
                         pool.map(func=_work, iterable=character2settings.keys())
             else:
                 acr_results = [_work(character) for character in character2settings.keys()]
-            acr_results = flatten_lists(acr_results)
-
+            logger.setLevel(level)
+        logger.setLevel(level)
+        acr_results = flatten_lists(acr_results)
     return acr_results
 
 
@@ -580,7 +595,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     acr_results = acr(forest=roots, columns=columns, column2states=column2states,
                       prediction_method=prediction_method, model=model, column2parameters=parameters,
                       force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=None if smoothing else 0,
-                      resolve_polytomies=resolve_polytomies and not copy_only)
+                      resolve_polytomies=resolve_polytomies)
 
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
 

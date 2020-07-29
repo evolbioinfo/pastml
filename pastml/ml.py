@@ -1,16 +1,15 @@
 import logging
-from collections import defaultdict
 
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
-from pastml.models.f81_like import is_f81_like, get_f81_pij, get_mu, F81, EFT
-from pastml.models.hky import get_hky_pij, KAPPA, HKY
-from pastml.models.jtt import get_jtt_pij, JTT_FREQUENCIES, JTT
-from pastml.parsimony import parsimonious_acr, MP
 from pastml import get_personalized_feature_name, CHARACTER, STATES, METHOD, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
     NUM_NODES, NUM_TIPS, NUM_STATES_PER_NODE, PERC_UNRESOLVED
+from pastml.models.f81_like import is_f81_like, get_f81_pij, get_mu, F81, EFT
+from pastml.models.hky import get_hky_pij, KAPPA, HKY
+from pastml.models.jtt import get_jtt_pij, JTT
+from pastml.parsimony import parsimonious_acr, MP
 
 CHANGES_PER_AVG_BRANCH = 'state_changes_per_avg_branch'
 SCALING_FACTOR = 'scaling_factor'
@@ -691,8 +690,7 @@ def get_state2allowed_states(states, by_name=True):
 
 
 def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_nodes, num_tips, tree_len, frequencies,
-           sf,
-           kappa, tau, optimise_sf, optimise_frequencies, optimise_kappa, optimise_tau, observed_frequencies,
+           sf, kappa, tau, optimise_sf, optimise_frequencies, optimise_kappa, optimise_tau, observed_frequencies,
            force_joint=True):
     """
     Calculates ML states on the trees and stores them in the corresponding feature.
@@ -722,7 +720,7 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
     logger = logging.getLogger('pastml')
     likelihood, frequencies, kappa, sf, tau = \
         optimise_likelihood(forest=forest, avg_br_len=avg_br_len, tree_len=tree_len, num_edges=num_nodes - 1,
-                            character=character, states=states, prediction_method=prediction_method, model=model,
+                            character=character, states=states, model=model,
                             frequencies=frequencies, observed_frequencies=observed_frequencies, kappa=kappa, sf=sf,
                             tau=tau, optimise_frequencies=optimise_frequencies,
                             optimise_kappa=optimise_kappa, optimise_sf=optimise_sf, optimise_tau=optimise_tau)
@@ -824,7 +822,7 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
     return results
 
 
-def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, character, states, prediction_method, model,
+def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, character, states, model,
                         frequencies, observed_frequencies, kappa, sf, tau, optimise_frequencies, optimise_kappa,
                         optimise_sf, optimise_tau):
     for tree in forest:

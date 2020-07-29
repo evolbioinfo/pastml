@@ -140,29 +140,33 @@ def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
 
 
 def upload_to_itol(tree_path, dataset_paths, tree_name=None, tree_description=None, project_name=None, upload_id=None):
-    itol_uploader = Itol()
-    itol_uploader.add_file(tree_path)
-    for annotation_file in dataset_paths:
-        itol_uploader.add_file(annotation_file)
-    if tree_name:
-        itol_uploader.params['treeName'] = tree_name
-    if tree_description:
-        itol_uploader.params['treeDescription'] = tree_description
-    if upload_id:
-        itol_uploader.params['uploadID'] = upload_id
-        if project_name:
-            itol_uploader.params['projectName'] = project_name
-    status = itol_uploader.upload()
-    if not status:
-        logging.getLogger('pastml').error(
-            'Failed to upload your tree to iTOL because of "{}". Please check your internet connection and itol settings{}.'
-                .format(itol_uploader.comm.upload_output,
-                        (', e.g. your iTOL batch upload id ({}){}'
-                         .format(upload_id,
-                                 (' and whether the project {} exists'.format(project_name) if project_name else '')))
-                        if upload_id else ''))
-        return None, None
-    logging.getLogger('pastml').debug(
-        'Successfully uploaded your tree ({}) to iTOL: {}.'.format(itol_uploader.comm.tree_id,
-                                                                   itol_uploader.get_webpage()))
-    return itol_uploader.comm.tree_id, itol_uploader.get_webpage()
+    try:
+        itol_uploader = Itol()
+        itol_uploader.add_file(tree_path)
+        for annotation_file in dataset_paths:
+            itol_uploader.add_file(annotation_file)
+        if tree_name:
+            itol_uploader.params['treeName'] = tree_name
+        if tree_description:
+            itol_uploader.params['treeDescription'] = tree_description
+        if upload_id:
+            itol_uploader.params['uploadID'] = upload_id
+            if project_name:
+                itol_uploader.params['projectName'] = project_name
+        if itol_uploader.upload():
+            logging.getLogger('pastml').debug(
+                'Successfully uploaded your tree ({}) to iTOL: {}.'.format(itol_uploader.comm.tree_id,
+                                                                           itol_uploader.get_webpage()))
+            return itol_uploader.comm.tree_id, itol_uploader.get_webpage()
+        else:
+            status = itol_uploader.comm.upload_output
+    except Exception as e:
+        status = e
+    logging.getLogger('pastml').error(
+        'Failed to upload your tree to iTOL because of "{}". Please check your internet connection and itol settings{}.'
+            .format(status,
+                    (', e.g. your iTOL batch upload id ({}){}'
+                     .format(upload_id,
+                             (' and whether the project {} exists'.format(project_name) if project_name else '')))
+                    if upload_id else ''))
+    return None, None

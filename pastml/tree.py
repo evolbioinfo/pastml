@@ -288,6 +288,19 @@ def read_nexus(tree_path):
 
 
 def resolve_trees(column2states, forest):
+    """
+    Resolved polytomies based on state predictions:
+    if a parent P in a state A has n children 2 <= m < n of which are in state B,
+    we add a parent to these children (who becomes a child of P) in a state B
+    at the distance of the oldest of the children.
+
+    :param column2states: character to possible state mapping
+    :type column2states: dict
+    :param forest: a forest of trees of interest
+    :type list(ete.Tree)
+    :return: number of newly created nodes.
+    :rtype: int
+    """
     columns = sorted(column2states.keys())
 
     col2state2i = {c: dict(zip(states, range(len(states)))) for (c, states) in column2states.items()}
@@ -302,29 +315,124 @@ def resolve_trees(column2states, forest):
         todo = [tree]
         while todo:
             n = todo.pop()
-            n_state = get_prediction(n)
             todo.extend(n.children)
             if len(n.children) > 2:
                 state2children = defaultdict(list)
                 for c in n.children:
                     state2children[get_prediction(c)].append(c)
-                for state, children in state2children.items():
-                    state_change = state != n_state
-                    if state_change and len(children) > 1:
-                        child = min(children, key=lambda _: _.dist)
-                        dist = child.dist if state_change else 0
-                        pol = n.add_child(dist=dist, name='{}.polytomy_{}'.format(n.name, state))
-                        pol.add_feature(IS_POLYTOMY, 1)
-                        pol.add_feature(DATE, getattr(child, DATE) if state_change else getattr(n, DATE))
-                        pol.add_feature(DATE_CI, getattr(child, DATE_CI, None) if state_change else getattr(n, DATE_CI, None))
-                        for c in columns:
-                            pol.add_feature(c, getattr(child, c))
-                        for c in children:
-                            n.remove_child(c)
-                            pol.add_child(c, dist=c.dist - dist)
-                        num_new_nodes += 1
+                if len(state2children) > 1:
+                    for state, children in state2children.items():
+                        if group_children_if_needed(n, children, columns, state):
+                            num_new_nodes += 1
     if num_new_nodes:
-        logging.getLogger('pastml').debug('Created {} new internal nodes while resolving polytomies'.format(num_new_nodes))
+        logging.getLogger('pastml').debug(
+            'Created {} new internal nodes while resolving polytomies'.format(num_new_nodes))
     else:
         logging.getLogger('pastml').debug('Could not resolve any polytomy')
     return num_new_nodes
+
+
+def states_are_different(n1, n2, columns):
+    for c in columns:
+        if not getattr(n1, c, set()) & getattr(n2, c, set()):
+            return True
+    return False
+
+
+def group_children_if_needed(n, children, columns, state):
+    if len(children) <= 1:
+        return False
+    child = min(children, key=lambda _: _.dist)
+    if not states_are_different(n, child, columns):
+        return False
+    dist = child.dist
+    pol = n.add_child(dist=dist, name='{}.polytomy_{}'.format(n.name, state))
+    pol.add_feature(IS_POLYTOMY, 1)
+    c_date = getattr(child, DATE)
+    pol.add_feature(DATE, c_date)
+    n_ci = getattr(n, DATE_CI, None)
+    c_ci = getattr(child, DATE_CI, None)
+    pol.add_feature(DATE_CI, (None if not n_ci or not isinstance(n_ci, list)
+                              else [n_ci[0],
+                                    (c_ci[1] if c_ci and isinstance(c_ci, list) and len(c_ci) > 1
+                                     else c_date)]))
+    for c in columns:
+        pol.add_feature(c, getattr(child, c))
+    for c in children:
+        n.remove_child(c)
+        pol.add_child(c, dist=c.dist - dist)
+    return True
+
+
+def unresolve_trees(column2states, forest):
+    """
+    Unresolves polytomies whose states do not correspond to child states after likelihood recalculation.
+
+    :param column2states: character to possible state mapping
+    :type column2states: dict
+    :param forest: a forest of trees of interest
+    :type list(ete.Tree)
+    :return: number of newly deleted nodes.
+    :rtype: int
+    """
+    columns = sorted(column2states.keys())
+
+    col2state2i = {c: dict(zip(states, range(len(states)))) for (c, states) in column2states.items()}
+
+    def get_prediction(n):
+        return '.'.join('-'.join(str(i) for i in sorted([col2state2i[c][_] for _ in getattr(n, c, set())]))
+                        for c in columns)
+
+    num_removed_nodes = 0
+    num_new_nodes = 0
+
+    def remove_node(n):
+        parent = n.up
+        for c in n.children:
+            parent.add_child(c, dist=c.dist + n.dist)
+        parent.remove_child(n)
+
+    num_polytomies = 0
+
+    for tree in forest:
+        for n in tree.traverse('postorder'):
+            if getattr(n, IS_POLYTOMY, False):
+                num_polytomies += 1
+
+                state2children = defaultdict(list)
+                n_children = list(n.children)
+                for c in n_children:
+                    state2children[get_prediction(c)].append(c)
+                parent = n.up
+
+                # if the state is the same as all the child states, it's still a good polytomy resolution
+                if len(state2children) == 1 and not states_are_different(n, n_children[0], columns):
+                    # Just need to check that it is not the same state as the parent (then we don't need this polytomy)
+                    if not states_are_different(n, parent, columns):
+                        num_removed_nodes += 1
+                        remove_node(n)
+                    continue
+
+                num_removed_nodes += 1
+                remove_node(n)
+
+                # now let's try to create new polytomies above
+                above_state2children = defaultdict(list)
+                for c in parent.children:
+                    state2children[get_prediction(c)].append(c)
+                for state, children in above_state2children.items():
+                    if len(children) <= 1:
+                        continue
+                    if set(children) != set(n_children):
+                        if group_children_if_needed(parent, children, columns, state):
+                            num_new_nodes += 1
+    if num_removed_nodes:
+        logging.getLogger('pastml').debug(
+            'Removed {} polytomy resolution{} as inconsistent with model parameters.'
+                .format(num_removed_nodes, 's' if num_removed_nodes > 1 else ''))
+        if num_new_nodes:
+            logging.getLogger('pastml').debug(
+                'Created {} new polytomy resolution{}.'.format(num_new_nodes, 's' if num_new_nodes > 1 else ''))
+    elif num_polytomies - num_removed_nodes + num_new_nodes:
+        logging.getLogger('pastml').debug('All the polytomy resolutions are consistent with model parameters.')
+    return num_removed_nodes
