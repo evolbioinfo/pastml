@@ -136,6 +136,7 @@ def collapse_horizontally(tree, columns, tips2bin, mixed=False):
                     for _ in ii:
                         _.add_feature(COMPRESSED_NODE, child)
                 getattr(child, ROOTS).extend(getattr(sibling, ROOTS))
+                getattr(child, TIPS_BELOW).extend(getattr(sibling, TIPS_BELOW))
                 n.remove_child(sibling)
             child.add_feature(METACHILD, True)
             child.add_feature(NUM_TIPS_INSIDE,

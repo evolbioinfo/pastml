@@ -99,9 +99,8 @@ def get_scaling_function(y_m, y_M, x_m, x_M):
 def set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling, transform_size, transform_e_size, state,
                                  root_names, root_dates, suffix='', is_mixed=False):
     tips_inside, tips_below, internal_nodes_inside, roots = \
-        getattr(n, TIPS_INSIDE, []), getattr(n, TIPS_BELOW, []), getattr(n, INTERNAL_NODES_INSIDE, []), getattr(n,
-                                                                                                                ROOTS,
-                                                                                                                [])
+        getattr(n, TIPS_INSIDE, []), getattr(n, TIPS_BELOW, []), \
+        getattr(n, INTERNAL_NODES_INSIDE, []), getattr(n, ROOTS, [])
 
     def get_min_max_str(values, default_value=0):
         min_v, max_v = (min(len(_) for _ in values), max(len(_) for _ in values)) \
@@ -246,8 +245,7 @@ def _forest2json_compressed(forest, compressed_forest, columns, name_feature, ge
                             tips_below_i.append(tb)
                             internal_nodes_inside_i.append([_ for _ in ini if not _.is_leaf()])
                     n.add_features(**{TIPS_INSIDE: tips_inside_i, TIPS_BELOW: tips_below_i,
-                                      INTERNAL_NODES_INSIDE: internal_nodes_inside_i,
-                                      ROOTS: roots_i})
+                                      INTERNAL_NODES_INSIDE: internal_nodes_inside_i, ROOTS: roots_i})
                     if roots_i:
                         n.add_feature(MILESTONE, i)
                         root_names = [getattr(_, BRANCH_NAME) if getattr(_, DATE) > milestone else _.name for _ in
