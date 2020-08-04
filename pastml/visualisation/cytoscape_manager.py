@@ -1,5 +1,6 @@
 import logging
 import os
+from collections import defaultdict
 from glob import glob
 from queue import Queue
 from shutil import copyfile
@@ -40,6 +41,7 @@ UNRESOLVED = 'unresolved'
 TIP = 'tip'
 
 TOOLTIP = 'tooltip'
+COLOUR = 'colour'
 
 DATA = 'data'
 ID = 'id'
@@ -290,6 +292,17 @@ def _forest2json_compressed(forest, compressed_forest, columns, name_feature, ge
     return json_dict, sorted(clazzes)
 
 
+def binary_search(start, end, value, array):
+    if start >= end - 1:
+        return start
+    i = int((start + end) / 2)
+    if array[i] == value or array[i] > value and (i == start or value > array[i - 1]):
+        return i
+    if array[i] > value:
+        return binary_search(start, i, value, array)
+    return binary_search(i + 1, end, value, array)
+
+
 def _forest2json(forest, columns, name_feature, get_date, milestones=None, timeline_type=TIMELINE_SAMPLED,
                  dates_are_dates=True):
     min_root_date = min(getattr(tree, DATE) for tree in forest)
@@ -322,16 +335,6 @@ def _forest2json(forest, columns, name_feature, get_date, milestones=None, timel
 
     # Save cytoscape features at different timeline points
     if len(milestones) > 1:
-        def binary_search(start, end, value, array):
-            if start >= end - 1:
-                return start
-            i = int((start + end) / 2)
-            if array[i] == value or array[i] > value and (i == start or value > array[i - 1]):
-                return i
-            if array[i] > value:
-                return binary_search(start, i, value, array)
-            return binary_search(i + 1, end, value, array)
-
         for tree in forest:
             for n in tree.traverse('preorder'):
                 ms_i = binary_search(0 if n.is_root() else getattr(n.up, MILESTONE),
@@ -391,6 +394,66 @@ def _forest2json(forest, columns, name_feature, get_date, milestones=None, timel
 
     json_dict = {NODES: nodes, EDGES: edges}
     return json_dict, sorted(clazzes)
+
+
+def _forest2json_transitions(states, counts, transitions, state2colour):
+    nodes, edges = [], []
+    n = len(states)
+
+    n_scaler = get_scaling_function(y_m=200, y_M=800, x_m=min(counts), x_M=max(counts))
+    font_scaler = get_scaling_function(y_m=MIN_FONT_SIZE, y_M=MIN_FONT_SIZE * 3, x_m=min(counts), x_M=max(counts))
+    positive_transitions = transitions[transitions > 0]
+    e_scaler = get_scaling_function(y_m=30, y_M=200, x_m=min(positive_transitions), x_M=max(positive_transitions))
+
+    transtions_to_from = np.transpose(transitions.copy())
+    np.fill_diagonal(transtions_to_from, 0)
+    nums = np.triu(transitions + transtions_to_from).flatten()
+    positive_nums = nums[nums > 0]
+
+    miles = np.array([0] + list(np.percentile(positive_nums, [5, 25, 50, 75, 95])))
+
+    i2mile = defaultdict(lambda: 0)
+    for i in range(n):
+        from_state = states[i]
+        n_tips = counts[i]
+        i_node_size = n_scaler(n_tips)
+
+        for j in range(i, n):
+            to_state = states[j]
+            n_ij = transitions[i, j]
+            n_ji = transitions[j, i]
+            cur_n_i = (n_ij + n_ji) if i != j else n_ij
+            if cur_n_i > 0:
+                mile = binary_search(0, len(miles), cur_n_i, miles)
+                node_size = (i_node_size + n_scaler(counts[j])) / 2
+                i2mile[i] = max(mile, i2mile[i])
+                i2mile[j] = max(mile, i2mile[j])
+                if n_ij > 0:
+                    edges.append(get_edge(i, j,
+                                          **{ID: '{}_{}'.format(i, j),
+                                             EDGE_SIZE: e_scaler(n_ij),
+                                             NODE_SIZE: node_size / (2 if i != j else 1),
+                                             EDGE_NAME: n_ij,
+                                             TOOLTIP: '{} transitions from {} to {}'.format(n_ij, from_state, to_state),
+                                             MILESTONE: mile}))
+                if n_ji > 0 and i != j:
+                    edges.append(get_edge(j, i,
+                                          **{ID: '{}_{}'.format(j, i),
+                                             EDGE_SIZE: e_scaler(n_ji),
+                                             NODE_SIZE: node_size / 2,
+                                             EDGE_NAME: n_ji,
+                                             TOOLTIP: '{} transitions from {} to {}'.format(n_ji, to_state, from_state),
+                                             MILESTONE: mile}))
+
+        if n_tips > 0:
+            nodes.append(_get_node(data={ID: i, NODE_NAME: from_state,
+                                         NODE_SIZE: i_node_size,
+                                         FONT_SIZE: font_scaler(n_tips),
+                                         TOOLTIP: '{} is represented by {:.0f} samples.'.format(from_state, n_tips),
+                                         COLOUR: state2colour[from_state],
+                                         MILESTONE: i2mile[i]}))
+    json_dict = {NODES: nodes, EDGES: edges}
+    return json_dict, ['{:g}'.format(_) for _ in miles]
 
 
 def get_size_transformations(forest):
@@ -478,7 +541,61 @@ def save_as_cytoscape_html(forest, out_html, column2states, name_feature, name2c
                             else 'diversification events',
                             age_label=milestone_label)
     slider = env.get_template('time_slider.html').render(min_date=0, max_date=len(milestones) - 1,
+                                                         cur_date=len(milestones) - 1,
                                                          name=milestone_label) if len(milestones) > 1 else ''
+
+    template = env.get_template('index.html')
+    os.makedirs(os.path.abspath(os.path.dirname(out_html)), exist_ok=True)
+
+    if local_css_js:
+        js_list = []
+        os.makedirs(os.path.join(work_dir, 'js'), exist_ok=True)
+        os.makedirs(os.path.join(work_dir, 'css'), exist_ok=True)
+        os.makedirs(os.path.join(work_dir, 'fonts'), exist_ok=True)
+
+        template_dir = os.path.join(os.path.abspath(os.path.split(__file__)[0]), '..', 'templates')
+        for _ in sorted(glob(os.path.join(template_dir, 'js', '*.js*'))):
+            cp = os.path.join(work_dir, 'js', os.path.split(_)[1])
+            copyfile(_, cp)
+            if cp.endswith('.js'):
+                js_list.append(cp)
+        css_list = []
+        for _ in glob(os.path.join(template_dir, 'css', '*.css*')):
+            cp = os.path.join(work_dir, 'css', os.path.split(_)[1])
+            copyfile(_, cp)
+            if cp.endswith('.css'):
+                css_list.append(cp)
+        for _ in glob(os.path.join(template_dir, 'fonts', '*.*')):
+            cp = os.path.join(work_dir, 'fonts', os.path.split(_)[1])
+            copyfile(_, cp)
+    else:
+        js_list = JS_LIST
+        css_list = CSS_LIST
+    page = template.render(graph=graph, title=graph_name, slider=slider, js_list=js_list, css_list=css_list)
+
+    with open(out_html, 'w+') as fp:
+        fp.write(page)
+
+
+def save_as_transition_html(character, states, counts, transitions, out_html, state2colour, work_dir,
+                            local_css_js=False):
+    """
+    Converts transition count data to an html representation using Cytoscape.js.
+
+    :param out_html: path where to save the resulting html file.
+    """
+    graph_name = os.path.splitext(os.path.basename(out_html))[0]
+    json_dict, thresholds = _forest2json_transitions(states, counts, transitions, state2colour)
+
+    loader = PackageLoader('pastml')
+    env = Environment(loader=loader)
+    template = env.get_template('transitions.js')
+
+    graph = template.render(elements=json_dict, character=character,
+                            years=thresholds)
+    slider = env.get_template('time_slider.html').render(min_date=0, max_date=len(thresholds) - 1,
+                                                         name='transition number threshold', cur_date=0) if len(
+        thresholds) > 1 else ''
 
     template = env.get_template('index.html')
     os.makedirs(os.path.abspath(os.path.dirname(out_html)), exist_ok=True)
@@ -543,7 +660,6 @@ def get_column_value_str(n, column, format_list=True, list_value=''):
 def visualize(forest, column2states, work_dir, name_column=None, html=None, html_compressed=None, html_mixed=None,
               tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, date_label='Dist. to root', timeline_type=TIMELINE_SAMPLED,
               local_css_js=False, column2colours=None, focus=None):
-
     for tree in forest:
         nodes_in_focus = set()
         for node in tree.traverse():
@@ -697,4 +813,3 @@ def update_milestones(forest, date_label, milestone_labels, milestones, timeline
     if milestone_labels is None:
         milestone_labels = ['{:g}'.format(_) for _ in milestones]
     return milestone_labels, milestones
-

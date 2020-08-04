@@ -7,6 +7,12 @@ from datetime import datetime
 from Bio import Phylo
 from ete3 import Tree, TreeNode
 
+POSTORDER = 'postorder'
+
+INORDER = 'inorder'
+
+PREORDER = 'preorder'
+
 DATE = 'date'
 DATE_CI = 'date_CI'
 
@@ -285,6 +291,16 @@ def read_nexus(tree_path):
     trees = list(Phylo.parse(temp, 'nexus'))
     os.remove(temp)
     return trees
+
+
+def depth_first_traversal(node):
+    yield node, PREORDER
+    for i, child in enumerate(node.children):
+        if i != 0:
+            yield node, INORDER
+        for _ in depth_first_traversal(child):
+            yield _
+    yield node, POSTORDER
 
 
 def resolve_trees(column2states, forest):

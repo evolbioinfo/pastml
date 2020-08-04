@@ -15,7 +15,8 @@ from pastml.annotation import preannotate_forest, get_forest_stats, get_min_fore
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file, get_pastml_work_dir
 from pastml.ml import SCALING_FACTOR, MODEL, FREQUENCIES, MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
-    ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method, SMOOTHING_FACTOR
+    ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method, SMOOTHING_FACTOR, \
+    MRAND
 from pastml.models.f81_like import F81, JC, EFT
 from pastml.models.hky import KAPPA, HKY_STATES, HKY
 from pastml.models.jtt import JTT_STATES, JTT, JTT_FREQUENCIES
@@ -29,7 +30,7 @@ from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, 
 from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 
-PASTML_VERSION = '1.9.29.6'
+PASTML_VERSION = '1.9.29.7'
 
 warnings.filterwarnings("ignore", append=True)
 
@@ -71,9 +72,9 @@ def _parse_pastml_parameters(params, states, reoptimise=False):
                 min_freq = min(float(params[state]) for state in frequencies_specified if float(params[state]) > 0) / 10
                 frequencies = np.array([params[state] if state in params.keys() else min_freq for state in states])
                 frequencies = frequencies.astype(np.float64)
-                if np.round(frequencies.sum() - 1, 3) != 0 and not reoptimise:
-                    logger.error('Specified frequencies ({}) do not sum up to one,'
-                                 'ignoring them.'.format(frequencies))
+                if np.round(frequencies.sum() - 1, 2) != 0 and not reoptimise:
+                    logger.error('Specified frequencies ({}) do not sum up to one ({}),'
+                                 'ignoring them.'.format(frequencies, frequencies.sum()))
                     frequencies = None
                 elif np.any(frequencies < 0):
                     if not reoptimise:
@@ -480,7 +481,8 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         and the second, named "value", containing parameter values.
         Parameters can include character state frequencies (parameter name should be the corresponding state,
         and parameter value - the float frequency value, between 0 and 1),
-        and tree branch scaling factor (parameter name pastml.ml.SCALING_FACTOR).
+        tree branch scaling factor (parameter name pastml.ml.SCALING_FACTOR),
+        and tree branch smoothing factor (parameter name pastml.ml.SMOOTHING_FACTOR).
     :type parameters: str or list(str) or dict
     :param reoptimise: (False by default) if set to True and the parameters are specified,
         they will be considered as an optimisation starting point instead, and optimised.
@@ -960,7 +962,7 @@ def main():
                                 "If not specified, all columns are considered.",
                            type=str)
     acr_group.add_argument('--prediction_method',
-                           choices=[MPPA, MAP, JOINT, DOWNPASS, ACCTRAN, DELTRAN, COPY, ALL, ML, MP],
+                           choices=[MPPA, MAP, MRAND, JOINT, DOWNPASS, ACCTRAN, DELTRAN, COPY, ALL, ML, MP],
                            type=str, nargs='*', default=MPPA,
                            help='ancestral character reconstruction (ACR) method, '
                                 'can be one of the max likelihood (ML) methods: {ml}, '
@@ -1003,7 +1005,8 @@ def main():
                                 'Parameters can include character state frequencies '
                                 '(parameter name should be the corresponding state, '
                                 'and parameter value - the float frequency value, between 0 and 1),'
-                                'and tree branch scaling factor (parameter name {}).'.format(SCALING_FACTOR))
+                                'tree branch scaling factor (parameter name {}),'.format(SCALING_FACTOR) +
+                                'and tree branch smoothing factor (parameter name {}),'.format(SMOOTHING_FACTOR))
     acr_group.add_argument('--reoptimise', action='store_true',
                            help='if the parameters are specified, they will be considered as an optimisation '
                                 'starting point instead and optimised.')

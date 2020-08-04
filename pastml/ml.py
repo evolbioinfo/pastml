@@ -1,4 +1,6 @@
 import logging
+import os
+from multiprocessing.pool import ThreadPool
 
 import numpy as np
 import pandas as pd
@@ -10,6 +12,7 @@ from pastml.models.f81_like import is_f81_like, get_f81_pij, get_mu, F81, EFT
 from pastml.models.hky import get_hky_pij, KAPPA, HKY
 from pastml.models.jtt import get_jtt_pij, JTT
 from pastml.parsimony import parsimonious_acr, MP
+from pastml.tree import depth_first_traversal, PREORDER, POSTORDER, INORDER
 
 CHANGES_PER_AVG_BRANCH = 'state_changes_per_avg_branch'
 SCALING_FACTOR = 'scaling_factor'
@@ -20,6 +23,7 @@ RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR = '{}_restricted_{{}}'.format(LOG_LIKELIHOO
 
 JOINT = 'JOINT'
 MPPA = 'MPPA'
+MRAND = 'MRAND'
 MAP = 'MAP'
 ALL = 'ALL'
 ML = 'ML'
@@ -31,7 +35,7 @@ MODEL = 'model'
 MIN_VALUE = np.log10(np.finfo(np.float64).eps)
 MAX_VALUE = np.log10(np.finfo(np.float64).max)
 
-MARGINAL_ML_METHODS = {MPPA, MAP}
+MARGINAL_ML_METHODS = {MPPA, MAP, MRAND}
 ML_METHODS = MARGINAL_ML_METHODS | {JOINT}
 META_ML_METHODS = {ML, ALL}
 
@@ -143,22 +147,8 @@ def get_bottom_up_loglikelihood(tree, character, frequencies, sf,
 
     get_pij = get_pij_method(model, frequencies, kappa)
     for node in tree.traverse('postorder'):
-        log_likelihood_array = np.log10(np.ones(len(frequencies), dtype=np.float64)
-                                        * getattr(node, allowed_state_feature))
-        factors = 0
-        for child in node.children:
-            child_likelihoods = get_pij((child.dist + tau) * tau_factor * sf) * getattr(child, lh_feature)
-            if is_marginal:
-                child_likelihoods = child_likelihoods.sum(axis=1)
-            else:
-                child_states = child_likelihoods.argmax(axis=1)
-                child.add_feature(lh_joint_state_feature, child_states)
-                child_likelihoods = child_likelihoods.max(axis=1)
-            child_likelihoods = np.maximum(child_likelihoods, 0)
-            log_likelihood_array += np.log10(child_likelihoods)
-            factors += rescale_log(log_likelihood_array)
-        node.add_feature(lh_feature, np.power(10, log_likelihood_array))
-        node.add_feature(lh_sf_feature, factors + sum(getattr(_, lh_sf_feature) for _ in node.children))
+        calc_node_bu_likelihood(node, allowed_state_feature, lh_feature, lh_sf_feature, lh_joint_state_feature,
+                                is_marginal, get_pij, frequencies, sf, tau, tau_factor)
     root_likelihoods = getattr(tree, lh_feature) * frequencies
     root_likelihoods = root_likelihoods.sum() if is_marginal else root_likelihoods.max()
 
@@ -169,6 +159,25 @@ def get_bottom_up_loglikelihood(tree, character, frequencies, sf,
             unalter_zero_node_joint_states(altered_nodes, character)
 
     return np.log(root_likelihoods) - getattr(tree, lh_sf_feature) * np.log(10)
+
+
+def calc_node_bu_likelihood(node, allowed_state_feature, lh_feature, lh_sf_feature, lh_joint_state_feature, is_marginal,
+                            get_pij, frequencies, sf, tau, tau_factor):
+    log_likelihood_array = np.log10(np.ones(len(frequencies), dtype=np.float64) * getattr(node, allowed_state_feature))
+    factors = 0
+    for child in node.children:
+        child_likelihoods = get_pij((child.dist + tau) * tau_factor * sf) * getattr(child, lh_feature)
+        if is_marginal:
+            child_likelihoods = child_likelihoods.sum(axis=1)
+        else:
+            child_states = child_likelihoods.argmax(axis=1)
+            child.add_feature(lh_joint_state_feature, child_states)
+            child_likelihoods = child_likelihoods.max(axis=1)
+        child_likelihoods = np.maximum(child_likelihoods, 0)
+        log_likelihood_array += np.log10(child_likelihoods)
+        factors += rescale_log(log_likelihood_array)
+    node.add_feature(lh_feature, np.power(10, log_likelihood_array))
+    node.add_feature(lh_sf_feature, factors + sum(getattr(_, lh_sf_feature) for _ in node.children))
 
 
 def rescale_log(loglikelihood_array):
@@ -296,7 +305,7 @@ def calculate_top_down_likelihood(tree, character, frequencies, sf, tree_len, nu
     given that its parent node is P and its brother node is N2, we imagine that the tree is re-rooted in N1,
     therefore P becoming the child of N1, and N2 its grandchild.
     We then calculate the bottom-up likelihood from the P subtree:
-    L_top_down(N1, i) = \sum_j P(i -> j, dist(N1, P)) * L_top_down(P) * \sum_k P(j -> k, dist(N2, P)) * L_bottom_up (N2).
+    L_top_down(N1, i) = sum_j P(i -> j, dist(N1, P)) * L_top_down(P) * sum_k P(j -> k, dist(N2, P)) * L_bottom_up (N2).
 
     For the root node we assume its top-down likelihood to be 1 for all the states.
 
@@ -324,28 +333,29 @@ def calculate_top_down_likelihood(tree, character, frequencies, sf, tree_len, nu
 
     get_pij = get_pij_method(model, frequencies, kappa)
     for node in tree.traverse('preorder'):
-        if node.is_root():
-            node.add_feature(td_lh_feature, np.ones(len(frequencies), np.float64))
-            node.add_feature(td_lh_sf_feature, 0)
-            continue
+        calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, get_pij, sf,
+                                tau, tau_factor)
 
-        parent = node.up
 
-        node_pjis = np.transpose(get_pij((node.dist + tau) * tau_factor * sf))
-        node_contribution = getattr(node, bu_lh_feature).dot(node_pjis)
-        node_contribution[node_contribution <= 0] = 1
-
-        parent_loglikelihood = np.log10(getattr(parent, td_lh_feature)) \
-                               + np.log10(getattr(parent, bu_lh_feature)) - np.log10(node_contribution)
-        factors = getattr(parent, td_lh_sf_feature) \
-                  + getattr(parent, bu_lh_sf_feature) - getattr(node, bu_lh_sf_feature)
-        factors += rescale_log(parent_loglikelihood)
-        parent_likelihood = np.power(10, parent_loglikelihood)
-
-        td_likelihood = parent_likelihood.dot(node_pjis)
-
-        node.add_feature(td_lh_feature, np.maximum(td_likelihood, 0))
-        node.add_feature(td_lh_sf_feature, factors)
+def calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, get_pij, sf, tau,
+                            tau_factor):
+    if node.is_root():
+        node.add_feature(td_lh_feature, np.ones(len(getattr(node, bu_lh_feature)), np.float64))
+        node.add_feature(td_lh_sf_feature, 0)
+        return
+    parent = node.up
+    node_pjis = np.transpose(get_pij((node.dist + tau) * tau_factor * sf))
+    node_contribution = getattr(node, bu_lh_feature).dot(node_pjis)
+    node_contribution[node_contribution <= 0] = 1
+    parent_loglikelihood = np.log10(getattr(parent, td_lh_feature)) \
+                           + np.log10(getattr(parent, bu_lh_feature)) - np.log10(node_contribution)
+    factors = getattr(parent, td_lh_sf_feature) \
+              + getattr(parent, bu_lh_sf_feature) - getattr(node, bu_lh_sf_feature)
+    factors += rescale_log(parent_loglikelihood)
+    parent_likelihood = np.power(10, parent_loglikelihood)
+    td_likelihood = parent_likelihood.dot(node_pjis)
+    node.add_feature(td_lh_feature, np.maximum(td_likelihood, 0))
+    node.add_feature(td_lh_sf_feature, factors)
 
 
 def initialize_allowed_states(tree, feature, states):
@@ -486,7 +496,7 @@ def unalter_zero_node_joint_states(altered_nodes, feature):
                     joint_states[i] = allowed_index
 
 
-def calculate_marginal_likelihoods(tree, feature, frequencies):
+def calculate_marginal_likelihoods(tree, feature, frequencies, clean_up=True):
     """
     Calculates marginal likelihoods for each tree node
     by multiplying state frequencies with their bottom-up and top-down likelihoods.
@@ -505,12 +515,18 @@ def calculate_marginal_likelihoods(tree, feature, frequencies):
     allowed_state_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
 
     for node in tree.traverse('preorder'):
-        loglikelihood = np.log10(getattr(node, bu_lh_feature)) + np.log10(getattr(node, td_lh_feature)) \
-                        + np.log10(frequencies * getattr(node, allowed_state_feature))
-        factors = rescale_log(loglikelihood)
-        node.add_feature(lh_feature, np.power(10, loglikelihood))
-        node.add_feature(lh_sf_feature, factors + getattr(node, td_lh_sf_feature) + getattr(node, bu_lh_sf_feature))
+        calc_node_marginal_likelihood(node, lh_feature, lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, td_lh_feature,
+                                      td_lh_sf_feature, allowed_state_feature, frequencies, clean_up)
 
+
+def calc_node_marginal_likelihood(node, lh_feature, lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, td_lh_feature,
+                                  td_lh_sf_feature, allowed_state_feature, frequencies, clean_up):
+    loglikelihood = np.log10(getattr(node, bu_lh_feature)) + np.log10(getattr(node, td_lh_feature)) \
+                    + np.log10(frequencies * getattr(node, allowed_state_feature))
+    factors = rescale_log(loglikelihood)
+    node.add_feature(lh_feature, np.power(10, loglikelihood))
+    node.add_feature(lh_sf_feature, factors + getattr(node, td_lh_sf_feature) + getattr(node, bu_lh_sf_feature))
+    if clean_up:
         node.del_feature(bu_lh_feature)
         node.del_feature(bu_lh_sf_feature)
         node.del_feature(td_lh_feature)
@@ -689,6 +705,76 @@ def get_state2allowed_states(states, by_name=True):
     return all_ones, state2array
 
 
+def draw_random_states(forest, character, model, states, frequencies, sf, kappa, tau, tree_len, num_nodes):
+    """
+    Draws random states from marginal probabilities.
+    :param forest:
+    :param character:
+    :param model:
+    :param states:
+    :param frequencies:
+    :param sf:
+    :param kappa:
+    :param tau:
+    :return:
+    """
+
+    lh_feature = get_personalized_feature_name(character, LH)
+    lh_sf_feature = get_personalized_feature_name(character, LH_SF)
+    td_lh_feature = get_personalized_feature_name(character, TD_LH)
+    td_lh_sf_feature = get_personalized_feature_name(character, TD_LH_SF)
+    bu_lh_feature = get_personalized_feature_name(character, BU_LH)
+    bu_lh_sf_feature = get_personalized_feature_name(character, BU_LH_SF)
+
+    allowed_state_feature = get_personalized_feature_name(character, ALLOWED_STATES)
+    _, state2array = get_state2allowed_states(states, True)
+
+    num_edges = num_nodes - 1
+    tau_factor = tree_len / (tree_len + tau * num_edges)
+    get_pij = get_pij_method(model, frequencies, kappa)
+
+    for tree in forest:
+        initialize_allowed_states(tree, character, states)
+        if 0 == tau:
+            alter_zero_node_allowed_states(tree, character)
+        get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=frequencies, sf=sf, kappa=kappa,
+                                    is_marginal=True, model=model, tau=tau,
+                                    tree_len=tree_len, num_edges=num_edges, alter=False)
+        calculate_top_down_likelihood(tree, character, frequencies, sf, tree_len=tree_len, num_edges=num_edges,
+                                      kappa=kappa, model=model, tau=tau)
+
+        for (node, direction) in depth_first_traversal(tree):
+            if PREORDER == direction:
+                calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature, bu_lh_sf_feature,
+                                        get_pij=get_pij, sf=sf, tau=tau, tau_factor=tau_factor)
+                calc_node_marginal_likelihood(node, lh_feature, lh_sf_feature, bu_lh_feature, bu_lh_sf_feature,
+                                              td_lh_feature, td_lh_sf_feature, allowed_state_feature,
+                                              frequencies, clean_up=False)
+                marginal_likelihoods = getattr(node, lh_feature)
+                # draw a random state according to marginal probabilities
+                state = np.random.choice(states, size=1, p=marginal_likelihoods / marginal_likelihoods.sum())[0]
+                node.add_feature(allowed_state_feature, state2array[state])
+            calc_node_bu_likelihood(node, allowed_state_feature, bu_lh_feature, bu_lh_sf_feature,
+                                    lh_joint_state_feature=None, is_marginal=True,
+                                    get_pij=get_pij, frequencies=frequencies, sf=sf, tau=tau, tau_factor=tau_factor)
+            if POSTORDER == direction:
+                # if the node was a zero-branch altered node let's pick a valid state for it
+                if hasattr(node, allowed_state_feature + '.initial'):
+                    initial_allowed_states = getattr(node, allowed_state_feature + '.initial')
+                    calc_node_marginal_likelihood(node, lh_feature, lh_sf_feature, bu_lh_feature, bu_lh_sf_feature,
+                                                  td_lh_feature, td_lh_sf_feature, allowed_state_feature,
+                                                  frequencies, clean_up=False)
+                    marginal_likelihoods = getattr(node, lh_feature) * initial_allowed_states
+                    if marginal_likelihoods[getattr(node, allowed_state_feature) > 0].sum() <= 0:
+                        if np.count_nonzero(marginal_likelihoods) > 0:
+                            new_state = \
+                                np.random.choice(states, size=1, p=marginal_likelihoods / marginal_likelihoods.sum())[0]
+                        else:
+                            new_state = \
+                            np.random.choice(states, size=1, p=initial_allowed_states / initial_allowed_states.sum())[0]
+                        node.add_feature(allowed_state_feature, state2array[new_state])
+
+
 def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_nodes, num_tips, tree_len, frequencies,
            sf, kappa, tau, optimise_sf, optimise_frequencies, optimise_kappa, optimise_tau, observed_frequencies,
            force_joint=True):
@@ -819,7 +905,79 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
                                  result[NUM_STATES_PER_NODE], 's' if result[NUM_STATES_PER_NODE] > 1 else ''))
             process_restricted_likelihood_and_states(MPPA)
 
+        if MRAND == prediction_method:
+            draw_random_states(forest, character, model, states, frequencies, sf, kappa, tau, tree_len, num_nodes)
+            process_restricted_likelihood_and_states(MRAND)
+
     return results
+
+
+def marginal_counts(forest, character, model, states, num_nodes, tree_len, frequencies, sf, kappa, tau, threads=0,
+                    n_repetitions=1_000):
+    """
+    Calculates ML states on the trees and stores them in the corresponding feature.
+
+    :param states: possible states
+    :type states: np.array(str)
+    :param forest: trees of interest
+    :type forest: list(ete3.Tree)
+    :param character: character for which the ML states are reconstructed
+    :type character: str
+    :param model: evolutionary model, F81 (Felsenstein 81-like), JC (Jukes-Cantor-like) or EFT (estimate from tips)
+    :type model: str
+    :param frequencies: array of initial frequencies
+    :type frequencies: np.array(float)
+    :param sf: predefined scaling factor (or None if it is to be estimated)
+    :type sf: float
+    :return: mapping between reconstruction parameters and values
+    :param tau: a smoothing factor to apply to branch lengths during likelihood calculation.
+        If set to None (default), will be optimised.
+    :type tau: float
+    :rtype: dict
+    """
+
+    def work(i):
+        result = np.zeros((len(states), len(states)), dtype=float)
+        feature = '{}_{}.{}'.format(character, MRAND, i)
+        allowed_states = get_personalized_feature_name(feature, ALLOWED_STATES)
+        lh_feature = get_personalized_feature_name(feature, LH)
+        lh_sf_feature = get_personalized_feature_name(feature, LH_SF)
+        td_lh_feature = get_personalized_feature_name(feature, TD_LH)
+        td_lh_sf_feature = get_personalized_feature_name(feature, TD_LH_SF)
+        bu_lh_feature = get_personalized_feature_name(feature, BU_LH)
+        bu_lh_sf_feature = get_personalized_feature_name(feature, BU_LH_SF)
+        for tree in forest:
+            for n in tree.traverse():
+                n.add_feature(feature, getattr(n, character, set()))
+            draw_random_states([tree], feature, model, states, frequencies, sf, kappa, tau, tree_len, num_nodes)
+            for n in tree.traverse():
+                n_state_index = np.nonzero(getattr(n, allowed_states))[0]
+                if not n.is_leaf():
+                    result[n_state_index, n_state_index] -= 1
+                to_counts = np.zeros(len(states))
+                for c in n.children:
+                    to_counts += getattr(c, allowed_states)
+                result[n_state_index, :] += to_counts
+
+                n.del_feature(bu_lh_feature)
+                n.del_feature(bu_lh_sf_feature)
+                n.del_feature(td_lh_feature)
+                n.del_feature(td_lh_sf_feature)
+                n.del_feature(lh_feature)
+                n.del_feature(lh_sf_feature)
+                n.del_feature(allowed_states)
+                n.del_feature(feature)
+        return result
+
+    if threads < 1:
+        threads = max(os.cpu_count(), 1)
+    if threads > 1:
+        with ThreadPool(processes=threads - 1) as pool:
+            results = \
+                pool.map(func=work, iterable=range(n_repetitions))
+        return sum(results) / n_repetitions
+    else:
+        return sum(work(i) for i in range(n_repetitions)) / n_repetitions
 
 
 def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, character, states, model,
