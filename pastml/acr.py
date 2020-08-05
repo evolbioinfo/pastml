@@ -112,7 +112,7 @@ def _parse_pastml_parameters(params, states, reoptimise=False):
         tau = params[SMOOTHING_FACTOR]
         try:
             tau = np.float64(tau)
-            if tau <= 0:
+            if tau < 0:
                 logger.error(
                     'Smoothing factor ({}) cannot be negative, ignoring it.'.format(tau))
                 tau = None
@@ -155,7 +155,7 @@ def _serialize_acr(args):
 
 def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPPA, model=F81, column2parameters=None,
         force_joint=True, threads=0,
-        reoptimise=False, tau=0, resolve_polytomies=False):
+        reoptimise=False, tau=0, resolve_polytomies=False, frequency_smoothing=False):
     """
     Reconstructs ancestral states for the given tree and
     all the characters specified as columns of the given annotation dataframe.
@@ -261,7 +261,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             freqs, sf, kappa = None, None, None
             params = column2parameters[character] if character in column2parameters else None
             if params is not None:
-                freqs, sf, kappa, tau_p = _parse_pastml_parameters(params, states, reoptimise)
+                freqs, sf, kappa, tau_p = _parse_pastml_parameters(params, states, reoptimise or frequency_smoothing)
                 if tau is None and tau_p is not None:
                     tau = tau_p
                 if freqs is not None and model not in {F81, HKY}:
@@ -278,7 +278,9 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             optimise_kappa = (not kappa or reoptimise) and model == HKY
             if HKY == model and not kappa:
                 kappa = 4.
-            optimise_frequencies = model in {F81, HKY} and (freqs is None or reoptimise)
+            optimise_frequencies = model in {F81, HKY} and (freqs is None or (reoptimise and not frequency_smoothing))
+            if model not in {F81, HKY} or freqs is None:
+                frequency_smoothing = False
 
             n = len(states)
             missing_data = 0.
@@ -315,7 +317,8 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             else:
                 frequencies = np.ones(n, dtype=np.float64) / n
             character2settings[character] = [prediction_method, model, states, [frequencies, kappa, sf, tau], \
-                                             [optimise_frequencies, optimise_kappa, optimise_sf, optimise_tau], \
+                                             [optimise_frequencies, optimise_kappa, optimise_sf, optimise_tau,
+                                              frequency_smoothing], \
                                              observed_frequencies]
         else:
             raise ValueError('Method {} is unknown, should be one of ML ({}), one of MP ({}) or {}'
@@ -330,7 +333,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             return {CHARACTER: character, STATES: states, METHOD: prediction_method}
         if is_ml(prediction_method):
             frequencies, kappa, sf, tau = params
-            optimise_frequencies, optimise_kappa, optimise_sf, optimise_tau = optimised_values
+            optimise_frequencies, optimise_kappa, optimise_sf, optimise_tau, frequency_smoothing = optimised_values
             return ml_acr(forest=forest, character=character, prediction_method=prediction_method, model=model,
                           states=states, avg_br_len=tree_stats[0], num_nodes=tree_stats[1], num_tips=tree_stats[2],
                           tree_len=tree_stats[3],
@@ -338,6 +341,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                           force_joint=force_joint, tau=tau,
                           optimise_frequencies=optimise_frequencies, optimise_sf=optimise_sf,
                           optimise_kappa=optimise_kappa, optimise_tau=optimise_tau,
+                          frequency_smoothing=frequency_smoothing,
                           observed_frequencies=observed_frequencies)
         if is_parsimonious(prediction_method):
             return parsimonious_acr(forest=forest, character=character, prediction_method=prediction_method,
@@ -379,7 +383,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                 character2settings[character][3] = acr_res[FREQUENCIES], \
                                                    acr_res[KAPPA] if KAPPA in acr_res else None, \
                                                    acr_res[SCALING_FACTOR], acr_res[SMOOTHING_FACTOR]
-                character2settings[character][4] = [False, False, False, False]
+                character2settings[character][4] = [False, False, False, False, False]
         if threads > 1:
             with ThreadPool(processes=threads - 1) as pool:
                 acr_results = \
@@ -422,7 +426,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     out_data=None, html_compressed=None, html=None, html_mixed=None, work_dir=None,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
                     itol_tree_name=None, offline=False, threads=0, reoptimise=False, focus=None,
-                    resolve_polytomies=False, smoothing=False):
+                    resolve_polytomies=False, smoothing=False, frequency_smoothing=False):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -489,6 +493,11 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     :param smoothing: (optional, default is False) apply a smoothing factor (optimised) to branch lengths
         during likelihood calculation.
     :type smoothing: bool
+    :param frequency_smoothing: (optional, default is False) apply a smoothing factor (optimised) to state frequencies
+        (given as input parameters, see parameters argument) during likelihood calculation.
+        If reoptimise argument is set to True,
+        or the selected model (model argument) does not allow for frequency optimisation, this option will be ignored.
+    :type frequency_smoothing: bool
 
     :param name_column: (optional) name of the annotation table column to be used for node names
         in the compressed map visualisation
@@ -596,7 +605,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     acr_results = acr(forest=roots, columns=columns, column2states=column2states,
                       prediction_method=prediction_method, model=model, column2parameters=parameters,
                       force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=None if smoothing else 0,
-                      resolve_polytomies=resolve_polytomies)
+                      resolve_polytomies=resolve_polytomies, frequency_smoothing=frequency_smoothing)
 
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
 
@@ -1011,6 +1020,13 @@ def main():
                                 'starting point instead and optimised.')
     acr_group.add_argument('--smoothing', action='store_true',
                            help='Apply a smoothing factor (optimised) to branch lengths during likelihood calculation.')
+    acr_group.add_argument('--frequency_smoothing', action='store_true',
+                           help='Apply a smoothing factor (optimised) to state frequencies '
+                                '(given as input parameters, see --parameters) '
+                                'during likelihood calculation. '
+                                'If --reoptimise is specified, '
+                                'or the selected model (--model) does not allow for frequency optimisation,'
+                                ' this option will be ignored.')
 
     vis_group = parser.add_argument_group('visualisation-related arguments')
     vis_group.add_argument('-n', '--name_column', type=str, default=None,
