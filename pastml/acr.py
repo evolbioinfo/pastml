@@ -15,8 +15,7 @@ from pastml.annotation import preannotate_forest, get_forest_stats, get_min_fore
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file, get_pastml_work_dir
 from pastml.ml import SCALING_FACTOR, MODEL, FREQUENCIES, MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
-    ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method, SMOOTHING_FACTOR, \
-    MRAND
+    ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method, SMOOTHING_FACTOR
 from pastml.models.f81_like import F81, JC, EFT
 from pastml.models.hky import KAPPA, HKY_STATES, HKY
 from pastml.models.jtt import JTT_STATES, JTT, JTT_FREQUENCIES
@@ -962,7 +961,7 @@ def main():
                                 "If not specified, all columns are considered.",
                            type=str)
     acr_group.add_argument('--prediction_method',
-                           choices=[MPPA, MAP, MRAND, JOINT, DOWNPASS, ACCTRAN, DELTRAN, COPY, ALL, ML, MP],
+                           choices=[MPPA, MAP, JOINT, DOWNPASS, ACCTRAN, DELTRAN, COPY, ALL, ML, MP],
                            type=str, nargs='*', default=MPPA,
                            help='ancestral character reconstruction (ACR) method, '
                                 'can be one of the max likelihood (ML) methods: {ml}, '

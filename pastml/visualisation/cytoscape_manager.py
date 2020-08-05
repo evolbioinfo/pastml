@@ -410,7 +410,18 @@ def _forest2json_transitions(states, counts, transitions, state2colour):
     nums = np.triu(transitions + transtions_to_from).flatten()
     positive_nums = nums[nums > 0]
 
-    miles = np.array([0] + list(np.percentile(positive_nums, [5, 25, 50, 75, 95])))
+    miles = np.array(sorted(set({0, 1}
+                                | set(np.round(np.percentile(positive_nums, [1, 5, 10, 25, 50, 75, 90, 95, 99]),
+                                               0 if max(positive_nums) > 0 else 3)))))
+
+    # we hide connections when they are < mile
+    def get_mile(start, end, value):
+        i = int((start + end) / 2)
+        if miles[i] <= value:
+            if i == end - 1 or value < miles[i + 1]:
+                return i
+            return get_mile(i + 1, end, value)
+        return get_mile(start, i, value)
 
     i2mile = defaultdict(lambda: 0)
     for i in range(n):
@@ -424,7 +435,7 @@ def _forest2json_transitions(states, counts, transitions, state2colour):
             n_ji = transitions[j, i]
             cur_n_i = (n_ij + n_ji) if i != j else n_ij
             if cur_n_i > 0:
-                mile = binary_search(0, len(miles), cur_n_i, miles)
+                mile = get_mile(0, len(miles), cur_n_i)
                 node_size = (i_node_size + n_scaler(counts[j])) / 2
                 i2mile[i] = max(mile, i2mile[i])
                 i2mile[j] = max(mile, i2mile[j])

@@ -162,7 +162,7 @@ if (slider !== null) {
 
         cy.startBatch();
         removed.restore();
-        removed = cy.remove("[mile<=" + mile + "]");
+        removed = cy.remove("[mile<" + mile + "]");
         cy.endBatch();
     }
 }
