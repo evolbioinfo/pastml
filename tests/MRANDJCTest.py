@@ -1,29 +1,27 @@
 import os
 import unittest
-from multiprocessing.pool import ThreadPool
+from collections import Counter
 
 import numpy as np
 import pandas as pd
 
-from pastml.annotation import preannotate_forest, get_forest_stats
-from pastml import get_personalized_feature_name
 from pastml.acr import _parse_pastml_parameters
-from pastml.ml import optimise_likelihood, initialize_allowed_states, alter_zero_node_allowed_states, \
-    get_bottom_up_loglikelihood, calculate_top_down_likelihood, calculate_marginal_likelihoods, \
-    convert_likelihoods_to_probabilities, unalter_zero_node_allowed_states, draw_random_states, MRAND, \
-    check_marginal_likelihoods, ALLOWED_STATES
+from pastml.annotation import preannotate_forest, get_forest_stats
+from pastml.ml import marginal_counts
 from pastml.models.f81_like import JC
 from pastml.tree import read_tree
+from utilities.state_simulator import simulate_states
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
-TREE_NWK = os.path.join(DATA_DIR, 'Albanian.subtree.tre')
+TREE_NWK = os.path.join(DATA_DIR, 'Albanian.minitree.tre')
 STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')
 PARAMS_INPUT = os.path.join(DATA_DIR, 'params.character_Country.method_MPPA.model_JC.tab')
 
 
 class MRANDJCTest(unittest.TestCase):
 
-    def test_selection(self):
+    def test_counts(self):
+
         tree = read_tree(TREE_NWK)
         character = 'Country'
         df = pd.read_csv(STATES_INPUT, index_col=0, header=0)[[character]]
@@ -31,53 +29,51 @@ class MRANDJCTest(unittest.TestCase):
         states = np.array([_ for _ in df[character].unique() if not pd.isna(_) and '' != _])
         freqs, sf, kappa, _ = _parse_pastml_parameters(PARAMS_INPUT, states, reoptimise=False)
         tree_stats = get_forest_stats([tree])
+        tau = 0
 
         tree_len = tree_stats[3]
         num_nodes = tree_stats[1]
-        avg_brlen = tree_stats[0]
         model = JC
-        likelihood, frequencies, kappa, sf, tau = \
-            optimise_likelihood(forest=[tree], avg_br_len=avg_brlen, num_edges=num_nodes - 1, tree_len=tree_len,
-                                character=character, states=states, model=model,
-                                frequencies=freqs, observed_frequencies=freqs, kappa=kappa, sf=sf,
-                                tau=0, optimise_frequencies=False,
-                                optimise_kappa=False, optimise_sf=False, optimise_tau=False)
+        n_repetitions = 10_000
+        counts = marginal_counts([tree], character, model, states, num_nodes, tree_len, freqs, sf, kappa, tau,
+                                 n_repetitions=n_repetitions)
 
-        initialize_allowed_states(tree, character, states)
-        altered_nodes = []
-        if 0 == tau:
-            altered_nodes = alter_zero_node_allowed_states(tree, character)
-        get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=frequencies, sf=sf, kappa=kappa,
-                                    is_marginal=True, model=model, tau=tau,
-                                    tree_len=tree_len, num_edges=num_nodes - 1, alter=False)
-        calculate_top_down_likelihood(tree, character, frequencies, sf, tree_len=tree_len, num_edges=num_nodes - 1,
-                                      kappa=kappa, model=model, tau=tau)
-        calculate_marginal_likelihoods(tree, character, frequencies)
-        check_marginal_likelihoods(tree, character)
-        mp_df = convert_likelihoods_to_probabilities(tree, character, states)
-        if altered_nodes:
-            unalter_zero_node_allowed_states(altered_nodes, character)
+        sim_character = character + '.simulated'
+        n_sim_repetitions = n_repetitions * 300
+        simulate_states(tree, model, freqs, kappa, tau, sf, sim_character, n_repetitions=n_sim_repetitions)
+        good_indices = np.ones(n_sim_repetitions, dtype=int)
+        n_states = len(states)
+        state2id = dict(zip(states, range(n_states)))
+        for tip in tree:
+            state_id = state2id[next(iter(getattr(tip, character)))]
+            good_indices *= (getattr(tip, sim_character) == state_id).astype(int)
+        num_good_simulations = np.count_nonzero(good_indices)
+        print('Simulated {} good configurations'.format(num_good_simulations))
 
-        def work(i):
-            feature_i = '{}_{}.{}'.format(character, MRAND, i)
-            for n in tree.traverse():
-                n.add_feature(feature_i, getattr(n, character, set()))
-            draw_random_states([tree], feature_i, model, states, frequencies, sf, kappa, tau, tree_len, num_nodes)
+        sim_counts = np.zeros((n_states, n_states), dtype=float)
+        for n in tree.traverse('levelorder'):
+            from_states = getattr(n, sim_character)[good_indices > 0]
+            state_nums = Counter(from_states)
+            children_transition_counts = Counter()
+            for c in n.children:
+                transition_counts = Counter(zip(from_states, getattr(c, sim_character)[good_indices > 0]))
+                for (i, j), num in transition_counts.items():
+                    sim_counts[i, j] += num
+                children_transition_counts.update(transition_counts)
+            for i, num in state_nums.items():
+                sim_counts[i, i] -= min(num, children_transition_counts[(i, i)])
+        sim_counts /= num_good_simulations
+        print(np.round(counts, 2))
+        print(np.round(sim_counts, 2))
 
-        n_repetitions = 100_000
-        with ThreadPool() as pool:
-            pool.map(func=work, iterable=range(n_repetitions))
+        for i in range(n_states):
+            for j in range(n_states):
+                self.assertAlmostEqual(counts[i, j], sim_counts[i, j], 2,
+                                       'Counts are different for {}->{}: {} (calculated) vs {} (simulated).'
+                                       .format(states[i], states[j], counts[i, j], sim_counts[i, j]))
 
-        features = [get_personalized_feature_name('{}_{}.{}'.format(character, MRAND, i), ALLOWED_STATES)
-                    for i in range(n_repetitions)]
-        for n in tree.traverse():
-            mps = mp_df.loc[n.name, :]
-            prob = np.zeros(len(mps), dtype=np.float64)
-            for feature in features:
-                prob += getattr(n, feature)
-            prob /= prob.sum()
-            print(n.name, np.round(list(mps), 2), np.round(prob, 2))
-            for mp, p in zip(mps, prob):
-                self.assertAlmostEqual(mp, p, 2,
-                                       msg='Randomly drawn states ({}) do not seem to follow '
-                                           'marginal probabilities ({}) for {}.'.format(list(mps), prob, n.name))
+
+
+
+
+

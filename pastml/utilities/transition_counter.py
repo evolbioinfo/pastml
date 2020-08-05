@@ -106,7 +106,7 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
                          .format(sf, sf * avg_br_len),
                          '\n\tsmoothing factor:\t{:.6f}'.format(tau))
                  )
-    result = marginal_counts(forest, column, model, states, num_nodes, tree_len, freqs, sf, kappa, tau, threads,
+    result = marginal_counts(forest, column, model, states, num_nodes, tree_len, freqs, sf, kappa, tau,
                              n_repetitions=n_repetitions)
     df = pd.DataFrame(data=result, columns=states, index=states)
     df.to_csv(out_transitions, sep='\t', index_label='from')
