@@ -15,7 +15,7 @@ from pastml.visualisation.colour_generator import parse_colours, get_enough_colo
 from pastml.visualisation.cytoscape_manager import save_as_transition_html
 
 
-def count_transitions(tree, data, column, parameters, out_transitions, data_sep='\t', id_index=0, model=F81, threads=0,
+def count_transitions(tree, data, column, parameters, out_transitions, data_sep='\t', id_index=0, model=F81, threshold=1,
                       n_repetitions=1000, work_dir=None, html=None, verbose=False, offline=False, colours=None):
     """
 
@@ -54,10 +54,6 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
 
     :param verbose: (optional, default is False) print information on the progress of the analysis.
     :type verbose: bool
-
-    :param threads: (optional, default is 0, which stands for automatic) number of threads to be used for parallesation.
-        By default detected automatically based on the system.
-    :type threads: int
 
     :param n_repetitions: Number of times the ancestral scenario is drawn from the marginal probabilities.
         The transition counts are averaged over all these scenarios.
@@ -124,7 +120,8 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
             colours = get_enough_colours(len(states))
 
         save_as_transition_html(character=column, states=states, counts=counts, transitions=result, out_html=html,
-                                state2colour=dict(zip(states, colours)), work_dir=work_dir, local_css_js=offline)
+                                state2colour=dict(zip(states, colours)), work_dir=work_dir, local_css_js=offline,
+                                threshold=threshold)
 
 
 def main():
@@ -208,12 +205,10 @@ def main():
                                 'Each file should be tab-delimited, with two columns: '
                                 'the first one containing character states, '
                                 'and the second, named "colour", containing colours, in HEX format (e.g. #a6cee3).')
+    vis_group.add_argument('--threshold', type=int, required=False, default=1,
+                           help='Do not consider the interactions below this threshold value.')
 
     parser.add_argument('--version', action='version', version='%(prog)s {version}'.format(version=PASTML_VERSION))
-
-    parser.add_argument('--threads', required=False, default=0, type=int,
-                        help="Number of threads the program can use for parallesation. "
-                             "By default detected automatically based on the system. ")
 
     params = parser.parse_args()
 

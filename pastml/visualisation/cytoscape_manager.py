@@ -21,7 +21,10 @@ JS_LIST = ["https://pastml.pasteur.fr/static/js/jquery.min.js",
            "https://pastml.pasteur.fr/static/js/jquery.qtip.min.js",
            "https://pastml.pasteur.fr/static/js/cytoscape.min.js",
            "https://pastml.pasteur.fr/static/js/cytoscape-qtip.js",
-           "https://pastml.pasteur.fr/static/js/cytoscape-svg.js"]
+           "https://pastml.pasteur.fr/static/js/cytoscape-svg.js",
+           "https://pastml.pasteur.fr/static/js/layout-base.min.js",
+           "https://pastml.pasteur.fr/static/js/cose-base.min.js",
+           "https://pastml.pasteur.fr/static/js/cytoscape-cose-bilkent.min.js"]
 CSS_LIST = ["https://pastml.pasteur.fr/static/css/jquery.qtip.min.css",
             "https://pastml.pasteur.fr/static/css/bootstrap.min.css"]
 
@@ -396,7 +399,7 @@ def _forest2json(forest, columns, name_feature, get_date, milestones=None, timel
     return json_dict, sorted(clazzes)
 
 
-def _forest2json_transitions(states, counts, transitions, state2colour):
+def _forest2json_transitions(states, counts, transitions, state2colour, threshold=0):
     nodes, edges = [], []
     n = len(states)
 
@@ -412,13 +415,18 @@ def _forest2json_transitions(states, counts, transitions, state2colour):
 
     max_transition_num = max(positive_nums)
     if max_transition_num <= 2:
-        miles = np.array(sorted((set({0, 1 if max_transition_num > 1 else 0}
-                                     | set(np.round(positive_nums, 3))) - {np.round(max_transition_num, 3)})))
+        miles = sorted((set({0, 1 if max_transition_num > 1 else 0}
+                                     | set(np.round(positive_nums, 3))) - {np.round(max_transition_num, 3)}))
     else:
-        miles = np.array(sorted(set({0, 1} | set(np.trunc(positive_nums)))))
+        miles = sorted(set({0, 1} | set(np.trunc(positive_nums))))
+    miles = np.array([_ for _ in miles if threshold <= _ < max_transition_num])
+    if not len(miles):
+        miles = [0]
 
     # we hide connections when they are < mile
     def get_mile(start, end, value):
+        if start == end:
+            return None
         i = int((start + end) / 2)
         if miles[i] <= value:
             if i == end - 1 or value < miles[i + 1]:
@@ -426,7 +434,7 @@ def _forest2json_transitions(states, counts, transitions, state2colour):
             return get_mile(i + 1, end, value)
         return get_mile(start, i, value)
 
-    i2mile = defaultdict(lambda: 0)
+    i2mile = defaultdict(lambda: -1)
     for i in range(n):
         from_state = states[i]
         n_tips = counts[i]
@@ -437,35 +445,40 @@ def _forest2json_transitions(states, counts, transitions, state2colour):
                     to_state = states[j]
                     n_ij = transitions[i, j]
                     n_ji = transitions[j, i]
-                    cur_n_i = (n_ij + n_ji) if i != j else n_ij
-                    if cur_n_i > 0:
-                        mile = get_mile(0, len(miles), cur_n_i)
-                        node_size = (i_node_size + n_scaler(counts[j])) / 2
-                        i2mile[i] = max(mile, i2mile[i])
-                        i2mile[j] = max(mile, i2mile[j])
-                        if n_ij > 0:
+                    node_size = (i_node_size + n_scaler(counts[j])) / 2
+                    if n_ij > 0:
+                        mile = get_mile(0, len(miles), n_ij)
+                        if mile is not None:
+                            i2mile[i] = max(mile, i2mile[i])
+                            i2mile[j] = max(mile, i2mile[j])
                             edges.append(get_edge(i, j,
                                                   **{ID: '{}_{}'.format(i, j),
                                                      EDGE_SIZE: e_scaler(n_ij),
                                                      NODE_SIZE: node_size / (2 if i != j else 1),
                                                      EDGE_NAME: n_ij,
-                                                     TOOLTIP: '{} transitions from {} to {}'.format(n_ij, from_state, to_state),
+                                                     TOOLTIP: '{} transitions from {} to {}'
+                                                  .format(n_ij, from_state, to_state),
                                                      MILESTONE: mile}))
-                        if n_ji > 0 and i != j:
+                    if n_ji > 0 and i != j:
+                        mile = get_mile(0, len(miles), n_ji)
+                        if mile is not None:
+                            i2mile[i] = max(mile, i2mile[i])
+                            i2mile[j] = max(mile, i2mile[j])
                             edges.append(get_edge(j, i,
                                                   **{ID: '{}_{}'.format(j, i),
                                                      EDGE_SIZE: e_scaler(n_ji),
                                                      NODE_SIZE: node_size / 2,
                                                      EDGE_NAME: n_ji,
-                                                     TOOLTIP: '{} transitions from {} to {}'.format(n_ji, to_state, from_state),
+                                                     TOOLTIP: '{} transitions from {} to {}'
+                                                  .format(n_ji, to_state, from_state),
                                                      MILESTONE: mile}))
-
-            nodes.append(_get_node(data={ID: i, NODE_NAME: from_state,
-                                         NODE_SIZE: i_node_size,
-                                         FONT_SIZE: font_scaler(n_tips),
-                                         TOOLTIP: '{} is represented by {:.0f} samples.'.format(from_state, n_tips),
-                                         COLOUR: state2colour[from_state],
-                                         MILESTONE: i2mile[i]}))
+            if i2mile[i] >= 0:
+                nodes.append(_get_node(data={ID: i, NODE_NAME: from_state,
+                                             NODE_SIZE: i_node_size,
+                                             FONT_SIZE: font_scaler(n_tips),
+                                             TOOLTIP: '{} is represented by {:.0f} samples.'.format(from_state, n_tips),
+                                             COLOUR: state2colour[from_state],
+                                             MILESTONE: i2mile[i]}))
     json_dict = {NODES: nodes, EDGES: edges}
     return json_dict, ['{:g}'.format(_) for _ in miles]
 
@@ -592,14 +605,15 @@ def save_as_cytoscape_html(forest, out_html, column2states, name_feature, name2c
 
 
 def save_as_transition_html(character, states, counts, transitions, out_html, state2colour, work_dir,
-                            local_css_js=False):
+                            local_css_js=False, threshold=0):
     """
     Converts transition count data to an html representation using Cytoscape.js.
 
     :param out_html: path where to save the resulting html file.
     """
     graph_name = os.path.splitext(os.path.basename(out_html))[0]
-    json_dict, thresholds = _forest2json_transitions(states, counts, transitions, state2colour)
+    transitions[transitions < threshold] = 0
+    json_dict, thresholds = _forest2json_transitions(states, counts, transitions, state2colour, threshold=threshold)
 
     loader = PackageLoader('pastml')
     env = Environment(loader=loader)

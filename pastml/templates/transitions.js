@@ -1,9 +1,32 @@
 var layoutOptions = {
-  name: 'cose',
+  name: 'cose-bilkent',
+// 'draft', 'default' or 'proof"
+  // - 'draft' fast cooling rate
+  // - 'default' moderate cooling rate
+  // - "proof" slow cooling rate
+  quality: 'default',
+  // Whether to include labels in node dimensions. Useful for avoiding label overlap
   nodeDimensionsIncludeLabels: true,
-  edgeElasticity: function( edge ){ return edge.data('node_size') * 4000; },
-  idealEdgeLength: function( edge ){ return edge.data('node_size') * 6; },
-  nodeRepulsion: function( node ){ return 10000; },
+  // Node repulsion (non overlapping) multiplier
+  nodeRepulsion: 10,
+  // Ideal (intra-graph) edge length
+  idealEdgeLength: 1000,
+  // Divisor to compute edge forces
+  edgeElasticity: 10,
+  // Gravity force (constant)
+  gravity: 5,
+  // Maximum number of iterations to perform
+  numIter: 10000,
+  // Whether to tile disconnected nodes
+  tile: true,
+  // Type of layout animation. The option set is {'during', 'end', false}
+  animate: 'end',
+  // Duration for animate:end
+  animationDuration: 2000,
+  // Amount of vertical space to put between degree zero nodes during tiling (can also be a function)
+  tilingPaddingVertical: 200,
+  // Amount of horizontal space to put between degree zero nodes during tiling (can also be a function)
+  tilingPaddingHorizontal: 200,
 };
 
 var cy = cytoscape({
