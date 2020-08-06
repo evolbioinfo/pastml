@@ -36,7 +36,7 @@ warnings.filterwarnings("ignore", append=True)
 COPY = 'COPY'
 
 
-def _parse_pastml_parameters(params, states, reoptimise=False):
+def _parse_pastml_parameters(params, states, num_tips, reoptimise=False):
     logger = logging.getLogger('pastml')
     frequencies, sf, kappa, tau = None, None, None, None
     if not isinstance(params, str) and not isinstance(params, dict):
@@ -61,30 +61,38 @@ def _parse_pastml_parameters(params, states, reoptimise=False):
                              'the first one containing parameter names, '
                              'and the second, named "value", containing parameter values.'.format(params))
     params = {str(k.encode('ASCII', 'replace').decode()): v for (k, v) in params.items()}
-    frequencies_specified = set(states) & set(params.keys())
-    if frequencies_specified:
-        if len(frequencies_specified) < len(states) and not reoptimise:
-            logger.error('Some frequency parameters are specified, but missing the following states: {}, '
-                         'ignoring specified frequencies.'.format(', '.join(set(states) - frequencies_specified)))
+    known_freq_states = set(states) & set(params.keys())
+    if known_freq_states:
+        unknown_freq_states = [state for state in states if state not in params.keys()]
+        if unknown_freq_states and not reoptimise:
+            logger.error('Frequencies for some of the states ({}) are missing, '
+                         'ignoring the specified frequencies.'.format(', '.join(unknown_freq_states)))
         else:
+            frequencies = np.array([params[state] if state in params.keys() else 0 for state in states])
             try:
-                min_freq = min(float(params[state]) for state in frequencies_specified if float(params[state]) > 0) / 10
-                frequencies = np.array([params[state] if state in params.keys() else min_freq for state in states])
                 frequencies = frequencies.astype(np.float64)
                 if np.round(frequencies.sum() - 1, 2) != 0 and not reoptimise:
                     logger.error('Specified frequencies ({}) do not sum up to one ({}),'
                                  'ignoring them.'.format(frequencies, frequencies.sum()))
                     frequencies = None
-                elif np.any(frequencies < 0):
-                    if not reoptimise:
+                else:
+                    if np.any(frequencies < 0) and not reoptimise:
                         logger.error('Some of the specified frequencies ({}) are negative,'
                                      'ignoring them.'.format(frequencies))
                         frequencies = None
                     else:
+                        min_freq = \
+                            min(1 / num_tips,
+                                min(float(params[state]) for state in known_freq_states if float(params[state]) > 0)) \
+                            / 2
+                        if unknown_freq_states:
+                            logger.error('Frequencies for some of the states ({}) are missing, '
+                                         'setting them to {}.'.format(', '.join(unknown_freq_states), min_freq))
                         frequencies = np.maximum(frequencies, min_freq)
-                frequencies /= frequencies.sum()
+                        frequencies /= frequencies.sum()
             except:
-                logger.error('Specified frequencies ({}) must be float, ignoring them.'.format(frequencies))
+                logger.error('Could not convert the specified frequencies ({}) to float, '
+                             'ignoring them.'.format(frequencies))
                 frequencies = None
     if SCALING_FACTOR in params:
         sf = params[SCALING_FACTOR]
@@ -258,10 +266,12 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         if COPY == prediction_method or is_parsimonious(prediction_method):
             character2settings[character] = [prediction_method, None, states, None, None, None]
         elif is_ml(prediction_method):
+            n_tips = tree_stats[2]
             freqs, sf, kappa = None, None, None
             params = column2parameters[character] if character in column2parameters else None
             if params is not None:
-                freqs, sf, kappa, tau_p = _parse_pastml_parameters(params, states, reoptimise or frequency_smoothing)
+                freqs, sf, kappa, tau_p = _parse_pastml_parameters(params, states, n_tips,
+                                                                   reoptimise or frequency_smoothing)
                 if tau is None and tau_p is not None:
                     tau = tau_p
                 if freqs is not None and model not in {F81, HKY}:
@@ -495,8 +505,8 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     :type smoothing: bool
     :param frequency_smoothing: (optional, default is False) apply a smoothing factor (optimised) to state frequencies
         (given as input parameters, see parameters argument) during likelihood calculation.
-        If reoptimise argument is set to True,
-        or the selected model (model argument) does not allow for frequency optimisation, this option will be ignored.
+        If the selected model (model argument) does not allow for frequency optimisation, this option will be ignored.
+        If reoptimise argument is also set to True, the frequencies will only be smoothed but not reoptimised.
     :type frequency_smoothing: bool
 
     :param name_column: (optional) name of the annotation table column to be used for node names
@@ -1024,9 +1034,10 @@ def main():
                            help='Apply a smoothing factor (optimised) to state frequencies '
                                 '(given as input parameters, see --parameters) '
                                 'during likelihood calculation. '
-                                'If --reoptimise is specified, '
-                                'or the selected model (--model) does not allow for frequency optimisation,'
-                                ' this option will be ignored.')
+                                'If the selected model (--model) does not allow for frequency optimisation,'
+                                ' this option will be ignored. '
+                                'If --reoptimise is also specified, '
+                                'the frequencies will only be smoothed but not reoptimised. ')
 
     vis_group = parser.add_argument_group('visualisation-related arguments')
     vis_group.add_argument('-n', '--name_column', type=str, default=None,

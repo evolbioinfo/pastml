@@ -27,12 +27,11 @@ class MRANDJCTest(unittest.TestCase):
         df = pd.read_csv(STATES_INPUT, index_col=0, header=0)[[character]]
         preannotate_forest([tree], df=df)
         states = np.array([_ for _ in df[character].unique() if not pd.isna(_) and '' != _])
-        freqs, sf, kappa, _ = _parse_pastml_parameters(PARAMS_INPUT, states, reoptimise=False)
-        tree_stats = get_forest_stats([tree])
+        avg_len, num_nodes, num_tips, tree_len = get_forest_stats([tree])
+
+        freqs, sf, kappa, _ = _parse_pastml_parameters(PARAMS_INPUT, states, num_tips=num_tips, reoptimise=False)
         tau = 0
 
-        tree_len = tree_stats[3]
-        num_nodes = tree_stats[1]
         model = JC
         n_repetitions = 10_000
         counts = marginal_counts([tree], character, model, states, num_nodes, tree_len, freqs, sf, kappa, tau,

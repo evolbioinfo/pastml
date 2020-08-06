@@ -201,7 +201,7 @@ def rescale_log(loglikelihood_array):
     return factors
 
 
-def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br_len, tree_len, num_edges,
+def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br_len, tree_len, num_edges, num_tips,
                                observed_frequencies,
                                optimise_sf=True, optimise_frequencies=True, optimise_kappa=True,
                                model=F81, tau=0, optimise_tau=False, frequency_smoothing=False):
@@ -249,7 +249,7 @@ def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br
             freqs = np.hstack((ps[: (len(frequencies) - 1)], [1.]))
             freqs /= freqs.sum()
         elif frequency_smoothing:
-            freqs = freqs * (num_edges + 1)
+            freqs = freqs * num_tips
             freqs += ps[-1]
             freqs /= freqs.sum()
 
@@ -745,6 +745,7 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
     logger = logging.getLogger('pastml')
     likelihood, frequencies, kappa, sf, tau = \
         optimise_likelihood(forest=forest, avg_br_len=avg_br_len, tree_len=tree_len, num_edges=num_nodes - 1,
+                            num_tips=num_tips,
                             character=character, states=states, model=model,
                             frequencies=frequencies, observed_frequencies=observed_frequencies, kappa=kappa, sf=sf,
                             tau=tau, optimise_frequencies=optimise_frequencies,
@@ -979,7 +980,7 @@ def marginal_counts(forest, character, model, states, num_nodes, tree_len, frequ
     return result / n_repetitions
 
 
-def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, character, states, model,
+def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, num_tips, character, states, model,
                         frequencies, observed_frequencies, kappa, sf, tau, optimise_frequencies, optimise_kappa,
                         optimise_sf, optimise_tau, frequency_smoothing=False):
     for tree in forest:
@@ -1026,7 +1027,7 @@ def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, character, stat
                 optimize_likelihood_params(forest=forest, character=character, frequencies=frequencies, sf=sf,
                                            kappa=kappa, optimise_frequencies=False, optimise_sf=optimise_sf,
                                            optimise_kappa=False, avg_br_len=avg_br_len,
-                                           tree_len=tree_len, num_edges=num_edges, model=model,
+                                           tree_len=tree_len, num_edges=num_edges, num_tips=num_tips, model=model,
                                            observed_frequencies=observed_frequencies, tau=tau,
                                            optimise_tau=optimise_tau)
             if np.any(np.isnan(likelihood) or likelihood == -np.inf):
@@ -1051,7 +1052,7 @@ def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, character, stat
                                            sf=sf, kappa=kappa, optimise_frequencies=optimise_frequencies,
                                            optimise_sf=optimise_sf,
                                            optimise_kappa=optimise_kappa, avg_br_len=avg_br_len,
-                                           tree_len=tree_len, num_edges=num_edges, model=model,
+                                           tree_len=tree_len, num_edges=num_edges, num_tips=num_tips, model=model,
                                            observed_frequencies=observed_frequencies,
                                            tau=tau, optimise_tau=False, frequency_smoothing=frequency_smoothing)
             if np.any(np.isnan(likelihood) or likelihood == -np.inf):

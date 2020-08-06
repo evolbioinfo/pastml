@@ -410,9 +410,12 @@ def _forest2json_transitions(states, counts, transitions, state2colour):
     nums = np.triu(transitions + transtions_to_from).flatten()
     positive_nums = nums[nums > 0]
 
-    miles = np.array(sorted(set({0, 1}
-                                | set(np.round(np.percentile(positive_nums, [1, 5, 10, 25, 50, 75, 90, 95, 99]),
-                                               0 if max(positive_nums) > 0 else 3)))))
+    max_transition_num = max(positive_nums)
+    if max_transition_num <= 2:
+        miles = np.array(sorted((set({0, 1 if max_transition_num > 1 else 0}
+                                     | set(np.round(positive_nums, 3))) - {np.round(max_transition_num, 3)})))
+    else:
+        miles = np.array(sorted(set({0, 1} | set(np.trunc(positive_nums)))))
 
     # we hide connections when they are < mile
     def get_mile(start, end, value):
@@ -428,35 +431,35 @@ def _forest2json_transitions(states, counts, transitions, state2colour):
         from_state = states[i]
         n_tips = counts[i]
         i_node_size = n_scaler(n_tips)
-
-        for j in range(i, n):
-            to_state = states[j]
-            n_ij = transitions[i, j]
-            n_ji = transitions[j, i]
-            cur_n_i = (n_ij + n_ji) if i != j else n_ij
-            if cur_n_i > 0:
-                mile = get_mile(0, len(miles), cur_n_i)
-                node_size = (i_node_size + n_scaler(counts[j])) / 2
-                i2mile[i] = max(mile, i2mile[i])
-                i2mile[j] = max(mile, i2mile[j])
-                if n_ij > 0:
-                    edges.append(get_edge(i, j,
-                                          **{ID: '{}_{}'.format(i, j),
-                                             EDGE_SIZE: e_scaler(n_ij),
-                                             NODE_SIZE: node_size / (2 if i != j else 1),
-                                             EDGE_NAME: n_ij,
-                                             TOOLTIP: '{} transitions from {} to {}'.format(n_ij, from_state, to_state),
-                                             MILESTONE: mile}))
-                if n_ji > 0 and i != j:
-                    edges.append(get_edge(j, i,
-                                          **{ID: '{}_{}'.format(j, i),
-                                             EDGE_SIZE: e_scaler(n_ji),
-                                             NODE_SIZE: node_size / 2,
-                                             EDGE_NAME: n_ji,
-                                             TOOLTIP: '{} transitions from {} to {}'.format(n_ji, to_state, from_state),
-                                             MILESTONE: mile}))
-
         if n_tips > 0:
+            for j in range(i, n):
+                if counts[j] > 0:
+                    to_state = states[j]
+                    n_ij = transitions[i, j]
+                    n_ji = transitions[j, i]
+                    cur_n_i = (n_ij + n_ji) if i != j else n_ij
+                    if cur_n_i > 0:
+                        mile = get_mile(0, len(miles), cur_n_i)
+                        node_size = (i_node_size + n_scaler(counts[j])) / 2
+                        i2mile[i] = max(mile, i2mile[i])
+                        i2mile[j] = max(mile, i2mile[j])
+                        if n_ij > 0:
+                            edges.append(get_edge(i, j,
+                                                  **{ID: '{}_{}'.format(i, j),
+                                                     EDGE_SIZE: e_scaler(n_ij),
+                                                     NODE_SIZE: node_size / (2 if i != j else 1),
+                                                     EDGE_NAME: n_ij,
+                                                     TOOLTIP: '{} transitions from {} to {}'.format(n_ij, from_state, to_state),
+                                                     MILESTONE: mile}))
+                        if n_ji > 0 and i != j:
+                            edges.append(get_edge(j, i,
+                                                  **{ID: '{}_{}'.format(j, i),
+                                                     EDGE_SIZE: e_scaler(n_ji),
+                                                     NODE_SIZE: node_size / 2,
+                                                     EDGE_NAME: n_ji,
+                                                     TOOLTIP: '{} transitions from {} to {}'.format(n_ji, to_state, from_state),
+                                                     MILESTONE: mile}))
+
             nodes.append(_get_node(data={ID: i, NODE_NAME: from_state,
                                          NODE_SIZE: i_node_size,
                                          FONT_SIZE: font_scaler(n_tips),
