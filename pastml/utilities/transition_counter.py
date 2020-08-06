@@ -92,7 +92,7 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
                     counts[state2i[s]] += 1 / len(n_states)
 
     avg_br_len, num_nodes, num_tips, tree_len = get_forest_stats(forest)
-    freqs, sf, kappa, tau = _parse_pastml_parameters(parameters, states, reoptimise=False)
+    freqs, sf, kappa, tau = _parse_pastml_parameters(parameters, states, num_tips=num_tips, reoptimise=False)
     if not tau:
         tau = 0
 
