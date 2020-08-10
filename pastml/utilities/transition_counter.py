@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import numpy as np
 
-from models.rate_matrix import CUSTOM_RATES
+from pastml.models.rate_matrix import CUSTOM_RATES
 from pastml.acr import _parse_pastml_parameters, _validate_input, PASTML_VERSION, _set_up_pastml_logger
 from pastml.file import get_pastml_work_dir
 from pastml.annotation import get_forest_stats
