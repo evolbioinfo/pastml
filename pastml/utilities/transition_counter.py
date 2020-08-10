@@ -16,7 +16,7 @@ from pastml.visualisation.cytoscape_manager import save_as_transition_html
 
 
 def count_transitions(tree, data, column, parameters, out_transitions, data_sep='\t', id_index=0, model=F81, threshold=1,
-                      n_repetitions=1000, work_dir=None, html=None, verbose=False, offline=False, colours=None):
+                      n_repetitions=1000, rate_matrix=None, work_dir=None, html=None, verbose=False, offline=False, colours=None):
     """
 
     :param tree: path to the input tree(s) in newick format (must be rooted).
@@ -48,6 +48,24 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
         tree branch scaling factor (parameter name pastml.ml.SCALING_FACTOR),
         and tree branch smoothing factor (parameter name pastml.ml.SMOOTHING_FACTOR).
     :type parameters: str or dict
+    :param rate_matrix: (only for pastml.models.rate_matrix.CUSTOM_RATES model) path to the file
+        specifying the rate matrix.
+        Could be specified as
+        (1) a dict {column: path_to_file},
+        where column corresponds to the character for which this rate matrix should be used,
+        or (2) as a path to rate matrix file.
+        The rate matrix file should specify character states in its first line, preceded by '# ' and separated by spaces.
+        The following lines should contain a symmetric squared rate matrix with positive rates
+        (and zeros on the diagonal), separated by spaces,
+        in the same order at the character states specified in the first line.
+        For example for four states, A, C, G, T and the rates A<->C 1, A<->G 4, A<->T 1, C<->G 1, C<->T 4, G<->T 1,
+        the rate matrix file would look like:
+        # A C G T
+        0 1 4 1
+        1 0 1 4
+        4 1 0 1
+        1 4 1 0
+    :type rate_matrix: str
 
     :param out_transitions: path to the output transition table file.
     :type out_transitions: str
@@ -63,7 +81,8 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
     logger = _set_up_pastml_logger(verbose)
 
     forest, columns, column2states, name_column, age_label, parameters = \
-        _validate_input(tree, [column], None, data, data_sep, id_index, None, parameters=[parameters])
+        _validate_input(tree, [column], None, data, data_sep, id_index, None, parameters=[parameters],
+                        rates=[rate_matrix])
 
     column = columns[0]
     states = column2states[column]

@@ -9,6 +9,7 @@ import pandas as pd
 from Bio.Phylo import NewickIO, write
 from ete3 import Tree
 
+from pastml.models.rate_matrix import CUSTOM_RATES, load_custom_rates
 from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, numeric2datetime, \
     datetime2numeric
 from pastml.annotation import preannotate_forest, get_forest_stats, get_min_forest_stats
@@ -161,7 +162,8 @@ def _serialize_acr(args):
                                           .format(acr_result[CHARACTER], out_mp_file))
 
 
-def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPPA, model=F81, column2parameters=None,
+def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPPA, model=F81,
+        column2parameters=None, column2rates=None,
         force_joint=True, threads=0,
         reoptimise=False, tau=0, resolve_polytomies=False, frequency_smoothing=False):
     """
@@ -226,6 +228,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
     logging.getLogger('pastml').debug('\n=============ACR===============================')
 
     column2parameters = column2parameters if column2parameters else {}
+    column2rates = column2rates if column2rates else {}
 
     prediction_methods = value2list(len(columns), prediction_method, MPPA)
     models = value2list(len(columns), model, F81)
@@ -262,19 +265,29 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             .debug('ACR settings for {}:\n\tMethod:\t{}{}.'
                    .format(character, prediction_method,
                            '\n\tModel:\t{}'.format(model) if model and is_ml(prediction_method) else ''))
-        states = get_states(prediction_method, model, character)
         if COPY == prediction_method or is_parsimonious(prediction_method):
+            states = get_states(prediction_method, model, character)
             character2settings[character] = [prediction_method, None, states, None, None, None]
         elif is_ml(prediction_method):
             n_tips = tree_stats[2]
-            freqs, sf, kappa = None, None, None
+            freqs, sf, kappa, rate_matrix = None, None, None, None
             params = column2parameters[character] if character in column2parameters else None
+            rate_file = column2rates[character] if character in column2rates else None
+            if CUSTOM_RATES == model:
+                if rate_file is None:
+                    raise ValueError('For {} model rate matrix and frequencies '
+                                     'must be specified in the rate matrix and input parameter files.'
+                                     .format(CUSTOM_RATES))
+                states, rate_matrix = load_custom_rates(rate_file)
+                column2states[character] = states
+            states = get_states(prediction_method, model, character)
+
             if params is not None:
                 freqs, sf, kappa, tau_p = _parse_pastml_parameters(params, states, n_tips,
                                                                    reoptimise or frequency_smoothing)
                 if tau is None and tau_p is not None:
                     tau = tau_p
-                if freqs is not None and model not in {F81, HKY}:
+                if freqs is not None and model not in {F81, HKY, CUSTOM_RATES}:
                     logging.warning('Some frequencies were specified in the parameter file, '
                                     'but the selected model ({}) ignores them. '
                                     'Use F81 (or HKY for nucleotide characters only) '
@@ -288,8 +301,9 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             optimise_kappa = (not kappa or reoptimise) and model == HKY
             if HKY == model and not kappa:
                 kappa = 4.
-            optimise_frequencies = model in {F81, HKY} and (freqs is None or (reoptimise and not frequency_smoothing))
-            if model not in {F81, HKY} or freqs is None:
+            optimise_frequencies = model in {F81, HKY, CUSTOM_RATES} \
+                                   and (freqs is None or (reoptimise and not frequency_smoothing))
+            if model not in {F81, HKY, CUSTOM_RATES} or freqs is None:
                 frequency_smoothing = False
 
             n = len(states)
@@ -322,11 +336,12 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                 frequencies = JTT_FREQUENCIES
             elif EFT == model:
                 frequencies = observed_frequencies
-            elif model in {F81, HKY} and freqs is not None:
+            elif model in {F81, HKY, CUSTOM_RATES} and freqs is not None:
                 frequencies = freqs
             else:
                 frequencies = np.ones(n, dtype=np.float64) / n
-            character2settings[character] = [prediction_method, model, states, [frequencies, kappa, sf, tau], \
+            character2settings[character] = [prediction_method, model, states,
+                                             [frequencies, kappa, sf, tau, rate_matrix], \
                                              [optimise_frequencies, optimise_kappa, optimise_sf, optimise_tau,
                                               frequency_smoothing], \
                                              observed_frequencies]
@@ -342,13 +357,13 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         if COPY == prediction_method:
             return {CHARACTER: character, STATES: states, METHOD: prediction_method}
         if is_ml(prediction_method):
-            frequencies, kappa, sf, tau = params
+            frequencies, kappa, sf, tau, rate_matrix = params
             optimise_frequencies, optimise_kappa, optimise_sf, optimise_tau, frequency_smoothing = optimised_values
             return ml_acr(forest=forest, character=character, prediction_method=prediction_method, model=model,
                           states=states, avg_br_len=tree_stats[0], num_nodes=tree_stats[1], num_tips=tree_stats[2],
                           tree_len=tree_stats[3],
                           frequencies=frequencies, sf=sf, kappa=kappa,
-                          force_joint=force_joint, tau=tau,
+                          force_joint=force_joint, tau=tau, rate_matrix=rate_matrix,
                           optimise_frequencies=optimise_frequencies, optimise_sf=optimise_sf,
                           optimise_kappa=optimise_kappa, optimise_tau=optimise_tau,
                           frequency_smoothing=frequency_smoothing,
@@ -430,7 +445,8 @@ def _quote(str_list):
 
 
 def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
-                    columns=None, prediction_method=MPPA, model=F81, parameters=None,
+                    columns=None, prediction_method=MPPA, model=F81,
+                    parameters=None, rate_matrix=None,
                     name_column=None, root_date=None, timeline_type=TIMELINE_SAMPLED,
                     tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, colours=None,
                     out_data=None, html_compressed=None, html=None, html_mixed=None, work_dir=None,
@@ -497,6 +513,27 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         tree branch scaling factor (parameter name pastml.ml.SCALING_FACTOR),
         and tree branch smoothing factor (parameter name pastml.ml.SMOOTHING_FACTOR).
     :type parameters: str or list(str) or dict
+    :param rate_matrix: (only for pastml.models.rate_matrix.CUSTOM_RATES model) path to the file(s)
+        specifying the rate matrix(ces).
+        Could be specified as
+        (1) a dict {column: path_to_file},
+        where column corresponds to the character for which this rate matrix should be used,
+        or (2) as a list of paths to rate matrix files
+        (in the same order as ``columns`` argument that specifies characters)
+        possibly given only for the first few characters;
+        or (3) as a path to rate matrix file (only for the first character).
+        The rate matrix file should specify character states in its first line, preceded by '# ' and separated by spaces.
+        The following lines should contain a symmetric squared rate matrix with positive rates
+        (and zeros on the diagonal), separated by spaces,
+        in the same order at the character states specified in the first line.
+        For example for four states, A, C, G, T and the rates A<->C 1, A<->G 4, A<->T 1, C<->G 1, C<->T 4, G<->T 1,
+        the rate matrix file would look like:
+        # A C G T
+        0 1 4 1
+        1 0 1 4
+        4 1 0 1
+        1 4 1 0
+    :type rate_matrix: str or list(str) or dict
     :param reoptimise: (False by default) if set to True and the parameters are specified,
         they will be considered as an optimisation starting point instead, and optimised.
     :type reoptimise: bool
@@ -600,10 +637,10 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     copy_only = COPY == prediction_method or (isinstance(prediction_method, list)
                                               and all(COPY == _ for _ in prediction_method))
 
-    roots, columns, column2states, name_column, age_label, parameters = \
+    roots, columns, column2states, name_column, age_label, parameters, rates = \
         _validate_input(tree, columns, name_column if html_compressed or html_mixed else None, data, data_sep, id_index,
                         root_date if html_compressed or html or html_mixed or upload_to_itol else None,
-                        copy_only=copy_only, parameters=parameters)
+                        copy_only=copy_only, parameters=parameters, rates=rate_matrix)
 
     if not work_dir:
         work_dir = get_pastml_work_dir(tree)
@@ -614,6 +651,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
 
     acr_results = acr(forest=roots, columns=columns, column2states=column2states,
                       prediction_method=prediction_method, model=model, column2parameters=parameters,
+                      column2rates=rates,
                       force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=None if smoothing else 0,
                       resolve_polytomies=resolve_polytomies, frequency_smoothing=frequency_smoothing)
 
@@ -757,7 +795,7 @@ def parse_date(d):
 
 
 def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_sep='\t', id_index=0,
-                    root_dates=None, copy_only=False, parameters=None):
+                    root_dates=None, copy_only=False, parameters=None, rates=None):
     logger = logging.getLogger('pastml')
     logger.debug('\n=============INPUT DATA VALIDATION=============')
 
@@ -895,10 +933,22 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
     else:
         parameters = {}
 
+    if rates:
+        if isinstance(rates, str):
+            rates = [rates]
+        if isinstance(rates, list):
+            rates = dict(zip(columns, rates))
+        elif isinstance(rates, dict):
+            rates = {col_name2cat(col): rs for (col, rs) in rates.items()}
+        else:
+            raise ValueError('Rate matrices should be either a list or a dict, got {}.'.format(type(rates)))
+    else:
+        rates = {}
+
     for i, tree in enumerate(roots):
         name_tree(tree, suffix='' if len(roots) == 1 else '_{}'.format(i))
 
-    return roots, columns, column2states, name_column, age_label, parameters
+    return roots, columns, column2states, name_column, age_label, parameters, rates
 
 
 def _serialize_predicted_states(columns, out_data, roots, dates_are_dates=True):
@@ -1002,7 +1052,7 @@ def main():
                            help='add {joint} state to the {mppa} state selection '
                                 'even if it is not selected by Brier score.'.format(joint=JOINT, mppa=MPPA))
     acr_group.add_argument('-m', '--model', default=F81,
-                           choices=[JC, F81, EFT, HKY, JTT],
+                           choices=[JC, F81, EFT, HKY, JTT, CUSTOM_RATES],
                            type=str, nargs='*',
                            help='evolutionary model for ML methods (ignored by MP methods). '
                                 'When multiple ancestral characters are specified (see -c, --columns), '
@@ -1025,6 +1075,25 @@ def main():
                                 'and parameter value - the float frequency value, between 0 and 1),'
                                 'tree branch scaling factor (parameter name {}),'.format(SCALING_FACTOR) +
                                 'and tree branch smoothing factor (parameter name {}),'.format(SMOOTHING_FACTOR))
+    acr_group.add_argument('--rate_matrix', type=str, nargs='*',
+                           help='(only for {} model) path to the file(s) containing the rate matrix(ces). '
+                                'Should be in the same order '
+                                'as the ancestral characters (see -c, --columns) '
+                                'for which the reconstruction is to be preformed. '
+                                'Could be given only for the first few characters. '
+                                'The rate matrix file should specify character states in its first line, '
+                                'preceded by #  and separated by spaces. '
+                                'The following lines should contain a symmetric squared rate matrix with positive rates'
+                                '(and zeros on the diagonal), separated by spaces, '
+                                'in the same order at the character states specified in the first line.'
+                                'For example, for four states, A, C, G, T '
+                                'and the rates A<->C 1, A<->G 4, A<->T 1, C<->G 1, C<->T 4, G<->T 1,'
+                                'the rate matrix file would look like:'
+                                '# A C G T'
+                                '0 1 4 1'
+                                '1 0 1 4'
+                                '4 1 0 1'
+                                '1 4 1 0'.format(CUSTOM_RATES))
     acr_group.add_argument('--reoptimise', action='store_true',
                            help='if the parameters are specified, they will be considered as an optimisation '
                                 'starting point instead and optimised.')
