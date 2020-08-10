@@ -3,6 +3,7 @@ import os
 import pandas as pd
 import numpy as np
 
+from models.rate_matrix import CUSTOM_RATES
 from pastml.acr import _parse_pastml_parameters, _validate_input, PASTML_VERSION, _set_up_pastml_logger
 from pastml.file import get_pastml_work_dir
 from pastml.annotation import get_forest_stats
@@ -15,8 +16,10 @@ from pastml.visualisation.colour_generator import parse_colours, get_enough_colo
 from pastml.visualisation.cytoscape_manager import save_as_transition_html
 
 
-def count_transitions(tree, data, column, parameters, out_transitions, data_sep='\t', id_index=0, model=F81, threshold=1,
-                      n_repetitions=1000, rate_matrix=None, work_dir=None, html=None, verbose=False, offline=False, colours=None):
+def count_transitions(tree, data, column, parameters, out_transitions, data_sep='\t', id_index=0, model=F81,
+                      threshold=1,
+                      n_repetitions=1000, rate_matrix=None, work_dir=None, html=None, verbose=False,
+                      offline=False, colours=None):
     """
 
     :param tree: path to the input tree(s) in newick format (must be rooted).
@@ -175,7 +178,7 @@ def main():
                            help="the name of the annotation table column that contain the character "
                                 "to be analysed.", type=str)
     acr_group.add_argument('-m', '--model', default=F81,
-                           choices=[JC, F81, EFT, HKY, JTT],
+                           choices=[JC, F81, EFT, HKY, JTT, CUSTOM_RATES],
                            type=str, required=False,
                            help='evolutionary model for ML methods (ignored by MP methods). '
                                 'When multiple ancestral characters are specified (see -c, --columns), '
@@ -193,6 +196,21 @@ def main():
                                 'and parameter value - the float frequency value, between 0 and 1),'
                                 'tree branch scaling factor (parameter name {}),'.format(SCALING_FACTOR) +
                                 'and tree branch smoothing factor (parameter name {}),'.format(SMOOTHING_FACTOR))
+    acr_group.add_argument('--rate_matrix', type=str, required=False, default=None,
+                           help='(only for {} model) path to the file containing the rate matrix. '
+                                'The rate matrix file should specify character states in its first line, '
+                                'preceded by #  and separated by spaces. '
+                                'The following lines should contain a symmetric squared rate matrix with positive rates'
+                                '(and zeros on the diagonal), separated by spaces, '
+                                'in the same order at the character states specified in the first line.'
+                                'For example, for four states, A, C, G, T '
+                                'and the rates A<->C 1, A<->G 4, A<->T 1, C<->G 1, C<->T 4, G<->T 1,'
+                                'the rate matrix file would look like:'
+                                '# A C G T'
+                                '0 1 4 1'
+                                '1 0 1 4'
+                                '4 1 0 1'
+                                '1 4 1 0'.format(CUSTOM_RATES))
     acr_group.add_argument('-n', '--n_repetitions', type=int, required=False, default=1000,
                            help='(default 1000) '
                                 'Number of times the ancestral scenario is drawn from the marginal probabilities.'
