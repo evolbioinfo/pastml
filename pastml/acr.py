@@ -30,7 +30,7 @@ from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, 
 from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 
-PASTML_VERSION = '1.9.29.9'
+PASTML_VERSION = '1.9.30'
 
 warnings.filterwarnings("ignore", append=True)
 
@@ -407,7 +407,9 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                     character = character[:character.rfind('_{}').format(method)]
                 character2settings[character][3] = acr_res[FREQUENCIES], \
                                                    acr_res[KAPPA] if KAPPA in acr_res else None, \
-                                                   acr_res[SCALING_FACTOR], acr_res[SMOOTHING_FACTOR]
+                                                   acr_res[SCALING_FACTOR], \
+                                                   acr_res[SMOOTHING_FACTOR], \
+                                                   rate_matrix
                 character2settings[character][4] = [False, False, False, False, False]
         if threads > 1:
             with ThreadPool(processes=threads - 1) as pool:
@@ -1170,9 +1172,9 @@ def main():
                                 "Default is <path_to_input_file>/<input_file_name>_pastml. "
                                 "If the folder does not exist, it will be created."
                            .format(', '.join(MARGINAL_ML_METHODS)))
-    out_group.add_argument('-p', '--html_compressed', required=False, default=None, type=str,
+    out_group.add_argument('--html_compressed', required=False, default=None, type=str,
                            help="path to the output compressed map visualisation file (html).")
-    out_group.add_argument('-l', '--html', required=False, default=None, type=str,
+    out_group.add_argument('--html', required=False, default=None, type=str,
                            help="path to the output full tree visualisation file (html).")
     out_group.add_argument('--html_mixed', required=False, default=None, type=str,
                            help="path to the output mostly compressed map visualisation file (html), "

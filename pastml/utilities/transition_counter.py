@@ -83,7 +83,7 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
     """
     logger = _set_up_pastml_logger(verbose)
 
-    forest, columns, column2states, name_column, age_label, parameters = \
+    forest, columns, column2states, name_column, age_label, parameters, rates = \
         _validate_input(tree, [column], None, data, data_sep, id_index, None, parameters=[parameters],
                         rates=[rate_matrix])
 
