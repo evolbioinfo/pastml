@@ -79,9 +79,36 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
     :param n_repetitions: Number of times the ancestral scenario is drawn from the marginal probabilities.
         The transition counts are averaged over all these scenarios.
 
+
+    :param html: (optional) path to the output transition visualisation file (html).
+    :type html: str
+    :param threshold: threshold under which the transitions are not shown in the visualisation.
+    :type threshold: float
+    :param colours: optional way to specify the colours used for character state visualisation.
+        Could be specified as
+        (1) a dict {state: colour},
+        or (2) as a path to colour file, tab-delimited, with two columns: the first one containing character states,
+        and the second, named "colour", containing colours, in HEX format (e.g. #a6cee3).
+    :type colours: str or list(str) or dict
+
+
+    :param offline: (optional, default is False) By default (offline=False) PastML assumes
+        that there is an internet connection available,
+        which permits it to fetch CSS and JS scripts needed for visualisation online.
+        With offline=True, PastML will store all the needed CSS/JS scripts in the folder specified by work_dir,
+        so that internet connection is not needed
+        (but you must not move the output html files to any location other that the one specified by html).
+    :type offline: bool
+    :param work_dir: (optional) path to the folder where pastml will store all the needed CSS/JS script files
+        if offline is set to True.
+        Default is <path_to_input_tree>/<input_tree_name>_pastml. If the folder does not exist, it will be created.
+    :type work_dir: str
+
     :return: void
     """
     logger = _set_up_pastml_logger(verbose)
+
+    threshold = max(0, threshold)
 
     forest, columns, column2states, name_column, age_label, parameters, rates = \
         _validate_input(tree, [column], None, data, data_sep, id_index, None, parameters=[parameters],
@@ -232,18 +259,19 @@ def main():
                                 "With --offline option turned on, PastML will store all the needed CSS/JS scripts "
                                 "in the folder specified by --work_dir, so that internet connection is not needed "
                                 "(but you must not move the output html files to any location "
-                                "other that the one specified by --html/--html_compressed).")
+                                "other that the one specified by --html).")
+    out_group.add_argument('--work_dir', required=False, default=None, type=str,
+                           help="path to the folder where pastml will store all the needed CSS/JS scripts "
+                                "for the --offline mode. "
+                                "Default is <path_to_input_tree>/<input_tree_name>_pastml. "
+                                "If the folder does not exist, it will be created.")
     vis_group.add_argument('--colours', type=str, required=False, default=None,
                            help='optional way to specify the colours used for character state visualisation. '
-                                'Should be in the same order '
-                                'as the ancestral characters (see -c, --columns) '
-                                'for which the reconstruction is to be preformed. '
-                                'Could be given only for the first few characters. '
-                                'Each file should be tab-delimited, with two columns: '
+                                'A tab-delimited file, with two columns: '
                                 'the first one containing character states, '
                                 'and the second, named "colour", containing colours, in HEX format (e.g. #a6cee3).')
-    vis_group.add_argument('--threshold', type=int, required=False, default=1,
-                           help='Do not consider the interactions below this threshold value.')
+    vis_group.add_argument('--threshold', type=float, required=False, default=1,
+                           help='Do not visualise the interactions below this threshold value.')
 
     parser.add_argument('--version', action='version', version='%(prog)s {version}'.format(version=PASTML_VERSION))
 

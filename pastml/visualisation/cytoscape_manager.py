@@ -415,10 +415,10 @@ def _forest2json_transitions(states, counts, transitions, state2colour, threshol
 
     max_transition_num = max(positive_nums)
     if max_transition_num <= 2:
-        miles = sorted((set({0, 1 if max_transition_num > 1 else 0}
+        miles = sorted((set({0, threshold, 1 if max_transition_num > 1 else 0}
                                      | set(np.round(positive_nums, 3))) - {np.round(max_transition_num, 3)}))
     else:
-        miles = sorted(set({0, 1} | set(np.trunc(positive_nums))))
+        miles = sorted(set({0, threshold, 1} | set(np.trunc(positive_nums))))
     miles = np.array([_ for _ in miles if threshold <= _ < max_transition_num])
     if not len(miles):
         miles = [0]
@@ -473,7 +473,7 @@ def _forest2json_transitions(states, counts, transitions, state2colour, threshol
                                                   .format(n_ji, to_state, from_state),
                                                      MILESTONE: mile}))
             if i2mile[i] >= 0:
-                nodes.append(_get_node(data={ID: i, NODE_NAME: from_state,
+                nodes.append(_get_node(data={ID: i, NODE_NAME: '{} ({:.0f})'.format(from_state, n_tips),
                                              NODE_SIZE: i_node_size,
                                              FONT_SIZE: font_scaler(n_tips),
                                              TOOLTIP: '{} is represented by {:.0f} samples.'.format(from_state, n_tips),
