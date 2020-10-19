@@ -38,9 +38,11 @@ print("Log lh for HKY-all-fixed {}, HKY-freqs-fixed {}, HKY-kappa-fixed {}, HKY 
 class HKYJCTest(unittest.TestCase):
 
     def test_params(self):
-        for param in (LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR.format(MPPA), CHANGES_PER_AVG_BRANCH,
-                      SCALING_FACTOR):
+        for param in (LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR.format(MPPA)):
             self.assertAlmostEqual(acr_result_hky[param], acr_result_f81[param], places=3,
+                                   msg='{} was supposed to be the same for two models'.format(param))
+        for param in (CHANGES_PER_AVG_BRANCH, SCALING_FACTOR):
+            self.assertAlmostEqual(acr_result_hky[param][0], acr_result_f81[param][0], places=3,
                                    msg='{} was supposed to be the same for two models'.format(param))
 
     def test_hky_likelihood_is_better_kappa(self):

@@ -101,8 +101,8 @@ def _parse_pastml_parameters(params, states, num_tips, reoptimise=False, skyline
                         frequencies = None
                         break
                     else:
-                        if np.any(frequencies[i] < 0) and not reoptimise:
-                            logger.error('Some of the specified frequencies ({}) are negative,'
+                        if np.any(frequencies[i] <= 0) and not reoptimise:
+                            logger.error('Some of the specified frequencies ({}) are non-positive,'
                                          'ignoring them.'.format(frequencies[i]))
                             frequencies = None
                             break
@@ -117,15 +117,14 @@ def _parse_pastml_parameters(params, states, num_tips, reoptimise=False, skyline
                             frequencies[i] = np.maximum(frequencies[i], min_freq)
                             frequencies[i] /= frequencies[i].sum()
     if SCALING_FACTOR in params:
-        sf = params[SCALING_FACTOR]
         try:
-            sf = np.float64(sf)
-            if sf <= 0:
+            sf = __get_float_array(params[SCALING_FACTOR], skyline_len)
+            if np.any(sf <= 0):
                 logger.error(
                     'Scaling factor ({}) cannot be negative, ignoring it.'.format(sf))
                 sf = None
         except:
-            logger.error('Scaling factor ({}) is not float, ignoring it.'.format(sf))
+            logger.error('Scaling factor ({}) is not float, ignoring it.'.format(params[SCALING_FACTOR]))
             sf = None
     if KAPPA in params:
         try:
@@ -164,13 +163,19 @@ def _serialize_acr(args):
         f.write('parameter\tvalue\n')
         f.write('pastml_version\t{}\n'.format(PASTML_VERSION))
         for name in sorted(acr_result.keys()):
-            if name not in [FREQUENCIES, STATES, MARGINAL_PROBABILITIES, KAPPA]:
-                f.write('{}\t{}\n'.format(name, acr_result[name]))
-            elif name == KAPPA:
-                f.write('{}\t{}\n'.format(name, ' '.join('{}'.format(_) for _ in acr_result[name])))
+            if name not in [FREQUENCIES, STATES, MARGINAL_PROBABILITIES, KAPPA, SCALING_FACTOR, CHANGES_PER_AVG_BRANCH]:
+                if isinstance(acr_result[name], str):
+                    f.write('{}\t{}\n'.format(name, acr_result[name]))
+                else:
+                    try:
+                        f.write('{}\t{:g}\n'.format(name, acr_result[name]))
+                    except:
+                        f.write('{}\t{}\n'.format(name, acr_result[name]))
+            elif name in [KAPPA, SCALING_FACTOR, CHANGES_PER_AVG_BRANCH]:
+                f.write('{}\t{}\n'.format(name, ' '.join('{:g}'.format(_) for _ in acr_result[name])))
         if is_ml(acr_result[METHOD]):
             for state, freq in zip(acr_result[STATES], np.array(acr_result[FREQUENCIES]).transpose()):
-                f.write('{}\t{}\n'.format(state, ' '.join('{}'.format(_) for _ in freq)))
+                f.write('{}\t{}\n'.format(state, ' '.join('{:g}'.format(_) for _ in freq)))
     logging.getLogger('pastml').debug('Serialized ACR parameters and statistics for {} to {}.'
                                       .format(acr_result[CHARACTER], out_param_file))
 
@@ -317,9 +322,9 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                                     'but the selected model ({}) ignores them. '
                                     'Use F81 (or HKY for nucleotide characters only) '
                                     'for taking user-specified frequencies into account.'.format(model))
-            optimise_sf = not sf or reoptimise
-            if not sf:
-                sf = 1. / tree_stats[0]
+            optimise_sf = sf is None or reoptimise
+            if sf is None:
+                sf = np.array([1. / tree_stats[0]] * skyline_len)
             optimise_tau = tau is None or reoptimise
             if tau is None:
                 tau = 0

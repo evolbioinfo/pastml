@@ -53,9 +53,16 @@ class ACRParameterOptimisationMPPAEFTTest(unittest.TestCase):
                                            'were supposed to be the same, '
                                            'got {:.3f} vs {:3f}'
                                        .format(state, freq, refreq))
-            for label in (LOG_LIKELIHOOD, CHANGES_PER_AVG_BRANCH, SCALING_FACTOR):
+            for label in (LOG_LIKELIHOOD, ):
                 value = acr_result[label]
                 rerooted_value = rerooted_acr_result[label]
+                self.assertAlmostEqual(value, rerooted_value, places=2,
+                                       msg='{} for the original tree and rerooted tree were supposed to be the same, '
+                                           'got {:.3f} vs {:3f}'
+                                       .format(label, value, rerooted_value))
+            for label in (CHANGES_PER_AVG_BRANCH, SCALING_FACTOR):
+                value = acr_result[label][0]
+                rerooted_value = rerooted_acr_result[label][0]
                 self.assertAlmostEqual(value, rerooted_value, places=2,
                                        msg='{} for the original tree and rerooted tree were supposed to be the same, '
                                            'got {:.3f} vs {:3f}'
@@ -82,14 +89,14 @@ class ACRParameterOptimisationMPPAEFTTest(unittest.TestCase):
                                .format(-125.359, acr_result[RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR.format(MPPA)]))
 
     def test_changes_per_avg_branch(self):
-        self.assertAlmostEqual(0.149, acr_result[CHANGES_PER_AVG_BRANCH], places=3,
+        self.assertAlmostEqual(0.149, acr_result[CHANGES_PER_AVG_BRANCH][0], places=3,
                                msg='Scaling factor was supposed to be the {:.3f} changes per avg branch, got {:3f}'
-                               .format(0.149, acr_result[CHANGES_PER_AVG_BRANCH]))
+                               .format(0.149, acr_result[CHANGES_PER_AVG_BRANCH][0]))
 
     def test_sf(self):
-        self.assertAlmostEqual(5.38, acr_result[SCALING_FACTOR], places=3,
+        self.assertAlmostEqual(5.38, acr_result[SCALING_FACTOR][0], places=3,
                                msg='Scaling factor was supposed to be the {:.3f}, got {:3f}'
-                               .format(5.38, acr_result[SCALING_FACTOR]))
+                               .format(5.38, acr_result[SCALING_FACTOR][0]))
 
     def test_frequencies(self):
         for loc, expected_value in {'Africa': 0.325, 'Albania': 0.208, 'EastEurope': 0.065,

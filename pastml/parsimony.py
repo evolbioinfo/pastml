@@ -2,7 +2,7 @@ import logging
 from collections import Counter
 
 from pastml import get_personalized_feature_name, METHOD, STATES, CHARACTER, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
-    NUM_NODES, NUM_TIPS, NUM_STATES_PER_NODE, PERC_UNRESOLVED
+    NUM_NODES, NUM_TIPS, NUM_STATES_PER_NODE, PERC_UNRESOLVED, SKYLINE
 
 STEPS = 'steps'
 
@@ -351,9 +351,10 @@ def choose_parsimonious_states(tree, ps_feature, out_feature):
         states = getattr(node, ps_feature)
         node.add_feature(out_feature, states)
         n = len(states)
-        num_scenarios *= n
-        unresolved_nodes += 1 if n > 1 else 0
-        num_states += n
+        if not getattr(node, SKYLINE, False):
+            num_scenarios *= n
+            unresolved_nodes += 1 if n > 1 else 0
+            num_states += n
     return num_scenarios, unresolved_nodes, num_states
 
 

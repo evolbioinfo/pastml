@@ -12,6 +12,7 @@ NUM_NODES = 'num_nodes'
 NUM_TIPS = 'num_tips'
 
 MODEL_ID = 'MODEL_ID'
+SKYLINE = 'skyline'
 
 
 def datetime2numeric(d):

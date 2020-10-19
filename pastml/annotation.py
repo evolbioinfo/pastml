@@ -3,7 +3,7 @@ import logging
 import pandas as pd
 import numpy as np
 
-from pastml import MODEL_ID
+from pastml import MODEL_ID, SKYLINE
 from pastml.tree import DATE
 
 
@@ -148,16 +148,23 @@ def annotate_skyline(forest, skyline):
         node.add_feature(MODEL_ID, j)
         children = list(node.children)
         for child in children:
-            if j < len(skyline) and getattr(child, DATE) > skyline[j + 1]:
+            if (j + 1) < len(skyline) and getattr(child, DATE) > skyline[j + 1]:
                 new_child_dist = getattr(child, DATE) - skyline[j + 1]
-                skyline_node = node.add_child(dist=child.dist - new_child_dist)
+                skyline_node = node.add_child(name='{}_{}_skyline'.format(child.name, skyline[j + 1]),
+                                              dist=child.dist - new_child_dist)
+                skyline_node.add_feature(DATE, skyline[j + 1])
+                skyline_node.add_feature(SKYLINE, True)
                 node.remove_child(child)
                 skyline_node.add_child(child, dist=new_child_dist)
                 skyline_nodes.append(skyline_node)
-            annotate_skyline(child, j)
+                annotate_node_skyline(skyline_node, j)
+            else:
+                annotate_node_skyline(child, j)
 
     for tree in forest:
         annotate_node_skyline(tree, 0)
+
+    logging.getLogger('pastml').debug('Created {} skyline nodes.'.format(len(skyline_nodes)))
 
     return skyline_nodes, len(skyline)
 
@@ -165,8 +172,10 @@ def annotate_skyline(forest, skyline):
 def remove_skyline(skyline_nodes):
     for n in skyline_nodes:
         parent = n.up
-        for child in n.children:
+        children = list(n.children)
+        for child in children:
             n.remove_child(child)
             parent.add_child(child, dist=child.dist + n.dist)
         parent.remove_child(n)
+    logging.getLogger('pastml').debug('Removed {} skyline nodes.'.format(len(skyline_nodes)))
 
