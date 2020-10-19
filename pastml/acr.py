@@ -12,11 +12,13 @@ from ete3 import Tree
 from pastml.models.rate_matrix import CUSTOM_RATES, load_custom_rates
 from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, numeric2datetime, \
     datetime2numeric
-from pastml.annotation import preannotate_forest, get_forest_stats, get_min_forest_stats
+from pastml.annotation import preannotate_forest, get_forest_stats, get_min_forest_stats, annotate_skyline, \
+    remove_skyline
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file, get_pastml_work_dir
 from pastml.ml import SCALING_FACTOR, MODEL, FREQUENCIES, MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
-    ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method, SMOOTHING_FACTOR
+    ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method, SMOOTHING_FACTOR, \
+    CHANGES_PER_AVG_BRANCH
 from pastml.models.f81_like import F81, JC, EFT
 from pastml.models.hky import KAPPA, HKY_STATES, HKY
 from pastml.models.jtt import JTT_STATES, JTT, JTT_FREQUENCIES
@@ -37,7 +39,18 @@ warnings.filterwarnings("ignore", append=True)
 COPY = 'COPY'
 
 
-def _parse_pastml_parameters(params, states, num_tips, reoptimise=False):
+def __get_float_array(value, skyline_len):
+    if isinstance(value, str):
+        value = value.split(' ')
+    if isinstance(value, (int, float)):
+        value = [value]
+    if len(value) == 1:
+        value = list(value) * skyline_len
+    value = np.array(value).astype(np.float64)
+    return value
+
+
+def _parse_pastml_parameters(params, states, num_tips, reoptimise=False, skyline_len=1):
     logger = logging.getLogger('pastml')
     frequencies, sf, kappa, tau = None, None, None, None
     if not isinstance(params, str) and not isinstance(params, dict):
@@ -69,32 +82,40 @@ def _parse_pastml_parameters(params, states, num_tips, reoptimise=False):
             logger.error('Frequencies for some of the states ({}) are missing, '
                          'ignoring the specified frequencies.'.format(', '.join(unknown_freq_states)))
         else:
-            frequencies = np.array([params[state] if state in params.keys() else 0 for state in states])
-            try:
-                frequencies = frequencies.astype(np.float64)
-                if np.round(frequencies.sum() - 1, 2) != 0 and not reoptimise:
-                    logger.error('Specified frequencies ({}) do not sum up to one ({}),'
-                                 'ignoring them.'.format(frequencies, frequencies.sum()))
-                    frequencies = None
-                else:
-                    if np.any(frequencies < 0) and not reoptimise:
-                        logger.error('Some of the specified frequencies ({}) are negative,'
-                                     'ignoring them.'.format(frequencies))
+            frequencies = np.zeros(shape=(skyline_len, len(states)), dtype=float)
+            for i, state in enumerate(states):
+                if state in params.keys():
+                    try:
+                        freqs = __get_float_array(params[state], skyline_len)
+                        frequencies[:, i] = freqs
+                    except:
+                        logger.error('Could not convert the frequencies for the state {} ({}) to float, '
+                                     'ignoring the specified frequencies.'.format(state, params[state]))
                         frequencies = None
+                        break
+            if frequencies is not None:
+                for i in range(skyline_len):
+                    if np.round(frequencies[i].sum() - 1, 2) != 0 and not reoptimise:
+                        logger.error('Specified frequencies ({}) do not sum up to one ({}),'
+                                     'ignoring them.'.format(frequencies[i], frequencies[i].sum()))
+                        frequencies = None
+                        break
                     else:
-                        min_freq = \
-                            min(1 / num_tips,
-                                min(float(params[state]) for state in known_freq_states if float(params[state]) > 0)) \
-                            / 2
-                        if unknown_freq_states:
-                            logger.error('Frequencies for some of the states ({}) are missing, '
-                                         'setting them to {}.'.format(', '.join(unknown_freq_states), min_freq))
-                        frequencies = np.maximum(frequencies, min_freq)
-                        frequencies /= frequencies.sum()
-            except:
-                logger.error('Could not convert the specified frequencies ({}) to float, '
-                             'ignoring them.'.format(frequencies))
-                frequencies = None
+                        if np.any(frequencies[i] < 0) and not reoptimise:
+                            logger.error('Some of the specified frequencies ({}) are negative,'
+                                         'ignoring them.'.format(frequencies[i]))
+                            frequencies = None
+                            break
+                        else:
+                            min_freq = \
+                                min(1 / num_tips,
+                                    min(f for f in frequencies[i] if f > 0)) \
+                                / 2
+                            if unknown_freq_states:
+                                logger.error('Frequencies for some of the states ({}) are missing, '
+                                             'setting them to {}.'.format(', '.join(unknown_freq_states), min_freq))
+                            frequencies[i] = np.maximum(frequencies[i], min_freq)
+                            frequencies[i] /= frequencies[i].sum()
     if SCALING_FACTOR in params:
         sf = params[SCALING_FACTOR]
         try:
@@ -107,15 +128,14 @@ def _parse_pastml_parameters(params, states, num_tips, reoptimise=False):
             logger.error('Scaling factor ({}) is not float, ignoring it.'.format(sf))
             sf = None
     if KAPPA in params:
-        kappa = params[KAPPA]
         try:
-            kappa = np.float64(kappa)
-            if kappa <= 0:
+            kappa = __get_float_array(params[KAPPA], skyline_len)
+            if np.any(kappa <= 0):
                 logger.error(
                     'Kappa ({}) cannot be negative, ignoring it.'.format(kappa))
                 kappa = None
         except:
-            logger.error('Kappa ({}) is not float, ignoring it.'.format(kappa))
+            logger.error('Kappa ({}) is not float, ignoring it.'.format(params[KAPPA]))
             kappa = None
     if SMOOTHING_FACTOR in params:
         tau = params[SMOOTHING_FACTOR]
@@ -144,11 +164,13 @@ def _serialize_acr(args):
         f.write('parameter\tvalue\n')
         f.write('pastml_version\t{}\n'.format(PASTML_VERSION))
         for name in sorted(acr_result.keys()):
-            if name not in [FREQUENCIES, STATES, MARGINAL_PROBABILITIES]:
+            if name not in [FREQUENCIES, STATES, MARGINAL_PROBABILITIES, KAPPA]:
                 f.write('{}\t{}\n'.format(name, acr_result[name]))
+            elif name == KAPPA:
+                f.write('{}\t{}\n'.format(name, ' '.join('{}'.format(_) for _ in acr_result[name])))
         if is_ml(acr_result[METHOD]):
-            for state, freq in zip(acr_result[STATES], acr_result[FREQUENCIES]):
-                f.write('{}\t{}\n'.format(state, freq))
+            for state, freq in zip(acr_result[STATES], np.array(acr_result[FREQUENCIES]).transpose()):
+                f.write('{}\t{}\n'.format(state, ' '.join('{}'.format(_) for _ in freq)))
     logging.getLogger('pastml').debug('Serialized ACR parameters and statistics for {} to {}.'
                                       .format(acr_result[CHARACTER], out_param_file))
 
@@ -165,7 +187,8 @@ def _serialize_acr(args):
 def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPPA, model=F81,
         column2parameters=None, column2rates=None,
         force_joint=True, threads=0,
-        reoptimise=False, tau=0, resolve_polytomies=False, frequency_smoothing=False):
+        reoptimise=False, tau=0, resolve_polytomies=False, frequency_smoothing=False,
+        skyline=None):
     """
     Reconstructs ancestral states for the given tree and
     all the characters specified as columns of the given annotation dataframe.
@@ -224,6 +247,8 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         preannotate_forest(forest, df=df)
 
     tree_stats = get_forest_stats(forest)
+
+    skyline_nodes, skyline_len = annotate_skyline(forest, skyline)
 
     logging.getLogger('pastml').debug('\n=============ACR===============================')
 
@@ -284,7 +309,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
 
             if params is not None:
                 freqs, sf, kappa, tau_p = _parse_pastml_parameters(params, states, n_tips,
-                                                                   reoptimise or frequency_smoothing)
+                                                                   reoptimise or frequency_smoothing, skyline_len)
                 if tau is None and tau_p is not None:
                     tau = tau_p
                 if freqs is not None and model not in {F81, HKY, CUSTOM_RATES}:
@@ -298,9 +323,9 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             optimise_tau = tau is None or reoptimise
             if tau is None:
                 tau = 0
-            optimise_kappa = (not kappa or reoptimise) and model == HKY
-            if HKY == model and not kappa:
-                kappa = 4.
+            optimise_kappa = (kappa is None or reoptimise) and model == HKY
+            if HKY == model and kappa is None:
+                kappa = np.array([4.] * skyline_len)
             optimise_frequencies = model in {F81, HKY, CUSTOM_RATES} \
                                    and (freqs is None or (reoptimise and not frequency_smoothing))
             if model not in {F81, HKY, CUSTOM_RATES} or freqs is None:
@@ -333,13 +358,13 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                          )
 
             if JTT == model:
-                frequencies = JTT_FREQUENCIES
+                frequencies = np.array([JTT_FREQUENCIES] * skyline_len)
             elif EFT == model:
-                frequencies = observed_frequencies
+                frequencies = np.array([observed_frequencies] * skyline_len)
             elif model in {F81, HKY, CUSTOM_RATES} and freqs is not None:
                 frequencies = freqs
             else:
-                frequencies = np.ones(n, dtype=np.float64) / n
+                frequencies = np.array([np.ones(n, dtype=np.float64) / n] * skyline_len)
             character2settings[character] = [prediction_method, model, states,
                                              [frequencies, kappa, sf, tau, rate_matrix], \
                                              [optimise_frequencies, optimise_kappa, optimise_sf, optimise_tau,
@@ -429,6 +454,9 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             logger.setLevel(level)
         logger.setLevel(level)
         acr_results = flatten_lists(acr_results)
+
+    remove_skyline(skyline_nodes)
+
     return acr_results
 
 
@@ -454,7 +482,8 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     out_data=None, html_compressed=None, html=None, html_mixed=None, work_dir=None,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
                     itol_tree_name=None, offline=False, threads=0, reoptimise=False, focus=None,
-                    resolve_polytomies=False, smoothing=False, frequency_smoothing=False):
+                    resolve_polytomies=False, smoothing=False, frequency_smoothing=False,
+                    skyline=None):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -547,15 +576,20 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         If the selected model (model argument) does not allow for frequency optimisation, this option will be ignored.
         If reoptimise argument is also set to True, the frequencies will only be smoothed but not reoptimised.
     :type frequency_smoothing: bool
+    :param root_date: (optional) date(s) of the root(s) (for dated tree(s) only),
+        if specified, used to visualise a timeline based on dates (otherwise it is based on distances to root)
+        or for skyline.
+    :type root_date: str or pandas.datetime or float or list
+    :param skyline: date(s) of the changes in model parameters
+        (for non-dated tree(s) should be expressed as distance to root), if specified,
+        model parameters will be allowed to change between the time intervals.
+    :type skyline: list(float)
 
     :param name_column: (optional) name of the annotation table column to be used for node names
         in the compressed map visualisation
         (must be one of those specified in ``columns``, if ``columns`` are specified).
         If the annotation table contains only one column, it will be used by default.
     :type name_column: str
-    :param root_date: (optional) date(s) of the root(s) (for dated tree(s) only),
-        if specified, used to visualise a timeline based on dates (otherwise it is based on distances to root).
-    :type root_date: str or pandas.datetime or float or list
     :param tip_size_threshold: (optional, by default is 15) recursively remove the tips
         of size less than threshold-th largest tip from the compressed map (set to 1e10 to keep all).
         The larger it is the less tips will be trimmed.
@@ -655,7 +689,8 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                       prediction_method=prediction_method, model=model, column2parameters=parameters,
                       column2rates=rates,
                       force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=None if smoothing else 0,
-                      resolve_polytomies=resolve_polytomies, frequency_smoothing=frequency_smoothing)
+                      resolve_polytomies=resolve_polytomies, frequency_smoothing=frequency_smoothing,
+                      skyline=skyline)
 
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
 
@@ -1109,6 +1144,16 @@ def main():
                                 ' this option will be ignored. '
                                 'If --reoptimise is also specified, '
                                 'the frequencies will only be smoothed but not reoptimised. ')
+    acr_group.add_argument('--root_date', required=False, default=None,
+                           help="date(s) of the root(s) (for dated tree(s) only), "
+                                "if specified, used to visualise a timeline based on dates and for skyline models "
+                                "(otherwise it is based on distances to root).",
+                           type=str, nargs='*')
+    acr_group.add_argument('--skyline', required=False, default=None,
+                           help="date(s) of the changes in model parameters "
+                                "(for non-dated tree(s) should be expressed as distance to root), "
+                                "if specified, model parameters will be allowed to change between the time intervals.",
+                           type=str, nargs='*')
 
     vis_group = parser.add_argument_group('visualisation-related arguments')
     vis_group.add_argument('-n', '--name_column', type=str, default=None,
@@ -1116,11 +1161,6 @@ def main():
                                 "in the compressed map visualisation "
                                 "(must be one of those specified via -c, --columns). "
                                 "If the annotation table contains only one column it will be used by default.")
-    vis_group.add_argument('--root_date', required=False, default=None,
-                           help="date(s) of the root(s) (for dated tree(s) only), "
-                                "if specified, used to visualise a timeline based on dates "
-                                "(otherwise it is based on distances to root).",
-                           type=str, nargs='*')
     vis_group.add_argument('--tip_size_threshold', type=int, default=REASONABLE_NUMBER_OF_TIPS,
                            help="recursively remove the tips of size less than threshold-th largest tip"
                                 "from the compressed map (set to 1e10 to keep all tips). "

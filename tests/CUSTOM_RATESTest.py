@@ -38,7 +38,8 @@ class CUSTOM_RATESTest(unittest.TestCase):
     def test_tree_likelihood(self):
         _set_up_pastml_logger(True)
         tree = Tree(TREE_NWK, format=3)
-        simulate_states(tree, JTT, JTT_FREQUENCIES, kappa=0, tau=0, sf=1, character='jtt', rate_matrix=None, n_repetitions=1)
+        simulate_states(tree, JTT, [JTT_FREQUENCIES], kappa=np.array([1]), tau=0, sf=1,
+                        character='jtt', rate_matrix=None, n_repetitions=1)
         for tip in tree:
             tip.add_feature('state1', {JTT_STATES[getattr(tip, 'jtt')][0]})
             tip.add_feature('state2', {JTT_STATES[getattr(tip, 'jtt')][0]})
@@ -62,7 +63,8 @@ class CUSTOM_RATESTest(unittest.TestCase):
     def test_marginal_probs_internal_nodes(self):
         _set_up_pastml_logger(True)
         tree = Tree(TREE_NWK, format=3)
-        simulate_states(tree, JTT, JTT_FREQUENCIES, kappa=0, tau=0, sf=1, character='jtt', rate_matrix=None, n_repetitions=1)
+        simulate_states(tree, JTT, [JTT_FREQUENCIES], kappa=np.array([1]), tau=0, sf=1,
+                        character='jtt', rate_matrix=None, n_repetitions=1)
         for tip in tree:
             tip.add_feature('state1', {JTT_STATES[getattr(tip, 'jtt')][0]})
             tip.add_feature('state2', {JTT_STATES[getattr(tip, 'jtt')][0]})

@@ -44,8 +44,8 @@ class HKYF81Test(unittest.TestCase):
 
     def test_frequencies(self):
         for state in acr_result_f81[STATES]:
-            value_f81 = acr_result_f81[FREQUENCIES][np.where(acr_result_f81[STATES] == state)][0]
-            value_hky = acr_result_hky[FREQUENCIES][np.where(acr_result_hky[STATES] == state)][0]
+            value_f81 = acr_result_f81[FREQUENCIES][0][np.where(acr_result_f81[STATES] == state)][0]
+            value_hky = acr_result_hky[FREQUENCIES][0][np.where(acr_result_hky[STATES] == state)][0]
             self.assertAlmostEqual(value_f81, value_hky, places=3,
                                    msg='Frequency of {} was supposed to be the same for two models'
                                    .format(state))

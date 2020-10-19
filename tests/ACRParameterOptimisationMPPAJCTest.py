@@ -47,8 +47,8 @@ class ACRParameterOptimisationMPPAJCTest(unittest.TestCase):
         for _ in range(5):
             rerooted_tree = reroot_tree_randomly()
             rerooted_acr_result = acr(rerooted_tree, df, prediction_method=MPPA, model=JC)[0]
-            for (state, freq, refreq) in zip(acr_result[STATES], acr_result[FREQUENCIES],
-                                             rerooted_acr_result[FREQUENCIES]):
+            for (state, freq, refreq) in zip(acr_result[STATES], acr_result[FREQUENCIES][0],
+                                             rerooted_acr_result[FREQUENCIES][0]):
                 self.assertAlmostEqual(freq, refreq, places=2,
                                        msg='Frequency of {} for the original tree and rerooted tree '
                                            'were supposed to be the same, '
@@ -93,13 +93,13 @@ class ACRParameterOptimisationMPPAJCTest(unittest.TestCase):
                                .format(4.951, acr_result[SCALING_FACTOR]))
 
     def test_frequencies(self):
-        value = acr_result[FREQUENCIES]
+        value = acr_result[FREQUENCIES][0]
         expected_value = np.ones(len(value), np.float64) / len(value)
         self.assertListEqual(value.tolist(), expected_value.tolist(),
                              msg='Frequencies were supposed to be the {}, got {}'.format(expected_value, value))
 
     def test_frequencies_sum_to_1(self):
-        value = acr_result[FREQUENCIES].sum()
+        value = acr_result[FREQUENCIES][0].sum()
         self.assertAlmostEqual(value, 1, places=3,
                                msg='Frequencies were supposed to sum to 1, not to {:3f}'.format(value))
 

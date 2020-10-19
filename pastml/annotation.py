@@ -3,6 +3,9 @@ import logging
 import pandas as pd
 import numpy as np
 
+from pastml import MODEL_ID
+from pastml.tree import DATE
+
 
 def get_min_forest_stats(forest):
     len_sum = 0
@@ -112,3 +115,58 @@ def preannotate_forest(forest, df=None, gdf=None):
                 for c in gdf.columns:
                     node.del_feature(c)
     return gdf.columns, gdf
+
+
+def annotate_skyline(forest, skyline):
+    if not skyline:
+        return [], 1
+    min_date, max_date = min(getattr(tree, DATE) for tree in forest), \
+                         max(max(getattr(_, DATE) for _ in tree) for tree in forest)
+    # let's make the skyline contain starting dates, so that the intervals will be [skyline[i], skyline[i+1])
+    start_skyline = max(_ for _ in skyline if _ <= min_date) if any(_ for _ in skyline if _ <= min_date) else min_date
+    if not any(_ for _ in skyline if _ < max_date):
+        skyline = []
+    else:
+        end_skyline = max(_ for _ in skyline if _ < max_date)
+        skyline = sorted([_ for _ in skyline if start_skyline <= _ <= end_skyline])
+    if not skyline or len(skyline) == 1 and skyline[0] <= min_date:
+        logging.getLogger('pastml').warning('The skyline dates provided are outside of the tree dates: {} - {}, '
+                                            'so we will apply the same model everywhere.'.format(min_date, max_date))
+        return [], 1
+    elif skyline[0] > min_date:
+        skyline = [min_date] + skyline
+    skyline_nodes = []
+
+    logging.getLogger('pastml').debug('The tree(s) cover the period between {} and {}, '
+                                      'the skyline intervals start at the following dates: {}.'
+                                      .format(min_date, max_date, ', '.join(str(_) for _ in skyline)))
+
+    def annotate_node_skyline(node, i):
+        for j in range(i, len(skyline)):
+            if skyline[j] <= getattr(node, DATE) and (j + 1 == len(skyline) or getattr(node, DATE) < skyline[j + 1]):
+                break
+        node.add_feature(MODEL_ID, j)
+        children = list(node.children)
+        for child in children:
+            if j < len(skyline) and getattr(child, DATE) > skyline[j + 1]:
+                new_child_dist = getattr(child, DATE) - skyline[j + 1]
+                skyline_node = node.add_child(dist=child.dist - new_child_dist)
+                node.remove_child(child)
+                skyline_node.add_child(child, dist=new_child_dist)
+                skyline_nodes.append(skyline_node)
+            annotate_skyline(child, j)
+
+    for tree in forest:
+        annotate_node_skyline(tree, 0)
+
+    return skyline_nodes, len(skyline)
+
+
+def remove_skyline(skyline_nodes):
+    for n in skyline_nodes:
+        parent = n.up
+        for child in n.children:
+            n.remove_child(child)
+            parent.add_child(child, dist=child.dist + n.dist)
+        parent.remove_child(n)
+

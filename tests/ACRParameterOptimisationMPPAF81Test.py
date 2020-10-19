@@ -15,7 +15,6 @@ TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')
 STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')
 
 
-
 def reroot_tree_randomly():
     rerooted_tree = read_tree(TREE_NWK)
     new_root = np.random.choice([_ for _ in rerooted_tree.traverse()
@@ -52,8 +51,8 @@ class ACRParameterOptimisationMPPAF81Test(unittest.TestCase):
         for _ in range(5):
             rerooted_tree = reroot_tree_randomly()
             rerooted_acr_result = acr(rerooted_tree, df, prediction_method=MPPA, model=F81)[0]
-            for (state, freq, refreq) in zip(acr_result[STATES], acr_result[FREQUENCIES],
-                                             rerooted_acr_result[FREQUENCIES]):
+            for (state, freq, refreq) in zip(acr_result[STATES], acr_result[FREQUENCIES][0],
+                                             rerooted_acr_result[FREQUENCIES][0]):
                 self.assertAlmostEqual(freq, refreq, places=2,
                                        msg='Frequency of {} for the original tree and rerooted tree '
                                            'were supposed to be the same, '
@@ -95,13 +94,13 @@ class ACRParameterOptimisationMPPAF81Test(unittest.TestCase):
     def test_frequencies(self):
         for loc, expected_value in {'Africa': 0.082, 'Albania': 0.028, 'EastEurope': 0.081, 'Greece': 0.365,
                                     'WestEurope': 0.444}.items():
-            value = acr_result[FREQUENCIES][np.where(acr_result[STATES] == loc)][0]
+            value = acr_result[FREQUENCIES][0][np.where(acr_result[STATES] == loc)][0]
             self.assertAlmostEqual(value, expected_value, places=3,
                                    msg='Frequency of {} was supposed to be the {:.3f}, got {:3f}'
                                    .format(loc, expected_value, value))
 
     def test_frequencies_sum_to_1(self):
-        value = acr_result[FREQUENCIES].sum()
+        value = acr_result[FREQUENCIES][0].sum()
         self.assertAlmostEqual(value, 1, places=3,
                                msg='Frequencies were supposed to sum to 1, not to {:3f}'.format(value))
 

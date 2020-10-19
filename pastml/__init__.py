@@ -11,6 +11,8 @@ PERC_UNRESOLVED = 'percentage_of_unresolved_nodes'
 NUM_NODES = 'num_nodes'
 NUM_TIPS = 'num_tips'
 
+MODEL_ID = 'MODEL_ID'
+
 
 def datetime2numeric(d):
     """

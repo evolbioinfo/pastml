@@ -1,0 +1,46 @@
+
+LEAST-SQUARE METHODS TO ESTIMATE RATES AND DATES - v1.6.5 
+
+
+Input files:
+  i                                               Input tree file : /home/azhukova/projects/pastml/examples/HIV1C/data/best/pastml_phyml_tree.nwk
+  d                                               Input date file : /home/azhukova/projects/pastml/examples/HIV1C/data/dates.lsd2
+  p                                                Partition file : No
+Output file:
+  o                                                  Output file  : /home/azhukova/projects/pastml/examples/HIV1C/data/best/phyml.lsd2
+Parameters:
+  c                                              With constraints : Yes
+  t                                      Lower bound for the rate : 1e-10
+  v                                                With variances : No
+  r                                             Estimate the root : No
+  w                                       Given substitution rate : No
+  g                                               Given outgroups : No
+  n                                             Multiple data set : No
+  f                                  Compute confidence intervals : Yes, sampling 1000 times
+  q                  Standard deviation of lognormal relaxed clock: 0.2 (for computing confidence intervals)
+  s                                               Sequence length : 896
+  e                                          Exclude outlier tips : Yes, detect and exclude outliers from the analysis
+  m                   Number of sampling nodes to detect outliers : 10
+  e                       The Zscore threshold to detect outliers : 3
+  u                Min internal branch length of time scaled tree : To estimate
+  R     Rounding number for min branch length of time scaled tree : To guess
+  U                Min external branch length of time scaled tree : To estimate
+  l                        Collapsed internal branch length limit : 0
+  D                                            Output date format : Based on input date format
+
+  h to print Help 
+  y to accept or type a letter to change an option (x = Exit) 
+Tree 1 
+Minimum branch length of time scaled tree (settable via option -u and -U): 0.262864, rounded to 0.263014 (96/365) using factor 365 (settable via option -R)
+*WARNINGS:
+- There are some nodes in the input date file that are not present in the input tree.
+*RESULTS:
+- The input dates associated with the following 60 nodes are considered as outliers, so the nodes were removed from the analysis:  FJ591402 HQ127550 GQ862311 DQ877762 KU319541 AM260285 KU319536 AY242592 AB285826 AY242586 AF286233 U46016 AB285810 KF526226 AF388136 EU251802 AY945738 HM572402 AM260284 AM260272 HM191536 AY772694 EU786681 FJ199746 AY137007 KU749415 EU152424 HM119854 GQ427121 HM119750 KM050679 DQ877803 HM119636 HM119977 GU199527 AY589884 KC156219 HM119879 HM119987 AY756869 HM119689 GQ427120 DQ878136 KM050762 HM120054 AF443087 JN188292 HM119671 HM119826 HM120138 AB285823 KU319546 JN687629 HM119633 HQ456680 AY787535 EU293450 EU251726 KX907374 KU168263
+- Dating results:
+ rate 0.00122622, tMRCA 1937.81, objective function 516.559
+- Results with confidence intervals:
+ rate 0.00122622 [0.00109163; 0.0013861], tMRCA 1937.81 [1914.6; 1947.19], objective function 516.559
+
+*********************************************************
+
+TOTAL ELAPSED TIME: 1114.09 seconds

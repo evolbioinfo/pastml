@@ -2,12 +2,13 @@ from collections import Counter
 
 import numpy as np
 
-from annotation import get_forest_stats
-from ml import get_pij_method
+from pastml.annotation import get_forest_stats
+from pastml.ml import get_pij_method
+from pastml import MODEL_ID
 
 
 def simulate_states(tree, model, frequencies, kappa, tau, sf, character, rate_matrix=None, n_repetitions=1_000):
-    n_states = len(frequencies)
+    n_states = len(frequencies[0])
     state_ids = np.array(range(n_states))
 
     avg_br_len, num_nodes, num_tips, tree_len = get_forest_stats([tree])
@@ -16,10 +17,11 @@ def simulate_states(tree, model, frequencies, kappa, tau, sf, character, rate_ma
     get_pij = get_pij_method(model, frequencies, kappa, rate_matrix=rate_matrix)
 
     for n in tree.traverse('levelorder'):
+        model_id = getattr(n, MODEL_ID, 0)
         if n.is_root():
-            random_states = np.random.choice(state_ids, size=n_repetitions, p=frequencies)
+            random_states = np.random.choice(state_ids, size=n_repetitions, p=frequencies[model_id])
         else:
-            probs = get_pij((n.dist + tau) * tau_factor * sf)
+            probs = get_pij[model_id]((n.dist + tau) * tau_factor * sf)
             probs = np.maximum(probs, 0)
             random_states = np.zeros(n_repetitions, dtype=int)
             parent_states = getattr(n.up, character)
