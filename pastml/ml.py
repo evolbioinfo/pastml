@@ -93,9 +93,9 @@ def get_pij_method(model=F81, frequencies=None, kappa=None, rate_matrix=None):
     :param rate_matrix: custom rate matrix for CUSTOM_RATES model
     :type rate_matrix: np.array
     :param kappa: kappa parameter for HKY model
-    :type kappa: float
+    :type kappa: np.array(float)
     :param frequencies: array of state frequencies \pi_i
-    :type frequencies: numpy.array
+    :type frequencies: numpy.array(numpy.array(float))
     :param model: model of character evolution
     :type model: str
     :return: probability matrix
@@ -150,14 +150,44 @@ def get_bottom_up_loglikelihood(tree, character, frequencies, sf,
 
     get_pij = get_pij_method(model, frequencies, kappa, rate_matrix=rate_matrix)
     tau_factor = tree_len / (tree_len + tau * num_edges)
+    n_states = frequencies.shape[1]
 
     for node in tree.traverse('postorder'):
-        model_id = getattr(node, MODEL_ID, 0)
-        calc_node_bu_likelihood(node,
-                                allowed_state_feature, lh_feature, lh_sf_feature, lh_joint_state_feature,
-                                is_marginal,
-                                get_pij[model_id], frequencies[model_id], sf[model_id],
-                                tau, tau_factor)
+        if getattr(node, SKYLINE, False):
+            continue
+        log_likelihood_array = np.log10(np.ones(n_states, dtype=np.float64) * getattr(node, allowed_state_feature))
+        factors = 0
+
+        non_skyline_children = []
+        for child in node.children:
+            skyline_children = []
+            non_skyline_child = child
+            while getattr(non_skyline_child, SKYLINE, False):
+                skyline_children.append(non_skyline_child)
+                non_skyline_child = non_skyline_child.children[0]
+
+            non_skyline_children.append(non_skyline_child)
+
+            p_ij = None
+
+            for sk_child in skyline_children + [non_skyline_child]:
+                model_id = getattr(sk_child.up, MODEL_ID, 0)
+                sk_child_p_ij = get_pij[model_id]((sk_child.dist + tau) * tau_factor * sf[model_id])
+                p_ij = sk_child_p_ij if p_ij is None else p_ij.dot(sk_child_p_ij)
+
+            child_likelihoods = p_ij * getattr(non_skyline_child, lh_feature)
+
+            if is_marginal:
+                child_likelihoods = child_likelihoods.sum(axis=1)
+            else:
+                child_states = child_likelihoods.argmax(axis=1)
+                non_skyline_child.add_feature(lh_joint_state_feature, child_states)
+                child_likelihoods = child_likelihoods.max(axis=1)
+            child_likelihoods = np.maximum(child_likelihoods, 0)
+            log_likelihood_array += np.log10(child_likelihoods)
+            factors += rescale_log(log_likelihood_array)
+        node.add_feature(lh_feature, np.power(10, log_likelihood_array))
+        node.add_feature(lh_sf_feature, factors + sum(getattr(_, lh_sf_feature) for _ in non_skyline_children))
     root_likelihoods = getattr(tree, lh_feature) * frequencies[getattr(tree, MODEL_ID, 0)]
     root_likelihoods = root_likelihoods.sum() if is_marginal else root_likelihoods.max()
 
@@ -168,25 +198,6 @@ def get_bottom_up_loglikelihood(tree, character, frequencies, sf,
             unalter_zero_node_joint_states(altered_nodes, character)
 
     return np.log(root_likelihoods) - getattr(tree, lh_sf_feature) * np.log(10)
-
-
-def calc_node_bu_likelihood(node, allowed_state_feature, lh_feature, lh_sf_feature, lh_joint_state_feature, is_marginal,
-                            get_pij, frequencies, sf, tau, tau_factor):
-    log_likelihood_array = np.log10(np.ones(len(frequencies), dtype=np.float64) * getattr(node, allowed_state_feature))
-    factors = 0
-    for child in node.children:
-        child_likelihoods = get_pij((child.dist + tau) * tau_factor * sf) * getattr(child, lh_feature)
-        if is_marginal:
-            child_likelihoods = child_likelihoods.sum(axis=1)
-        else:
-            child_states = child_likelihoods.argmax(axis=1)
-            child.add_feature(lh_joint_state_feature, child_states)
-            child_likelihoods = child_likelihoods.max(axis=1)
-        child_likelihoods = np.maximum(child_likelihoods, 0)
-        log_likelihood_array += np.log10(child_likelihoods)
-        factors += rescale_log(log_likelihood_array)
-    node.add_feature(lh_feature, np.power(10, log_likelihood_array))
-    node.add_feature(lh_sf_feature, factors + sum(getattr(_, lh_sf_feature) for _ in node.children))
 
 
 def rescale_log(loglikelihood_array):
@@ -204,6 +215,7 @@ def rescale_log(loglikelihood_array):
     max_lh_value = np.max(non_zero_loglh_array)
 
     factors = 0
+
     if max_lh_value > max_limit:
         factors = max_limit - max_lh_value - 1
     elif min_lh_value < min_limit:
@@ -244,7 +256,7 @@ def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br
     bounds = []
     len_skyline, n_states = frequencies.shape
     if optimise_frequencies:
-        bounds += [np.array([1e-6, 10e6], np.float64)] * (n_states - 1) * len_skyline
+        bounds += [np.array([1e-10, 10e6], np.float64)] * (n_states - 1) * len_skyline
     if optimise_sf:
         bounds += [np.array([0.001 / avg_br_len, 10. / avg_br_len])] * len_skyline
     if optimise_kappa:
@@ -370,31 +382,45 @@ def calculate_top_down_likelihood(tree, character, frequencies, sf, tree_len, nu
     get_pij = get_pij_method(model, frequencies, kappa, rate_matrix=rate_matrix)
     tau_factor = tree_len / (tree_len + tau * num_edges)
 
+    n_states = frequencies.shape[1]
+
     for node in tree.traverse('preorder'):
-        model_id = getattr(node, MODEL_ID, 0)
-        calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature, bu_lh_sf_feature,
-                                get_pij[model_id], sf[model_id], tau, tau_factor)
+        if node.is_root():
+            node.add_feature(td_lh_feature, np.ones(n_states, np.float64))
+            node.add_feature(td_lh_sf_feature, 0)
+            continue
 
+        if getattr(node, SKYLINE, False):
+            continue
 
-def calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, get_pij, sf, tau,
-                            tau_factor):
-    if node.is_root():
-        node.add_feature(td_lh_feature, np.ones(len(getattr(node, bu_lh_feature)), np.float64))
-        node.add_feature(td_lh_sf_feature, 0)
-        return
-    parent = node.up
-    node_pjis = np.transpose(get_pij((node.dist + tau) * tau_factor * sf))
-    node_contribution = getattr(node, bu_lh_feature).dot(node_pjis)
-    node_contribution[node_contribution <= 0] = 1
-    parent_loglikelihood = np.log10(getattr(parent, td_lh_feature)) \
-                           + np.log10(getattr(parent, bu_lh_feature)) - np.log10(node_contribution)
-    factors = getattr(parent, td_lh_sf_feature) \
-              + getattr(parent, bu_lh_sf_feature) - getattr(node, bu_lh_sf_feature)
-    factors += rescale_log(parent_loglikelihood)
-    parent_likelihood = np.power(10, parent_loglikelihood)
-    td_likelihood = parent_likelihood.dot(node_pjis)
-    node.add_feature(td_lh_feature, np.maximum(td_likelihood, 0))
-    node.add_feature(td_lh_sf_feature, factors)
+        non_skyline_parent = node.up
+        child = node
+        parent_child_pairs = []
+        while getattr(non_skyline_parent, SKYLINE, False):
+            parent_child_pairs.append((non_skyline_parent, child))
+            child = non_skyline_parent
+            non_skyline_parent = non_skyline_parent.up
+        parent_child_pairs.append((non_skyline_parent, child))
+
+        p_ij = None
+
+        for parent, child in parent_child_pairs:
+            model_id = getattr(parent, MODEL_ID, 0)
+            parent_p_ij = get_pij[model_id]((child.dist + tau) * tau_factor * sf[model_id])
+            p_ij = parent_p_ij if p_ij is None else parent_p_ij.dot(p_ij)
+
+        node_pjis = np.transpose(p_ij)
+        node_contribution = getattr(node, bu_lh_feature).dot(node_pjis)
+        node_contribution[node_contribution <= 0] = 1
+        parent_loglikelihood = np.log10(getattr(non_skyline_parent, td_lh_feature)) \
+                               + np.log10(getattr(non_skyline_parent, bu_lh_feature)) - np.log10(node_contribution)
+        factors = getattr(non_skyline_parent, td_lh_sf_feature) \
+                  + getattr(non_skyline_parent, bu_lh_sf_feature) - getattr(node, bu_lh_sf_feature)
+        factors += rescale_log(parent_loglikelihood)
+        parent_likelihood = np.power(10, parent_loglikelihood)
+        td_likelihood = parent_likelihood.dot(node_pjis)
+        node.add_feature(td_lh_feature, np.maximum(td_likelihood, 0))
+        node.add_feature(td_lh_sf_feature, factors)
 
 
 def initialize_allowed_states(tree, feature, states):
@@ -554,8 +580,9 @@ def calculate_marginal_likelihoods(tree, feature, frequencies, clean_up=True):
     allowed_state_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
 
     for node in tree.traverse('preorder'):
-        calc_node_marginal_likelihood(node, lh_feature, lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, td_lh_feature,
-                                      td_lh_sf_feature, allowed_state_feature, frequencies, clean_up)
+        if not getattr(node, SKYLINE, False):
+            calc_node_marginal_likelihood(node, lh_feature, lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, td_lh_feature,
+                                          td_lh_sf_feature, allowed_state_feature, frequencies, clean_up)
 
 
 def calc_node_marginal_likelihood(node, lh_feature, lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, td_lh_feature,
@@ -584,11 +611,11 @@ def check_marginal_likelihoods(tree, feature):
     lh_feature = get_personalized_feature_name(feature, LH)
     lh_sf_feature = get_personalized_feature_name(feature, LH_SF)
 
+    root_loglh = np.log10(getattr(tree, lh_feature).sum()) - getattr(tree, lh_sf_feature)
     for node in tree.traverse():
-        if not node.is_root():
+        if not getattr(node, SKYLINE, False):
             node_loglh = np.log10(getattr(node, lh_feature).sum()) - getattr(node, lh_sf_feature)
-            parent_loglh = np.log10(getattr(node.up, lh_feature).sum()) - getattr(node.up, lh_sf_feature)
-            assert (round(node_loglh, 2) == round(parent_loglh, 2))
+            assert (round(node_loglh, 2) == round(root_loglh, 2))
 
 
 def convert_likelihoods_to_probabilities(tree, feature, states):
@@ -646,6 +673,8 @@ def choose_ancestral_states_mppa(tree, feature, states, force_joint=True):
     # select k in 1:n such as the correction between choosing 0, 0, ..., 1/k, ..., 1/k and our sorted array is min
     # and return the corresponding states
     for node in tree.traverse():
+        if getattr(node, SKYLINE, False):
+            continue
         marginal_likelihoods = getattr(node, lh_feature)
         if hasattr(node, allowed_state_feature + '.initial'):
             marginal_likelihoods *= getattr(node, allowed_state_feature + '.initial')
@@ -657,17 +686,19 @@ def choose_ancestral_states_mppa(tree, feature, states, force_joint=True):
         else:
             marginal_probs = np.sort(marginal_probs)
         best_k = n
-        best_correstion = np.inf
-        for k in range(1, n + 1):
-            correction = np.hstack((np.zeros(n - k), np.ones(k) / k)) - marginal_probs
-            correction = correction.dot(correction)
-            if correction < best_correstion:
-                best_correstion = correction
-                best_k = k
 
         if not getattr(node, SKYLINE, False):
-            num_scenarios *= best_k
-            num_states += best_k
+            best_correction = np.inf
+            for k in range(1, n + 1):
+                correction = np.hstack((np.zeros(n - k), np.ones(k) / k)) - marginal_probs
+                correction = correction.dot(correction)
+                if correction < best_correction:
+                    best_correction = correction
+                    best_k = k
+
+                num_scenarios *= best_k
+                num_states += best_k
+
         if force_joint:
             indices_selected = sorted(range(n),
                                       key=lambda _: (0 if n == joint_index else 1, -marginal_likelihoods[_]))[:best_k]
@@ -700,10 +731,11 @@ def choose_ancestral_states_map(tree, feature, states):
     _, state2array = get_state2allowed_states(states, False)
 
     for node in tree.traverse():
-        marginal_likelihoods = getattr(node, lh_feature)
-        if hasattr(node, allowed_state_feature + '.initial'):
-            marginal_likelihoods *= getattr(node, allowed_state_feature + '.initial')
-        node.add_feature(allowed_state_feature, state2array[marginal_likelihoods.argmax()])
+        if not getattr(node, SKYLINE, False):
+            marginal_likelihoods = getattr(node, lh_feature)
+            if hasattr(node, allowed_state_feature + '.initial'):
+                marginal_likelihoods *= getattr(node, allowed_state_feature + '.initial')
+            node.add_feature(allowed_state_feature, state2array[marginal_likelihoods.argmax()])
 
 
 def choose_ancestral_states_joint(tree, feature, states, frequencies):
@@ -728,6 +760,8 @@ def choose_ancestral_states_joint(tree, feature, states, frequencies):
         node.add_feature(allowed_state_feature, state2array[state_index])
 
         for child in node.children:
+            while getattr(child, SKYLINE, False):
+                child = child.children[0]
             chose_consistent_state(child, getattr(child, lh_state_feature)[state_index])
 
     chose_consistent_state(tree, (getattr(tree, lh_feature) * frequencies[getattr(tree, MODEL_ID, 0)]).argmax())
@@ -933,7 +967,7 @@ def marginal_counts(forest, character, model, states, num_nodes, tree_len, frequ
     n_states = len(states)
     state_ids = np.array(list(range(n_states)))
 
-    result = np.zeros((n_states, n_states), dtype=float)
+    result = np.zeros((n_states, n_states), dtype=np.float64)
 
     for tree in forest:
         initialize_allowed_states(tree, character, states)
@@ -1041,7 +1075,7 @@ def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, num_tips, chara
                                     .format(character))
     if not optimise_sf and not optimise_frequencies and not optimise_kappa and not optimise_tau \
             and not frequency_smoothing:
-        logger.debug('All the parameters are fixed for {}:{}{}{}{}.'
+        logger.debug('All the parameters are fixed for {}:{}{}{}{}{}.'
                      .format(character,
                              ''.join('\n\tfrequency of {}:\t{}'
                                      .format(state, ', '.join('{:g}'.format(f) for f in freq))

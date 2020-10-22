@@ -119,7 +119,7 @@ def preannotate_forest(forest, df=None, gdf=None):
 
 def annotate_skyline(forest, skyline):
     if not skyline:
-        return [], 1
+        return 1
     min_date, max_date = min(getattr(tree, DATE) for tree in forest), \
                          max(max(getattr(_, DATE) for _ in tree) for tree in forest)
     # let's make the skyline contain starting dates, so that the intervals will be [skyline[i], skyline[i+1])
@@ -132,16 +132,16 @@ def annotate_skyline(forest, skyline):
     if not skyline or len(skyline) == 1 and skyline[0] <= min_date:
         logging.getLogger('pastml').warning('The skyline dates provided are outside of the tree dates: {} - {}, '
                                             'so we will apply the same model everywhere.'.format(min_date, max_date))
-        return [], 1
+        return 1
     elif skyline[0] > min_date:
         skyline = [min_date] + skyline
-    skyline_nodes = []
 
     logging.getLogger('pastml').debug('The tree(s) cover the period between {} and {}, '
                                       'the skyline intervals start at the following dates: {}.'
                                       .format(min_date, max_date, ', '.join(str(_) for _ in skyline)))
 
     def annotate_node_skyline(node, i):
+        n_sk = 0
         for j in range(i, len(skyline)):
             if skyline[j] <= getattr(node, DATE) and (j + 1 == len(skyline) or getattr(node, DATE) < skyline[j + 1]):
                 break
@@ -156,26 +156,31 @@ def annotate_skyline(forest, skyline):
                 skyline_node.add_feature(SKYLINE, True)
                 node.remove_child(child)
                 skyline_node.add_child(child, dist=new_child_dist)
-                skyline_nodes.append(skyline_node)
-                annotate_node_skyline(skyline_node, j)
+                n_sk += 1 + annotate_node_skyline(skyline_node, j + 1)
             else:
-                annotate_node_skyline(child, j)
+                n_sk += annotate_node_skyline(child, j)
+        return n_sk
 
+    n_skyline = sum(annotate_node_skyline(tree, 0) for tree in forest)
+
+    logging.getLogger('pastml').debug('Created {} skyline nodes.'.format(n_skyline))
+
+    return len(skyline)
+
+
+def remove_skyline(forest):
+    n_skyline = 0
     for tree in forest:
-        annotate_node_skyline(tree, 0)
-
-    logging.getLogger('pastml').debug('Created {} skyline nodes.'.format(len(skyline_nodes)))
-
-    return skyline_nodes, len(skyline)
-
-
-def remove_skyline(skyline_nodes):
-    for n in skyline_nodes:
-        parent = n.up
-        children = list(n.children)
-        for child in children:
-            n.remove_child(child)
-            parent.add_child(child, dist=child.dist + n.dist)
-        parent.remove_child(n)
-    logging.getLogger('pastml').debug('Removed {} skyline nodes.'.format(len(skyline_nodes)))
+        for n in tree.traverse('postorder'):
+            n.del_feature(MODEL_ID)
+            if getattr(n, SKYLINE, False):
+                parent = n.up
+                children = list(n.children)
+                for child in children:
+                    n.remove_child(child)
+                    parent.add_child(child, dist=child.dist + n.dist)
+                parent.remove_child(n)
+                n_skyline += 1
+    if n_skyline:
+        logging.getLogger('pastml').debug('Removed {} skyline nodes.'.format(n_skyline))
 

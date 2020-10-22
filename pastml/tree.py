@@ -76,16 +76,23 @@ def name_tree(tree, suffix=""):
     if n_nodes == len(existing_names):
         return
     i = 0
-    new_existing_names = Counter()
+    new_existing_names = set()
+    tip_pattern = 't{i}' + suffix
+    node_pattern = 'n{i}' + suffix
+    root_pattern = 'root{i}' + suffix
     for node in tree.traverse('preorder'):
-        name_prefix = node.name if node.name and existing_names[node.name] < 10 \
-            else '{}{}{}'.format('t' if node.is_leaf() else 'n', i, suffix)
-        name = 'root{}'.format(suffix) if node.is_root() else name_prefix
-        while name is None or name in new_existing_names:
-            name = '{}{}{}'.format(name_prefix, i, suffix)
+        name = node.name
+        if not name and node.is_root():
+            name = 'root' + suffix
+        name_pattern = tip_pattern if node.is_leaf() else (root_pattern if node.is_root() else node_pattern)
+        if not name:
+            name = name_pattern.format(i=i)
+
+        while name in new_existing_names:
             i += 1
+            name = name_pattern.format(i=i)
         node.name = name
-        new_existing_names[name] += 1
+        new_existing_names.add(name)
 
 
 def collapse_zero_branches(forest, features_to_be_merged=None):

@@ -82,7 +82,7 @@ def _parse_pastml_parameters(params, states, num_tips, reoptimise=False, skyline
             logger.error('Frequencies for some of the states ({}) are missing, '
                          'ignoring the specified frequencies.'.format(', '.join(unknown_freq_states)))
         else:
-            frequencies = np.zeros(shape=(skyline_len, len(states)), dtype=float)
+            frequencies = np.zeros(shape=(skyline_len, len(states)), dtype=np.float64)
             for i, state in enumerate(states):
                 if state in params.keys():
                     try:
@@ -253,7 +253,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
 
     tree_stats = get_forest_stats(forest)
 
-    skyline_nodes, skyline_len = annotate_skyline(forest, skyline)
+    skyline_len = annotate_skyline(forest, skyline)
 
     logging.getLogger('pastml').debug('\n=============ACR===============================')
 
@@ -460,7 +460,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         logger.setLevel(level)
         acr_results = flatten_lists(acr_results)
 
-    remove_skyline(skyline_nodes)
+    remove_skyline(forest)
 
     return acr_results
 

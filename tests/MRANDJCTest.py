@@ -49,7 +49,7 @@ class MRANDJCTest(unittest.TestCase):
         num_good_simulations = np.count_nonzero(good_indices)
         print('Simulated {} good configurations'.format(num_good_simulations))
 
-        sim_counts = np.zeros((n_states, n_states), dtype=float)
+        sim_counts = np.zeros((n_states, n_states), dtype=np.float64)
         for n in tree.traverse('levelorder'):
             from_states = getattr(n, sim_character)[good_indices > 0]
             state_nums = Counter(from_states)
