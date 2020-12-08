@@ -161,7 +161,7 @@ def get_bottom_up_loglikelihood(tree, character, frequencies, sf,
         else:
             unalter_zero_node_joint_states(altered_nodes, character)
 
-    return np.log(root_likelihoods) - getattr(tree, lh_sf_feature) * np.log(10)
+    return np.log(root_likelihoods) - getattr(tree, lh_sf_feature) / np.log10(np.e)
 
 
 def calc_node_bu_likelihood(node, allowed_state_feature, lh_feature, lh_sf_feature, lh_joint_state_feature, is_marginal,
@@ -282,6 +282,8 @@ def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br
                        [sf] if optimise_sf else [],
                        [kappa] if optimise_kappa else [],
                        [tau] if optimise_tau else [], [0] if frequency_smoothing else []))
+    if np.any(observed_frequencies <= 0):
+        observed_frequencies = np.maximum(observed_frequencies, 1e-10)
     x0_EFT = x0_JC if not optimise_frequencies else \
         np.hstack((observed_frequencies[:-1] / observed_frequencies[-1], [sf] if optimise_sf else [],
                    [kappa] if optimise_kappa else [],
