@@ -56,7 +56,15 @@ POPUP_CONTENT_TEMPLATE = "<b>{key}: </b>" \
                          "<span style='white-space:nowrap;'>{value}</span></div>"
 
 
-def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
+RANGE_FILE_HEADER_TEMPLATE = """TREE_COLORS
+SEPARATOR TAB
+
+DATA
+#NODE_ID    TYPE    COLOR   LABEL_OR_STYLE  SIZE_FACTOR
+"""
+
+
+def generate_itol_annotations(roots, column2states, work_dir, acrs, state_df, date_col,
                               tree_path, itol_id=None, itol_project=None, itol_tree_name=None,
                               column2colours=None):
     annotation_files = []
@@ -65,9 +73,14 @@ def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
         pf.write(POPUP_FILE_HEADER)
 
     state_df['itol_type'] = 'branch'
+    state_df['itol_range'] = 'range'
     state_df['itol_node'] = 'node'
     state_df['itol_style'] = 'normal'
     state_df['itol_size'] = 2
+
+    for tree in roots:
+        ts = list(_ for _ in tree)
+        state_df.loc['{}|{}'.format(ts[0].name, ts[-1].name), :] = state_df.loc[tree.name, :]
 
     for acr_result in acrs:
         column = acr_result[CHARACTER]
@@ -79,10 +92,12 @@ def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
             colours = get_enough_colours(num_unique_values)
         value2colour = dict(zip(states, colours))
         style_file = os.path.join(work_dir, 'iTOL_style-{}.txt'.format(column))
+        state_header = '\t'.join(states)
+        shape_header = '\t'.join(['1'] * len(states))
+        colour_header = '\t'.join(colours)
         with open(style_file, 'w+') as sf:
             sf.write(STYLE_FILE_HEADER_TEMPLATE
-                     .format(column=column, colours='\t'.join(colours), states='\t'.join(states),
-                             shapes='\t'.join(['1'] * len(states)),
+                     .format(column=column, colours=colour_header, states=state_header, shapes=shape_header,
                              method='{}{}'.format(acr_result[METHOD],
                                                   ('+{}'.format(acr_result[MODEL]) if MODEL in acr_result else ''))))
         col_df = state_df[state_df[column].apply(len) == 1]
@@ -95,12 +110,33 @@ def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
 
         colorstrip_file = os.path.join(work_dir, 'iTOL_colorstrip-{}.txt'.format(column))
         with open(colorstrip_file, 'w+') as csf:
-            csf.write(COLORSTRIP_FILE_HEADER_TEMPLATE.format(column=column, colours='\t'.join(colours),
-                                                             states='\t'.join(states),
-                                                             shapes='\t'.join(['1'] * len(states))))
+            csf.write(COLORSTRIP_FILE_HEADER_TEMPLATE.format(column=column, colours=colour_header,
+                                                             states=state_header, shapes=shape_header))
         col_df[['itol_colour', 'itol_label']].to_csv(colorstrip_file, sep='\t', header=False, mode='a')
         annotation_files.append(colorstrip_file)
         logging.getLogger('pastml').debug('Generated iTol colorstrip file for {}: {}.'.format(column, colorstrip_file))
+
+        colorrange_file = os.path.join(work_dir, 'iTOL_colorrange-{}.txt'.format(column))
+        with open(colorrange_file, 'w+') as rsf:
+            rsf.write(RANGE_FILE_HEADER_TEMPLATE.format(column=column, colours=colour_header,
+                                                        states=state_header, shapes=shape_header))
+            for tree in roots:
+                for n in tree.traverse('postorder'):
+                    state_set = getattr(n, column)
+                    if len(state_set) != 1:
+                        continue
+                    state = next(iter(state_set))
+                    if not n.is_root():
+                        parent_state_set = getattr(n.up, column)
+                        if parent_state_set != state_set:
+                            rsf.write('{}\trange\t{}77\t{}\t1\n'.format(n.name, value2colour[state], state))
+                    else:
+                        ts = list(_ for _ in n)
+                        rsf.write('{}|{}\trange\t{}77\t{}\t1\n'
+                                  .format(ts[0].name, ts[-1].name, value2colour[state], state))
+
+        annotation_files.append(colorrange_file)
+        logging.getLogger('pastml').debug('Generated iTol colorrange file for {}: {}.'.format(column, colorrange_file))
 
     state_df = state_df[list(column2states.keys()) + ['dist', DATE]]
     for c in column2states.keys():

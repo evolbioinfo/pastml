@@ -28,6 +28,8 @@ UP_FOCUS = 'up_focus'
 
 
 def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, mixed=False):
+    logger = logging.getLogger('pastml')
+    n_tips_original = len(tree)
     compressed_tree = tree.copy()
 
     for n_compressed, n in zip(compressed_tree.traverse('postorder'), tree.traverse('postorder')):
@@ -53,7 +55,7 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
 
     if can_merge_diff_sizes and len(compressed_tree) > tip_size_threshold:
         get_bin = lambda _: int(np.log10(max(1, _)))
-        logging.getLogger('pastml').debug('Allowed merging nodes of different sizes.')
+        logger.debug('Allowed merging nodes of different sizes.')
         collapse_horizontally(compressed_tree, columns, get_bin, mixed=mixed)
 
     if len(compressed_tree) > tip_size_threshold:
@@ -78,23 +80,25 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
 
         if min(node_thresholds) >= threshold:
             if threshold == np.inf:
-                logging.getLogger('pastml') .debug('All tips are in focus.')
+                logger.debug('All tips are in focus.')
             else:
-                logging.getLogger('pastml')\
+                logger \
                     .debug('No tip is smaller than the threshold ({}, the size of the {}-th largest tip).'
                            .format(threshold, tip_size_threshold))
         else:
             if threshold == np.inf:
-                logging.getLogger('pastml')\
+                logger \
                     .debug('Removing all the out of focus tips (as there are at least {} tips in focus).'
                            .format(tip_size_threshold))
             else:
-                logging.getLogger('pastml').debug('Set tip size threshold to {} (the size of the {}-th largest tip).'
-                                                  .format(threshold, tip_size_threshold))
+                logger.debug('Set tip size threshold to {} (the size of the {}-th largest tip).'
+                             .format(threshold, tip_size_threshold))
             remove_small_tips(compressed_tree=compressed_tree, full_tree=tree,
                               to_be_removed=lambda _: get_tsize(_) < threshold)
             remove_mediators(compressed_tree, columns)
             collapse_horizontally(compressed_tree, columns, get_bin, mixed=mixed)
+    logger.debug('The compressed visualisation represents {} out of {} tips ({:.0f}%).'
+                 .format(len(tree), n_tips_original, 100 * len(tree) / n_tips_original))
     return compressed_tree
 
 

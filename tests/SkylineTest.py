@@ -8,7 +8,7 @@ from pastml import SKYLINE
 from pastml.acr import acr, _serialize_acr, _set_up_pastml_logger, _parse_pastml_parameters
 from pastml.annotation import annotate_skyline, remove_skyline
 from pastml.file import get_pastml_parameter_file
-from pastml.ml import MPPA, LOG_LIKELIHOOD, MAP, JOINT, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR
+from pastml.ml import MPPA, LOG_LIKELIHOOD, MAP, JOINT, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, AIC
 from pastml.models.f81_like import F81
 from pastml.tree import read_forest, name_tree, DATE
 from pastml.utilities.state_simulator import simulate_states
@@ -84,7 +84,7 @@ class SkylineTest(unittest.TestCase):
                                msg='Loglikelihood should be the same for exactly the same parameters '
                                    'with 2 and 1 skyline intervals.')
 
-    def test_parameter_noskyline(self):
+    def test_aic_noskyline(self):
         _set_up_pastml_logger(True)
         states = np.array(['resistant', 'sensitive'])
         tree = read_forest(TREE_NEXUS)[0]
@@ -103,8 +103,30 @@ class SkylineTest(unittest.TestCase):
             acr(tree, columns=['state2'], column2states={'state2': states},
                 prediction_method=MPPA, model=F81, skyline=[1996])[0]
 
-        self.assertGreater(acr_result_sky[LOG_LIKELIHOOD], acr_result_nosky[LOG_LIKELIHOOD],
-                           msg='Likelihood should be higher for the wore complex model')
+        self.assertGreater(acr_result_sky[AIC], acr_result_nosky[AIC], msg='NO skyline model should be selected')
+
+    def test_aic_skyline(self):
+        _set_up_pastml_logger(True)
+        states = np.array(['resistant', 'sensitive'])
+        tree = read_forest(TREE_NEXUS)[0]
+        skyline = [2000]
+        annotate_skyline([tree], skyline=skyline)
+        simulate_states(tree, model=F81, frequencies=np.array([np.array([0.01, 1 - 0.01]), np.array([0.4, 0.6])]),
+                        kappa=None, tau=0, sf=np.array([1 / 100., 1 / 10.]),
+                        character='M184V', rate_matrix=None, n_repetitions=1, root_state_id=1)
+        remove_skyline([tree])
+
+        for tip in tree:
+            tip.add_feature('state', {states[getattr(tip, 'M184V')][0]})
+            tip.add_feature('state2', {states[getattr(tip, 'M184V')][0]})
+
+        acr_result_nosky = acr(tree, columns=['state'], column2states={'state': states},
+                               prediction_method=MPPA, model=F81, skyline=None)[0]
+        acr_result_sky = \
+            acr(tree, columns=['state2'], column2states={'state2': states},
+                prediction_method=MPPA, model=F81, skyline=skyline)[0]
+
+        self.assertGreater(acr_result_nosky[AIC], acr_result_sky[AIC], msg='Skyline model should be selected')
 
     def test_num_skyline_nodes(self):
         tree = read_forest(TREE_NEXUS)[0]

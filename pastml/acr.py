@@ -168,14 +168,14 @@ def _serialize_acr(args):
                     f.write('{}\t{}\n'.format(name, acr_result[name]))
                 else:
                     try:
-                        f.write('{}\t{:g}\n'.format(name, acr_result[name]))
+                        f.write('{}\t{:.18f}\n'.format(name, acr_result[name]))
                     except:
                         f.write('{}\t{}\n'.format(name, acr_result[name]))
             elif name in [KAPPA, SCALING_FACTOR, CHANGES_PER_AVG_BRANCH]:
-                f.write('{}\t{}\n'.format(name, ' '.join('{:g}'.format(_) for _ in acr_result[name])))
+                f.write('{}\t{}\n'.format(name, ' '.join('{:.18f}'.format(_) for _ in acr_result[name])))
         if is_ml(acr_result[METHOD]):
             for state, freq in zip(acr_result[STATES], np.array(acr_result[FREQUENCIES]).transpose()):
-                f.write('{}\t{}\n'.format(state, ' '.join('{:g}'.format(_) for _ in freq)))
+                f.write('{}\t{}\n'.format(state, ' '.join('{:.18f}'.format(_) for _ in freq)))
     logging.getLogger('pastml').debug('Serialized ACR parameters and statistics for {} to {}.'
                                       .format(acr_result[CHARACTER], out_param_file))
 
@@ -403,7 +403,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                                     states=states, num_nodes=tree_stats[1], num_tips=tree_stats[2])
 
     if threads > 1:
-        with ThreadPool(processes=threads - 1) as pool:
+        with ThreadPool(processes=threads) as pool:
             acr_results = \
                 pool.map(func=_work, iterable=character2settings.keys())
     else:
@@ -442,7 +442,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                                                    rate_matrix
                 character2settings[character][4] = [False, False, False, False, False]
         if threads > 1:
-            with ThreadPool(processes=threads - 1) as pool:
+            with ThreadPool(processes=threads) as pool:
                 acr_results = \
                     pool.map(func=_work, iterable=character2settings.keys())
         else:
@@ -451,7 +451,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         while unresolve_trees(column2states, forest):
             logger.setLevel(logging.ERROR)
             if threads > 1:
-                with ThreadPool(processes=threads - 1) as pool:
+                with ThreadPool(processes=threads) as pool:
                     acr_results = \
                         pool.map(func=_work, iterable=character2settings.keys())
             else:
@@ -747,7 +747,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
             colours = {}
 
     if threads > 1:
-        pool = ThreadPool(processes=threads - 1)
+        pool = ThreadPool(processes=threads)
         async_result = pool.map_async(func=_serialize_acr, iterable=((acr_res, work_dir) for acr_res in acr_results))
         if upload_to_itol:
             if DATE_LABEL == age_label:
@@ -757,7 +757,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                 except:
                     pass
             itol_result = pool.apply_async(func=generate_itol_annotations,
-                                           args=(column2states, work_dir, acr_results, state_df, age_label,
+                                           args=(roots, column2states, work_dir, acr_results, state_df, age_label,
                                                  new_tree, itol_id, itol_project, itol_tree_name, colours))
     else:
         for acr_res in acr_results:
@@ -769,7 +769,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     state_df[DATE] = dates
                 except:
                     pass
-            generate_itol_annotations(column2states, work_dir, acr_results, state_df, age_label,
+            generate_itol_annotations(roots, column2states, work_dir, acr_results, state_df, age_label,
                                       new_tree, itol_id, itol_project, itol_tree_name, colours)
 
     if html or html_compressed or html_mixed:

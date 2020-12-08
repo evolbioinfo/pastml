@@ -48,6 +48,22 @@ ALLOWED_STATES = 'ALLOWED_STATES'
 STATE_COUNTS = 'STATE_COUNTS'
 JOINT_STATE = 'JOINT_STATE'
 
+AIC = 'AIC'
+
+
+def calculate_AIC(loglh, k):
+    """
+    Calculates the Akaike information criterion (AIC) for the given model likelihood and parameter number.
+
+    :param loglh: model loglikelihood
+    :type loglh: float
+    :param k: number of free model parameters
+    :type k: int
+    :return: AIC value
+    :rtype: float
+    """
+    return 2 * k - 2 * loglh
+
 
 def is_marginal(method):
     """
@@ -197,7 +213,7 @@ def get_bottom_up_loglikelihood(tree, character, frequencies, sf,
         else:
             unalter_zero_node_joint_states(altered_nodes, character)
 
-    return np.log(root_likelihoods) - getattr(tree, lh_sf_feature) * np.log(10)
+    return np.log(root_likelihoods) - getattr(tree, lh_sf_feature) / np.log10(np.e)
 
 
 def rescale_log(loglikelihood_array):
@@ -314,8 +330,10 @@ def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br
                        kappa if optimise_kappa else [],
                        [tau] if optimise_tau else [],
                        [0] if frequency_smoothing else []))
+    if np.any(observed_frequencies <= 0):
+        observed_frequencies = np.maximum(observed_frequencies, 1e-10)
     x0_EFT = x0_JC if not optimise_frequencies else \
-        np.hstack((np.tile(observed_frequencies[:-1] / observed_frequencies[-1],  len_skyline),
+        np.hstack((np.tile(observed_frequencies[:-1] / observed_frequencies[-1], len_skyline),
                    sf if optimise_sf else [],
                    kappa if optimise_kappa else [],
                    [tau] if optimise_tau else [],
@@ -336,8 +354,9 @@ def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br
         if fres.success and not np.any(np.isnan(fres.x)):
             if -fres.fun >= best_log_lh:
                 if frequency_smoothing and fres.x[-1]:
-                    logging.getLogger('pastml')\
-                        .debug('Smoothed {} frequencies by adding {} cases of each state.'.format(character, fres.x[-1]))
+                    logging.getLogger('pastml') \
+                        .debug(
+                        'Smoothed {} frequencies by adding {} cases of each state.'.format(character, fres.x[-1]))
                 return get_real_params_from_optimised(fres.x), -fres.fun
     return get_real_params_from_optimised(x0_JC if log_lh_JC >= log_lh_EFT else x0_EFT), best_log_lh
 
@@ -581,7 +600,8 @@ def calculate_marginal_likelihoods(tree, feature, frequencies, clean_up=True):
 
     for node in tree.traverse('preorder'):
         if not getattr(node, SKYLINE, False):
-            calc_node_marginal_likelihood(node, lh_feature, lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, td_lh_feature,
+            calc_node_marginal_likelihood(node, lh_feature, lh_sf_feature, bu_lh_feature, bu_lh_sf_feature,
+                                          td_lh_feature,
                                           td_lh_sf_feature, allowed_state_feature, frequencies, clean_up)
 
 
@@ -820,11 +840,19 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
                             tau=tau, optimise_frequencies=optimise_frequencies,
                             optimise_kappa=optimise_kappa, optimise_sf=optimise_sf, optimise_tau=optimise_tau,
                             frequency_smoothing=frequency_smoothing, rate_matrix=rate_matrix)
+    num_free_parameters = (((frequencies.shape[1] - 1) if optimise_frequencies else 0)
+                           + (1 if optimise_sf else 0)
+                           + (1 if optimise_kappa else 0)
+                           + (1 if optimise_tau else 0)
+                           + (1 if frequency_smoothing else 0)) * frequencies.shape[0]
     result = {LOG_LIKELIHOOD: likelihood, CHARACTER: character, METHOD: prediction_method, MODEL: model,
               FREQUENCIES: frequencies, SCALING_FACTOR: sf, CHANGES_PER_AVG_BRANCH: sf * avg_br_len, STATES: states,
               SMOOTHING_FACTOR: tau, NUM_NODES: num_nodes, NUM_TIPS: num_tips}
     if HKY == model:
         result[KAPPA] = kappa
+
+    result[AIC] = calculate_AIC(likelihood, num_free_parameters)
+    logger.debug('AIC for {} with {} free parameters is {}'.format(model, num_free_parameters, result[AIC]))
 
     results = []
 
@@ -1080,7 +1108,8 @@ def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, num_tips, chara
                              ''.join('\n\tfrequency of {}:\t{}'
                                      .format(state, ', '.join('{:g}'.format(f) for f in freq))
                                      for state, freq in zip(states, frequencies.transpose())),
-                             '\n\tkappa:\t{}'.format(', '.join('{:.6f}'.format(_) for _ in kappa)) if HKY == model else '',
+                             '\n\tkappa:\t{}'.format(
+                                 ', '.join('{:.6f}'.format(_) for _ in kappa)) if HKY == model else '',
                              '\n\tscaling factor:\t{}, i.e. {} changes per avg branch'
                              .format(', '.join('{:.6f}'.format(_) for _ in sf),
                                      ', '.join('{:.6f}'.format(_) for _ in sf * avg_br_len)),
@@ -1096,7 +1125,8 @@ def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, num_tips, chara
                              ''.join('\n\tfrequency of {}:\t{}'
                                      .format(state, ', '.join('{:g}'.format(f) for f in freq))
                                      for state, freq in zip(states, frequencies.transpose())),
-                             '\n\tkappa:\t{}'.format(', '.join('{:.6f}'.format(_) for _ in kappa)) if HKY == model else '',
+                             '\n\tkappa:\t{}'.format(
+                                 ', '.join('{:.6f}'.format(_) for _ in kappa)) if HKY == model else '',
                              '\n\tscaling factor:\t{}, i.e. {} changes per avg branch'
                              .format(', '.join('{:.6f}'.format(_) for _ in sf),
                                      ', '.join('{:.6f}'.format(_) for _ in sf * avg_br_len)),
@@ -1126,7 +1156,7 @@ def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, num_tips, chara
                                      '\n\tscaling factor:\t{}, i.e. {} changes per avg branch'
                                      .format(', '.join('{:.6f}'.format(_) for _ in sf),
                                              ', '.join('{:.6f}'.format(_) for _ in sf * avg_br_len))
-                                                                  if optimise_sf else '',
+                                     if optimise_sf else '',
                                      '\n\tsmoothing factor:\t{:.6f}'.format(tau) if optimise_tau else '',
                                      '\n\tlog likelihood:\t{:.6f}'.format(likelihood)))
         if optimise_frequencies or optimise_kappa or frequency_smoothing:
@@ -1152,7 +1182,7 @@ def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, num_tips, chara
                                      for state, freq in zip(states, frequencies.transpose()))
                              if optimise_frequencies or frequency_smoothing else '',
                              '\n\tkappa:\t{}'.format(', '.join('{:.6f}'.format(_) for _ in kappa))
-                                                  if HKY == model else '',
+                             if HKY == model else '',
                              '\n\tscaling factor:\t{}, i.e. {} changes per avg branch'
                              .format(', '.join('{:.6f}'.format(_) for _ in sf),
                                      ', '.join('{:.6f}'.format(_) for _ in sf * avg_br_len)),

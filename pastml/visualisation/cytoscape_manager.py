@@ -403,8 +403,9 @@ def _forest2json_transitions(states, counts, transitions, state2colour, threshol
     nodes, edges = [], []
     n = len(states)
 
-    n_scaler = get_scaling_function(y_m=200, y_M=800, x_m=min(counts), x_M=max(counts))
-    font_scaler = get_scaling_function(y_m=MIN_FONT_SIZE, y_M=MIN_FONT_SIZE * 3, x_m=min(counts), x_M=max(counts))
+    n_scaler = get_scaling_function(y_m=200, y_M=800, x_m=min(counts), x_M=max(np.maximum(counts, 1)))
+    font_scaler = get_scaling_function(y_m=MIN_FONT_SIZE, y_M=MIN_FONT_SIZE * 3,
+                                       x_m=min(counts), x_M=max(np.maximum(counts, 1)))
     positive_transitions = transitions[transitions > 0]
     e_scaler = get_scaling_function(y_m=30, y_M=200, x_m=min(positive_transitions), x_M=max(positive_transitions))
 
@@ -439,46 +440,44 @@ def _forest2json_transitions(states, counts, transitions, state2colour, threshol
         from_state = states[i]
         n_tips = counts[i]
         i_node_size = n_scaler(n_tips)
-        if n_tips > 0:
-            for j in range(i, n):
-                if counts[j] > 0:
-                    to_state = states[j]
-                    n_ij = transitions[i, j]
-                    n_ji = transitions[j, i]
-                    node_size = (i_node_size + n_scaler(counts[j])) / 2
-                    if n_ij > 0:
-                        mile = get_mile(0, len(miles), n_ij)
-                        if mile is not None:
-                            i2mile[i] = max(mile, i2mile[i])
-                            i2mile[j] = max(mile, i2mile[j])
-                            edges.append(get_edge(i, j,
-                                                  **{ID: '{}_{}'.format(i, j),
-                                                     EDGE_SIZE: e_scaler(n_ij),
-                                                     NODE_SIZE: node_size / (2 if i != j else 1),
-                                                     EDGE_NAME: n_ij,
-                                                     TOOLTIP: '{} transitions from {} to {}'
-                                                  .format(n_ij, from_state, to_state),
-                                                     MILESTONE: mile}))
-                    if n_ji > 0 and i != j:
-                        mile = get_mile(0, len(miles), n_ji)
-                        if mile is not None:
-                            i2mile[i] = max(mile, i2mile[i])
-                            i2mile[j] = max(mile, i2mile[j])
-                            edges.append(get_edge(j, i,
-                                                  **{ID: '{}_{}'.format(j, i),
-                                                     EDGE_SIZE: e_scaler(n_ji),
-                                                     NODE_SIZE: node_size / 2,
-                                                     EDGE_NAME: n_ji,
-                                                     TOOLTIP: '{} transitions from {} to {}'
-                                                  .format(n_ji, to_state, from_state),
-                                                     MILESTONE: mile}))
-            if i2mile[i] >= 0:
-                nodes.append(_get_node(data={ID: i, NODE_NAME: '{} ({:.0f})'.format(from_state, n_tips),
-                                             NODE_SIZE: i_node_size,
-                                             FONT_SIZE: font_scaler(n_tips),
-                                             TOOLTIP: '{} is represented by {:.0f} samples.'.format(from_state, n_tips),
-                                             COLOUR: state2colour[from_state],
-                                             MILESTONE: i2mile[i]}))
+        for j in range(i, n):
+            to_state = states[j]
+            n_ij = transitions[i, j]
+            n_ji = transitions[j, i]
+            node_size = (i_node_size + n_scaler(counts[j])) / 2
+            if n_ij > 0:
+                mile = get_mile(0, len(miles), n_ij)
+                if mile is not None:
+                    i2mile[i] = max(mile, i2mile[i])
+                    i2mile[j] = max(mile, i2mile[j])
+                    edges.append(get_edge(i, j,
+                                          **{ID: '{}_{}'.format(i, j),
+                                             EDGE_SIZE: e_scaler(n_ij),
+                                             NODE_SIZE: node_size / (2 if i != j else 1),
+                                             EDGE_NAME: n_ij,
+                                             TOOLTIP: '{} transitions from {} to {}'
+                                          .format(n_ij, from_state, to_state),
+                                             MILESTONE: mile}))
+            if n_ji > 0 and i != j:
+                mile = get_mile(0, len(miles), n_ji)
+                if mile is not None:
+                    i2mile[i] = max(mile, i2mile[i])
+                    i2mile[j] = max(mile, i2mile[j])
+                    edges.append(get_edge(j, i,
+                                          **{ID: '{}_{}'.format(j, i),
+                                             EDGE_SIZE: e_scaler(n_ji),
+                                             NODE_SIZE: node_size / 2,
+                                             EDGE_NAME: n_ji,
+                                             TOOLTIP: '{} transitions from {} to {}'
+                                          .format(n_ji, to_state, from_state),
+                                             MILESTONE: mile}))
+        if i2mile[i] >= 0:
+            nodes.append(_get_node(data={ID: i, NODE_NAME: '{} {}'.format(from_state, '{:.0f}'.format(n_tips) if not (n_tips % 1) else '{:.2f}'.format(n_tips)),
+                                         NODE_SIZE: i_node_size,
+                                         FONT_SIZE: font_scaler(n_tips),
+                                         TOOLTIP: '{} is represented by {:.0f} samples.'.format(from_state, n_tips),
+                                         COLOUR: state2colour[from_state],
+                                         MILESTONE: i2mile[i]}))
     json_dict = {NODES: nodes, EDGES: edges}
     return json_dict, ['{:g}'.format(_) for _ in miles]
 
