@@ -1,8 +1,9 @@
 import logging
 from collections import defaultdict
-from pastml.tree import IS_POLYTOMY
 
 import numpy as np
+
+from pastml.tree import IS_POLYTOMY, copy_forest
 
 IS_TIP = 'is_tip'
 
@@ -30,7 +31,7 @@ UP_FOCUS = 'up_focus'
 def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, mixed=False):
     logger = logging.getLogger('pastml')
     n_tips_original = len(tree)
-    compressed_tree = tree.copy()
+    compressed_tree = copy_forest([tree])[0]
 
     for n_compressed, n in zip(compressed_tree.traverse('postorder'), tree.traverse('postorder')):
         n_compressed.add_feature(TIPS_BELOW, [list(n_compressed.iter_leaves())])

@@ -459,3 +459,32 @@ def unresolve_trees(column2states, forest):
     elif num_polytomies - num_removed_nodes + num_new_nodes:
         logging.getLogger('pastml').debug('All the polytomy resolutions are consistent with model parameters.')
     return num_removed_nodes
+
+
+def clear_extra_features(forest, features):
+    features = set(features) | {'name', 'dist', 'support'}
+    for tree in forest:
+        for n in tree.traverse():
+            for f in set(n.features) - features:
+                if f not in features:
+                    n.del_feature(f)
+
+
+def copy_forest(forest, features=None):
+    features = set(features if features else forest[0].features)
+    copied_forest = []
+    for tree in forest:
+        copied_tree = TreeNode()
+        todo = [(tree, copied_tree)]
+        copied_forest.append(copied_tree)
+        while todo:
+            n, copied_n = todo.pop()
+            copied_n.dist = n.dist
+            copied_n.support = n.support
+            copied_n.name = n.name
+            for f in features:
+                if hasattr(n, f):
+                    copied_n.add_feature(f, getattr(n, f))
+            for c in n.children:
+                todo.append((c, copied_n.add_child()))
+    return copied_forest
