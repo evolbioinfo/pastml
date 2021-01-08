@@ -23,7 +23,7 @@ from pastml.models.jtt import JTT_STATES, JTT, JTT_FREQUENCIES
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
     get_default_mp_method
 from pastml.tree import name_tree, annotate_dates, DATE, read_forest, DATE_CI, resolve_trees, IS_POLYTOMY, \
-    unresolve_trees
+    unresolve_trees, clear_extra_features
 from pastml.visualisation import get_formatted_date
 from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT, \
     DIST_TO_ROOT_LABEL, DATE_LABEL
@@ -674,6 +674,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     itol_result = None
     new_tree = os.path.join(work_dir, get_named_tree_file(tree))
     features = [DATE, DATE_CI] + list(column2states.keys())
+    clear_extra_features(roots, features)
     nwks = [root.write(format_root_node=True, format=3, features=features) for root in roots]
     with open(new_tree, 'w+') as f:
         f.write('\n'.join(nwks))

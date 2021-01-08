@@ -10,7 +10,7 @@ from jinja2 import Environment, PackageLoader
 
 from pastml import numeric2datetime
 from pastml.file import get_pastml_colour_file
-from pastml.tree import DATE, IS_POLYTOMY
+from pastml.tree import DATE, IS_POLYTOMY, copy_forest
 from pastml.visualisation import get_formatted_date
 from pastml.visualisation.colour_generator import get_enough_colours, WHITE, parse_colours
 from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, TIPS_INSIDE, TIPS_BELOW, \
@@ -708,9 +708,13 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
     name2colour = {}
     for column, states in column2states.items():
         num_unique_values = len(states)
+        colours = None
         if column2colours and column in column2colours:
-            colours = parse_colours(column2colours[column], states)
-        else:
+            try:
+                colours = parse_colours(column2colours[column], states)
+            except ValueError as e:
+                logging.getLogger('pastml').error('Failed to parse the input colours: {}'.format(e))
+        if colours is None:
             colours = get_enough_colours(num_unique_values)
         for value, col in zip(states, colours):
             name2colour[value if one_column else '{}_{}'.format(column, value)] = col
@@ -790,7 +794,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
                                    timeline_type=timeline_type, milestones=milestones, get_date=get_date,
                                    work_dir=work_dir, local_css_js=local_css_js, milestone_labels=milestone_labels)
     if html_compressed and html_mixed:
-        forest_mixed = [tree.copy() for tree in forest]
+        forest_mixed = copy_forest(forest)
     else:
         forest_mixed = forest
 
