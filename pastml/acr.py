@@ -454,7 +454,8 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     out_data=None, html_compressed=None, html=None, html_mixed=None, work_dir=None,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
                     itol_tree_name=None, offline=False, threads=0, reoptimise=False, focus=None,
-                    resolve_polytomies=False, smoothing=False, frequency_smoothing=False):
+                    resolve_polytomies=False, smoothing=False, frequency_smoothing=False,
+                    pajek=None):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -596,6 +597,9 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     :type out_data: str
     :param html_compressed: path to the output compressed visualisation file (html).
     :type html_compressed: str
+    :param pajek: path to the output vertically compressed visualisation file (Pajek NET Format).
+        Prooduced only if html_compressed is specified.
+    :type pajek: str
     :param html: (optional) path to the output tree visualisation file (html).
     :type html: str
     :param html_mixed: (optional) path to the output mostly compressed map visualisation file (html),
@@ -777,7 +781,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         visualize(roots, column2states=column2states, html=html, html_compressed=html_compressed, html_mixed=html_mixed,
                   name_column=name_column, tip_size_threshold=tip_size_threshold, date_label=age_label,
                   timeline_type=timeline_type, work_dir=work_dir, local_css_js=offline, column2colours=colours,
-                  focus=focus)
+                  focus=focus, pajek=pajek)
 
     if threads > 1:
         async_result.wait()
@@ -1175,6 +1179,9 @@ def main():
                            .format(', '.join(MARGINAL_ML_METHODS)))
     out_group.add_argument('--html_compressed', required=False, default=None, type=str,
                            help="path to the output compressed map visualisation file (html).")
+    out_group.add_argument('--pajek', required=False, default=None, type=str,
+                           help="path to the output vertically compressed visualisation file (Pajek NET Format). "
+                                "Prooduced only if --html_compressed is specified.")
     out_group.add_argument('--html', required=False, default=None, type=str,
                            help="path to the output full tree visualisation file (html).")
     out_group.add_argument('--html_mixed', required=False, default=None, type=str,

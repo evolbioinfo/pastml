@@ -27,7 +27,45 @@ AROUND_FOCUS = 'around_focus'
 UP_FOCUS = 'up_focus'
 
 
-def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, mixed=False):
+def save_to_pajek(compressed_tree, pajek, columns):
+    """
+    *vertices 3
+    1 "154:codon usage/sequence bias" x_fact 7.2814 y_fact 7.2814 ic RawSienna
+    2 "156:cytokine bias/t helper" x_fact 7.2814 y_fact 7.2814 ic RawSienna
+    3 "158:incorporation bias/verification bias" x_fact 7.2814 y_fact 7.2814 ic RawSienna
+    *arcs
+    1 2
+    :return: 
+    """
+    n2id = {}
+    edges = []
+    nodes = []
+    columns = sorted(columns)
+
+    def get_states(n, columns):
+        res = []
+        for column in columns:
+            values = getattr(n, column, set())
+            value = values if isinstance(values, str) else ' or '.join(sorted(values))
+            res.append('{}:{}'.format(column, value))
+        return res
+
+    for id, n in enumerate(compressed_tree.traverse('preorder'), start=1):
+        n2id[n] = id
+        if not n.is_root():
+            edges.append('{} {}'.format(n2id[n.up], id))
+        nodes.append('{} "{}" "{}" {}'.format(id, n.name, ','.join(_.name for _ in getattr(n, TIPS_INSIDE)),
+                                              ' '.join('"{}"'.format(_) for _ in get_states(n, columns))))
+
+    with open(pajek, 'w+') as f:
+        f.write('*vertices {}\n'.format(len(nodes)))
+        f.write('\n'.join(nodes))
+        f.write('\n')
+        f.write('*arcs\n')
+        f.write('\n'.join(edges))
+
+
+def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, mixed=False, pajek=None):
     compressed_tree = copy_forest([tree])[0]
 
     for n_compressed, n in zip(compressed_tree.traverse('postorder'), tree.traverse('postorder')):
@@ -42,6 +80,8 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
         n.add_feature(COMPRESSED_NODE, n_compressed)
 
     collapse_vertically(compressed_tree, columns, mixed=mixed)
+    if pajek:
+        save_to_pajek(compressed_tree, pajek, columns)
 
     for n in compressed_tree.traverse():
         n.add_feature(NUM_TIPS_INSIDE, len(getattr(n, TIPS_INSIDE)))
