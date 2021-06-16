@@ -880,17 +880,23 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
             column2states[c] |= {_ for _ in df[c].unique() if pd.notnull(_) and _ != ''}
 
     num_tips = 0
+
+    column2annotated_states = defaultdict(set)
     for root in roots:
         for n in root.traverse():
             for c in columns:
                 vs = getattr(n, c, set())
                 column2states[c] |= vs
+                column2annotated_states[c] |= vs
                 if vs:
                     column2annotated[c] += 1
             if n.is_leaf():
                 num_tips += 1
 
-    c, num_annotated = min(column2annotated.items(), key=lambda _: _[1])
+    if column2annotated:
+        c, num_annotated = min(column2annotated.items(), key=lambda _: _[1])
+    else:
+        c, num_annotated = columns[0], 0
     percentage_unknown = (num_tips - num_annotated) / num_tips
     if percentage_unknown >= (.9 if not copy_only else 1):
         raise ValueError('{:.1f}% of tip annotations for character "{}" are unknown, '
@@ -902,11 +908,12 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
                                  else 'You tree file should contain character state annotations, '
                                       'otherwise consider specifying a metadata file.'))
 
-    c, states = min(column2states.items(), key=lambda _: len(_[1]))
-    if len(states) > num_tips * .5 and not copy_only:
-        raise ValueError('Character "{}" has {} unique states which is too much to infer on a {} with only {} tips. '
+    c, states = min(column2annotated_states.items(), key=lambda _: len(_[1]))
+    if len(states) > num_tips * .75 and not copy_only:
+        raise ValueError('Character "{}" has {} unique states annotated in this tree: {}, '
+                         'which is too much to infer on a {} with only {} tips. '
                          'Make sure the character you are analysing is discreet, and if yes use a larger tree.'
-                         .format(c, states, 'tree' if len(roots) == 1 else 'forest', num_tips))
+                         .format(c, len(states), states, 'tree' if len(roots) == 1 else 'forest', num_tips))
 
     if name_column and name_column not in columns:
         raise ValueError('The name column ("{}") should be one of those specified as columns ({}).'
