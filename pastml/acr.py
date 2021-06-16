@@ -7,6 +7,7 @@ from multiprocessing.pool import ThreadPool
 import numpy as np
 import pandas as pd
 from Bio.Phylo import NewickIO, write
+from Bio.Phylo.NewickIO import StringIO
 from ete3 import Tree
 
 from pastml.models.rate_matrix import CUSTOM_RATES, load_custom_rates
@@ -679,14 +680,14 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     new_tree = os.path.join(work_dir, get_named_tree_file(tree))
     features = [DATE, DATE_CI] + list(column2states.keys())
     clear_extra_features(roots, features)
-    nwks = [root.write(format_root_node=True, format=3, features=features) for root in roots]
+    nwks = '\n'.join([root.write(format_root_node=True, format=3, features=features) for root in roots])
     with open(new_tree, 'w+') as f:
-        f.write('\n'.join(nwks))
+        f.write(nwks)
     try:
         nexus = new_tree.replace('.nwk', '.nexus')
         if '.nexus' not in nexus:
             nexus = '{}.nexus'.format(nexus)
-        write(NewickIO.parse(nwks), nexus, 'nexus')
+        write(NewickIO.parse(StringIO(nwks)), nexus, 'nexus')
         with open(nexus, 'r') as f:
             nexus_str = f.read().replace('&&NHX:', '&')
             for feature in features:
