@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 
 from pastml.models.generator import get_pij_matrix, get_diagonalisation
@@ -34,7 +36,7 @@ def load_custom_rates(infile):
     np.fill_diagonal(rate_matrix, 0)
     n = len(rate_matrix)
     if np.count_nonzero(rate_matrix) != n * (n - 1):
-        raise ValueError('The rate matrix must not contain zero rates (apart from the diagonal).')
+        logging.getLogger('pastml').warning('The rate matrix contains zero rates (apart from the diagonal).')
     with open(infile, 'r') as f:
         states = f.readlines()[0]
         if not states.startswith('#'):

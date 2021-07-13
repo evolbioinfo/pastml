@@ -31,7 +31,7 @@ from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, 
 from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 
-PASTML_VERSION = '1.9.33'
+PASTML_VERSION = '1.9.34'
 
 warnings.filterwarnings("ignore", append=True)
 
@@ -289,10 +289,10 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                 if tau is None and tau_p is not None:
                     tau = tau_p
                 if freqs is not None and model not in {F81, HKY, CUSTOM_RATES}:
-                    logging.warning('Some frequencies were specified in the parameter file, '
-                                    'but the selected model ({}) ignores them. '
-                                    'Use F81 (or HKY for nucleotide characters only) '
-                                    'for taking user-specified frequencies into account.'.format(model))
+                    logger.warning('Some frequencies were specified in the parameter file, '
+                                   'but the selected model ({}) ignores them. '
+                                   'Use F81 (or HKY for nucleotide characters only) '
+                                   'for taking user-specified frequencies into account.'.format(model))
             optimise_sf = not sf or reoptimise
             if not sf:
                 sf = 1. / tree_stats[0]
@@ -342,10 +342,9 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             else:
                 frequencies = np.ones(n, dtype=np.float64) / n
             character2settings[character] = [prediction_method, model, states,
-                                             [frequencies, kappa, sf, tau, rate_matrix], \
+                                             [frequencies, kappa, sf, tau, rate_matrix],
                                              [optimise_frequencies, optimise_kappa, optimise_sf, optimise_tau,
-                                              frequency_smoothing], \
-                                             observed_frequencies]
+                                              frequency_smoothing], observed_frequencies]
         else:
             raise ValueError('Method {} is unknown, should be one of ML ({}), one of MP ({}) or {}'
                              .format(prediction_method, ', '.join(ML_METHODS), ', '.join(MP_METHODS), COPY))
