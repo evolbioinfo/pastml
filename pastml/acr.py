@@ -1233,7 +1233,7 @@ def main():
                            help="path to the output compressed map visualisation file (html).")
     out_group.add_argument('--pajek', required=False, default=None, type=str,
                            help="path to the output vertically compressed visualisation file (Pajek NET Format). "
-                                "Prooduced only if --html_compressed is specified.")
+                                "Produced only if --html_compressed is specified.")
     out_group.add_argument('--html', required=False, default=None, type=str,
                            help="path to the output full tree visualisation file (html).")
     out_group.add_argument('--html_mixed', required=False, default=None, type=str,
@@ -1245,7 +1245,7 @@ def main():
     parser.add_argument('--version', action='version', version='%(prog)s {version}'.format(version=PASTML_VERSION))
 
     parser.add_argument('--threads', required=False, default=0, type=int,
-                        help="Number of threads PastML can use for parallesation. "
+                        help="Number of threads PastML can use for parallelization. "
                              "By default detected automatically based on the system. "
                              "Note that PastML will at most use as many threads "
                              "as the number of characters (-c option) being analysed plus one.")
