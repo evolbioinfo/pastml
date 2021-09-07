@@ -152,7 +152,7 @@ def _parse_pastml_parameters(params, states, num_tips, reoptimise=False, skyline
 
 
 def _serialize_acr(args):
-    acr_result, work_dir = args
+    acr_result, work_dir, skyline = args
     out_param_file = \
         os.path.join(work_dir,
                      get_pastml_parameter_file(method=acr_result[METHOD],
@@ -163,6 +163,8 @@ def _serialize_acr(args):
     with open(out_param_file, 'w+') as f:
         f.write('parameter\tvalue\n')
         f.write('pastml_version\t{}\n'.format(PASTML_VERSION))
+        if skyline:
+            f.write('skyline\t{}\n'.format(' '.join('{:.3f}'.format(_) for _ in skyline)))
         for name in sorted(acr_result.keys()):
             if name not in [FREQUENCIES, STATES, MARGINAL_PROBABILITIES, KAPPA, SCALING_FACTOR, CHANGES_PER_AVG_BRANCH]:
                 if isinstance(acr_result[name], str):
@@ -751,9 +753,11 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         else:
             colours = {}
 
+    if skyline:
+        skyline = [max(max(getattr(_, DATE) for _ in tree) for tree in roots)] + skyline
     if threads > 1:
         pool = ThreadPool(processes=threads)
-        async_result = pool.map_async(func=_serialize_acr, iterable=((acr_res, work_dir) for acr_res in acr_results))
+        async_result = pool.map_async(func=_serialize_acr, iterable=((acr_res, work_dir, skyline) for acr_res in acr_results))
         if upload_to_itol:
             if DATE_LABEL == age_label:
                 try:
@@ -766,7 +770,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                                                  new_tree, itol_id, itol_project, itol_tree_name, colours))
     else:
         for acr_res in acr_results:
-            _serialize_acr((acr_res, work_dir))
+            _serialize_acr((acr_res, work_dir, skyline))
         if upload_to_itol:
             if DATE_LABEL == age_label:
                 try:
