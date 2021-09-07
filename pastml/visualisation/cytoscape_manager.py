@@ -686,7 +686,7 @@ def get_column_value_str(n, column, format_list=True, list_value=''):
 
 def visualize(forest, column2states, work_dir, name_column=None, html=None, html_compressed=None, html_mixed=None,
               tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, date_label='Dist. to root', timeline_type=TIMELINE_SAMPLED,
-              local_css_js=False, column2colours=None, focus=None):
+              local_css_js=False, column2colours=None, focus=None, pajek=None):
     for tree in forest:
         nodes_in_focus = set()
         for node in tree.traverse():
@@ -799,7 +799,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
 
     if html_compressed:
         compressed_forest = [compress_tree(tree, columns=column2states.keys(), tip_size_threshold=tip_size_threshold,
-                                           mixed=False) for tree in forest]
+                                           mixed=False, pajek=pajek) for tree in forest]
         milestone_labels, milestones = update_milestones(forest, date_label, milestone_labels, milestones,
                                                          timeline_type)
 

@@ -66,9 +66,11 @@ def get_forest_stats(forest):
                     len_sum_int += node.dist
                     max_len_int = max(max_len_int, node.dist)
 
-    avg_len = (len_sum_ext + len_sum_int) / (num_nodes - num_zero_nodes)
-    avg_len_ext = len_sum_ext / (num_tips - num_zero_tips)
-    avg_len_int = len_sum_int / (num_nodes - num_tips - num_zero_nodes + num_zero_tips)
+    avg_len = (len_sum_ext + len_sum_int) / (num_nodes - num_zero_nodes) if num_nodes > num_zero_nodes else 0
+    avg_len_ext = len_sum_ext / (num_tips - num_zero_tips) if num_tips > num_zero_tips else 0
+    avg_len_int = len_sum_int / (num_nodes - num_tips - num_zero_nodes + num_zero_tips) \
+        if (num_nodes - num_tips - num_zero_nodes + num_zero_tips) > 0 else 0
+
     logging.getLogger('pastml').debug('\n=============TREE STATISTICS===================\n'
                                       '\tnumber of tips:\t{}\n'
                                       '\tnumber of zero-branch tips:\t{}\n'

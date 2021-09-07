@@ -18,7 +18,7 @@ DATE_CI = 'date_CI'
 
 DATE_REGEX = r'[+-]*[\d]+[.\d]*(?:[e][+-][\d]+){0,1}'
 DATE_COMMENT_REGEX = '[&,:]date[=]["]{{0,1}}({})["]{{0,1}}'.format(DATE_REGEX)
-CI_DATE_REGEX_LSD = '[&,:]CI_date[=]["]{{0,1}}({}) ({})["]{{0,1}}'.format(DATE_REGEX, DATE_REGEX)
+CI_DATE_REGEX_LSD = '[&,:]CI_date[=]["]{{0,1}}[{{]{{0,1}}({})\s*[,;]{{0,1}}\s*({})[}}]{{0,1}}["]{{0,1}}'.format(DATE_REGEX, DATE_REGEX)
 CI_DATE_REGEX_PASTML = '[&,:]date_CI[=]["]{{0,1}}({})[|]({})["]{{0,1}}'.format(DATE_REGEX, DATE_REGEX)
 COLUMN_REGEX_PASTML = '[&,]{column}[=]([^]^,]+)'
 
@@ -208,7 +208,12 @@ def parse_nexus(tree_path, columns=None):
                 dist = float(clade.branch_length)
             except:
                 pass
-            node = TreeNode(dist=dist, name=getattr(clade, 'name', None))
+            name = getattr(clade, 'name', None)
+            if not name:
+                name = getattr(clade, 'confidence', None)
+                if not isinstance(name, str):
+                    name = None
+            node = TreeNode(dist=dist, name=name)
             if parent is None:
                 tree = node
             else:

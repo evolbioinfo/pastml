@@ -7,6 +7,7 @@ from multiprocessing.pool import ThreadPool
 import numpy as np
 import pandas as pd
 from Bio.Phylo import NewickIO, write
+from Bio.Phylo.NewickIO import StringIO
 from ete3 import Tree
 
 from pastml.models.rate_matrix import CUSTOM_RATES, load_custom_rates
@@ -32,7 +33,7 @@ from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, 
 from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 
-PASTML_VERSION = '1.9.30'
+PASTML_VERSION = '1.9.34'
 
 warnings.filterwarnings("ignore", append=True)
 
@@ -371,10 +372,9 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             else:
                 frequencies = np.array([np.ones(n, dtype=np.float64) / n] * skyline_len)
             character2settings[character] = [prediction_method, model, states,
-                                             [frequencies, kappa, sf, tau, rate_matrix], \
+                                             [frequencies, kappa, sf, tau, rate_matrix],
                                              [optimise_frequencies, optimise_kappa, optimise_sf, optimise_tau,
-                                              frequency_smoothing], \
-                                             observed_frequencies]
+                                              frequency_smoothing], observed_frequencies]
         else:
             raise ValueError('Method {} is unknown, should be one of ML ({}), one of MP ({}) or {}'
                              .format(prediction_method, ', '.join(ML_METHODS), ', '.join(MP_METHODS), COPY))
@@ -488,7 +488,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
                     itol_tree_name=None, offline=False, threads=0, reoptimise=False, focus=None,
                     resolve_polytomies=False, smoothing=False, frequency_smoothing=False,
-                    skyline=None):
+                    skyline=None, pajek=None):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -635,6 +635,9 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     :type out_data: str
     :param html_compressed: path to the output compressed visualisation file (html).
     :type html_compressed: str
+    :param pajek: path to the output vertically compressed visualisation file (Pajek NET Format).
+        Prooduced only if html_compressed is specified.
+    :type pajek: str
     :param html: (optional) path to the output tree visualisation file (html).
     :type html: str
     :param html_mixed: (optional) path to the output mostly compressed map visualisation file (html),
@@ -716,14 +719,14 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     features = [DATE, DATE_CI] + list(column2states.keys())
     clear_extra_features(roots, features)
 
-    nwks = [root.write(format_root_node=True, format=3, features=features) for root in roots]
+    nwks = '\n'.join([root.write(format_root_node=True, format=3, features=features) for root in roots])
     with open(new_tree, 'w+') as f:
-        f.write('\n'.join(nwks))
+        f.write(nwks)
     try:
         nexus = new_tree.replace('.nwk', '.nexus')
         if '.nexus' not in nexus:
             nexus = '{}.nexus'.format(nexus)
-        write(NewickIO.parse(nwks), nexus, 'nexus')
+        write(NewickIO.parse(StringIO(nwks)), nexus, 'nexus')
         with open(nexus, 'r') as f:
             nexus_str = f.read().replace('&&NHX:', '&')
             for feature in features:
@@ -818,7 +821,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         visualize(roots, column2states=column2states, html=html, html_compressed=html_compressed, html_mixed=html_mixed,
                   name_column=name_column, tip_size_threshold=tip_size_threshold, date_label=age_label,
                   timeline_type=timeline_type, work_dir=work_dir, local_css_js=offline, column2colours=colours,
-                  focus=focus)
+                  focus=focus, pajek=pajek)
 
     if threads > 1:
         async_result.wait()
@@ -916,17 +919,23 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
             column2states[c] |= {_ for _ in df[c].unique() if pd.notnull(_) and _ != ''}
 
     num_tips = 0
+
+    column2annotated_states = defaultdict(set)
     for root in roots:
         for n in root.traverse():
             for c in columns:
                 vs = getattr(n, c, set())
                 column2states[c] |= vs
+                column2annotated_states[c] |= vs
                 if vs:
                     column2annotated[c] += 1
             if n.is_leaf():
                 num_tips += 1
 
-    c, num_annotated = min(column2annotated.items(), key=lambda _: _[1])
+    if column2annotated:
+        c, num_annotated = min(column2annotated.items(), key=lambda _: _[1])
+    else:
+        c, num_annotated = columns[0], 0
     percentage_unknown = (num_tips - num_annotated) / num_tips
     if percentage_unknown >= (.9 if not copy_only else 1):
         raise ValueError('{:.1f}% of tip annotations for character "{}" are unknown, '
@@ -938,11 +947,12 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
                                  else 'You tree file should contain character state annotations, '
                                       'otherwise consider specifying a metadata file.'))
 
-    c, states = min(column2states.items(), key=lambda _: len(_[1]))
-    if len(states) > num_tips * .5 and not copy_only:
-        raise ValueError('Character "{}" has {} unique states which is too much to infer on a {} with only {} tips. '
+    c, states = min(column2annotated_states.items(), key=lambda _: len(_[1]))
+    if len(states) > num_tips * .75 and not copy_only:
+        raise ValueError('Character "{}" has {} unique states annotated in this tree: {}, '
+                         'which is too much to infer on a {} with only {} tips. '
                          'Make sure the character you are analysing is discreet, and if yes use a larger tree.'
-                         .format(c, states, 'tree' if len(roots) == 1 else 'forest', num_tips))
+                         .format(c, len(states), states, 'tree' if len(roots) == 1 else 'forest', num_tips))
 
     if name_column and name_column not in columns:
         raise ValueError('The name column ("{}") should be one of those specified as columns ({}).'
@@ -1221,6 +1231,9 @@ def main():
                            .format(', '.join(MARGINAL_ML_METHODS)))
     out_group.add_argument('--html_compressed', required=False, default=None, type=str,
                            help="path to the output compressed map visualisation file (html).")
+    out_group.add_argument('--pajek', required=False, default=None, type=str,
+                           help="path to the output vertically compressed visualisation file (Pajek NET Format). "
+                                "Prooduced only if --html_compressed is specified.")
     out_group.add_argument('--html', required=False, default=None, type=str,
                            help="path to the output full tree visualisation file (html).")
     out_group.add_argument('--html_mixed', required=False, default=None, type=str,
