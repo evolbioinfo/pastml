@@ -1170,7 +1170,7 @@ def main():
                            help="date(s) of the changes in model parameters "
                                 "(for non-dated tree(s) should be expressed as distance to root), "
                                 "if specified, model parameters will be allowed to change between the time intervals.",
-                           type=str, nargs='*')
+                           type=float, nargs='*')
 
     vis_group = parser.add_argument_group('visualisation-related arguments')
     vis_group.add_argument('-n', '--name_column', type=str, default=None,
