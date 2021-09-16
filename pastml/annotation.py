@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 
 import pandas as pd
 import numpy as np
@@ -119,11 +120,13 @@ def preannotate_forest(forest, df=None, gdf=None):
     return gdf.columns, gdf
 
 
-def annotate_skyline(forest, skyline):
-    if not skyline:
-        return 1
+def annotate_skyline(forest, skyline, first_column, column2states, skyline_mapping=None):
     min_date, max_date = min(getattr(tree, DATE) for tree in forest), \
                          max(max(getattr(_, DATE) for _ in tree) for tree in forest)
+    if not skyline:
+        for col in column2states.keys():
+            column2states[col] = [column2states[col]]
+        return None, None, [min_date]
     # let's make the skyline contain starting dates, so that the intervals will be [skyline[i], skyline[i+1])
     start_skyline = max(_ for _ in skyline if _ <= min_date) if any(_ for _ in skyline if _ <= min_date) else min_date
     if not any(_ for _ in skyline if _ < max_date):
@@ -134,7 +137,9 @@ def annotate_skyline(forest, skyline):
     if not skyline or len(skyline) == 1 and skyline[0] <= min_date:
         logging.getLogger('pastml').warning('The skyline dates provided are outside of the tree dates: {} - {}, '
                                             'so we will apply the same model everywhere.'.format(min_date, max_date))
-        return 1
+        for col in column2states.keys():
+            column2states[col] = [column2states[col]]
+        return None, None, [min_date]
     elif skyline[0] > min_date:
         skyline = [min_date] + skyline
 
@@ -142,23 +147,96 @@ def annotate_skyline(forest, skyline):
                                       'the skyline intervals start at the following dates: {}.'
                                       .format(min_date, max_date, ', '.join(str(_) for _ in skyline)))
 
+    if skyline_mapping:
+        df = pd.read_csv(skyline_mapping, sep='\t')
+        expected_columns = [first_column] + [str(_) for _ in skyline[1:]]
+        try:
+            converted_columns = {float(_) for _ in df.columns if _ != first_column}
+        except:
+            converted_columns = set()
+        if first_column not in df.columns or set(skyline[1:]) != converted_columns:
+            raise ValueError('Skyline mapping is specified in {} but instead of containing columns {} it contains {}'
+                             .format(skyline_mapping, ', '.join(expected_columns), df.columns))
+
+        def get_states(state, source_col, target_col):
+            target_states = {_ for _ in df.loc[df[source_col] == state, target_col].unique() if not pd.isna(_)}
+            if not target_states:
+                raise ValueError('Could not find the states corresponding to {} of {} in {}'
+                                 .format(state, source_col, target_col))
+            return target_states
+
+        mapping = {}
+        prev_states = None
+        prev_col = None
+        all_states = []
+        for i, year in enumerate(skyline[1:], start=0):
+            col = next(_ for _ in df.columns if _ != first_column and float(_) == year)
+            states = {_ for _ in df[col].unique() if not pd.isna(_)}
+            if i > 0:
+                mapping[(i - 1, i)] = {state: get_states(state, prev_col, col) for state in prev_states}
+                mapping[(i, i - 1)] = {state: get_states(state, col, prev_col) for state in states}
+            prev_col, prev_states = col, states
+            all_states.append(np.array(sorted(prev_states)))
+
+        states = {_ for _ in df[first_column].unique() if not pd.isna(_)}
+        mapping[(len(skyline) - 2, len(skyline) - 1)] = {state: get_states(state, prev_col, first_column) for state in prev_states}
+        mapping[(len(skyline) - 1, len(skyline) - 2)] = {state: get_states(state, first_column, prev_col) for state in states}
+        all_states.append(np.array(sorted(states)))
+
+        skyline_mapping = {}
+        skyline_mapping_pars = mapping
+        for (i, j), state2states in mapping.items():
+            mapping_ij = np.zeros(shape=(len(all_states[i]), len(all_states[j])), dtype=float)
+            skyline_mapping[(i, j)] = mapping_ij
+            for (from_i,  from_state) in enumerate(all_states[i]):
+                to_states = state2states[from_state]
+                for (to_j, to_state) in enumerate(all_states[j]):
+                    if to_state in to_states:
+                        mapping_ij[from_i, to_j] = 1
+
+        column2states[first_column] = all_states
+    else:
+        skyline_mapping = None
+        skyline_mapping_pars = None
+        column2states[first_column] = [column2states[first_column]] * len(skyline)
+    skyline_mapping = {first_column: skyline_mapping}
+    skyline_mapping_pars = {first_column: skyline_mapping_pars}
+    for col in column2states.keys():
+        if col != first_column:
+            column2states[col] = [column2states[col]] * len(skyline)
+            skyline_mapping[col] = None
+            skyline_mapping_pars[col] = None
+
+    i2state_set = dict(zip(range(len(skyline)), (set(_) for _ in column2states[first_column])))
+
     def annotate_node_skyline(node, i):
         n_sk = 0
         for j in range(i, len(skyline)):
             if skyline[j] <= getattr(node, DATE) and (j + 1 == len(skyline) or getattr(node, DATE) < skyline[j + 1]):
                 break
         node.add_feature(MODEL_ID, j)
+        node_states = getattr(node, first_column, set())
+        if node_states - i2state_set[j]:
+            raise ValueError('Node {} has states that do not correspond to its skyline date ({}): {}.'
+                             .format(node.name, getattr(node, DATE), ', '.join(node_states - i2state_set[j])))
         children = list(node.children)
         for child in children:
             if (j + 1) < len(skyline) and getattr(child, DATE) > skyline[j + 1]:
                 new_child_dist = getattr(child, DATE) - skyline[j + 1]
-                skyline_node = node.add_child(name='{}_{}_skyline'.format(child.name, skyline[j + 1]),
-                                              dist=child.dist - new_child_dist)
-                skyline_node.add_feature(DATE, skyline[j + 1])
-                skyline_node.add_feature(SKYLINE, True)
+                skyline_node_up = node.add_child(name='{}_{}_skyline_up'.format(child.name, skyline[j + 1]),
+                                                 dist=child.dist - new_child_dist)
+                skyline_node_up.add_feature(DATE, skyline[j + 1])
+                skyline_node_up.add_feature(SKYLINE, True)
+                skyline_node_up.add_feature(MODEL_ID, j)
+                skyline_node_down = skyline_node_up.add_child(name='{}_{}_skyline_down'.format(child.name, skyline[j + 1]),
+                                                              dist=0)
+                skyline_node_down.add_feature(DATE, skyline[j + 1])
+                skyline_node_down.add_feature(SKYLINE, True)
+                skyline_node_down.add_feature(MODEL_ID, j + 1)
+
                 node.remove_child(child)
-                skyline_node.add_child(child, dist=new_child_dist)
-                n_sk += 1 + annotate_node_skyline(skyline_node, j + 1)
+                skyline_node_down.add_child(child, dist=new_child_dist)
+                n_sk += 1 + annotate_node_skyline(child, j + 1)
             else:
                 n_sk += annotate_node_skyline(child, j)
         return n_sk
@@ -167,7 +245,7 @@ def annotate_skyline(forest, skyline):
 
     logging.getLogger('pastml').debug('Created {} skyline nodes.'.format(n_skyline))
 
-    return len(skyline)
+    return skyline_mapping, skyline_mapping_pars, skyline
 
 
 def remove_skyline(forest):
@@ -184,5 +262,5 @@ def remove_skyline(forest):
                 parent.remove_child(n)
                 n_skyline += 1
     if n_skyline:
-        logging.getLogger('pastml').debug('Removed {} skyline nodes.'.format(n_skyline))
+        logging.getLogger('pastml').debug('Removed {} skyline nodes.'.format(n_skyline / 2))
 

@@ -4,7 +4,7 @@ from collections import Counter
 
 import pandas as pd
 
-from pastml.tree import read_tree, collapse_zero_branches
+from pastml.tree import read_tree, collapse_zero_branches, annotate_dates
 from pastml.acr import acr
 from pastml.parsimony import ACCTRAN, STEPS
 
@@ -16,7 +16,8 @@ feature = 'Country'
 df = pd.read_csv(STATES_INPUT, index_col=0, header=0)[[feature]]
 tree = read_tree(TREE_NWK)
 collapse_zero_branches([tree])
-acr_result = acr(tree, df, prediction_method=ACCTRAN)[0]
+annotate_dates([tree])
+acr_result = acr(tree, df, prediction_method=ACCTRAN)[0][0]
 
 
 class ACRStateAcctranTest(unittest.TestCase):

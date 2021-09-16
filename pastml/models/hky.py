@@ -4,11 +4,11 @@ HKY = 'HKY'
 
 KAPPA = 'kappa'
 
-HKY_STATES = np.array(['A', 'C', 'G', 'T'])
-A, C, G, T = 0, 1, 2, 3
+HKY_STATES = np.array(sorted(['A', 'C', 'G', 'T']))
+A, C, G, T = np.argsort(HKY_STATES)
 
 
-def get_hky_pij(t, frequencies, kappa):
+def get_hky_pij(t, frequencies, kappa, **kwargs):
     """
     Calculates the probability matrix of substitutions i->j over time t,
     with HKY model [Hasegawa, Kishino and Yano 1985], given state frequencies and kappa.

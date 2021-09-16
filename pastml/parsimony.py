@@ -2,7 +2,7 @@ import logging
 from collections import Counter
 
 from pastml import get_personalized_feature_name, METHOD, STATES, CHARACTER, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
-    NUM_NODES, NUM_TIPS, NUM_STATES_PER_NODE, PERC_UNRESOLVED, SKYLINE
+    NUM_NODES, NUM_TIPS, NUM_STATES_PER_NODE, PERC_UNRESOLVED, SKYLINE, MODEL_ID
 
 STEPS = 'steps'
 
@@ -62,12 +62,12 @@ def initialise_parsimonious_states(tree, feature, states):
     """
     ps_feature_down = get_personalized_feature_name(feature, BU_PARS_STATES)
     ps_feature = get_personalized_feature_name(feature, PARS_STATES)
-    all_states = set(states)
+    all_states = [set(_) for _ in states]
 
     for node in tree.traverse():
         state = getattr(node, feature, set())
         if not state:
-            node.add_feature(ps_feature_down, all_states)
+            node.add_feature(ps_feature_down, all_states[getattr(node, MODEL_ID, 0)])
         else:
             node.add_feature(ps_feature_down, state)
         node.add_feature(ps_feature, getattr(node, ps_feature_down))
@@ -89,7 +89,7 @@ def get_most_common_states(state_iterable):
     return {state for (state, count) in state_counter.items() if count == max_count}
 
 
-def uppass(tree, feature):
+def uppass(tree, feature, skyline_mapping=None):
     """
     UPPASS traverses the tree starting from the tips and going up till the root,
     and assigns to each parent node a state based on the states of its child nodes.
@@ -114,15 +114,33 @@ def uppass(tree, feature):
 
     ps_feature = get_personalized_feature_name(feature, BU_PARS_STATES)
 
+    def get_states(child):
+        child_chain = []
+        while getattr(child, SKYLINE, False):
+            child_chain.append(child)
+            child = child.children[0]
+        states = getattr(child, ps_feature)
+        if not skyline_mapping:
+            return states
+        source_model = getattr(child, MODEL_ID, 0)
+        for skyline in reversed(child_chain):
+            model = getattr(skyline, MODEL_ID, 0)
+            if source_model != model:
+                states = set.union(*(skyline_mapping[(source_model, model)][_] for _ in states))
+                source_model = model
+        return states
+
     for node in tree.traverse('postorder'):
+        if getattr(node, SKYLINE, False):
+            continue
         if not node.is_leaf():
-            children_states = get_most_common_states(getattr(child, ps_feature) for child in node.children)
+            children_states = get_most_common_states(get_states(child) for child in node.children)
             node_states = getattr(node, ps_feature)
             state_intersection = node_states & children_states
             node.add_feature(ps_feature, state_intersection if state_intersection else node_states)
 
 
-def acctran(tree, character, feature=PARS_STATES):
+def acctran(tree, character, feature=PARS_STATES, skyline_mapping=None):
     """
     ACCTRAN (accelerated transformation) (Farris, 1970) aims at reducing the number of ambiguities
     in the parsimonious result. ACCTRAN forces the state changes to be performed as close to the root as possible,
@@ -148,17 +166,33 @@ def acctran(tree, character, feature=PARS_STATES):
 
     ps_feature_down = get_personalized_feature_name(character, BU_PARS_STATES)
 
+    def set_states(child, source_model, node_states):
+        child_chain = []
+        while getattr(child, SKYLINE, False):
+            child_chain.append(child)
+            child = child.children[0]
+        child_states = getattr(child, ps_feature_down)
+        if skyline_mapping:
+            for skyline in child_chain:
+                model = getattr(skyline, MODEL_ID, 0)
+                if source_model != model:
+                    node_states = set.union(*(skyline_mapping[(source_model, model)][_] for _ in node_states))
+                    source_model = model
+        state_intersection = node_states & child_states
+        child.add_feature(feature, state_intersection if state_intersection else child_states)
+
     for node in tree.traverse('preorder'):
+        if getattr(node, SKYLINE, False):
+            continue
         if node.is_root():
             node.add_feature(feature, getattr(node, ps_feature_down))
         node_states = getattr(node, feature)
+        node_model = getattr(node, MODEL_ID, 0)
         for child in node.children:
-            child_states = getattr(child, ps_feature_down)
-            state_intersection = node_states & child_states
-            child.add_feature(feature, state_intersection if state_intersection else child_states)
+            set_states(child, node_model, node_states)
 
 
-def downpass(tree, feature, states):
+def downpass(tree, feature, states, skyline_mapping=None):
     """
     DOWNPASS traverses the tree starting from the root and going down till the tips,
     and for each node combines the state information from its supertree and its subtree (calculated at UPPASS).
@@ -190,16 +224,53 @@ def downpass(tree, feature, states):
     ps_feature_up = get_personalized_feature_name(feature, TD_PARS_STATES)
     ps_feature = get_personalized_feature_name(feature, PARS_STATES)
 
+    def get_child_states(child):
+        child_chain = []
+        while getattr(child, SKYLINE, False):
+            child_chain.append(child)
+            child = child.children[0]
+        states = getattr(child, ps_feature_down)
+        if not skyline_mapping:
+            return states, child
+        source_model = getattr(child, MODEL_ID, 0)
+        for skyline in reversed(child_chain):
+            model = getattr(skyline, MODEL_ID, 0)
+            if source_model != model:
+                states = set.union(*(skyline_mapping[(source_model, model)][_] for _ in states))
+                source_model = model
+        return states, child
+
+    def get_parent_states(parent):
+        parent_chain = []
+        while getattr(parent, SKYLINE, False):
+            parent_chain.append(parent)
+            parent = parent.up
+        states = getattr(parent, ps_feature_up)
+        if not skyline_mapping:
+            return states, parent
+        source_model = getattr(parent, MODEL_ID, 0)
+        for skyline in reversed(parent_chain):
+            model = getattr(skyline, MODEL_ID, 0)
+            if source_model != model:
+                states = set.union(*(skyline_mapping[(source_model, model)][_] for _ in states))
+                source_model = model
+        return states, parent
+
     for node in tree.traverse('preorder'):
+        if getattr(node, SKYLINE, False):
+            continue
         if node.is_root():
-            node.add_feature(ps_feature_up, set(states))
+            node.add_feature(ps_feature_up, set(states[getattr(node, MODEL_ID, 0)]))
         else:
-            node.add_feature(ps_feature_up,
-                             get_most_common_states([getattr(node.up, ps_feature_up)]
-                                                    + [getattr(sibling, ps_feature_down) for sibling in node.up.children
-                                                       if sibling != node]))
+            p_states, parent = get_parent_states(node.up)
+            sts = [p_states]
+            for sibling in parent.children:
+                s_states, sibling = get_child_states(sibling)
+                if sibling != node:
+                    sts.append(s_states)
+            node.add_feature(ps_feature_up, get_most_common_states(sts))
         down_up_states = get_most_common_states([getattr(node, ps_feature_up)]
-                                                + [getattr(child, ps_feature_down) for child in node.children]) \
+                                                + [get_child_states(child)[0] for child in node.children]) \
             if not node.is_leaf() else getattr(node, ps_feature_up)
         preset_states = getattr(node, ps_feature)
         state_intersection = down_up_states & preset_states
@@ -210,7 +281,7 @@ def downpass(tree, feature, states):
         node.del_feature(ps_feature_up)
 
 
-def deltran(tree, feature):
+def deltran(tree, feature, skyline_mapping=None):
     """
     DELTRAN (delayed transformation) (Swofford & Maddison, 1987) aims at reducing the number of ambiguities
     in the parsimonious result. DELTRAN makes the changes as close as possible to the leaves,
@@ -233,16 +304,32 @@ def deltran(tree, feature):
     """
     ps_feature = get_personalized_feature_name(feature, PARS_STATES)
 
+    def get_parent_states(parent):
+        parent_chain = []
+        while getattr(parent, SKYLINE, False):
+            parent_chain.append(parent)
+            parent = parent.up
+        states = getattr(parent, ps_feature)
+        if not skyline_mapping:
+            return states
+        source_model = getattr(parent, MODEL_ID, 0)
+        for skyline in reversed(parent_chain):
+            model = getattr(skyline, MODEL_ID, 0)
+            if source_model != model:
+                states = set.union(*(skyline_mapping[(source_model, model)][_] for _ in states))
+                source_model = model
+        return states
+
     for node in tree.traverse('preorder'):
-        if not node.is_root():
+        if not node.is_root() and not getattr(node, SKYLINE, False):
             node_states = getattr(node, ps_feature)
-            parent_states = getattr(node.up, ps_feature)
+            parent_states = get_parent_states(node.up)
             state_intersection = node_states & parent_states
             if state_intersection:
                 node.add_feature(ps_feature, state_intersection)
 
 
-def parsimonious_acr(forest, character, prediction_method, states, num_nodes, num_tips):
+def parsimonious_acr(forest, character, prediction_method, states, num_nodes, num_tips, skyline_mapping=None):
     """
     Calculates parsimonious states on the trees and stores them in the corresponding feature.
 
@@ -263,7 +350,7 @@ def parsimonious_acr(forest, character, prediction_method, states, num_nodes, nu
     """
     for tree in forest:
         initialise_parsimonious_states(tree, character, states)
-        uppass(tree, character)
+        uppass(tree, character, skyline_mapping)
 
     results = []
     result = {STATES: states, NUM_NODES: num_nodes, NUM_TIPS: num_tips}
@@ -296,7 +383,7 @@ def parsimonious_acr(forest, character, prediction_method, states, num_nodes, nu
             feature = get_personalized_feature_name(feature, ACCTRAN)
         result[STEPS] = 0
         for tree in forest:
-            acctran(tree, character, feature)
+            acctran(tree, character, feature, skyline_mapping)
             result[STEPS] += get_num_parsimonious_steps(tree, feature)
         process_result(ACCTRAN, feature)
 
@@ -311,14 +398,14 @@ def parsimonious_acr(forest, character, prediction_method, states, num_nodes, nu
         feature = get_personalized_feature_name(character, PARS_STATES)
         result[STEPS] = 0
         for tree in forest:
-            downpass(tree, character, states)
+            downpass(tree, character, states, skyline_mapping)
             if prediction_method == DOWNPASS:
                 result[STEPS] += get_num_parsimonious_steps(tree, feature)
         if prediction_method in {DOWNPASS, MP}:
             process_result(DOWNPASS, feature)
         if prediction_method in {DELTRAN, MP}:
             for tree in forest:
-                deltran(tree, character)
+                deltran(tree, character, skyline_mapping)
                 if prediction_method == DELTRAN:
                     result[STEPS] += get_num_parsimonious_steps(tree, feature)
             process_result(DELTRAN, feature)

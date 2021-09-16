@@ -706,6 +706,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
 
     name2colour = {}
     for column, states in column2states.items():
+        states = sorted(set.union(*(set(_) for _ in states)))
         num_unique_values = len(states)
         colours = None
         if column2colours and column in column2colours:

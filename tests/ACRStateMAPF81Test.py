@@ -5,7 +5,7 @@ from collections import Counter
 import pandas as pd
 import numpy as np
 
-from pastml.tree import read_tree, collapse_zero_branches
+from pastml.tree import read_tree, collapse_zero_branches, annotate_dates
 from pastml.acr import acr
 from pastml.ml import MAP, F81
 
@@ -16,6 +16,7 @@ STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')
 feature = 'Country'
 df = pd.read_csv(STATES_INPUT, index_col=0, header=0)[[feature]]
 tree = read_tree(TREE_NWK)
+annotate_dates([tree])
 acr(tree, df, prediction_method=MAP, model=F81)
 
 
@@ -23,6 +24,7 @@ class ACRStateMAPF81Test(unittest.TestCase):
 
     def test_collapsed_vs_full(self):
         tree_uncollapsed = read_tree(TREE_NWK)
+        annotate_dates([tree_uncollapsed])
         acr(tree_uncollapsed, df, prediction_method=MAP, model=F81)
 
         def get_state(node):

@@ -28,7 +28,7 @@ def get_mu(frequencies):
     return 1. / (1. - frequencies.dot(frequencies))
 
 
-def get_f81_pij(t, frequencies, mu):
+def get_f81_pij(t, frequencies, mu, **kwargs):
     """
     Calculate the probability of substitution i->j over time t, given the mutation rate mu:
     For F81 (and JC which is a simpler version of it)

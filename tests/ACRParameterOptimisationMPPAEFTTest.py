@@ -8,7 +8,7 @@ from pastml import get_personalized_feature_name, STATES
 from pastml.acr import acr
 from pastml.ml import LH, LH_SF, MPPA, EFT, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, CHANGES_PER_AVG_BRANCH, \
     SCALING_FACTOR, FREQUENCIES, MARGINAL_PROBABILITIES
-from pastml.tree import read_tree
+from pastml.tree import read_tree, annotate_dates
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')
@@ -37,7 +37,8 @@ def reroot_tree_randomly():
 feature = 'Country'
 df = pd.read_csv(STATES_INPUT, index_col=0, header=0)[[feature]]
 tree = read_tree(TREE_NWK)
-acr_result = acr(tree, df, prediction_method=MPPA, model=EFT)[0]
+annotate_dates([tree])
+acr_result = acr(tree, df, prediction_method=MPPA, model=EFT)[0][0]
 
 
 class ACRParameterOptimisationMPPAEFTTest(unittest.TestCase):
@@ -45,8 +46,9 @@ class ACRParameterOptimisationMPPAEFTTest(unittest.TestCase):
     def test_rerooted_values_are_the_same(self):
         for _ in range(5):
             rerooted_tree = reroot_tree_randomly()
-            rerooted_acr_result = acr(rerooted_tree, df, prediction_method=MPPA, model=EFT)[0]
-            for (state, freq, refreq) in zip(acr_result[STATES], acr_result[FREQUENCIES][0],
+            annotate_dates([rerooted_tree])
+            rerooted_acr_result = acr(rerooted_tree, df, prediction_method=MPPA, model=EFT)[0][0]
+            for (state, freq, refreq) in zip(acr_result[STATES][0], acr_result[FREQUENCIES][0],
                                              rerooted_acr_result[FREQUENCIES][0]):
                 self.assertAlmostEqual(freq, refreq, places=2,
                                        msg='Frequency of {} for the original tree and rerooted tree '
@@ -70,7 +72,7 @@ class ACRParameterOptimisationMPPAEFTTest(unittest.TestCase):
             mps = acr_result[MARGINAL_PROBABILITIES]
             remps = rerooted_acr_result[MARGINAL_PROBABILITIES]
             for node_name in ('node_4', '02ALAY1660'):
-                for loc in acr_result[STATES]:
+                for loc in acr_result[STATES][0]:
                     value = mps.loc[node_name, loc]
                     revalue = remps.loc[node_name, loc]
                     self.assertAlmostEqual(value, revalue, places=2,
@@ -101,7 +103,7 @@ class ACRParameterOptimisationMPPAEFTTest(unittest.TestCase):
     def test_frequencies(self):
         for loc, expected_value in {'Africa': 0.325, 'Albania': 0.208, 'EastEurope': 0.065,
                                     'Greece': 0.26, 'WestEurope': 0.143}.items():
-            value = acr_result[FREQUENCIES][0][np.where(acr_result[STATES] == loc)][0]
+            value = acr_result[FREQUENCIES][0][np.where(acr_result[STATES][0] == loc)][0]
             self.assertAlmostEqual(value, expected_value, places=3,
                                    msg='Frequency of {} was supposed to be the {:.3f}, got {:3f}'
                                    .format(loc, expected_value, value))

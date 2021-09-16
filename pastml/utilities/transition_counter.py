@@ -137,7 +137,7 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
                     counts[state2i[s]] += 1 / len(n_states)
 
     avg_br_len, num_nodes, num_tips, tree_len = get_forest_stats(forest)
-    freqs, sf, kappa, tau = _parse_pastml_parameters(parameters, states, num_tips=num_tips, reoptimise=False)
+    freqs, sf, kappa, tau = _parse_pastml_parameters(parameters, [states], num_tips=num_tips, reoptimise=False)
     if not tau:
         tau = 0
 
@@ -145,14 +145,14 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
                  .format(column, n_repetitions))
     logger.debug('Using the following parameters:{}{}{}{}.'
                  .format(''.join('\n\tfrequency of {}:\t{:.6f}'
-                                 .format(state, freq) for state, freq in zip(states, freqs)),
-                         '\n\tkappa:\t{:.6f}'.format(kappa) if HKY == model else '',
+                                 .format(state, freq) for state, freq in zip(states, freqs[0])),
+                         '\n\tkappa:\t{:.6f}'.format(kappa[0]) if HKY == model else '',
                          '\n\tscaling factor:\t{:.6f}, i.e. {:.6f} changes per avg branch'
-                         .format(sf, sf * avg_br_len),
+                         .format(sf[0], sf[0] * avg_br_len),
                          '\n\tsmoothing factor:\t{:.6f}'.format(tau))
                  )
-    result = marginal_counts(forest, column, model, states, num_nodes, tree_len, freqs, sf, kappa, tau,
-                             n_repetitions=n_repetitions)
+    result = marginal_counts(forest, column, model, [states], num_nodes, tree_len, freqs, sf, kappa, tau,
+                             n_repetitions=n_repetitions, skyline_mapping=None)
     df = pd.DataFrame(data=result, columns=states, index=states)
     df.to_csv(out_transitions, sep='\t', index_label='from')
     logger.info('Transition counts are saved as {}.'.format(out_transitions))

@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from pastml.models.f81_like import JC
-from pastml.tree import read_tree
+from pastml.tree import read_tree, annotate_dates
 from pastml import get_personalized_feature_name, STATES
 from pastml.acr import acr
 from pastml.ml import LH, LH_SF, MPPA, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, CHANGES_PER_AVG_BRANCH, \
@@ -38,7 +38,8 @@ def reroot_tree_randomly():
 feature = 'Country'
 df = pd.read_csv(STATES_INPUT, index_col=0, header=0)[[feature]]
 tree = read_tree(TREE_NWK)
-acr_result = acr(tree, df, prediction_method=MPPA, model=JC)[0]
+annotate_dates([tree])
+acr_result = acr(tree, df, prediction_method=MPPA, model=JC)[0][0]
 
 
 class ACRParameterOptimisationMPPAJCTest(unittest.TestCase):
@@ -46,8 +47,9 @@ class ACRParameterOptimisationMPPAJCTest(unittest.TestCase):
     def test_rerooted_values_are_the_same(self):
         for _ in range(5):
             rerooted_tree = reroot_tree_randomly()
-            rerooted_acr_result = acr(rerooted_tree, df, prediction_method=MPPA, model=JC)[0]
-            for (state, freq, refreq) in zip(acr_result[STATES], acr_result[FREQUENCIES][0],
+            annotate_dates([rerooted_tree])
+            rerooted_acr_result = acr(rerooted_tree, df, prediction_method=MPPA, model=JC)[0][0]
+            for (state, freq, refreq) in zip(acr_result[STATES][0], acr_result[FREQUENCIES][0],
                                              rerooted_acr_result[FREQUENCIES][0]):
                 self.assertAlmostEqual(freq, refreq, places=2,
                                        msg='Frequency of {} for the original tree and rerooted tree '
@@ -71,7 +73,7 @@ class ACRParameterOptimisationMPPAJCTest(unittest.TestCase):
             mps = acr_result[MARGINAL_PROBABILITIES]
             remps = rerooted_acr_result[MARGINAL_PROBABILITIES]
             for node_name in ('node_4', '02ALAY1660'):
-                for loc in acr_result[STATES]:
+                for loc in acr_result[STATES][0]:
                     value = mps.loc[node_name, loc]
                     revalue = remps.loc[node_name, loc]
                     self.assertAlmostEqual(value, revalue, places=2,

@@ -12,7 +12,7 @@ from ete3 import Tree
 
 from pastml.models.rate_matrix import CUSTOM_RATES, load_custom_rates
 from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, numeric2datetime, \
-    datetime2numeric
+    datetime2numeric, MODEL_ID
 from pastml.annotation import preannotate_forest, get_forest_stats, get_min_forest_stats, annotate_skyline, \
     remove_skyline
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
@@ -76,15 +76,17 @@ def _parse_pastml_parameters(params, states, num_tips, reoptimise=False, skyline
                              'the first one containing parameter names, '
                              'and the second, named "value", containing parameter values.'.format(params))
     params = {str(k.encode('ASCII', 'replace').decode()): v for (k, v) in params.items()}
-    known_freq_states = set(states) & set(params.keys())
+    all_states = set.union(*(set(_) for _ in states))
+    known_freq_states = all_states & set(params.keys())
     if known_freq_states:
-        unknown_freq_states = [state for state in states if state not in params.keys()]
+        unknown_freq_states = [state for state in all_states if state not in params.keys()]
         if unknown_freq_states and not reoptimise:
             logger.error('Frequencies for some of the states ({}) are missing, '
                          'ignoring the specified frequencies.'.format(', '.join(unknown_freq_states)))
         else:
-            frequencies = np.zeros(shape=(skyline_len, len(states)), dtype=np.float64)
-            for i, state in enumerate(states):
+            frequencies = np.zeros(shape=(skyline_len, len(all_states)), dtype=np.float64)
+            all_states = np.array(sorted(all_states))
+            for i, state in enumerate(all_states):
                 if state in params.keys():
                     try:
                         freqs = __get_float_array(params[state], skyline_len)
@@ -94,6 +96,11 @@ def _parse_pastml_parameters(params, states, num_tips, reoptimise=False, skyline
                                      'ignoring the specified frequencies.'.format(state, params[state]))
                         frequencies = None
                         break
+            if skyline_len > 1:
+                frequencies = \
+                    [np.array([f for (f, take) in zip(frequencies[i, :], np.isin(all_states, states[i])) if take])
+                     for i in range(skyline_len)]
+
             if frequencies is not None:
                 for i in range(skyline_len):
                     if np.round(frequencies[i].sum() - 1, 2) != 0 and not reoptimise:
@@ -163,7 +170,7 @@ def _serialize_acr(args):
     with open(out_param_file, 'w+') as f:
         f.write('parameter\tvalue\n')
         f.write('pastml_version\t{}\n'.format(PASTML_VERSION))
-        if skyline:
+        if skyline and len(skyline) > 1:
             f.write('skyline\t{}\n'.format(' '.join('{:.3f}'.format(_) for _ in skyline)))
         for name in sorted(acr_result.keys()):
             if name not in [FREQUENCIES, STATES, MARGINAL_PROBABILITIES, KAPPA, SCALING_FACTOR, CHANGES_PER_AVG_BRANCH]:
@@ -177,8 +184,14 @@ def _serialize_acr(args):
             elif name in [KAPPA, SCALING_FACTOR, CHANGES_PER_AVG_BRANCH]:
                 f.write('{}\t{}\n'.format(name, ' '.join('{:.18f}'.format(_) for _ in acr_result[name])))
         if is_ml(acr_result[METHOD]):
-            for state, freq in zip(acr_result[STATES], np.array(acr_result[FREQUENCIES]).transpose()):
-                f.write('{}\t{}\n'.format(state, ' '.join('{:.18f}'.format(_) for _ in freq)))
+            all_states = sorted(set.union(*(set(_) for _ in acr_result[STATES])))
+            state2freqs = {s: np.zeros(len(acr_result[STATES])) for s in all_states}
+            for i, (states, freqs) in enumerate(zip(acr_result[STATES], acr_result[FREQUENCIES])):
+                for s, fr in zip(states, freqs):
+                    state2freqs[s][i] = fr
+
+            for state in all_states:
+                f.write('{}\t{}\n'.format(state, ' '.join('{:.18f}'.format(_) for _ in state2freqs[state])))
     logging.getLogger('pastml').debug('Serialized ACR parameters and statistics for {} to {}.'
                                       .format(acr_result[CHARACTER], out_param_file))
 
@@ -196,7 +209,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         column2parameters=None, column2rates=None,
         force_joint=True, threads=0,
         reoptimise=False, tau=0, resolve_polytomies=False, frequency_smoothing=False,
-        skyline=None):
+        skyline=None, skyline_mapping=None):
     """
     Reconstructs ancestral states for the given tree and
     all the characters specified as columns of the given annotation dataframe.
@@ -253,10 +266,14 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         column2states = {column: np.array(sorted([_ for _ in df[column].unique() if not pd.isna(_) and '' != _]))
                          for column in columns}
         preannotate_forest(forest, df=df)
+    elif column2states is not None:
+        column2states = {column: np.array(sorted(sts)) for column, sts in column2states.items()}
 
     tree_stats = get_forest_stats(forest)
 
-    skyline_len = annotate_skyline(forest, skyline)
+    skyline_mapping, skyline_mapping_pars, skyline = \
+        annotate_skyline(forest, skyline, columns[0], column2states, skyline_mapping)
+    skyline_len = len(skyline)
 
     logging.getLogger('pastml').debug('\n=============ACR===============================')
 
@@ -271,16 +288,18 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         if not is_ml(method) or model not in {HKY, JTT}:
             return initial_states
         states = HKY_STATES if HKY == model else JTT_STATES
-        if not set(initial_states) & set(states):
-            raise ValueError('The allowed states for model {} are {}, '
-                             'but your annotation file specifies {} as states in column {}.'
-                             .format(model, ', '.join(states), ', '.join(initial_states), column))
+
+        for _ in initial_states:
+            if not set(_) & set(states):
+                raise ValueError('The allowed states for model {} are {}, '
+                                 'but your annotation file specifies {} as states in column {}.'
+                                 .format(model, ', '.join(states), ', '.join(_), column))
         state_set = set(states)
         for root in forest:
             for n in root.traverse():
                 if hasattr(n, column):
-                    n.add_feature(column, state_set & getattr(n, column))
-        return states
+                    n.add_feature(column, state_set & getattr(n, column, set()))
+        return [states] * skyline_len
 
     # If we gonna resolve polytomies we might need to get back to the initial states so let's memorise them
     n2c2states = defaultdict(dict)
@@ -311,8 +330,10 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                     raise ValueError('For {} model rate matrix and frequencies '
                                      'must be specified in the rate matrix and input parameter files.'
                                      .format(CUSTOM_RATES))
+                if skyline_len > 1:
+                    raise ValueError('Cannot combine skyline with custom rates')
                 states, rate_matrix = load_custom_rates(rate_file)
-                column2states[character] = states
+                column2states[character] = [states]
             states = get_states(prediction_method, model, character)
 
             if params is not None:
@@ -339,40 +360,47 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             if model not in {F81, HKY, CUSTOM_RATES} or freqs is None:
                 frequency_smoothing = False
 
-            n = len(states)
-            missing_data = 0.
-            state2index = dict(zip(states, range(n)))
-            observed_frequencies = np.zeros(n, np.float64)
+            missing_data = [0.] * skyline_len
+            state2index = [dict(zip(_, range(len(_)))) for _ in states]
+            observed_frequencies = [np.zeros(len(_), np.float64) for _ in states]
             for tree in forest:
                 for _ in tree:
                     state = getattr(_, character, set())
+                    j = getattr(_, MODEL_ID, 0)
                     if state:
                         num_node_states = len(state)
                         for _ in state:
-                            observed_frequencies[state2index[_]] += 1. / num_node_states
+                            observed_frequencies[j][state2index[j][_]] += 1. / num_node_states
                     else:
-                        missing_data += 1
-            total_count = observed_frequencies.sum() + missing_data
-            observed_frequencies /= observed_frequencies.sum()
-            missing_data /= total_count
+                        missing_data[j] += 1
+            for i in range(len(states)):
+                total_count = observed_frequencies[i].sum() + missing_data[i]
+                if 0 == observed_frequencies[i].sum():
+                    observed_frequencies[i] = np.ones(len(states[i]), dtype=np.float64) / len(states[i])
+                    missing_data[i] = 1
+                else:
+                    observed_frequencies[i] /= observed_frequencies[i].sum()
+                    missing_data[i] /= total_count
 
             logger = logging.getLogger('pastml')
-            logger.debug('Observed frequencies for {}:{}{}.'
-                         .format(character,
-                                 ''.join('\n\tfrequency of {}:\t{:.6f}'
-                                         .format(state, observed_frequencies[state2index[state]]) for state in states),
-                                 '\n\tfraction of missing data:\t{:.6f}'
-                                 .format(missing_data) if missing_data else '')
-                         )
-
+            for i in range(skyline_len):
+                logger.debug('Observed frequencies {}{}:{}{}.'
+                             .format(character,
+                                     ' (skyline starting at {})'.format(skyline[i]) if skyline_len > 1 else '',
+                                     ''.join('\n\tfrequency of {}:\t{:.6f}'
+                                             .format(state, observed_frequencies[i][state2index[i][state]])
+                                             for state in states[i]) if 1 > missing_data[i] else '',
+                                     '\n\tfraction of missing data:\t{:.6f}'
+                                     .format(missing_data[i]) if missing_data[i] else '')
+                             )
             if JTT == model:
                 frequencies = np.array([JTT_FREQUENCIES] * skyline_len)
             elif EFT == model:
-                frequencies = np.array([observed_frequencies] * skyline_len)
+                frequencies = observed_frequencies
             elif model in {F81, HKY, CUSTOM_RATES} and freqs is not None:
                 frequencies = freqs
             else:
-                frequencies = np.array([np.ones(n, dtype=np.float64) / n] * skyline_len)
+                frequencies = [np.ones(len(_), dtype=np.float64) / len(_) for _ in states]
             character2settings[character] = [prediction_method, model, states,
                                              [frequencies, kappa, sf, tau, rate_matrix],
                                              [optimise_frequencies, optimise_kappa, optimise_sf, optimise_tau,
@@ -399,10 +427,13 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                           optimise_frequencies=optimise_frequencies, optimise_sf=optimise_sf,
                           optimise_kappa=optimise_kappa, optimise_tau=optimise_tau,
                           frequency_smoothing=frequency_smoothing,
-                          observed_frequencies=observed_frequencies)
+                          observed_frequencies=observed_frequencies, skyline=skyline,
+                          skyline_mapping=skyline_mapping[character] if skyline_mapping else None,
+                          skyline_mapping_parsimony=skyline_mapping_pars[character] if skyline_mapping_pars else None)
         if is_parsimonious(prediction_method):
             return parsimonious_acr(forest=forest, character=character, prediction_method=prediction_method,
-                                    states=states, num_nodes=tree_stats[1], num_tips=tree_stats[2])
+                                    states=states, num_nodes=tree_stats[1], num_tips=tree_stats[2],
+                                    skyline_mapping=skyline_mapping_pars[character] if skyline_mapping_pars else None)
 
     if threads > 1:
         with ThreadPool(processes=threads) as pool:
@@ -464,7 +495,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
 
     remove_skyline(forest)
 
-    return acr_results
+    return acr_results, skyline
 
 
 def flatten_lists(lists):
@@ -490,7 +521,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
                     itol_tree_name=None, offline=False, threads=0, reoptimise=False, focus=None,
                     resolve_polytomies=False, smoothing=False, frequency_smoothing=False,
-                    skyline=None, pajek=None):
+                    skyline=None, skyline_mapping=None, pajek=None):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -591,7 +622,16 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         (for non-dated tree(s) should be expressed as distance to root), if specified,
         model parameters will be allowed to change between the time intervals.
     :type skyline: list(float)
-
+    :param skyline_mapping: optional way to specify the mappings between different skyline states if they change over time.
+        Should be specified as a path to the mapping file (only for the first character).
+        The file should be tab-delimited, with length of the skyline + 1 columns:
+        the first one containing character states at the date of the latest tip and named as the character,
+        and the others, named by skyline dates, containing the corresponding states at those years, e.g.
+        country 1991    1917
+        Russia  USSR    Russian Empire
+        France  France  France
+        ... ... ...
+    :type skyline_mapping: str
     :param name_column: (optional) name of the annotation table column to be used for node names
         in the compressed map visualisation
         (must be one of those specified in ``columns``, if ``columns`` are specified).
@@ -695,12 +735,13 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     if threads < 1:
         threads = max(os.cpu_count(), 1)
 
-    acr_results = acr(forest=roots, columns=columns, column2states=column2states,
-                      prediction_method=prediction_method, model=model, column2parameters=parameters,
-                      column2rates=rates,
-                      force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=None if smoothing else 0,
-                      resolve_polytomies=resolve_polytomies, frequency_smoothing=frequency_smoothing,
-                      skyline=skyline)
+    acr_results, skyline = acr(forest=roots, columns=columns, column2states=column2states,
+                               prediction_method=prediction_method, model=model, column2parameters=parameters,
+                               column2rates=rates,
+                               force_joint=forced_joint, threads=threads, reoptimise=reoptimise,
+                               tau=None if smoothing else 0,
+                               resolve_polytomies=resolve_polytomies, frequency_smoothing=frequency_smoothing,
+                               skyline=skyline, skyline_mapping=skyline_mapping)
 
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
 
@@ -753,11 +794,10 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         else:
             colours = {}
 
-    if skyline:
-        skyline = [max(max(getattr(_, DATE) for _ in tree) for tree in roots)] + skyline
     if threads > 1:
         pool = ThreadPool(processes=threads)
-        async_result = pool.map_async(func=_serialize_acr, iterable=((acr_res, work_dir, skyline) for acr_res in acr_results))
+        async_result = pool.map_async(func=_serialize_acr,
+                                      iterable=((acr_res, work_dir, skyline) for acr_res in acr_results))
         if upload_to_itol:
             if DATE_LABEL == age_label:
                 try:
@@ -1175,6 +1215,16 @@ def main():
                                 "(for non-dated tree(s) should be expressed as distance to root), "
                                 "if specified, model parameters will be allowed to change between the time intervals.",
                            type=float, nargs='*')
+    acr_group.add_argument('--skyline_mapping', required=False, default=None,
+                           help="optional way to specify the mappings between different skyline states, "
+                                "if they change over time (only for the first character). "
+                                "Should contain the paths to the mapping file, "
+                                "which should be tab-delimited, with length of the skyline + 1 columns:"
+                                "the first one containing character states at the date of the latest tip "
+                                "and named as the character,"
+                                "and the others, named by skyline dates, "
+                                "containing the corresponding states at those years.",
+                           type=str)
 
     vis_group = parser.add_argument_group('visualisation-related arguments')
     vis_group.add_argument('-n', '--name_column', type=str, default=None,
