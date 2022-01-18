@@ -162,9 +162,9 @@ def _serialize_acr(args):
         logging.getLogger('pastml').debug('Serialized marginal probabilities for {} to {}.'
                                           .format(acr_result[CHARACTER], out_mp_file))
 
-
+#column2rates is your rate matrix as dictionary
 def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPPA, model=F81,
-        column2parameters=None, column2rates=None,
+        column2parameters=None, column2rates=None, column2glm=None,
         force_joint=True, threads=0,
         reoptimise=False, tau=0, resolve_polytomies=False, frequency_smoothing=False):
     """
@@ -229,7 +229,10 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
     logging.getLogger('pastml').debug('\n=============ACR===============================')
 
     column2parameters = column2parameters if column2parameters else {}
+    #this is a check to make sure column2rates is not null
     column2rates = column2rates if column2rates else {}
+    #Same but for GLM
+    column2glm = column2glm if column2glm else {}
 
     prediction_methods = value2list(len(columns), prediction_method, MPPA)
     models = value2list(len(columns), model, F81)
@@ -274,14 +277,30 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             freqs, sf, kappa, rate_matrix = None, None, None, None
             params = column2parameters[character] if character in column2parameters else None
             rate_file = column2rates[character] if character in column2rates else None
+            #is GLM file given? For GLM, the only character given should be 'country'
+            print(character)
+            print(column2glm[0])
+            #This only works with 1 matrix being in the 0 index position, eventually, you will need to make this into a dictionary
+            #So you can call all the matrices that being input since the user will be testing multiple factors
+            glm_file = column2glm[0]
+            print(glm_file)
             if CUSTOM_RATES == model:
                 if rate_file is None:
                     raise ValueError('For {} model rate matrix and frequencies '
                                      'must be specified in the rate matrix and input parameter files.'
                                      .format(CUSTOM_RATES))
                 states, rate_matrix = load_custom_rates(rate_file)
+                print(rate_matrix, states)
                 column2states[character] = states
             states = get_states(prediction_method, model, character)
+
+            #if CUSTOM_RATES == model:
+            if glm_file is None:
+                print('not doing GLM')
+            else:
+                states_glm, glm_matrix = load_custom_rates(glm_file)
+                print(glm_matrix, states_glm)
+
 
             if params is not None:
                 freqs, sf, kappa, tau_p = _parse_pastml_parameters(params, states, n_tips,
@@ -448,7 +467,7 @@ def _quote(str_list):
 
 def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     columns=None, prediction_method=MPPA, model=F81,
-                    parameters=None, rate_matrix=None,
+                    parameters=None, rate_matrix=None, glm=None,
                     name_column=None, root_date=None, timeline_type=TIMELINE_SAMPLED,
                     tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, colours=None,
                     out_data=None, html_compressed=None, html=None, html_mixed=None, work_dir=None,
@@ -537,6 +556,22 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         4 1 0 1
         1 4 1 0
     :type rate_matrix: str or list(str) or dict
+    :param glm: Path to the file(s) containing the rate matrix(ces). '
+        'The matrix file should specify character states in its first line, '
+        'preceded by # and separated by spaces. '
+        'The following lines should contain a symmetric matrix with values for tested factor'
+        '(and zeros on the diagonal), separated by spaces, '
+        'in the same order at the character states specified in the first line.'
+        'For example, for four states, France, China, Germany, Tanzania '
+        'and the values France<->China 1, France<->Germany 4, France<->Tanzania 1,'
+        'China<->Germany 1, China<->Tanzania 4, Germany<->Tanzania 1,'
+        'the rate matrix file would look like:'
+        '# France China Germany Tanzania'
+        '0 1 4 1'
+        '1 0 1 4'
+        '4 1 0 1'
+        '1 4 1 0'
+    :type glm: str or list(str) or dict
     :param reoptimise: (False by default) if set to True and the parameters are specified,
         they will be considered as an optimisation starting point instead, and optimised.
     :type reoptimise: bool
@@ -643,10 +678,11 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     copy_only = COPY == prediction_method or (isinstance(prediction_method, list)
                                               and all(COPY == _ for _ in prediction_method))
 
-    roots, columns, column2states, name_column, age_label, parameters, rates = \
+#rate here is the result of the returned tuple from validate_input
+    roots, columns, column2states, name_column, age_label, parameters, rates, glm = \
         _validate_input(tree, columns, name_column if html_compressed or html_mixed else None, data, data_sep, id_index,
                         root_date if html_compressed or html or html_mixed or upload_to_itol else None,
-                        copy_only=copy_only, parameters=parameters, rates=rate_matrix)
+                        copy_only=copy_only, parameters=parameters, rates=rate_matrix, glm=glm)
 
     if not work_dir:
         work_dir = get_pastml_work_dir(tree)
@@ -657,7 +693,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
 
     acr_results = acr(forest=roots, columns=columns, column2states=column2states,
                       prediction_method=prediction_method, model=model, column2parameters=parameters,
-                      column2rates=rates,
+                      column2rates=rates, column2glm=glm,
                       force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=None if smoothing else 0,
                       resolve_polytomies=resolve_polytomies, frequency_smoothing=frequency_smoothing)
 
@@ -802,7 +838,7 @@ def parse_date(d):
 
 
 def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_sep='\t', id_index=0,
-                    root_dates=None, copy_only=False, parameters=None, rates=None):
+                    root_dates=None, copy_only=False, parameters=None, rates=None, glm=None):
     logger = logging.getLogger('pastml')
     logger.debug('\n=============INPUT DATA VALIDATION=============')
 
@@ -959,10 +995,21 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
     else:
         rates = {}
 
+#Adding GLM to check matrices are either a list of dictionary
+    if glm:
+        if isinstance(glm, str):
+            glm = [glm]
+        if isinstance(glm, list):
+            rates = dict(zip('country', glm))
+        else:
+            raise ValueError('Factor matrices should be either a list or a dict, got {}.'.format(type(glm)))
+    else:
+        glm = {}
+
     for i, tree in enumerate(roots):
         name_tree(tree, suffix='' if len(roots) == 1 else '_{}'.format(i))
 
-    return roots, columns, column2states, name_column, age_label, parameters, rates
+    return roots, columns, column2states, name_column, age_label, parameters, rates, glm
 
 
 def _serialize_predicted_states(columns, out_data, roots, dates_are_dates=True):
@@ -1121,6 +1168,23 @@ def main():
                                 ' this option will be ignored. '
                                 'If --reoptimise is also specified, '
                                 'the frequencies will only be smoothed but not reoptimised. ')
+#Adding new argument for GLM
+    acr_group.add_argument('--glm', type=str, nargs='*',
+                           help='Path to the file(s) containing the rate matrix(ces). '
+                                'The matrix file should specify character states in its first line, '
+                                'preceded by #  and separated by spaces. '
+                                'The following lines should contain a symmetric matrix with values for tested factor'
+                                '(and zeros on the diagonal), separated by spaces, '
+                                'in the same order at the character states specified in the first line.'
+                                'For example, for four states, France, China, Germany, Tanzania '
+                                'and the values France<->China 1, France<->Germany 4, France<->Tanzania 1,'
+                                'China<->Germany 1, China<->Tanzania 4, Germany<->Tanzania 1,'
+                                'the rate matrix file would look like:'
+                                '# France China Germany Tanzania'
+                                '0 1 4 1'
+                                '1 0 1 4'
+                                '4 1 0 1'
+                                '1 4 1 0')
 
     vis_group = parser.add_argument_group('visualisation-related arguments')
     vis_group.add_argument('-n', '--name_column', type=str, default=None,
