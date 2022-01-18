@@ -1121,6 +1121,27 @@ def main():
                                 ' this option will be ignored. '
                                 'If --reoptimise is also specified, '
                                 'the frequencies will only be smoothed but not reoptimised. ')
+#Adding new argument for GLM
+    acr_group.add_argument('--glm', type=str, nargs='*',
+                           help='Path to the file(s) containing the rate matrix(ces). '
+                                'Should be in the same order '
+                                'as the ancestral characters (see -c, --columns) '
+                                'for which the reconstruction is to be preformed. '
+                                'Could be given only for the first few characters. '
+                                'The rate matrix file should specify character states in its first line, '
+                                'preceded by #  and separated by spaces. '
+                                'The following lines should contain a symmetric matrix with values for tested factor'
+                                '(and zeros on the diagonal), separated by spaces, '
+                                'in the same order at the character states specified in the first line.'
+                                'For example, for four states, France, China, Germany, Tanzania '
+                                'and the values France<->China 1, France<->Germany 4, France<->Tanzania 1,'
+                                'China<->Germany 1, China<->Tanzania 4, Germany<->Tanzania 1,'
+                                'the rate matrix file would look like:'
+                                '# France China Germany Tanzania'
+                                '0 1 4 1'
+                                '1 0 1 4'
+                                '4 1 0 1'
+                                '1 4 1 0'.format(CUSTOM_RATES))
 
     vis_group = parser.add_argument_group('visualisation-related arguments')
     vis_group.add_argument('-n', '--name_column', type=str, default=None,
