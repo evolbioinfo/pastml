@@ -5,12 +5,14 @@ from collections import defaultdict, Counter
 from multiprocessing.pool import ThreadPool
 
 import numpy as np
+import math
 import pandas as pd
 from Bio.Phylo import NewickIO, write
 from Bio.Phylo.NewickIO import StringIO
 from ete3 import Tree
 
 from pastml.models.rate_matrix import CUSTOM_RATES, load_custom_rates
+from pastml.models.glm_matrix import load_glm_matrix
 from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, numeric2datetime, \
     datetime2numeric
 from pastml.annotation import preannotate_forest, get_forest_stats, get_min_forest_stats
@@ -232,7 +234,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
     #this is a check to make sure column2rates is not null
     column2rates = column2rates if column2rates else {}
     #Same but for GLM
-    column2glm = column2glm if column2glm else {}
+    #column2glm = column2glm if column2glm else {}
 
     prediction_methods = value2list(len(columns), prediction_method, MPPA)
     models = value2list(len(columns), model, F81)
@@ -279,11 +281,10 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             rate_file = column2rates[character] if character in column2rates else None
             #is GLM file given? For GLM, the only character given should be 'country'
             print(character)
-            print(column2glm[0])
+            #print(column2glm[0])
             #This only works with 1 matrix being in the 0 index position, eventually, you will need to make this into a dictionary
             #So you can call all the matrices that being input since the user will be testing multiple factors
-            glm_file = column2glm[0]
-            print(glm_file)
+
             if CUSTOM_RATES == model:
                 if rate_file is None:
                     raise ValueError('For {} model rate matrix and frequencies '
@@ -295,12 +296,51 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             states = get_states(prediction_method, model, character)
 
             #if CUSTOM_RATES == model:
-            if glm_file is None:
-                print('not doing GLM')
-            else:
-                states_glm, glm_matrix = load_custom_rates(glm_file)
-                print(glm_matrix, states_glm)
+            glm_factors = {}
+            if column2glm != {}:
+                print("Doing GLM")
+                print(column2glm)
+                for matrix in range(len(column2glm)):
+                    glm_file = column2glm[matrix]
+                    print(glm_file)
+                    states_glm, glm_matrix, glm_matrix_name = load_glm_matrix(glm_file)
+                    print(glm_matrix, states_glm, glm_matrix_name)
+                    print(glm_matrix.shape)
+                    print(np.array(column2states[character]))
+                    #The line below checks that all the states in matrix match the states in dataframe column and that they are in the same order
+                    column_states_match_matrix_states = (column2states[character] == states_glm).all()
+                    print(column_states_match_matrix_states)
+                    #Checking states names for ACR and state names in matrix rows match
+                    if column_states_match_matrix_states != True:
+                        #I can probably remove this, but ask Anna by raise ValueError doesn't appear in the Run output
+                        print('The input glm matrix {} has states that differ from the character states defined in the datafile column or are'
+                              ' in a different order.'
+                              .format(glm_matrix_name))
+                        raise ValueError('The input glm matrix {} has states that differ from the character states defined in the datafile column.'
+                                         .format(glm_matrix_name))
+                    else:
+                        print("moving on")
 
+                    #I am not confident with this for loop. If a value in the matrix is a float, then I would like to log10 the entire matrix
+                    #I do not think I am indexing through the entire matrix. Check for tomorrow
+                    for value in range(len(glm_matrix)):
+                        print(type(glm_matrix[value]) == 'float')
+                        #Ask Guy what type of transformation occurs here and what type of standardization
+                        if type(glm_matrix[value]) == 'float':
+                            glm_matrix = np.log10(glm_matrix)
+
+                        #if isinstance(glm, str):
+                    #Now we take each matrix that is submitted and we add it to the factor matrix. Each txt file name is the key, and the value
+                    #Is the factor matrix that was input
+                    glm_factors[glm_matrix_name] = glm_matrix
+
+                #You can see here that each factor has it's own matrix now
+                print(glm_factors)
+
+
+            #I can remove this later
+            else:
+                print('not doing GLM')
 
             if params is not None:
                 freqs, sf, kappa, tau_p = _parse_pastml_parameters(params, states, n_tips,
