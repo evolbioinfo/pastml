@@ -7,7 +7,7 @@ from pastml.models.generator import get_pij_matrix, get_diagonalisation
 CUSTOM_RATES = 'CUSTOM_RATES'
 
 
-def get_custom_rate_pij(rate_matrix, frequencies):
+def get_custom_rate_pij(rate_matrix, frequencies, glm_dict):
     """
     Returns a function of t that calculates the probability matrix of substitutions i->j over time t,
     with the given rate matrix.
@@ -15,7 +15,9 @@ def get_custom_rate_pij(rate_matrix, frequencies):
     :return: a function of t that calculates the probability matrix of substitutions i->j over time t.
     :rtype: lambda t: np.array
     """
-    D_DIAGONAL, A, A_INV = get_diagonalisation(frequencies, rate_matrix)
+    #Here is where the GLM method will go for the custom_rates model method
+    D_DIAGONAL, A, A_INV = get_diagonalisation(frequencies, rate_matrix, glm_dict)
+
 
     def get_pij(t):
         return get_pij_matrix(t, D_DIAGONAL, A, A_INV)

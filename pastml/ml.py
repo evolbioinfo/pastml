@@ -86,7 +86,7 @@ def get_default_ml_method():
     return MPPA
 
 
-def get_pij_method(model=F81, frequencies=None, kappa=None, rate_matrix=None):
+def get_pij_method(model=F81, frequencies=None, kappa=None, rate_matrix=None, glm_dict=None):
     """
     Returns a function for calculation of probability matrix of substitutions i->j over time t.
 
@@ -107,13 +107,14 @@ def get_pij_method(model=F81, frequencies=None, kappa=None, rate_matrix=None):
     if JTT == model:
         return get_jtt_pij
     if CUSTOM_RATES == model:
-        return get_custom_rate_pij(rate_matrix=rate_matrix, frequencies=frequencies)
+        return get_custom_rate_pij(rate_matrix=rate_matrix, frequencies=frequencies, glm_dict=glm_dict)
     if HKY == model:
         return lambda t: get_hky_pij(t, frequencies, kappa)
 
 
 def get_bottom_up_loglikelihood(tree, character, frequencies, sf,
-                                tree_len, num_edges, kappa=None, rate_matrix=None, is_marginal=True, model=F81, tau=0, alter=True):
+                                tree_len, num_edges, kappa=None, rate_matrix=None, is_marginal=True,
+                                glm_dict=None, model=F81, tau=0, alter=True):
     """
     Calculates the bottom-up loglikelihood for the given tree.
     The likelihood for each node is stored in the corresponding feature,
@@ -148,7 +149,8 @@ def get_bottom_up_loglikelihood(tree, character, frequencies, sf,
     lh_joint_state_feature = get_personalized_feature_name(character, BU_LH_JOINT_STATES)
     allowed_state_feature = get_personalized_feature_name(character, ALLOWED_STATES)
 
-    get_pij = get_pij_method(model, frequencies, kappa, rate_matrix=rate_matrix)
+    #probability of change from state i to state j
+    get_pij = get_pij_method(model, frequencies, kappa, rate_matrix=rate_matrix, glm_dict=glm_dict)
     for node in tree.traverse('postorder'):
         calc_node_bu_likelihood(node, allowed_state_feature, lh_feature, lh_sf_feature, lh_joint_state_feature,
                                 is_marginal, get_pij, frequencies, sf, tau, tau_factor)
@@ -724,7 +726,7 @@ def get_state2allowed_states(states, by_name=True):
 
 
 def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_nodes, num_tips, tree_len, frequencies,
-           sf, kappa, tau, rate_matrix,
+           sf, kappa, tau, rate_matrix, glm_dict,
            optimise_sf, optimise_frequencies, optimise_kappa, optimise_tau, observed_frequencies,
            force_joint=True, frequency_smoothing=False):
     """
@@ -752,6 +754,7 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
     :type tau: float
     :rtype: dict
     """
+
     logger = logging.getLogger('pastml')
     likelihood, frequencies, kappa, sf, tau = \
         optimise_likelihood(forest=forest, avg_br_len=avg_br_len, tree_len=tree_len, num_edges=num_nodes - 1,
@@ -760,7 +763,7 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
                             frequencies=frequencies, observed_frequencies=observed_frequencies, kappa=kappa, sf=sf,
                             tau=tau, optimise_frequencies=optimise_frequencies,
                             optimise_kappa=optimise_kappa, optimise_sf=optimise_sf, optimise_tau=optimise_tau,
-                            frequency_smoothing=frequency_smoothing, rate_matrix=rate_matrix)
+                            frequency_smoothing=frequency_smoothing, rate_matrix=rate_matrix, glm_dict=glm_dict)
     result = {LOG_LIKELIHOOD: likelihood, CHARACTER: character, METHOD: prediction_method, MODEL: model,
               FREQUENCIES: frequencies, SCALING_FACTOR: sf, CHANGES_PER_AVG_BRANCH: sf * avg_br_len, STATES: states,
               SMOOTHING_FACTOR: tau, NUM_NODES: num_nodes, NUM_TIPS: num_tips}
@@ -997,13 +1000,18 @@ def marginal_counts(forest, character, model, states, num_nodes, tree_len, frequ
 
 def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, num_tips, character, states, model,
                         frequencies, observed_frequencies, kappa, sf, tau, optimise_frequencies, optimise_kappa,
-                        optimise_sf, optimise_tau, rate_matrix=None, frequency_smoothing=False):
+                        optimise_sf, optimise_tau, rate_matrix=None, frequency_smoothing=False, glm_dict=None):
     for tree in forest:
         initialize_allowed_states(tree, character, states)
+
     logger = logging.getLogger('pastml')
+    print('glm_dict passed to optimise_likelihood')
+    print(glm_dict)
+    print('rate_matrix passed to optimise_likelihood')
+    print(rate_matrix)
     likelihood = sum(get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=frequencies, sf=sf,
                                                  kappa=kappa, is_marginal=True, model=model, tau=tau,
-                                                 rate_matrix=rate_matrix,
+                                                 rate_matrix=rate_matrix, glm_dict = glm_dict,
                                                  tree_len=tree_len, num_edges=num_edges, alter=True)
                      for tree in forest)
     if np.isnan(likelihood):

@@ -166,7 +166,7 @@ def _serialize_acr(args):
 
 #column2rates is your rate matrix as dictionary
 def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPPA, model=F81,
-        column2parameters=None, column2rates=None, column2glm=None,
+        column2parameters=None, column2rates=None, glmlist=None,
         force_joint=True, threads=0,
         reoptimise=False, tau=0, resolve_polytomies=False, frequency_smoothing=False):
     """
@@ -291,51 +291,52 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                                      'must be specified in the rate matrix and input parameter files.'
                                      .format(CUSTOM_RATES))
                 states, rate_matrix = load_custom_rates(rate_file)
+                print('is_ml')
                 print(rate_matrix, states)
                 column2states[character] = states
             states = get_states(prediction_method, model, character)
 
             #if CUSTOM_RATES == model:
+            glm_char_factors = {}
             glm_factors = {}
-            if column2glm != {}:
+            if glmlist != {}:
                 print("Doing GLM")
-                print(column2glm)
-                for matrix in range(len(column2glm)):
-                    glm_file = column2glm[matrix]
-                    print(glm_file)
+                print(glmlist)
+                for matrix in range(len(glmlist)):
+                    glm_file = glmlist[matrix]
                     states_glm, glm_matrix, glm_matrix_name = load_glm_matrix(glm_file)
-                    print(glm_matrix, states_glm, glm_matrix_name)
-                    print(glm_matrix.shape)
-                    print(np.array(column2states[character]))
+                    #print(glm_matrix, states_glm, glm_matrix_name)
+                    #print(glm_matrix.shape)
+                    #print(np.array(column2states[character]))
                     #The line below checks that all the states in matrix match the states in dataframe column and that they are in the same order
                     column_states_match_matrix_states = (column2states[character] == states_glm).all()
                     print(column_states_match_matrix_states)
                     #Checking states names for ACR and state names in matrix rows match
                     if column_states_match_matrix_states != True:
                         #I can probably remove this, but ask Anna by raise ValueError doesn't appear in the Run output
-                        print('The input glm matrix {} has states that differ from the character states defined in the datafile column or are'
-                              ' in a different order.'
-                              .format(glm_matrix_name))
-                        raise ValueError('The input glm matrix {} has states that differ from the character states defined in the datafile column.'
+                        raise ValueError('The input glm matrix {} has states that differ from the character states defined in the datafile column'
+                                         'or are in a different order.'
                                          .format(glm_matrix_name))
-                    else:
-                        print("moving on")
+
+                    #else:
+                        #print("moving on")
 
                     #I am not confident with this for loop. If a value in the matrix is a float, then I would like to log10 the entire matrix
                     #I do not think I am indexing through the entire matrix. Check for tomorrow
                     for value in range(len(glm_matrix)):
-                        print(type(glm_matrix[value]) == 'float')
+                        #print(type(glm_matrix[value]) == 'float')
                         #Ask Guy what type of transformation occurs here and what type of standardization
                         if type(glm_matrix[value]) == 'float':
                             glm_matrix = np.log10(glm_matrix)
 
-                        #if isinstance(glm, str):
                     #Now we take each matrix that is submitted and we add it to the factor matrix. Each txt file name is the key, and the value
                     #Is the factor matrix that was input
                     glm_factors[glm_matrix_name] = glm_matrix
 
                 #You can see here that each factor has it's own matrix now
                 print(glm_factors)
+                glm_char_factors[character] = glm_factors
+                print(glm_char_factors)
 
 
             #I can remove this later
@@ -422,7 +423,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                           states=states, avg_br_len=tree_stats[0], num_nodes=tree_stats[1], num_tips=tree_stats[2],
                           tree_len=tree_stats[3],
                           frequencies=frequencies, sf=sf, kappa=kappa,
-                          force_joint=force_joint, tau=tau, rate_matrix=rate_matrix,
+                          force_joint=force_joint, tau=tau, rate_matrix=rate_matrix, glm_dict = glm_char_factors,
                           optimise_frequencies=optimise_frequencies, optimise_sf=optimise_sf,
                           optimise_kappa=optimise_kappa, optimise_tau=optimise_tau,
                           frequency_smoothing=frequency_smoothing,
@@ -733,7 +734,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
 
     acr_results = acr(forest=roots, columns=columns, column2states=column2states,
                       prediction_method=prediction_method, model=model, column2parameters=parameters,
-                      column2rates=rates, column2glm=glm,
+                      column2rates=rates, glmlist=glm,
                       force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=None if smoothing else 0,
                       resolve_polytomies=resolve_polytomies, frequency_smoothing=frequency_smoothing)
 
@@ -1039,12 +1040,18 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
     if glm:
         if isinstance(glm, str):
             glm = [glm]
+            print('doing str')
+            print(character)
+            print(columns)
         if isinstance(glm, list):
-            rates = dict(zip('country', glm))
+            print('doing list')
         else:
             raise ValueError('Factor matrices should be either a list or a dict, got {}.'.format(type(glm)))
     else:
         glm = {}
+    print('validation')
+    print(glm)
+    print('end validation')
 
     for i, tree in enumerate(roots):
         name_tree(tree, suffix='' if len(roots) == 1 else '_{}'.format(i))
