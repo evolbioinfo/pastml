@@ -5,7 +5,7 @@ import os
 
 from pastml.models.generator import get_pij_matrix, get_diagonalisation
 
-
+GLM = 'GLM'
 
 def save_custom_rates(states, rate_matrix, outfile):
     np.savetxt(outfile, rate_matrix, delimiter=' ', fmt='%.18e', header=' '.join(states))
@@ -18,7 +18,7 @@ def load_glm_matrix(infile):
     if not len(glm_matrix.shape) == 2 or not glm_matrix.shape[0] == glm_matrix.shape[1]:
         raise ValueError('The input factor matrix must be squared, but yours is {}.'.format('x'.join(glm_matrix.shape)))
     if not np.all(glm_matrix == glm_matrix.transpose()):
-        raise ValueError('The input factor matrix must be symmetric, but yours is not.')
+        logging.getLogger('pastml').warning('The input factor matrix is not symmetric.')
     #puts zeros in the diagonal
     np.fill_diagonal(glm_matrix, 0)
     n = len(glm_matrix)

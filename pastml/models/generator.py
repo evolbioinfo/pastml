@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def get_diagonalisation(frequencies, rate_matrix=None, glm_dict=None):
+def get_diagonalisation(frequencies, rate_matrix=None):
     """
     Normalises and diagonalises the rate matrix.
 
@@ -14,10 +14,7 @@ def get_diagonalisation(frequencies, rate_matrix=None, glm_dict=None):
     :rtype: tuple
     """
     Q = get_normalised_generator(frequencies, rate_matrix)
-    #why is rate_matrix there each time, but glm_dict is not
-    print('inside get_pij_method')
-    print(glm_dict)
-    print(rate_matrix)
+
     d, A = np.linalg.eig(Q)
     return d, A, np.linalg.inv(A)
 
@@ -33,6 +30,8 @@ def get_normalised_generator(frequencies, rate_matrix=None):
     :return: normalised generator 1/mu Q
     :rtype: numpy.ndarray
     """
+    print('how matrix is being passed')
+    print(rate_matrix)
     if rate_matrix is None:
         n = len(frequencies)
         rate_matrix = np.ones(shape=(n, n), dtype=np.float64) - np.eye(n)

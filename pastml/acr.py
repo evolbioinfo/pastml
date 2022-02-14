@@ -12,7 +12,7 @@ from Bio.Phylo.NewickIO import StringIO
 from ete3 import Tree
 
 from pastml.models.rate_matrix import CUSTOM_RATES, load_custom_rates
-from pastml.models.glm_matrix import load_glm_matrix
+from pastml.models.glm_matrix import GLM, load_glm_matrix
 from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, numeric2datetime, \
     datetime2numeric
 from pastml.annotation import preannotate_forest, get_forest_stats, get_min_forest_stats
@@ -296,59 +296,47 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                 column2states[character] = states
             states = get_states(prediction_method, model, character)
 
-            #if CUSTOM_RATES == model:
             glm_char_factors = {}
-            glm_factors = {}
-            if glmlist != {}:
-                print("Doing GLM")
-                print(glmlist)
-                for matrix in range(len(glmlist)):
-                    glm_file = glmlist[matrix]
-                    states_glm, glm_matrix, glm_matrix_name = load_glm_matrix(glm_file)
-                    #print(glm_matrix, states_glm, glm_matrix_name)
-                    #print(glm_matrix.shape)
-                    #print(np.array(column2states[character]))
-                    #The line below checks that all the states in matrix match the states in dataframe column and that they are in the same order
-                    column_states_match_matrix_states = (column2states[character] == states_glm).all()
-                    print(column_states_match_matrix_states)
-                    #Checking states names for ACR and state names in matrix rows match
-                    if column_states_match_matrix_states != True:
-                        #I can probably remove this, but ask Anna by raise ValueError doesn't appear in the Run output
-                        raise ValueError('The input glm matrix {} has states that differ from the character states defined in the datafile column'
-                                         'or are in a different order.'
-                                         .format(glm_matrix_name))
 
-                    #else:
-                        #print("moving on")
+            if GLM == model:
+                glm_factors = {}
+                if glmlist != {}:
+                    print("Doing GLM")
+                    print(glmlist)
+                    for matrix in range(len(glmlist)):
+                        glm_file = glmlist[matrix]
+                        states_glm, glm_matrix, glm_matrix_name = load_glm_matrix(glm_file)
+                        #print(glm_matrix, states_glm, glm_matrix_name)
+                        #print(glm_matrix.shape)
+                        #print(np.array(column2states[character]))
+                        #The line below checks that all the states in matrix match the states in dataframe column and that they are in the same order
+                        column_states_match_matrix_states = (column2states[character] == states_glm).all()
+                        print(column_states_match_matrix_states)
+                        #Checking states names for ACR and state names in matrix rows match
+                        if column_states_match_matrix_states != True:
+                            #I can probably remove this, but ask Anna by raise ValueError doesn't appear in the Run output
+                            raise ValueError('The input glm matrix {} has states that differ from the character states defined in the datafile column'
+                                             'or are in a different order.'
+                                             .format(glm_matrix_name))
+                        # Now we take each matrix that is submitted and we add it to the factor matrix. Each txt file name is the key, and the value
+                        # Is the factor matrix that was input
+                        glm_factors[glm_matrix_name] = glm_matrix
 
-                    #I am not confident with this for loop. If a value in the matrix is a float, then I would like to log10 the entire matrix
-                    #I do not think I am indexing through the entire matrix. Check for tomorrow
-                    for value in range(len(glm_matrix)):
-                        #print(type(glm_matrix[value]) == 'float')
-                        #Ask Guy what type of transformation occurs here and what type of standardization
-                        if type(glm_matrix[value]) == 'float':
-                            glm_matrix = np.log10(glm_matrix)
+                    # You can see here that each factor has it's own matrix now
+                    print(glm_factors)
+                    glm_char_factors[character] = glm_factors
+                    print(glm_char_factors)
 
-                    #Now we take each matrix that is submitted and we add it to the factor matrix. Each txt file name is the key, and the value
-                    #Is the factor matrix that was input
-                    glm_factors[glm_matrix_name] = glm_matrix
+                else:
+                    raise ValueError('For GLM model, GLM matrices must be specified in the glm input parameter')
 
-                #You can see here that each factor has it's own matrix now
-                print(glm_factors)
-                glm_char_factors[character] = glm_factors
-                print(glm_char_factors)
-
-
-            #I can remove this later
-            else:
-                print('not doing GLM')
 
             if params is not None:
                 freqs, sf, kappa, tau_p = _parse_pastml_parameters(params, states, n_tips,
                                                                    reoptimise or frequency_smoothing)
                 if tau is None and tau_p is not None:
                     tau = tau_p
-                if freqs is not None and model not in {F81, HKY, CUSTOM_RATES}:
+                if freqs is not None and model not in {F81, HKY, CUSTOM_RATES, GLM}:
                     logger.warning('Some frequencies were specified in the parameter file, '
                                    'but the selected model ({}) ignores them. '
                                    'Use F81 (or HKY for nucleotide characters only) '
@@ -362,9 +350,9 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             optimise_kappa = (not kappa or reoptimise) and model == HKY
             if HKY == model and not kappa:
                 kappa = 4.
-            optimise_frequencies = model in {F81, HKY, CUSTOM_RATES} \
+            optimise_frequencies = model in {F81, HKY, CUSTOM_RATES, GLM} \
                                    and (freqs is None or (reoptimise and not frequency_smoothing))
-            if model not in {F81, HKY, CUSTOM_RATES} or freqs is None:
+            if model not in {F81, HKY, CUSTOM_RATES, GLM} or freqs is None:
                 frequency_smoothing = False
 
             n = len(states)
@@ -397,7 +385,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                 frequencies = JTT_FREQUENCIES
             elif EFT == model:
                 frequencies = observed_frequencies
-            elif model in {F81, HKY, CUSTOM_RATES} and freqs is not None:
+            elif model in {F81, HKY, CUSTOM_RATES, GLM} and freqs is not None:
                 frequencies = freqs
             else:
                 frequencies = np.ones(n, dtype=np.float64) / n
@@ -423,7 +411,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                           states=states, avg_br_len=tree_stats[0], num_nodes=tree_stats[1], num_tips=tree_stats[2],
                           tree_len=tree_stats[3],
                           frequencies=frequencies, sf=sf, kappa=kappa,
-                          force_joint=force_joint, tau=tau, rate_matrix=rate_matrix, glm_dict = glm_char_factors,
+                          force_joint=force_joint, tau=tau, rate_matrix=rate_matrix, glm_dict=glm_char_factors,
                           optimise_frequencies=optimise_frequencies, optimise_sf=optimise_sf,
                           optimise_kappa=optimise_kappa, optimise_tau=optimise_tau,
                           frequency_smoothing=frequency_smoothing,
@@ -1160,7 +1148,7 @@ def main():
                            help='add {joint} state to the {mppa} state selection '
                                 'even if it is not selected by Brier score.'.format(joint=JOINT, mppa=MPPA))
     acr_group.add_argument('-m', '--model', default=F81,
-                           choices=[JC, F81, EFT, HKY, JTT, CUSTOM_RATES],
+                           choices=[JC, F81, EFT, HKY, JTT, CUSTOM_RATES, GLM],
                            type=str, nargs='*',
                            help='evolutionary model for ML methods (ignored by MP methods). '
                                 'When multiple ancestral characters are specified (see -c, --columns), '

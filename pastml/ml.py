@@ -6,6 +6,7 @@ import pandas as pd
 from scipy.optimize import minimize
 
 from pastml.models.rate_matrix import CUSTOM_RATES, get_custom_rate_pij
+from pastml.models.glm_rate_calc import GLM, glm_rate_calc
 from pastml import get_personalized_feature_name, CHARACTER, STATES, METHOD, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
     NUM_NODES, NUM_TIPS, NUM_STATES_PER_NODE, PERC_UNRESOLVED
 from pastml.models.f81_like import is_f81_like, get_f81_pij, get_mu, F81, EFT
@@ -107,7 +108,21 @@ def get_pij_method(model=F81, frequencies=None, kappa=None, rate_matrix=None, gl
     if JTT == model:
         return get_jtt_pij
     if CUSTOM_RATES == model:
-        return get_custom_rate_pij(rate_matrix=rate_matrix, frequencies=frequencies, glm_dict=glm_dict)
+
+        return get_custom_rate_pij(rate_matrix=rate_matrix, frequencies=frequencies)
+    #need to fix this later
+    if GLM == model:
+        print('here is where I need to define the rate_matrix from the GLM')
+
+        print(glm_dict)
+        #For example, you need to create the rate_matrix that will continue with the get_custom_rate_pij.
+        #This rate_matrix will be calculated by glm_dict and weights that are given (or assumed here)
+
+        rate_matrix_glm = glm_rate_calc(glm_dict, weights=None)
+        print('rate matrix from glm_rate_calc')
+        print(rate_matrix_glm)
+        print(type(rate_matrix_glm))
+        return get_custom_rate_pij(rate_matrix=rate_matrix_glm, frequencies=frequencies)
     if HKY == model:
         return lambda t: get_hky_pij(t, frequencies, kappa)
 
@@ -209,7 +224,7 @@ def rescale_log(loglikelihood_array):
 
 
 def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br_len, tree_len, num_edges, num_tips,
-                               observed_frequencies, rate_matrix=None,
+                               observed_frequencies, rate_matrix=None, glm_dict=None,
                                optimise_sf=True, optimise_frequencies=True, optimise_kappa=True,
                                model=F81, tau=0, optimise_tau=False, frequency_smoothing=False):
     """
@@ -276,7 +291,7 @@ def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br
         res = sum(get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=freqs, sf=sf_val,
                                               kappa=kappa_val, is_marginal=True, model=model, tau=tau_val,
                                               tree_len=tree_len, num_edges=num_edges, alter=True,
-                                              rate_matrix=rate_matrix)
+                                              rate_matrix=rate_matrix, glm_dict=glm_dict)
                   for tree in forest)
         return np.inf if pd.isnull(res) else -res
 
@@ -313,7 +328,7 @@ def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br
 
 
 def calculate_top_down_likelihood(tree, character, frequencies, sf, tree_len, num_edges, kappa=None, rate_matrix=None,
-                                  model=F81, tau=0):
+                                  model=F81, tau=0, glm_dict=None):
     """
     Calculates the top-down likelihood for the given tree.
     The likelihood for each node is stored in the corresponding feature,
@@ -351,7 +366,7 @@ def calculate_top_down_likelihood(tree, character, frequencies, sf, tree_len, nu
     bu_lh_feature = get_personalized_feature_name(character, BU_LH)
     bu_lh_sf_feature = get_personalized_feature_name(character, BU_LH_SF)
 
-    get_pij = get_pij_method(model, frequencies, kappa, rate_matrix=rate_matrix)
+    get_pij = get_pij_method(model, frequencies, kappa, rate_matrix=rate_matrix, glm_dict=glm_dict)
     for node in tree.traverse('preorder'):
         calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, get_pij, sf,
                                 tau, tau_factor)
@@ -788,7 +803,7 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
             sum(get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=frequencies, sf=sf, kappa=kappa,
                                             is_marginal=True, model=model, tau=tau,
                                             tree_len=tree_len, num_edges=num_nodes - 1, alter=True,
-                                            rate_matrix=rate_matrix) for tree in forest)
+                                            rate_matrix=rate_matrix, glm_dict=glm_dict) for tree in forest)
         note_restricted_likelihood(method, restricted_likelihood)
         process_reconstructed_states(method)
 
@@ -803,7 +818,7 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
             sum(get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=frequencies, sf=sf, kappa=kappa,
                                             is_marginal=False, model=model, tau=tau,
                                             tree_len=tree_len, num_edges=num_nodes - 1, alter=True,
-                                            rate_matrix=rate_matrix) for tree in forest)
+                                            rate_matrix=rate_matrix, glm_dict=glm_dict) for tree in forest)
         note_restricted_likelihood(JOINT, restricted_likelihood)
         for tree in forest:
             choose_ancestral_states_joint(tree, character, states, frequencies)
@@ -818,10 +833,10 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
                 altered_nodes = alter_zero_node_allowed_states(tree, character)
             get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=frequencies, sf=sf, kappa=kappa,
                                         rate_matrix=rate_matrix, is_marginal=True, model=model, tau=tau,
-                                        tree_len=tree_len, num_edges=num_nodes - 1, alter=False)
+                                        tree_len=tree_len, num_edges=num_nodes - 1, alter=False, glm_dict=glm_dict)
             calculate_top_down_likelihood(tree, character, frequencies, sf, rate_matrix=rate_matrix,
                                           tree_len=tree_len, num_edges=num_nodes - 1,
-                                          kappa=kappa, model=model, tau=tau)
+                                          kappa=kappa, model=model, tau=tau, glm_dict=glm_dict)
             calculate_marginal_likelihoods(tree, character, frequencies)
             # check_marginal_likelihoods(tree, character)
             mps.append(convert_likelihoods_to_probabilities(tree, character, states))
@@ -844,7 +859,7 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
                         sum(get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=frequencies,
                                                         sf=sf, kappa=kappa, is_marginal=True, model=model, tau=tau,
                                                         tree_len=tree_len, num_edges=num_nodes - 1, alter=True,
-                                                        rate_matrix=rate_matrix)
+                                                        rate_matrix=rate_matrix, glm_dict=glm_dict)
                             for tree in forest)
                     note_restricted_likelihood(pars_acr_res[METHOD], restricted_likelihood)
 
@@ -1005,13 +1020,13 @@ def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, num_tips, chara
         initialize_allowed_states(tree, character, states)
 
     logger = logging.getLogger('pastml')
-    print('glm_dict passed to optimise_likelihood')
-    print(glm_dict)
-    print('rate_matrix passed to optimise_likelihood')
-    print(rate_matrix)
+    #print('glm_dict passed to optimise_likelihood')
+    #print(glm_dict)
+    #print('rate_matrix passed to optimise_likelihood')
+    #print(rate_matrix)
     likelihood = sum(get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=frequencies, sf=sf,
                                                  kappa=kappa, is_marginal=True, model=model, tau=tau,
-                                                 rate_matrix=rate_matrix, glm_dict = glm_dict,
+                                                 rate_matrix=rate_matrix, glm_dict=glm_dict,
                                                  tree_len=tree_len, num_edges=num_edges, alter=True)
                      for tree in forest)
     if np.isnan(likelihood):
@@ -1053,7 +1068,7 @@ def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, num_tips, chara
                                            optimise_kappa=False, avg_br_len=avg_br_len,
                                            tree_len=tree_len, num_edges=num_edges, num_tips=num_tips, model=model,
                                            observed_frequencies=observed_frequencies, tau=tau,
-                                           optimise_tau=optimise_tau, rate_matrix=rate_matrix)
+                                           optimise_tau=optimise_tau, rate_matrix=rate_matrix, glm_dict=glm_dict)
             if np.any(np.isnan(likelihood) or likelihood == -np.inf):
                 raise PastMLLikelihoodError('Failed to optimise the likelihood for your tree, '
                                             'please check that you do not have contradicting {} states specified '
@@ -1079,7 +1094,7 @@ def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, num_tips, chara
                                            tree_len=tree_len, num_edges=num_edges, num_tips=num_tips, model=model,
                                            observed_frequencies=observed_frequencies,
                                            tau=tau, optimise_tau=False, frequency_smoothing=frequency_smoothing,
-                                           rate_matrix=rate_matrix)
+                                           rate_matrix=rate_matrix, glm_dict=glm_dict)
             if np.any(np.isnan(likelihood) or likelihood == -np.inf):
                 raise PastMLLikelihoodError('Failed to calculate the likelihood for your tree, '
                                             'please check that you do not have contradicting {} states specified '
