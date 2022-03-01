@@ -381,6 +381,13 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                                  .format(missing_data) if missing_data else '')
                          )
 
+            #here say if GLM == model then beta
+            #For example create your beta
+            #The length of this beta array has to be the same length as the number of predictors (matrices you have)
+            #array in the same order as the matrices (not needed to make a dictionary with matrix name)
+            #beta = np.ones(n, dtype=np.float64)
+
+
             if JTT == model:
                 frequencies = JTT_FREQUENCIES
             elif EFT == model:
@@ -388,9 +395,13 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             elif model in {F81, HKY, CUSTOM_RATES, GLM} and freqs is not None:
                 frequencies = freqs
             else:
+                #initial values for frequencies is specified here when the frequencies are not given
+                #you would do something similar here. Beta = all equal values (1) - do this outside. not actually in this space
                 frequencies = np.ones(n, dtype=np.float64) / n
+            #you now need to change character2settings everywhere so that beta is also a given parameter
             character2settings[character] = [prediction_method, model, states,
-                                             [frequencies, kappa, sf, tau, rate_matrix],
+                                             [frequencies, kappa, sf, tau, rate_matrix ],
+                                             #add beta in the above line just like frequencies
                                              [optimise_frequencies, optimise_kappa, optimise_sf, optimise_tau,
                                               frequency_smoothing], observed_frequencies]
         else:
@@ -405,8 +416,10 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         if COPY == prediction_method:
             return {CHARACTER: character, STATES: states, METHOD: prediction_method}
         if is_ml(prediction_method):
+            #add to line below the beta array
             frequencies, kappa, sf, tau, rate_matrix = params
             optimise_frequencies, optimise_kappa, optimise_sf, optimise_tau, frequency_smoothing = optimised_values
+            #to ml_acr below you need to add beta as an argument as well. beta = beta
             return ml_acr(forest=forest, character=character, prediction_method=prediction_method, model=model,
                           states=states, avg_br_len=tree_stats[0], num_nodes=tree_stats[1], num_tips=tree_stats[2],
                           tree_len=tree_stats[3],

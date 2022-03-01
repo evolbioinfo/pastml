@@ -118,7 +118,8 @@ def get_pij_method(model=F81, frequencies=None, kappa=None, rate_matrix=None, gl
         #For example, you need to create the rate_matrix that will continue with the get_custom_rate_pij.
         #This rate_matrix will be calculated by glm_dict and weights that are given (or assumed here)
 
-        rate_matrix_glm = glm_rate_calc(glm_dict, weights=None)
+        rate_matrix_glm = glm_rate_calc(glm_dict, coefficients=None)
+        #above line, your coefficients would be the beta array in order of the matrices
         print('rate matrix from glm_rate_calc')
         print(rate_matrix_glm)
         print(type(rate_matrix_glm))
@@ -128,6 +129,7 @@ def get_pij_method(model=F81, frequencies=None, kappa=None, rate_matrix=None, gl
 
 
 def get_bottom_up_loglikelihood(tree, character, frequencies, sf,
+                                #beta,
                                 tree_len, num_edges, kappa=None, rate_matrix=None, is_marginal=True,
                                 glm_dict=None, model=F81, tau=0, alter=True):
     """
@@ -165,6 +167,7 @@ def get_bottom_up_loglikelihood(tree, character, frequencies, sf,
     allowed_state_feature = get_personalized_feature_name(character, ALLOWED_STATES)
 
     #probability of change from state i to state j
+    #beta have to be added here
     get_pij = get_pij_method(model, frequencies, kappa, rate_matrix=rate_matrix, glm_dict=glm_dict)
     for node in tree.traverse('postorder'):
         calc_node_bu_likelihood(node, allowed_state_feature, lh_feature, lh_sf_feature, lh_joint_state_feature,
@@ -268,13 +271,14 @@ def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br
     def get_real_params_from_optimised(ps):
         freqs = frequencies
         if optimise_frequencies:
+            # this won't be necessary for beta since they don't have the same restrictions at frequences
             freqs = np.hstack((ps[: (len(frequencies) - 1)], [1.]))
             freqs /= freqs.sum()
         elif frequency_smoothing:
             freqs = freqs * num_tips
             freqs += ps[-1]
             freqs /= freqs.sum()
-
+    #the array is called ps. What do we want to extract
         sf_val = ps[(len(frequencies) - 1) if optimise_frequencies else 0] if optimise_sf else sf
         kappa_val = ps[((len(frequencies) - 1) if optimise_frequencies else 0) + (1 if optimise_sf else 0)] \
             if optimise_kappa else kappa
@@ -283,13 +287,16 @@ def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br
             if optimise_tau else tau
 
         return freqs, sf_val, kappa_val, tau_val
+        #need to return beta as well (these are the optimised values)
 
     def get_v(ps):
         if np.any(pd.isnull(ps)):
             return np.nan
+        #add beta here
         freqs, sf_val, kappa_val, tau_val = get_real_params_from_optimised(ps)
         res = sum(get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=freqs, sf=sf_val,
                                               kappa=kappa_val, is_marginal=True, model=model, tau=tau_val,
+                                              #beta=beta,
                                               tree_len=tree_len, num_edges=num_edges, alter=True,
                                               rate_matrix=rate_matrix, glm_dict=glm_dict)
                   for tree in forest)
@@ -299,12 +306,14 @@ def optimize_likelihood_params(forest, character, frequencies, sf, kappa, avg_br
                        [sf] if optimise_sf else [],
                        [kappa] if optimise_kappa else [],
                        [tau] if optimise_tau else [], [0] if frequency_smoothing else []))
+    #Here you would have add beta as well
     if np.any(observed_frequencies <= 0):
         observed_frequencies = np.maximum(observed_frequencies, 1e-10)
     x0_EFT = x0_JC if not optimise_frequencies else \
         np.hstack((observed_frequencies[:-1] / observed_frequencies[-1], [sf] if optimise_sf else [],
                    [kappa] if optimise_kappa else [],
                    [tau] if optimise_tau else [], [0] if frequency_smoothing else []))
+                    #add beta here
     log_lh_JC = -get_v(x0_JC)
     log_lh_EFT = log_lh_JC if not optimise_frequencies else -get_v(x0_EFT)
 
@@ -771,11 +780,13 @@ def ml_acr(forest, character, prediction_method, model, states, avg_br_len, num_
     """
 
     logger = logging.getLogger('pastml')
+    #you would need to give beta below line as well just as before
     likelihood, frequencies, kappa, sf, tau = \
         optimise_likelihood(forest=forest, avg_br_len=avg_br_len, tree_len=tree_len, num_edges=num_nodes - 1,
                             num_tips=num_tips,
                             character=character, states=states, model=model,
                             frequencies=frequencies, observed_frequencies=observed_frequencies, kappa=kappa, sf=sf,
+                            #beta=beta,
                             tau=tau, optimise_frequencies=optimise_frequencies,
                             optimise_kappa=optimise_kappa, optimise_sf=optimise_sf, optimise_tau=optimise_tau,
                             frequency_smoothing=frequency_smoothing, rate_matrix=rate_matrix, glm_dict=glm_dict)
@@ -1015,6 +1026,7 @@ def marginal_counts(forest, character, model, states, num_nodes, tree_len, frequ
 
 def optimise_likelihood(forest, avg_br_len, tree_len, num_edges, num_tips, character, states, model,
                         frequencies, observed_frequencies, kappa, sf, tau, optimise_frequencies, optimise_kappa,
+                        #beta = beta,
                         optimise_sf, optimise_tau, rate_matrix=None, frequency_smoothing=False, glm_dict=None):
     for tree in forest:
         initialize_allowed_states(tree, character, states)
