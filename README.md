@@ -5,6 +5,15 @@ on rooted phylogenetic trees. Given a rooted tree and its node annotations, it c
 or infer ancestral node states based on the tip states, with a selection of maximum likelihood and parsimonious methods. 
 The result is then visualised as a zoomable html map.
 
+
+[![DOI:10.1093/molbev/msz131](https://zenodo.org/badge/DOI/10.1093/molbev/msz131.svg)](https://doi.org/10.1093/molbev/msz131)
+[![GitHub release](https://img.shields.io/github/v/release/evolbioinfo/pastml.svg)](https://github.com/evolbioinfo/pastml/releases)
+[![PyPI version](https://badge.fury.io/py/pastml.svg)](https://pypi.org/project/pastml/)
+[![PyPI downloads](https://shields.io/pypi/dm/pastml)](https://pypi.org/project/pastml/)
+[![Docker pulls](https://img.shields.io/docker/pulls/evolbioinfo/pastml)](https://hub.docker.com/r/evolbioinfo/pastml/tags)
+
+
+
 #### Article
 
 Ishikawa SA, Zhukova A, Iwasaki W, Gascuel O (2019) __A Fast Likelihood Method to Reconstruct and Visualize Ancestral Scenarios__. [_Molecular Biology and Evolution_, msz131](https://doi.org/10.1093/molbev/msz131).
