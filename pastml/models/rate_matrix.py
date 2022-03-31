@@ -15,6 +15,9 @@ def get_custom_rate_pij(rate_matrix, frequencies):
     :return: a function of t that calculates the probability matrix of substitutions i->j over time t.
     :rtype: lambda t: np.array
     """
+    print('Frequencies from get_custom_ratepij')
+    print(frequencies)
+    print(rate_matrix)
     D_DIAGONAL, A, A_INV = get_diagonalisation(frequencies, rate_matrix)
 
 

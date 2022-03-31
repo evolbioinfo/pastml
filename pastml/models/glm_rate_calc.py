@@ -14,23 +14,25 @@ def glm_rate_calc(glm_dict, coefficients=None):
     the coefficients are calculated as being equal proportionally to 1.
     """
 
-    #THINK ABOUT WHAT IS THE BEST WAY TO CHECK WEIGHTS AND IMPORT WEIGHTS THROUGH PASTML?
 
     #get dictionary with just the name of factor and the matrices
     char_dict = list(glm_dict.values())[0]
     num_matrix = len(char_dict)
 
-    #When coefficients are not given, create a new matrix that has factor name with the coefficients as equal proportionally to 1
-    if coefficients==None:
-        coefficients = {key: 1/num_matrix for key in char_dict.keys()}
-    print(coefficients)
+    print(char_dict.keys())
 
+    for beta in coefficients:
+        coefficients = {key: beta for key in char_dict.keys()}
+    print("these are the coefficients")
+    print(coefficients)
 
     rate_matrix1 = list(char_dict.values())[0]
     target_shape = rate_matrix1.shape
 
     final = np.zeros(shape=target_shape, dtype=float)
     print(final)
+
+    print(char_dict.values())
 
     for key in char_dict.keys():
         value = char_dict[key]

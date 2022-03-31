@@ -18,7 +18,7 @@ from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_pers
 from pastml.annotation import preannotate_forest, get_forest_stats, get_min_forest_stats
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file, get_pastml_work_dir
-from pastml.ml import SCALING_FACTOR, MODEL, FREQUENCIES, MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
+from pastml.ml import SCALING_FACTOR, MODEL, FREQUENCIES, BETA, MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
     ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method, SMOOTHING_FACTOR
 from pastml.models.f81_like import F81, JC, EFT
 from pastml.models.hky import KAPPA, HKY_STATES, HKY
@@ -342,6 +342,10 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                                    'Use F81 (or HKY for nucleotide characters only) '
                                    'for taking user-specified frequencies into account.'.format(model))
             optimise_sf = not sf or reoptimise
+
+            '''
+            Do I not need to include a place here for beta? I feel like it's missing 
+            '''
             if not sf:
                 sf = 1. / tree_stats[0]
             optimise_tau = tau is None or reoptimise
@@ -387,22 +391,31 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             #array in the same order as the matrices (not needed to make a dictionary with matrix name)
             #beta = np.ones(n, dtype=np.float64)
 
-
+            beta = None
+            print('hello')
             if JTT == model:
                 frequencies = JTT_FREQUENCIES
             elif EFT == model:
                 frequencies = observed_frequencies
+                #I am struggling here, I am not sure how to fix this. If I include freqs is not None, then my betas never
+                #get defined. If I do not include it, then frequencies never get defined
+                #freqs is if the user gave frequencies as an input. If they do not, it is none
             elif model in {F81, HKY, CUSTOM_RATES, GLM} and freqs is not None:
                 frequencies = freqs
             else:
                 #initial values for frequencies is specified here when the frequencies are not given
                 #you would do something similar here. Beta = all equal values (1) - do this outside. not actually in this space
                 frequencies = np.ones(n, dtype=np.float64) / n
+            if GLM == model:
+                optimise_beta = True
+                beta = np.ones(len(glmlist), dtype=np.float64)
+                print("inside glm==model")
+                print(beta)
             #you now need to change character2settings everywhere so that beta is also a given parameter
             character2settings[character] = [prediction_method, model, states,
-                                             [frequencies, kappa, sf, tau, rate_matrix ],
+                                             [frequencies, beta, kappa, sf, tau, rate_matrix ],
                                              #add beta in the above line just like frequencies
-                                             [optimise_frequencies, optimise_kappa, optimise_sf, optimise_tau,
+                                             [optimise_frequencies, optimise_beta, optimise_kappa, optimise_sf, optimise_tau,
                                               frequency_smoothing], observed_frequencies]
         else:
             raise ValueError('Method {} is unknown, should be one of ML ({}), one of MP ({}) or {}'
@@ -410,23 +423,20 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
 
     if threads < 1:
         threads = max(os.cpu_count(), 1)
-
     def _work(character):
         prediction_method, model, states, params, optimised_values, observed_frequencies = character2settings[character]
         if COPY == prediction_method:
             return {CHARACTER: character, STATES: states, METHOD: prediction_method}
         if is_ml(prediction_method):
-            #add to line below the beta array
-            frequencies, kappa, sf, tau, rate_matrix = params
-            optimise_frequencies, optimise_kappa, optimise_sf, optimise_tau, frequency_smoothing = optimised_values
-            #to ml_acr below you need to add beta as an argument as well. beta = beta
+            frequencies, beta, kappa, sf, tau, rate_matrix = params
+            optimise_frequencies, optimise_beta, optimise_kappa, optimise_sf, optimise_tau, frequency_smoothing = optimised_values
             return ml_acr(forest=forest, character=character, prediction_method=prediction_method, model=model,
                           states=states, avg_br_len=tree_stats[0], num_nodes=tree_stats[1], num_tips=tree_stats[2],
                           tree_len=tree_stats[3],
-                          frequencies=frequencies, sf=sf, kappa=kappa,
+                          frequencies=frequencies, sf=sf, kappa=kappa, beta=beta,
                           force_joint=force_joint, tau=tau, rate_matrix=rate_matrix, glm_dict=glm_char_factors,
                           optimise_frequencies=optimise_frequencies, optimise_sf=optimise_sf,
-                          optimise_kappa=optimise_kappa, optimise_tau=optimise_tau,
+                          optimise_beta=optimise_beta, optimise_kappa=optimise_kappa, optimise_tau=optimise_tau,
                           frequency_smoothing=frequency_smoothing,
                           observed_frequencies=observed_frequencies)
         if is_parsimonious(prediction_method):
@@ -467,11 +477,12 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                 if character not in character2settings:
                     character = character[:character.rfind('_{}').format(method)]
                 character2settings[character][3] = acr_res[FREQUENCIES], \
+                                                   acr_res[BETA], \
                                                    acr_res[KAPPA] if KAPPA in acr_res else None, \
                                                    acr_res[SCALING_FACTOR], \
                                                    acr_res[SMOOTHING_FACTOR], \
                                                    rate_matrix
-                character2settings[character][4] = [False, False, False, False, False]
+                character2settings[character][4] = [False, False, False, False, False, False]
         if threads > 1:
             with ThreadPool(processes=threads - 1) as pool:
                 acr_results = \
@@ -1047,7 +1058,7 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
         if isinstance(glm, list):
             print('doing list')
         else:
-            raise ValueError('Factor matrices should be either a list or a dict, got {}.'.format(type(glm)))
+            raise ValueError('Factor matrices should be either a list or a string, got {}.'.format(type(glm)))
     else:
         glm = {}
     print('validation')

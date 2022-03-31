@@ -137,7 +137,7 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
                     counts[state2i[s]] += 1 / len(n_states)
 
     avg_br_len, num_nodes, num_tips, tree_len = get_forest_stats(forest)
-    freqs, sf, kappa, tau = _parse_pastml_parameters(parameters, states, num_tips=num_tips, reoptimise=False)
+    freqs, beta, sf, kappa, tau = _parse_pastml_parameters(parameters, states, num_tips=num_tips, reoptimise=False)
     if not tau:
         tau = 0
 
@@ -151,7 +151,7 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
                          .format(sf, sf * avg_br_len),
                          '\n\tsmoothing factor:\t{:.6f}'.format(tau))
                  )
-    result = marginal_counts(forest, column, model, states, num_nodes, tree_len, freqs, sf, kappa, tau,
+    result = marginal_counts(forest, column, model, states, num_nodes, tree_len, freqs, beta, sf, kappa, tau,
                              n_repetitions=n_repetitions)
     df = pd.DataFrame(data=result, columns=states, index=states)
     df.to_csv(out_transitions, sep='\t', index_label='from')

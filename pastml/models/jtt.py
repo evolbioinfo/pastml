@@ -56,7 +56,7 @@ JTT_FREQUENCIES = np.array(
 JTT_FREQUENCIES = JTT_FREQUENCIES / JTT_FREQUENCIES.sum()
 
 
-JTT_D_DIAGONAL, JTT_A, JTT_A_INV = get_diagonalisation(JTT_FREQUENCIES, JTT_RATE_MATRIX)
+JTT_D_DIAGONAL, JTT_A, JTT_A_INV = None, None, None#get_diagonalisation(JTT_FREQUENCIES, JTT_RATE_MATRIX)
 
 
 def get_jtt_pij(t):
