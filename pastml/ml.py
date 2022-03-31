@@ -113,16 +113,8 @@ def get_pij_method(model=F81, frequencies=None, beta=None, kappa=None, rate_matr
         return get_custom_rate_pij(rate_matrix=rate_matrix, frequencies=frequencies)
     #need to fix this later
     if GLM == model:
-        print('here is where I need to define the rate_matrix from the GLM')
-        print(frequencies)
-        print(glm_dict)
-        print("changing betas?")
-        print(beta)
+        #here you are calculating the new rate matrix from the glm (matrices + coefficient addition)
         rate_matrix_glm = glm_rate_calc(glm_dict, coefficients=beta)
-        #above line, your coefficients would be the beta array in order of the matrices
-        print('rate matrix from glm_rate_calc')
-        print(rate_matrix_glm)
-        print(type(rate_matrix_glm))
         return get_custom_rate_pij(rate_matrix=rate_matrix_glm, frequencies=frequencies)
     if HKY == model:
         return lambda t: get_hky_pij(t, frequencies, kappa)
@@ -266,11 +258,6 @@ def optimize_likelihood_params(forest, character, frequencies, beta, sf, kappa, 
     if optimise_kappa:
         bounds += [np.array([1e-6, 20.])]
     if optimise_beta:
-
-        '''
-        If I understand correctly, this is saying that if optimise_beta is TRUE, then the bounds
-        for beta (the upper and lower limit) are -1 and 1? Is this correct?
-        '''
         bounds += [np.array([-1, 1], np.float64)] * len(beta)
     if optimise_tau:
         bounds += [np.array([0, avg_br_len])]
@@ -291,7 +278,6 @@ def optimize_likelihood_params(forest, character, frequencies, beta, sf, kappa, 
     #the array is called ps. What do we want to extract
         first_position_after_frequencies = (len(frequencies) - 1) if optimise_frequencies else 0
         first_position_after_betas = first_position_after_frequencies + (len(beta) if optimise_beta else 0)
-        #must make sure that betas are after frequencies
         beta_val = ps[first_position_after_frequencies:first_position_after_betas] if optimise_beta else beta
         sf_val = ps[first_position_after_betas] if optimise_sf else sf
         first_position_after_sf = first_position_after_betas + (1 if optimise_sf else 0)
@@ -300,7 +286,6 @@ def optimize_likelihood_params(forest, character, frequencies, beta, sf, kappa, 
         tau_val = ps[first_position_after_kappa] if optimise_tau else tau
 
         return freqs, beta_val, sf_val, kappa_val, tau_val
-        #need to return beta as well (these are the optimised values)
 
     def get_v(ps):
         """
@@ -310,7 +295,6 @@ def optimize_likelihood_params(forest, character, frequencies, beta, sf, kappa, 
         """
         if np.any(pd.isnull(ps)):
             return np.nan
-        #add beta here
         freqs, beta_val, sf_val, kappa_val, tau_val = get_real_params_from_optimised(ps)
         res = sum(get_bottom_up_loglikelihood(tree=tree, character=character, frequencies=freqs, beta=beta_val, sf=sf_val,
                                               kappa=kappa_val, is_marginal=True, model=model, tau=tau_val,
@@ -325,7 +309,6 @@ def optimize_likelihood_params(forest, character, frequencies, beta, sf, kappa, 
                        [sf] if optimise_sf else [],
                        [kappa] if optimise_kappa else [],
                        [tau] if optimise_tau else [], [0] if frequency_smoothing else []))
-    #Here you would have add beta as well
     if np.any(observed_frequencies <= 0):
         observed_frequencies = np.maximum(observed_frequencies, 1e-10)
     x0_EFT = x0_JC if not optimise_frequencies else \
@@ -394,7 +377,6 @@ def calculate_top_down_likelihood(tree, character, frequencies, beta, sf, tree_l
     td_lh_sf_feature = get_personalized_feature_name(character, TD_LH_SF)
     bu_lh_feature = get_personalized_feature_name(character, BU_LH)
     bu_lh_sf_feature = get_personalized_feature_name(character, BU_LH_SF)
-    print(beta)
     get_pij = get_pij_method(model, frequencies, beta, kappa, rate_matrix=rate_matrix, glm_dict=glm_dict)
     for node in tree.traverse('preorder'):
         calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, get_pij, sf,

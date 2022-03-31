@@ -19,8 +19,6 @@ def glm_rate_calc(glm_dict, coefficients=None):
     char_dict = list(glm_dict.values())[0]
     num_matrix = len(char_dict)
 
-    print(char_dict.keys())
-
     for beta in coefficients:
         coefficients = {key: beta for key in char_dict.keys()}
     print("these are the coefficients")
@@ -30,9 +28,6 @@ def glm_rate_calc(glm_dict, coefficients=None):
     target_shape = rate_matrix1.shape
 
     final = np.zeros(shape=target_shape, dtype=float)
-    print(final)
-
-    print(char_dict.values())
 
     for key in char_dict.keys():
         value = char_dict[key]

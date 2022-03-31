@@ -279,11 +279,6 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             freqs, sf, kappa, rate_matrix = None, None, None, None
             params = column2parameters[character] if character in column2parameters else None
             rate_file = column2rates[character] if character in column2rates else None
-            #is GLM file given? For GLM, the only character given should be 'country'
-            print(character)
-            #print(column2glm[0])
-            #This only works with 1 matrix being in the 0 index position, eventually, you will need to make this into a dictionary
-            #So you can call all the matrices that being input since the user will be testing multiple factors
 
             if CUSTOM_RATES == model:
                 if rate_file is None:
@@ -411,10 +406,8 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                 beta = np.ones(len(glmlist), dtype=np.float64)
                 print("inside glm==model")
                 print(beta)
-            #you now need to change character2settings everywhere so that beta is also a given parameter
             character2settings[character] = [prediction_method, model, states,
                                              [frequencies, beta, kappa, sf, tau, rate_matrix ],
-                                             #add beta in the above line just like frequencies
                                              [optimise_frequencies, optimise_beta, optimise_kappa, optimise_sf, optimise_tau,
                                               frequency_smoothing], observed_frequencies]
         else:

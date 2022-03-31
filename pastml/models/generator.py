@@ -13,7 +13,7 @@ def get_diagonalisation(frequencies, rate_matrix=None):
         such that A.dot(np.diag(d))).dot(A^{-1}) = 1/mu Q (normalised generator)
     :rtype: tuple
     """
-    a=2
+
     Q = get_normalised_generator(frequencies, rate_matrix)
 
     d, A = np.linalg.eig(Q)
@@ -31,14 +31,11 @@ def get_normalised_generator(frequencies, rate_matrix=None):
     :return: normalised generator 1/mu Q
     :rtype: numpy.ndarray
     """
-    print('how matrix is being passed')
+    print('how rate matrix is being passed')
     print(rate_matrix)
     if rate_matrix is None:
         n = len(frequencies)
         rate_matrix = np.ones(shape=(n, n), dtype=np.float64) - np.eye(n)
-    print("Here are frequencies in generator")
-    ##FOR SOME REASON FREQUENCIES HERE ARE EMPTY
-    print(frequencies)
     generator = rate_matrix * frequencies
     generator -= np.diag(generator.sum(axis=1))
     mu = -generator.diagonal().dot(frequencies)
