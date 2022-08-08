@@ -1,0 +1,60 @@
+{% set name = "pastml" %}
+{% set version = "1.9.34" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/evolbioinfo/pastml/archive/{{ version }}{{ version }}.tar.gz
+  sha256: 3ac606b5db79dc311110aa9a19a344ca28797275f174218b095e7874140f70da
+
+build:
+  script: {{ PYTHON }} -m pip install . -vv
+  number: 0
+
+requirements:
+  build:
+  host:
+    - python
+    - pip
+  skip:
+  run:
+    - python
+    - ete3
+    - pandas
+    - numpy
+    - jinja2
+    - scipy
+    - itolapi
+    - biopython
+
+test:
+  imports:
+    - pastml
+  requires:
+    - python
+    - pip
+  commands:
+    - pip check
+    - cd tests/; python -m unittest *.py; cd ..
+
+about:
+  home: https://pastml.pasteur.fr
+  summary: 'Ancestor character reconstruction and visualisation for rooted phylogenetic trees'
+  description: |
+    PastML provides fast methods for Ancestral Character Reconstruction (ACR)
+    and visualisation on rooted phylogenetic trees. Given a rooted tree and its
+    node annotations, it can either visualise them as-is, or infer ancestral
+    node states based on the tip states, with a selection of maximum likelihood
+    and parsimonious methods. The result is then visualised as a zoomable html
+    map.
+  license: GPL-3.0
+  license_family: GPL
+  license_file: LICENSE
+  doc_url: https://pastml.pasteur.fr/help
+  dev_url: https://github.com/evolbioinfo/pastml
+
+extra:
+  recipe-maintainers:
+    - harmsm
