@@ -41,7 +41,7 @@ test:
 
 about:
   home: https://pastml.pasteur.fr
-  summary: 'Ancestor character reconstruction and visualisation for rooted phylogenetic trees'
+  summary: 'Ancestral character reconstruction and visualisation for rooted phylogenetic trees'
   description: |
     PastML provides fast methods for Ancestral Character Reconstruction (ACR)
     and visualisation on rooted phylogenetic trees. Given a rooted tree and its
