@@ -2,8 +2,8 @@ from collections import Counter
 
 import numpy as np
 
-from annotation import get_forest_stats
-from ml import get_pij_method
+from ..annotation import get_forest_stats
+from ..ml import get_pij_method
 
 
 def simulate_states(tree, model, frequencies, kappa, tau, sf, character, rate_matrix=None, n_repetitions=1_000):
@@ -35,7 +35,3 @@ def simulate_states(tree, model, frequencies, kappa, tau, sf, character, rate_ma
         n.add_feature(character, random_states)
 
     return tree
-
-
-
-

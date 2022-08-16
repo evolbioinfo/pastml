@@ -10,7 +10,7 @@ from pastml.annotation import preannotate_forest, get_forest_stats
 from pastml.ml import marginal_counts
 from pastml.models.f81_like import JC
 from pastml.tree import read_tree
-from utilities.state_simulator import simulate_states
+from pastml.utilities.state_simulator import simulate_states
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'Albanian.minitree.tre')
@@ -70,9 +70,3 @@ class MRANDJCTest(unittest.TestCase):
                 self.assertAlmostEqual(counts[i, j], sim_counts[i, j], 2,
                                        'Counts are different for {}->{}: {} (calculated) vs {} (simulated).'
                                        .format(states[i], states[j], counts[i, j], sim_counts[i, j]))
-
-
-
-
-
-
