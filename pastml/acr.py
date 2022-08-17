@@ -625,11 +625,13 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         as the number of characters (-c option) being analysed plus one.
     :type threads: int
 
-    :param upload_to_itol: (optional, default is False) whether the annotated tree should be uploaded to iTOL
-        (https://itol.embl.de/)
+    :param upload_to_itol: (optional, default is False) whether iTOL annotations
+        for the reconstructed characters associated with the named tree (i.e. the one found in work_dir) should be created.
+        If additionally itol_id and itol_project are specified,
+        the annotated tree will be automatically uploaded to iTOL (https://itol.embl.de/).
     :type upload_to_itol: bool
     :param itol_id: (optional) iTOL user batch upload ID that enables uploading to your iTOL account
-        (see https://itol.embl.de/help.cgi#batch). If not specified, the tree will not be associated to any account.
+        (see https://itol.embl.de/help.cgi#batch).
     :type itol_id: str
     :param itol_project: (optional) iTOL project the annotated tree should be uploaded to
         (must exist, and itol_id must be specified). If not specified, the tree will not be associated to any project.
@@ -1207,15 +1209,16 @@ def main():
 
     itol_group = parser.add_argument_group('iTOL-related arguments')
     itol_group.add_argument('--upload_to_itol', action='store_true',
-                            help="upload the ACR annotated tree to iTOL (https://itol.embl.de/)")
+                            help="create iTOL annotations for the reconstructed characters "
+                                 "associated with the named tree (i.e. the one found in --work_dir). "
+                                 "If additionally --itol_id and --itol_project are specified, "
+                                 "the annotated tree will be automatically uploaded to iTOL (https://itol.embl.de/).")
     itol_group.add_argument('--itol_id', required=False, default=None, type=str,
                             help="iTOL user batch upload ID that enables uploading to your iTOL account "
-                                 "(see https://itol.embl.de/help.cgi#batch). "
-                                 "If not specified, the tree will not be associated to any account.")
-    itol_group.add_argument('--itol_project', required=False, default=None, type=str,
+                                 "(see https://itol.embl.de/help.cgi#batch).")
+    itol_group.add_argument('--itol_project', required=False, default="Sample project", type=str,
                             help="iTOL project the annotated tree should be associated with "
-                                 "(must exist, and --itol_id must be specified). "
-                                 "If not specified, the tree will not be associated with any project.")
+                                 "(must exist, and --itol_id must be specified). By default set to 'Sample project'.")
     itol_group.add_argument('--itol_tree_name', required=False, default=None, type=str,
                             help="name for the tree uploaded to iTOL.")
 

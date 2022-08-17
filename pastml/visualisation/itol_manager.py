@@ -55,6 +55,8 @@ POPUP_CONTENT_TEMPLATE = "<b>{key}: </b>" \
                          "<div style='overflow:auto;max-width:50vw;'>" \
                          "<span style='white-space:nowrap;'>{value}</span></div>"
 
+DEFAULT_ITOL_PROJECT='Sample project'
+
 
 def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
                               tree_path, itol_id=None, itol_project=None, itol_tree_name=None,
@@ -127,16 +129,21 @@ def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
     annotation_files.append(popup_file)
     logging.getLogger('pastml').debug('Generated iTol pop-up file: {}.'.format(popup_file))
 
-    if not itol_tree_name:
-        itol_tree_name = os.path.splitext(os.path.basename(tree_path))[0]
-    tree_id, web_page = upload_to_itol(tree_path, annotation_files, tree_name=itol_tree_name,
-                                       tree_description=None, project_name=itol_project, upload_id=itol_id)
-    if web_page:
-        with open(os.path.join(work_dir, 'iTOL_url.txt'), 'w+') as f:
-            f.write(web_page)
-    if tree_id:
-        with open(os.path.join(work_dir, 'iTOL_tree_id.txt'), 'w+') as f:
-            f.write(tree_id)
+    if itol_id:
+        if not itol_project:
+            logging.getLogger('pastml').debug('Trying "{}" as iTOL project, the tree will be uploaded to. '
+                                              'To upload to a different project, use itol_project argument.'
+                                              .format(DEFAULT_ITOL_PROJECT))
+        if not itol_tree_name:
+            itol_tree_name = os.path.splitext(os.path.basename(tree_path))[0]
+        tree_id, web_page = upload_to_itol(tree_path, annotation_files, tree_name=itol_tree_name,
+                                           tree_description=None, project_name=itol_project, upload_id=itol_id)
+        if web_page:
+            with open(os.path.join(work_dir, 'iTOL_url.txt'), 'w+') as f:
+                f.write(web_page)
+        if tree_id:
+            with open(os.path.join(work_dir, 'iTOL_tree_id.txt'), 'w+') as f:
+                f.write(tree_id)
 
 
 def upload_to_itol(tree_path, dataset_paths, tree_name=None, tree_description=None, project_name=None, upload_id=None):
@@ -163,7 +170,7 @@ def upload_to_itol(tree_path, dataset_paths, tree_name=None, tree_description=No
     except Exception as e:
         status = e
     logging.getLogger('pastml').error(
-        'Failed to upload your tree to iTOL because of "{}". Please check your internet connection and itol settings{}.'
+        'Failed to upload your tree to iTOL because of "{}". Please check your internet connection and iTOL settings{}.'
             .format(status,
                     (', e.g. your iTOL batch upload id ({}){}'
                      .format(upload_id,
