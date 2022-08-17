@@ -1,1 +1,3 @@
 include pastml/templates/*
+include README.in
+include LICENCE
