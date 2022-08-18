@@ -1,0 +1,7 @@
+ete3>=3.1.1
+pandas>=1.0.0
+numpy>=1.19.0
+jinja2>=2.11.0
+scipy>=1.5.0
+itolapi>=4.0.0
+biopython>=1.70
