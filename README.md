@@ -11,6 +11,7 @@ The result is then visualised as a zoomable html map.
 [![PyPI version](https://badge.fury.io/py/pastml.svg)](https://pypi.org/project/pastml/)
 [![PyPI downloads](https://shields.io/pypi/dm/pastml)](https://pypi.org/project/pastml/)
 [![Docker pulls](https://img.shields.io/docker/pulls/evolbioinfo/pastml)](https://hub.docker.com/r/evolbioinfo/pastml/tags)
+[![Unit Tests](https://github.com/evolbioinfo/pastml/workflows/PastML%20Unit%20Tests/badge.svg)](tests)
 
 
 
