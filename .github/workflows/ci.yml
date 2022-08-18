@@ -19,6 +19,6 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python setup.py install
       - name: Test with unittest
         run: cd tests/; python -m unittest *Test.py; cd ..
