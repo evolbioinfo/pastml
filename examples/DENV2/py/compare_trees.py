@@ -4,7 +4,7 @@ from multiprocessing.pool import ThreadPool
 import numpy as np
 import pandas as pd
 from ete3 import Tree
-from scipy.misc import comb
+from scipy.special import comb
 
 if '__main__' == __name__:
     import argparse
