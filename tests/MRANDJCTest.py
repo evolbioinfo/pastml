@@ -33,7 +33,7 @@ class MRANDJCTest(unittest.TestCase):
         tau = 0
 
         model = JC
-        n_repetitions = 25_000
+        n_repetitions = 50_000
         counts = marginal_counts([tree], character, model, states, num_nodes, tree_len, freqs, sf, kappa, tau,
                                  n_repetitions=n_repetitions)
 

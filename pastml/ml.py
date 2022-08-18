@@ -396,9 +396,9 @@ def initialize_allowed_states(tree, feature, states):
     for node in tree.traverse():
         node_states = getattr(node, feature, set())
         if not node_states:
-            allowed_states = np.ones(n, dtype=np.int)
+            allowed_states = np.ones(n, dtype=int)
         else:
-            allowed_states = np.zeros(n, dtype=np.int)
+            allowed_states = np.zeros(n, dtype=int)
             for state in node_states:
                 allowed_states[state2index[state]] = 1
         node.add_feature(allowed_states_feature, allowed_states)
@@ -506,7 +506,7 @@ def unalter_zero_node_joint_states(altered_nodes, feature):
         initial_allowed_states = getattr(n, allowed_state_feature_unaltered)
         allowed_index = np.argmax(initial_allowed_states)
         if len(initial_allowed_states[initial_allowed_states > 0]) == 1:
-            n.add_feature(lh_joint_state_feature, np.ones(len(initial_allowed_states), np.int) * allowed_index)
+            n.add_feature(lh_joint_state_feature, np.ones(len(initial_allowed_states), int) * allowed_index)
         else:
             joint_states = getattr(n, lh_joint_state_feature)
             for i in range(len(initial_allowed_states)):
@@ -652,7 +652,7 @@ def choose_ancestral_states_mppa(tree, feature, states, force_joint=True):
         if best_k == 1:
             allowed_states = state2array[indices_selected[0]]
         else:
-            allowed_states = np.zeros(len(states), dtype=np.int)
+            allowed_states = np.zeros(len(states), dtype=int)
             allowed_states[indices_selected] = 1
             unresolved_nodes += 1
         node.add_feature(allowed_state_feature, allowed_states)
@@ -711,10 +711,10 @@ def choose_ancestral_states_joint(tree, feature, states, frequencies):
 def get_state2allowed_states(states, by_name=True):
     # tips allowed state arrays won't be modified so we might as well just share them
     n = len(states)
-    all_ones = np.ones(n, np.int)
+    all_ones = np.ones(n, int)
     state2array = {}
     for index, state in enumerate(states):
-        allowed_state_array = np.zeros(n, np.int)
+        allowed_state_array = np.zeros(n, int)
         allowed_state_array[index] = 1
         state2array[state if by_name else index] = allowed_state_array
     if by_name:
