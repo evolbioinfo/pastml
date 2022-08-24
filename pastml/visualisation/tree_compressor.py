@@ -66,7 +66,7 @@ def save_to_pajek(compressed_tree, pajek, columns):
 
 
 def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, mixed=False, pajek=None):
-    compressed_tree = copy_forest([tree])[0]
+    compressed_tree = copy_forest([tree], features=columns | set(tree.features))[0]
 
     for n_compressed, n in zip(compressed_tree.traverse('postorder'), tree.traverse('postorder')):
         n_compressed.add_feature(TIPS_BELOW, [list(n_compressed.iter_leaves())])
