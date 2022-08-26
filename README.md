@@ -8,6 +8,7 @@ The result is then visualised as a zoomable html map.
 
 [![DOI:10.1093/molbev/msz131](https://zenodo.org/badge/DOI/10.1093/molbev/msz131.svg)](https://doi.org/10.1093/molbev/msz131)
 [![GitHub release](https://img.shields.io/github/v/release/evolbioinfo/pastml.svg)](https://github.com/evolbioinfo/pastml/releases)
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/pastml/badges/version.svg)](https://anaconda.org/bioconda/pastml)
 [![PyPI version](https://badge.fury.io/py/pastml.svg)](https://pypi.org/project/pastml/)
 [![PyPI downloads](https://shields.io/pypi/dm/pastml)](https://pypi.org/project/pastml/)
 [![Docker pulls](https://img.shields.io/docker/pulls/evolbioinfo/pastml)](https://hub.docker.com/r/evolbioinfo/pastml/tags)
