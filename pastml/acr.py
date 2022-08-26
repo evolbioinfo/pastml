@@ -913,7 +913,7 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
     if len(states) > num_tips * .75 and not copy_only:
         raise ValueError('Character "{}" has {} unique states annotated in this tree: {}, '
                          'which is too much to infer on a {} with only {} tips. '
-                         'Make sure the character you are analysing is discreet, and if yes use a larger tree.'
+                         'Make sure the character you are analysing is discrete, and if yes use a larger tree.'
                          .format(c, len(states), states, 'tree' if len(roots) == 1 else 'forest', num_tips))
 
     if name_column and name_column not in columns:
