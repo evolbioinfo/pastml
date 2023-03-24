@@ -6,8 +6,9 @@ import numpy as np
 import pandas as pd
 
 from pastml.acr import _parse_pastml_parameters
-from pastml.annotation import preannotate_forest, get_forest_stats
+from pastml.annotation import preannotate_forest, get_forest_stats, ForestStats
 from pastml.ml import marginal_counts
+from pastml.models.JCModel import JCModel
 from pastml.models.f81_like import JC
 from pastml.tree import read_tree
 from pastml.utilities.state_simulator import simulate_states
@@ -32,14 +33,13 @@ class MRANDJCTest(unittest.TestCase):
         freqs, sf, kappa, _ = _parse_pastml_parameters(PARAMS_INPUT, states, num_tips=num_tips, reoptimise=False)
         tau = 0
 
-        model = JC
+        model = JCModel(forest_stats=ForestStats([tree]), states=states, parameter_file=PARAMS_INPUT)
         n_repetitions = 50_000
-        counts = marginal_counts([tree], character, model, states, num_nodes, tree_len, freqs, sf, kappa, tau,
-                                 n_repetitions=n_repetitions)
+        counts = marginal_counts([tree], character, model, n_repetitions=n_repetitions)
 
         sim_character = character + '.simulated'
         n_sim_repetitions = n_repetitions * 300
-        simulate_states(tree, model, freqs, kappa, tau, sf, sim_character, n_repetitions=n_sim_repetitions)
+        simulate_states(tree, model, character=sim_character, n_repetitions=n_sim_repetitions)
         good_indices = np.ones(n_sim_repetitions, dtype=int)
         n_states = len(states)
         state2id = dict(zip(states, range(n_states)))

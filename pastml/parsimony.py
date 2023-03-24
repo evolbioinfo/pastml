@@ -312,15 +312,15 @@ def parsimonious_acr(forest, character, prediction_method, states, num_nodes, nu
         result[STEPS] = 0
         for tree in forest:
             downpass(tree, character, states)
-            if prediction_method == DOWNPASS:
+            if prediction_method in {DOWNPASS, MP}:
                 result[STEPS] += get_num_parsimonious_steps(tree, feature)
         if prediction_method in {DOWNPASS, MP}:
             process_result(DOWNPASS, feature)
+        result[STEPS] = 0
         if prediction_method in {DELTRAN, MP}:
             for tree in forest:
                 deltran(tree, character)
-                if prediction_method == DELTRAN:
-                    result[STEPS] += get_num_parsimonious_steps(tree, feature)
+                result[STEPS] += get_num_parsimonious_steps(tree, feature)
             process_result(DELTRAN, feature)
         for tree in forest:
             for node in tree.traverse():

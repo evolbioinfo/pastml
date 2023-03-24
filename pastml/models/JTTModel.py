@@ -1,6 +1,6 @@
 import numpy as np
 
-from pastml.models.generator import get_pij_matrix, get_diagonalisation
+from pastml.models.CustomRatesModel import CustomRatesModel
 
 """
 The JTT matrix below is taken from https://www.ebi.ac.uk/goldman-srv/dayhoff/
@@ -50,23 +50,29 @@ JTT_RATE_MATRIX[np.tril_indices(NUM_AA, k=-1)] = \
      2.924161, 0.171995, 0.164525, 0.315261, 0.621323, 0.179771, 0.465271, 0.470140, 0.121827, 9.533943, 1.761439, 0.124066, 3.038533, 0.593478, 0.211561, 0.408532, 1.143980, 0.239697, 0.165473]
 JTT_RATE_MATRIX = np.maximum(JTT_RATE_MATRIX, JTT_RATE_MATRIX.T)
 
-
 JTT_FREQUENCIES = np.array(
     [0.076862, 0.051057, 0.042546, 0.051269, 0.020279, 0.041061, 0.061820, 0.074714, 0.022983, 0.052569, 0.091111, 0.059498, 0.023414, 0.040530, 0.050532, 0.068225, 0.058518, 0.014336, 0.032303, 0.066374])
 JTT_FREQUENCIES = JTT_FREQUENCIES / JTT_FREQUENCIES.sum()
 
-
-JTT_D_DIAGONAL, JTT_A, JTT_A_INV = get_diagonalisation(JTT_FREQUENCIES, JTT_RATE_MATRIX)
-
-
-def get_jtt_pij(t):
-    """
-    Calculates the probability matrix of substitutions i->j over time t, with JTT model [Jones et al. 1992].
+state_order = np.argsort(JTT_STATES)
+JTT_STATES = JTT_STATES[state_order]
+JTT_FREQUENCIES = JTT_FREQUENCIES[state_order]
+JTT_RATE_MATRIX = JTT_RATE_MATRIX[:, state_order][state_order, :]
 
 
-    :param t: time
-    :type t: float
-    :return: probability matrix
-    :rtype: numpy.ndarray
-    """
-    return get_pij_matrix(t, JTT_D_DIAGONAL, JTT_A, JTT_A_INV)
+class JTTModel(CustomRatesModel):
+
+    def __init__(self, forest_stats, sf=None, tau=0, optimise_tau=False, parameter_file=None, reoptimise=False, **kwargs):
+        kwargs['states'] = JTT_STATES
+        CustomRatesModel.__init__(self, forest_stats=forest_stats, sf=sf,
+                                  frequencies=JTT_FREQUENCIES, rate_matrix=JTT_RATE_MATRIX,
+                                  parameter_file=parameter_file, reoptimise=reoptimise,
+                                  tau=tau, optimise_tau=optimise_tau, **kwargs)
+        self._optimise_frequencies = False
+        self._frequency_smoothing = False
+        self.name = JTT
+
+    @CustomRatesModel.states.setter
+    def states(self, states):
+        raise NotImplementedError('The JTT states are preset and cannot be changed.')
+

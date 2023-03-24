@@ -87,7 +87,7 @@ def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
                      .format(column=column, colours='\t'.join(colours), states='\t'.join(states),
                              shapes='\t'.join(['1'] * len(states)),
                              method='{}{}'.format(acr_result[METHOD],
-                                                  ('+{}'.format(acr_result[MODEL]) if MODEL in acr_result else ''))))
+                                                  ('+{}'.format(acr_result[MODEL].name) if MODEL in acr_result else ''))))
         col_df = state_df[state_df[column].apply(len) == 1]
         col_df['itol_label'] = col_df[column].apply(lambda _: next(iter(_)))
         col_df['itol_colour'] = col_df['itol_label'].apply(lambda _: value2colour[_])
