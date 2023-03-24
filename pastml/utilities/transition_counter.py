@@ -1,19 +1,24 @@
 import os
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-from pastml.models.rate_matrix import CUSTOM_RATES
-from pastml.acr import _parse_pastml_parameters, _validate_input, PASTML_VERSION, _set_up_pastml_logger
+from pastml.acr import _validate_input, PASTML_VERSION, _set_up_pastml_logger, \
+    calculate_observed_freqs
+from pastml.annotation import ForestStats
 from pastml.file import get_pastml_work_dir
-from pastml.annotation import get_forest_stats
 from pastml.ml import SCALING_FACTOR, SMOOTHING_FACTOR, \
     marginal_counts
-from pastml.models.f81_like import F81, JC, EFT
-from pastml.models.hky import HKY_STATES, HKY
-from pastml.models.jtt import JTT_STATES, JTT
+from pastml.models.CustomRatesModel import CUSTOM_RATES, CustomRatesModel
+from pastml.models.EFTModel import EFT, EFTModel
+from pastml.models.F81Model import F81, F81Model
+from pastml.models.HKYModel import HKY, HKYModel, HKY_STATES
+from pastml.models.JCModel import JC, JCModel
+from pastml.models.JTTModel import JTT, JTTModel, JTT_STATES
 from pastml.visualisation.colour_generator import parse_colours, get_enough_colours
 from pastml.visualisation.cytoscape_manager import save_as_transition_html
+
+model2class = {F81: F81Model, JC: JCModel, CUSTOM_RATES: CustomRatesModel, HKY: HKYModel, JTT: JTTModel, EFT: EFTModel}
 
 
 def count_transitions(tree, data, column, parameters, out_transitions, data_sep='\t', id_index=0, model=F81,
@@ -125,6 +130,14 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
             raise ValueError('The allowed states for model {} are {}, '
                              'but your annotation file specifies {} as states in column {}.'
                              .format(model, ', '.join(states), ', '.join(initial_states), column))
+
+    missing_data, observed_frequencies, state2index = calculate_observed_freqs(column, forest, states)
+
+    model = model2class[model](parameter_file=parameters,
+                               rate_matrix_file=rates[column] if column in rates else None,
+                               reoptimise=False, states=states, forest_stats=ForestStats(forest),
+                               observed_frequencies=observed_frequencies)
+
     state_set = set(states)
     counts = np.zeros(len(states))
     state2i = dict(zip(states, range(len(states))))
@@ -136,23 +149,10 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
                 for s in n_states:
                     counts[state2i[s]] += 1 / len(n_states)
 
-    avg_br_len, num_nodes, num_tips, tree_len = get_forest_stats(forest)
-    freqs, sf, kappa, tau = _parse_pastml_parameters(parameters, states, num_tips=num_tips, reoptimise=False)
-    if not tau:
-        tau = 0
-
     logger.debug('\n=============COUNTING TRANSITIONS for {} ({} repetitions)==============================='
                  .format(column, n_repetitions))
-    logger.debug('Using the following parameters:{}{}{}{}.'
-                 .format(''.join('\n\tfrequency of {}:\t{:.6f}'
-                                 .format(state, freq) for state, freq in zip(states, freqs)),
-                         '\n\tkappa:\t{:.6f}'.format(kappa) if HKY == model else '',
-                         '\n\tscaling factor:\t{:.6f}, i.e. {:.6f} changes per avg branch'
-                         .format(sf, sf * avg_br_len),
-                         '\n\tsmoothing factor:\t{:.6f}'.format(tau))
-                 )
-    result = marginal_counts(forest, column, model, states, num_nodes, tree_len, freqs, sf, kappa, tau,
-                             n_repetitions=n_repetitions)
+    logger.debug(model)
+    result = marginal_counts(forest, column, model, n_repetitions=n_repetitions)
     df = pd.DataFrame(data=result, columns=states, index=states)
     df.to_csv(out_transitions, sep='\t', index_label='from')
     logger.info('Transition counts are saved as {}.'.format(out_transitions))

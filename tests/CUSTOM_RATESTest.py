@@ -6,11 +6,12 @@ import numpy as np
 from ete3 import Tree
 
 from pastml.acr import acr, _serialize_acr, _set_up_pastml_logger
+from pastml.annotation import ForestStats
 from pastml.file import get_pastml_parameter_file
 from pastml.ml import MPPA, LOG_LIKELIHOOD, MARGINAL_PROBABILITIES
+from pastml.models.CustomRatesModel import load_custom_rates, save_custom_rates
+from pastml.models.JTTModel import JTTModel, JTT_STATES, JTT_RATE_MATRIX
 from pastml.utilities.state_simulator import simulate_states
-from pastml.models.rate_matrix import save_custom_rates, load_custom_rates, CUSTOM_RATES
-from pastml.models.jtt import JTT_RATE_MATRIX, JTT_FREQUENCIES, JTT_STATES, JTT
 
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
@@ -38,7 +39,8 @@ class CUSTOM_RATESTest(unittest.TestCase):
     def test_tree_likelihood(self):
         _set_up_pastml_logger(True)
         tree = Tree(TREE_NWK, format=3)
-        simulate_states(tree, JTT, JTT_FREQUENCIES, kappa=0, tau=0, sf=1, character='jtt', rate_matrix=None, n_repetitions=1)
+        model = JTTModel(forest_stats=ForestStats([tree]), sf=1)
+        simulate_states(tree, model, character='jtt', n_repetitions=1)
         for tip in tree:
             tip.add_feature('state1', {JTT_STATES[getattr(tip, 'jtt')][0]})
             tip.add_feature('state2', {JTT_STATES[getattr(tip, 'jtt')][0]})
@@ -62,7 +64,8 @@ class CUSTOM_RATESTest(unittest.TestCase):
     def test_marginal_probs_internal_nodes(self):
         _set_up_pastml_logger(True)
         tree = Tree(TREE_NWK, format=3)
-        simulate_states(tree, JTT, JTT_FREQUENCIES, kappa=0, tau=0, sf=1, character='jtt', rate_matrix=None, n_repetitions=1)
+        model = JTTModel(forest_stats=ForestStats([tree]), sf=1)
+        simulate_states(tree, model, character='jtt', n_repetitions=1)
         for tip in tree:
             tip.add_feature('state1', {JTT_STATES[getattr(tip, 'jtt')][0]})
             tip.add_feature('state2', {JTT_STATES[getattr(tip, 'jtt')][0]})

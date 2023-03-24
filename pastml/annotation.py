@@ -26,6 +26,13 @@ def get_min_forest_stats(forest):
     return [avg_len, num_nodes, num_tips, len_sum]
 
 
+class ForestStats(object):
+
+    def __init__(self, forest):
+        self.avg_nonzero_brlen, self.num_nodes, self.num_tips, self.forest_length = get_forest_stats(forest)
+        self.num_trees = len(forest)
+
+
 def get_forest_stats(forest):
     len_sum_ext = 0
     len_sum_int = 0
