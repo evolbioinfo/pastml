@@ -15,12 +15,13 @@ from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_pers
 from pastml.annotation import preannotate_forest, ForestStats
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file, get_pastml_work_dir
-from pastml.ml import SCALING_FACTOR, MODEL, FREQUENCIES, MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
-    ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method, SMOOTHING_FACTOR
+from pastml.ml import MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
+    ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method
+from pastml.models import MODEL, SCALING_FACTOR, SMOOTHING_FACTOR
 from pastml.models.CustomRatesModel import CustomRatesModel, CUSTOM_RATES
 from pastml.models.EFTModel import EFTModel, EFT
 from pastml.models.F81Model import F81Model, F81
-from pastml.models.HKYModel import HKYModel, HKY, KAPPA, HKY_STATES
+from pastml.models.HKYModel import HKYModel, HKY, HKY_STATES
 from pastml.models.JCModel import JCModel, JC
 from pastml.models.JTTModel import JTTModel, JTT, JTT_STATES
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
@@ -43,100 +44,6 @@ warnings.filterwarnings("ignore", append=True)
 COPY = 'COPY'
 
 
-def _parse_pastml_parameters(params, states, num_tips, reoptimise=False):
-    logger = logging.getLogger('pastml')
-    frequencies, sf, kappa, tau = None, None, None, None
-    if not isinstance(params, str) and not isinstance(params, dict):
-        raise ValueError('Parameters must be specified either as a dict or as a path to a csv file, not as {}!'
-                         .format(type(params)))
-    if isinstance(params, str):
-        if not os.path.exists(params):
-            raise ValueError('The specified parameter file ({}) does not exist.'
-                             .format(params))
-        try:
-            param_dict = pd.read_csv(params, header=0, index_col=0, sep='\t')
-            if 'value' not in param_dict.columns:
-                raise ValueError('Could not find the "value" column in the parameter file {}. '
-                                 'It should be a tab-delimited file with two columns, '
-                                 'the first one containing parameter names, '
-                                 'and the second, named "value", containing parameter values.')
-            param_dict = param_dict.to_dict()['value']
-            params = param_dict
-        except:
-            raise ValueError('The specified parameter file {} is malformatted, '
-                             'should be a tab-delimited file with two columns, '
-                             'the first one containing parameter names, '
-                             'and the second, named "value", containing parameter values.'.format(params))
-    params = {str(k.encode('ASCII', 'replace').decode()): v for (k, v) in params.items()}
-    known_freq_states = set(states) & set(params.keys())
-    if known_freq_states:
-        unknown_freq_states = [state for state in states if state not in params.keys()]
-        if unknown_freq_states and not reoptimise:
-            logger.error('Frequencies for some of the states ({}) are missing, '
-                         'ignoring the specified frequencies.'.format(', '.join(unknown_freq_states)))
-        else:
-            frequencies = np.array([params[state] if state in params.keys() else 0 for state in states])
-            try:
-                frequencies = frequencies.astype(np.float64)
-                if np.round(frequencies.sum() - 1, 2) != 0 and not reoptimise:
-                    logger.error('Specified frequencies ({}) do not sum up to one ({}),'
-                                 'ignoring them.'.format(frequencies, frequencies.sum()))
-                    frequencies = None
-                else:
-                    if np.any(frequencies < 0) and not reoptimise:
-                        logger.error('Some of the specified frequencies ({}) are negative,'
-                                     'ignoring them.'.format(frequencies))
-                        frequencies = None
-                    else:
-                        min_freq = \
-                            min(1 / num_tips,
-                                min(float(params[state]) for state in known_freq_states if float(params[state]) > 0)) \
-                            / 2
-                        if unknown_freq_states:
-                            logger.error('Frequencies for some of the states ({}) are missing, '
-                                         'setting them to {}.'.format(', '.join(unknown_freq_states), min_freq))
-                        frequencies = np.maximum(frequencies, min_freq)
-                        frequencies /= frequencies.sum()
-            except:
-                logger.error('Could not convert the specified frequencies ({}) to float, '
-                             'ignoring them.'.format(frequencies))
-                frequencies = None
-    if SCALING_FACTOR in params:
-        sf = params[SCALING_FACTOR]
-        try:
-            sf = np.float64(sf)
-            if sf <= 0:
-                logger.error(
-                    'Scaling factor ({}) cannot be negative, ignoring it.'.format(sf))
-                sf = None
-        except:
-            logger.error('Scaling factor ({}) is not float, ignoring it.'.format(sf))
-            sf = None
-    if KAPPA in params:
-        kappa = params[KAPPA]
-        try:
-            kappa = np.float64(kappa)
-            if kappa <= 0:
-                logger.error(
-                    'Kappa ({}) cannot be negative, ignoring it.'.format(kappa))
-                kappa = None
-        except:
-            logger.error('Kappa ({}) is not float, ignoring it.'.format(kappa))
-            kappa = None
-    if SMOOTHING_FACTOR in params:
-        tau = params[SMOOTHING_FACTOR]
-        try:
-            tau = np.float64(tau)
-            if tau < 0:
-                logger.error(
-                    'Smoothing factor ({}) cannot be negative, ignoring it.'.format(tau))
-                tau = None
-        except:
-            logger.error('Smoothing factor ({}) is not float, ignoring it.'.format(tau))
-            tau = None
-    return frequencies, sf, kappa, tau
-
-
 def _serialize_acr(args):
     acr_result, work_dir = args
     out_param_file = \
@@ -149,15 +56,12 @@ def _serialize_acr(args):
     with open(out_param_file, 'w+') as f:
         f.write('parameter\tvalue\n')
         f.write('pastml_version\t{}\n'.format(PASTML_VERSION))
+        for name in sorted(acr_result.keys()):
+            if name not in [STATES, MARGINAL_PROBABILITIES, METHOD, MODEL]:
+                f.write('{}\t{}\n'.format(name, acr_result[name]))
         f.write('{}\t{}\n'.format(METHOD, acr_result[METHOD]))
         if is_ml(acr_result[METHOD]):
-            f.write('{}\t{}\n'.format(MODEL, acr_result[MODEL].name))
-        for name in sorted(acr_result.keys()):
-            if name not in [FREQUENCIES, STATES, MARGINAL_PROBABILITIES, METHOD, MODEL]:
-                f.write('{}\t{}\n'.format(name, acr_result[name]))
-        if is_ml(acr_result[METHOD]):
-            for state, freq in zip(acr_result[STATES], acr_result[FREQUENCIES]):
-                f.write('{}\t{}\n'.format(state, freq))
+            acr_result[MODEL].save_parameters(f)
     logging.getLogger('pastml').debug('Serialized ACR parameters and statistics for {} to {}.'
                                       .format(acr_result[CHARACTER], out_param_file))
 
@@ -227,8 +131,8 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         If set to zero (default), zero internal branches will be collapsed instead.
     :type tau: float
 
-    :param threads: (optional, default is 0, which stands for automatic) number of threads PastML can use for parallesation.
-        By default detected automatically based on the system. Note that PastML will at most use as many threads
+    :param threads: (optional, default is 0, which stands for automatic) number of threads PastML can use for parallezation.
+        By default, detected automatically based on the system. Note that PastML will at most use as many threads
         as the number of characters (-c option) being analysed plus one.
     :type threads: int
 

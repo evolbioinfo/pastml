@@ -131,3 +131,7 @@ class HKYModel(ModelWithFrequencies):
     def freeze(self):
         ModelWithFrequencies.freeze(self)
         self._optimise_kappa = False
+
+    def save_parameters(self, filehandle):
+        ModelWithFrequencies.save_parameters(self, filehandle)
+        filehandle.write('{}\t{:g}\n'.format(KAPPA, self.kappa))

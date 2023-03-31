@@ -31,7 +31,7 @@ def load_custom_rates(infile):
         if len(states) != n:
             raise ValueError(
                 'The number of specified state names ({}) does not correspond to the rate matrix dimensions ({}x{}).'
-                    .format(len(states), *rate_matrix.shape))
+                .format(len(states), *rate_matrix.shape))
     new_order = np.argsort(states)
     return states[new_order], np.array(rate_matrix)[:, new_order][new_order, :]
 

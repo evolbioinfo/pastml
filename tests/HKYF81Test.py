@@ -6,10 +6,11 @@ import pandas as pd
 
 from pastml import get_personalized_feature_name, STATES
 from pastml.acr import acr
-from pastml.models.hky import KAPPA, HKY
-from pastml.ml import LH, LH_SF, MPPA, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, \
-    CHANGES_PER_AVG_BRANCH, SCALING_FACTOR, FREQUENCIES, MARGINAL_PROBABILITIES
-from pastml.models.f81_like import F81
+from pastml.models import SCALING_FACTOR
+from pastml.models.F81Model import F81
+from pastml.models.HKYModel import KAPPA, HKY
+from pastml.ml import LH, LH_SF, MPPA, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, MARGINAL_PROBABILITIES, \
+    MODEL
 from pastml.tree import read_tree
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
@@ -33,10 +34,13 @@ print("Log lh for HKY-kappa-fixed {}, HKY {}"
 class HKYF81Test(unittest.TestCase):
 
     def test_params(self):
-        for param in (LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR.format(MPPA), CHANGES_PER_AVG_BRANCH,
-                      SCALING_FACTOR):
+        for param in (LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR.format(MPPA)):
             self.assertAlmostEqual(acr_result_hky[param], acr_result_f81[param], places=3,
                                    msg='{} was supposed to be the same for two models'.format(param))
+        value_hky = acr_result_hky[MODEL].sf
+        value_f81 = acr_result_f81[MODEL].sf
+        self.assertAlmostEqual(value_hky, value_f81, places=2,
+                               msg='{} was supposed to be the same for two models'.format(SCALING_FACTOR))
 
     def test_hky_likelihood_is_better(self):
         self.assertGreater(acr_result_hky_free[LOG_LIKELIHOOD], acr_result_hky[LOG_LIKELIHOOD],
@@ -44,8 +48,8 @@ class HKYF81Test(unittest.TestCase):
 
     def test_frequencies(self):
         for state in acr_result_f81[STATES]:
-            value_f81 = acr_result_f81[FREQUENCIES][np.where(acr_result_f81[STATES] == state)][0]
-            value_hky = acr_result_hky[FREQUENCIES][np.where(acr_result_hky[STATES] == state)][0]
+            value_f81 = acr_result_f81[MODEL].frequencies[np.where(acr_result_f81[STATES] == state)][0]
+            value_hky = acr_result_hky[MODEL].frequencies[np.where(acr_result_hky[STATES] == state)][0]
             self.assertAlmostEqual(value_f81, value_hky, places=3,
                                    msg='Frequency of {} was supposed to be the same for two models'
                                    .format(state))
