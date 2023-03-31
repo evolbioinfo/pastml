@@ -2,13 +2,16 @@ import os
 
 from pastml.acr import pastml_pipeline, COPY
 from pastml.ml import MPPA, MAP, JOINT, ALL, ML
-from pastml.models.f81_like import EFT, F81, JC
+from pastml.models.EFTModel import EFT
+from pastml.models.F81Model import F81
+from pastml.models.JCModel import JC
 from pastml.parsimony import ACCTRAN, DELTRAN, DOWNPASS, MP
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')
 STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')
 STATES_COPY = os.path.join(DATA_DIR, 'copy_states.csv')
+
 
 if '__main__' == __name__:
     # The initial tree without ACR

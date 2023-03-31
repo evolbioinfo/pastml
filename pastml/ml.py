@@ -5,16 +5,11 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
-from pastml import get_personalized_feature_name, CHARACTER, STATES, METHOD, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
-    NUM_NODES, NUM_TIPS, NUM_STATES_PER_NODE, PERC_UNRESOLVED
+from pastml import get_personalized_feature_name, CHARACTER, METHOD, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
+    NUM_STATES_PER_NODE, PERC_UNRESOLVED, STATES
 from pastml.models import ModelWithFrequencies
-from pastml.models.HKYModel import HKY, KAPPA
 from pastml.parsimony import parsimonious_acr, MP
 
-CHANGES_PER_AVG_BRANCH = 'state_changes_per_avg_branch'
-SCALING_FACTOR = 'scaling_factor'
-SMOOTHING_FACTOR = 'smoothing_factor'
-FREQUENCIES = 'frequencies'
 LOG_LIKELIHOOD = 'log_likelihood'
 RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR = '{}_restricted_{{}}'.format(LOG_LIKELIHOOD)
 
@@ -260,7 +255,7 @@ def calculate_top_down_likelihood(tree, character, model):
     For the root node we assume its top-down likelihood to be 1 for all the states.
 
     :param model: model of character evolution
-    :type model: str
+    :type model: pastml.models.Model
     :param character: character whose ancestral state likelihood is being calculated
     :type character: str
     :param tree: tree of interest (with bottom-up likelihood pre-calculated)
@@ -654,8 +649,8 @@ def ml_acr(forest, character, prediction_method, model, observed_frequencies, fo
     :type forest: list(ete3.Tree)
     :param character: character for which the ML states are reconstructed
     :type character: str
-    :param model: evolutionary model, F81 (Felsenstein 81-like), JC (Jukes-Cantor-like) or EFT (estimate from tips)
-    :type model: str
+    :param model: character state change model
+    :type model: pastml.models.Model
     :return: mapping between reconstruction parameters and values
     :rtype: dict
     """
@@ -664,12 +659,7 @@ def ml_acr(forest, character, prediction_method, model, observed_frequencies, fo
         optimise_likelihood(forest=forest, character=character, model=model,
                             observed_frequencies=observed_frequencies)
     result = {LOG_LIKELIHOOD: likelihood, CHARACTER: character, METHOD: prediction_method, MODEL: model,
-              FREQUENCIES: model.frequencies, SCALING_FACTOR: model.sf,
-              CHANGES_PER_AVG_BRANCH: model.sf * model.forest_stats.avg_nonzero_brlen, STATES: model.states,
-              SMOOTHING_FACTOR: model.tau,
-              NUM_NODES: model.forest_stats.num_nodes, NUM_TIPS: model.forest_stats.num_tips}
-    if HKY == model:
-        result[KAPPA] = model.kappa
+              STATES: model.states}
 
     results = []
 
@@ -736,8 +726,8 @@ def ml_acr(forest, character, prediction_method, model, observed_frequencies, fo
                         _parsimonious_states2allowed_states(tree, pars_acr_res[CHARACTER], character, model.states)
                     try:
                         restricted_likelihood = \
-                            sum(get_bottom_up_loglikelihood(tree=tree, character=character, is_marginal=True, model=model,
-                                                            alter=True)
+                            sum(get_bottom_up_loglikelihood(tree=tree, character=character, is_marginal=True,
+                                                            model=model, alter=True)
                                 for tree in forest)
                         note_restricted_likelihood(pars_acr_res[METHOD], restricted_likelihood)
                     except PastMLLikelihoodError as e:

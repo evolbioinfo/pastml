@@ -9,8 +9,8 @@ from pastml.acr import acr, _serialize_acr, _set_up_pastml_logger
 from pastml.annotation import ForestStats
 from pastml.file import get_pastml_parameter_file
 from pastml.ml import MPPA, LOG_LIKELIHOOD, MARGINAL_PROBABILITIES
-from pastml.models.CustomRatesModel import load_custom_rates, save_custom_rates
-from pastml.models.JTTModel import JTTModel, JTT_STATES, JTT_RATE_MATRIX
+from pastml.models.CustomRatesModel import load_custom_rates, save_custom_rates, CUSTOM_RATES
+from pastml.models.JTTModel import JTTModel, JTT_STATES, JTT_RATE_MATRIX, JTT
 from pastml.utilities.state_simulator import simulate_states
 
 

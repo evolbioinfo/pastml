@@ -7,8 +7,8 @@ from pastml.acr import _validate_input, PASTML_VERSION, _set_up_pastml_logger, \
     calculate_observed_freqs
 from pastml.annotation import ForestStats
 from pastml.file import get_pastml_work_dir
-from pastml.ml import SCALING_FACTOR, SMOOTHING_FACTOR, \
-    marginal_counts
+from pastml.ml import marginal_counts
+from pastml.models import SCALING_FACTOR, SMOOTHING_FACTOR
 from pastml.models.CustomRatesModel import CUSTOM_RATES, CustomRatesModel
 from pastml.models.EFTModel import EFT, EFTModel
 from pastml.models.F81Model import F81, F81Model

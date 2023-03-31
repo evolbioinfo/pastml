@@ -6,10 +6,10 @@ import pandas as pd
 
 from pastml import get_personalized_feature_name, STATES
 from pastml.acr import acr
-from pastml.models.hky import KAPPA, HKY
-from pastml.ml import LH, LH_SF, MPPA, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, \
-    CHANGES_PER_AVG_BRANCH, SCALING_FACTOR, MARGINAL_PROBABILITIES
-from pastml.models.f81_like import JC
+from pastml.models import MODEL, SCALING_FACTOR
+from pastml.models.HKYModel import KAPPA, HKY
+from pastml.ml import LH, LH_SF, MPPA, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, MARGINAL_PROBABILITIES
+from pastml.models.JCModel import JC
 from pastml.tree import read_tree
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
@@ -17,8 +17,8 @@ TREE_NWK = os.path.join(DATA_DIR, 'tree.152taxa.sf_0.5.A_0.25.C_0.25.G_0.25.T_0.
 STATES_INPUT = os.path.join(DATA_DIR, 'tree.152taxa.sf_0.5.A_0.25.C_0.25.G_0.25.T_0.25.pastml.tab')
 
 feature = 'ACR'
-acr_result_f81 = acr(read_tree(TREE_NWK), pd.read_csv(STATES_INPUT, index_col=0, header=0, sep='\t')[[feature]],
-                     prediction_method=MPPA, model=JC)[0]
+acr_result_jc = acr(read_tree(TREE_NWK), pd.read_csv(STATES_INPUT, index_col=0, header=0, sep='\t')[[feature]],
+                    prediction_method=MPPA, model=JC)[0]
 
 df = pd.read_csv(STATES_INPUT, index_col=0, header=0, sep='\t')[[feature]]
 tree = read_tree(TREE_NWK)
@@ -38,10 +38,13 @@ print("Log lh for HKY-all-fixed {}, HKY-freqs-fixed {}, HKY-kappa-fixed {}, HKY 
 class HKYJCTest(unittest.TestCase):
 
     def test_params(self):
-        for param in (LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR.format(MPPA), CHANGES_PER_AVG_BRANCH,
-                      SCALING_FACTOR):
-            self.assertAlmostEqual(acr_result_hky[param], acr_result_f81[param], places=3,
+        for param in (LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR.format(MPPA)):
+            self.assertAlmostEqual(acr_result_hky[param], acr_result_jc[param], places=3,
                                    msg='{} was supposed to be the same for two models'.format(param))
+        value_hky = acr_result_hky[MODEL].sf
+        value_f81 = acr_result_jc[MODEL].sf
+        self.assertAlmostEqual(value_hky, value_f81, places=2,
+                               msg='{} was supposed to be the same for two models'.format(SCALING_FACTOR))
 
     def test_hky_likelihood_is_better_kappa(self):
         self.assertGreater(acr_result_hky_free_kappa[LOG_LIKELIHOOD], acr_result_hky[LOG_LIKELIHOOD],
@@ -74,8 +77,8 @@ class HKYJCTest(unittest.TestCase):
     def test_marginal_probs_root(self):
         node_name = 'ROOT'
         mps_hky = acr_result_hky[MARGINAL_PROBABILITIES]
-        mps_f81 = acr_result_f81[MARGINAL_PROBABILITIES]
-        for state in acr_result_f81[STATES]:
+        mps_f81 = acr_result_jc[MARGINAL_PROBABILITIES]
+        for state in acr_result_jc[STATES]:
             self.assertAlmostEqual(mps_f81.loc[node_name, state], mps_hky.loc[node_name, state], places=3,
                                    msg='{}: Marginal probability of {} was supposed to be the same for two models'
                                    .format(node_name, state))
@@ -83,8 +86,8 @@ class HKYJCTest(unittest.TestCase):
     def test_marginal_probs_internal_node(self):
         node_name = 'node_4'
         mps_hky = acr_result_hky[MARGINAL_PROBABILITIES]
-        mps_f81 = acr_result_f81[MARGINAL_PROBABILITIES]
-        for state in acr_result_f81[STATES]:
+        mps_f81 = acr_result_jc[MARGINAL_PROBABILITIES]
+        for state in acr_result_jc[STATES]:
             self.assertAlmostEqual(mps_f81.loc[node_name, state], mps_hky.loc[node_name, state], places=3,
                                    msg='{}: Marginal probability of {} was supposed to be the same for two models'
                                    .format(node_name, state))
@@ -92,8 +95,8 @@ class HKYJCTest(unittest.TestCase):
     def test_marginal_probs_tip(self):
         node_name = '02ALAY1660'
         mps_hky = acr_result_hky[MARGINAL_PROBABILITIES]
-        mps_f81 = acr_result_f81[MARGINAL_PROBABILITIES]
-        for state in acr_result_f81[STATES]:
+        mps_f81 = acr_result_jc[MARGINAL_PROBABILITIES]
+        for state in acr_result_jc[STATES]:
             self.assertAlmostEqual(mps_f81.loc[node_name, state], mps_hky.loc[node_name, state], places=3,
                                    msg='{}: Marginal probability of {} was supposed to be the same for two models'
                                    .format(node_name, state))

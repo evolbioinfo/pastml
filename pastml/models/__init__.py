@@ -4,7 +4,11 @@ import os
 import numpy as np
 import pandas as pd
 
+from pastml import NUM_NODES, NUM_TIPS
 
+
+MODEL = 'model'
+CHANGES_PER_AVG_BRANCH = 'state_changes_per_avg_branch'
 SCALING_FACTOR = 'scaling_factor'
 SMOOTHING_FACTOR = 'smoothing_factor'
 FREQUENCIES = 'frequencies'
@@ -51,6 +55,14 @@ class Model(object):
             .format(self.sf, self.forest_stats.avg_nonzero_brlen * self.sf,
                     '(optimised)' if self._optimise_sf else '(fixed)',
                     self.tau, '(optimised)' if self._optimise_tau else '(fixed)')
+
+    def save_parameters(self, filehandle):
+        filehandle.write('{}\t{}\n'.format(MODEL, self.name))
+        filehandle.write('{}\t{}\n'.format(NUM_NODES, self.forest_stats.num_nodes))
+        filehandle.write('{}\t{}\n'.format(NUM_TIPS, self.forest_stats.num_tips))
+        filehandle.write('{}\t{}\n'.format(SCALING_FACTOR, self.sf))
+        filehandle.write('{}\t{}\n'.format(CHANGES_PER_AVG_BRANCH, self.sf * self.forest_stats.avg_nonzero_brlen))
+        filehandle.write('{}\t{}\n'.format(SMOOTHING_FACTOR, self.tau))
 
     def extra_params_fixed(self):
         return self._extra_params_fixed
@@ -326,3 +338,8 @@ class ModelWithFrequencies(Model):
 
     def basic_params_fixed(self):
         return not Model.get_num_params(self)
+
+    def save_parameters(self, filehandle):
+        Model.save_parameters(self, filehandle)
+        for state, frequency in zip(self.states, self.frequencies):
+            filehandle.write('{}\t{}\n'.format(state, frequency))

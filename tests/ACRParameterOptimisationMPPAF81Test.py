@@ -4,16 +4,16 @@ import unittest
 import numpy as np
 import pandas as pd
 
+from pastml.models import MODEL, SCALING_FACTOR
+from pastml.models.F81Model import F81
 from pastml.tree import read_tree
 from pastml import get_personalized_feature_name, STATES
 from pastml.acr import acr
-from pastml.ml import LH, LH_SF, MPPA, F81, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, CHANGES_PER_AVG_BRANCH, \
-    SCALING_FACTOR, FREQUENCIES, MARGINAL_PROBABILITIES
+from pastml.ml import LH, LH_SF, MPPA, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, MARGINAL_PROBABILITIES
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')
 STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')
-
 
 
 def reroot_tree_randomly():
@@ -52,20 +52,25 @@ class ACRParameterOptimisationMPPAF81Test(unittest.TestCase):
         for _ in range(5):
             rerooted_tree = reroot_tree_randomly()
             rerooted_acr_result = acr(rerooted_tree, df, prediction_method=MPPA, model=F81)[0]
-            for (state, freq, refreq) in zip(acr_result[STATES], acr_result[FREQUENCIES],
-                                             rerooted_acr_result[FREQUENCIES]):
+            for (state, freq, refreq) in zip(acr_result[STATES], acr_result[MODEL].frequencies,
+                                             rerooted_acr_result[MODEL].frequencies):
                 self.assertAlmostEqual(freq, refreq, places=2,
                                        msg='Frequency of {} for the original tree and rerooted tree '
                                            'were supposed to be the same, '
                                            'got {:.3f} vs {:3f}'
                                        .format(state, freq, refreq))
-            for label in (LOG_LIKELIHOOD, CHANGES_PER_AVG_BRANCH, SCALING_FACTOR):
-                value = acr_result[label]
-                rerooted_value = rerooted_acr_result[label]
-                self.assertAlmostEqual(value, rerooted_value, places=2,
-                                       msg='{} for the original tree and rerooted tree were supposed to be the same, '
-                                           'got {:.3f} vs {:3f}'
-                                       .format(label, value, rerooted_value))
+            value = acr_result[LOG_LIKELIHOOD]
+            rerooted_value = rerooted_acr_result[LOG_LIKELIHOOD]
+            self.assertAlmostEqual(value, rerooted_value, places=2,
+                                   msg='{} for the original tree and rerooted tree were supposed to be the same, '
+                                       'got {:.3f} vs {:3f}'
+                                   .format(LOG_LIKELIHOOD, value, rerooted_value))
+            value = acr_result[MODEL].sf
+            rerooted_value = rerooted_acr_result[MODEL].sf
+            self.assertAlmostEqual(value, rerooted_value, places=2,
+                                   msg='{} for the original tree and rerooted tree were supposed to be the same, '
+                                       'got {:.3f} vs {:3f}'
+                                   .format(SCALING_FACTOR, value, rerooted_value))
             mps = acr_result[MARGINAL_PROBABILITIES]
             remps = rerooted_acr_result[MARGINAL_PROBABILITIES]
             for node_name in ('node_4', '02ALAY1660'):
@@ -82,26 +87,21 @@ class ACRParameterOptimisationMPPAF81Test(unittest.TestCase):
                                msg='Restricted likelihood was supposed to be the {:.3f}, got {:3f}'
                                .format(-111.662, acr_result[RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR.format(MPPA)]))
 
-    def test_changes_per_avg_branch(self):
-        self.assertAlmostEqual(0.107, acr_result[CHANGES_PER_AVG_BRANCH], places=3,
-                               msg='Scaling factor was supposed to be the {:.3f} changes per avg branch, got {:3f}'
-                               .format(0.107, acr_result[CHANGES_PER_AVG_BRANCH]))
-
     def test_sf(self):
-        self.assertAlmostEqual(3.841, acr_result[SCALING_FACTOR], places=3,
+        self.assertAlmostEqual(3.841, acr_result[MODEL].sf, places=3,
                                msg='Scaling factor was supposed to be the {:.3f}, got {:3f}'
-                               .format(3.841, acr_result[SCALING_FACTOR]))
+                               .format(3.841, acr_result[MODEL].sf))
 
     def test_frequencies(self):
         for loc, expected_value in {'Africa': 0.082, 'Albania': 0.028, 'EastEurope': 0.081, 'Greece': 0.365,
                                     'WestEurope': 0.444}.items():
-            value = acr_result[FREQUENCIES][np.where(acr_result[STATES] == loc)][0]
+            value = acr_result[MODEL].frequencies[np.where(acr_result[STATES] == loc)][0]
             self.assertAlmostEqual(value, expected_value, places=3,
                                    msg='Frequency of {} was supposed to be the {:.3f}, got {:3f}'
                                    .format(loc, expected_value, value))
 
     def test_frequencies_sum_to_1(self):
-        value = acr_result[FREQUENCIES].sum()
+        value = acr_result[MODEL].frequencies.sum()
         self.assertAlmostEqual(value, 1, places=3,
                                msg='Frequencies were supposed to sum to 1, not to {:3f}'.format(value))
 

@@ -5,9 +5,10 @@ from collections import Counter
 import pandas as pd
 import numpy as np
 
+from pastml.models.F81Model import F81
 from pastml.tree import read_tree, collapse_zero_branches
 from pastml.acr import acr
-from pastml.ml import MAP, F81
+from pastml.ml import MAP
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')

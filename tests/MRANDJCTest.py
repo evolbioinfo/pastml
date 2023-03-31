@@ -5,11 +5,9 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 
-from pastml.acr import _parse_pastml_parameters
-from pastml.annotation import preannotate_forest, get_forest_stats, ForestStats
+from pastml.annotation import preannotate_forest, ForestStats
 from pastml.ml import marginal_counts
 from pastml.models.JCModel import JCModel
-from pastml.models.f81_like import JC
 from pastml.tree import read_tree
 from pastml.utilities.state_simulator import simulate_states
 
@@ -28,10 +26,6 @@ class MRANDJCTest(unittest.TestCase):
         df = pd.read_csv(STATES_INPUT, index_col=0, header=0)[[character]]
         preannotate_forest([tree], df=df)
         states = np.array([_ for _ in df[character].unique() if not pd.isna(_) and '' != _])
-        avg_len, num_nodes, num_tips, tree_len = get_forest_stats([tree])
-
-        freqs, sf, kappa, _ = _parse_pastml_parameters(PARAMS_INPUT, states, num_tips=num_tips, reoptimise=False)
-        tau = 0
 
         model = JCModel(forest_stats=ForestStats([tree]), states=states, parameter_file=PARAMS_INPUT)
         n_repetitions = 50_000
