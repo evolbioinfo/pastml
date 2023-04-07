@@ -1,5 +1,6 @@
 import numpy as np
 
+from pastml.models import Model
 from pastml.models.CustomRatesModel import CustomRatesModel
 
 """
@@ -64,15 +65,21 @@ class JTTModel(CustomRatesModel):
 
     def __init__(self, forest_stats, sf=None, tau=0, optimise_tau=False, parameter_file=None, reoptimise=False, **kwargs):
         kwargs['states'] = JTT_STATES
+        if 'frequency_smoothing' in kwargs:
+            del kwargs['frequency_smoothing']
         CustomRatesModel.__init__(self, forest_stats=forest_stats, sf=sf,
                                   frequencies=JTT_FREQUENCIES, rate_matrix=JTT_RATE_MATRIX,
-                                  parameter_file=parameter_file, reoptimise=reoptimise,
+                                  parameter_file=parameter_file, reoptimise=reoptimise, frequency_smoothing=False,
                                   tau=tau, optimise_tau=optimise_tau, **kwargs)
         self._optimise_frequencies = False
-        self._frequency_smoothing = False
         self.name = JTT
 
     @CustomRatesModel.states.setter
     def states(self, states):
         raise NotImplementedError('The JTT states are preset and cannot be changed.')
+
+    def parse_parameters(self, params, reoptimise=False):
+        # This model sets fixed frequencies
+        # and hence should only read the basic parameters (scaling and smoothing factors) from the input file
+        return Model.parse_parameters(self, params, reoptimise)
 

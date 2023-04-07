@@ -82,6 +82,11 @@ class HKYModel(ModelWithFrequencies):
         return p
 
     def get_num_params(self):
+        """
+        Returns the number of optimized parameters for this model.
+
+        :return: the number of optimized parameters
+        """
         return ModelWithFrequencies.get_num_params(self) + (1 if self._optimise_kappa else 0)
 
     def set_params_from_optimised(self, ps, **kwargs):

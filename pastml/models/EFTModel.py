@@ -20,3 +20,8 @@ class EFTModel(F81Model):
     def _print_parameters(self):
         return '{}' \
                '\tfrequencies:\tobserved in the tree\t(fixed)\n'.format(Model._print_parameters(self))
+
+    def parse_parameters(self, params, reoptimise=False):
+        # This model sets frequencies from the observed values
+        # and hence should only read the basic parameters (scaling and smoothing factors) from the input file
+        return Model.parse_parameters(self, params, reoptimise)

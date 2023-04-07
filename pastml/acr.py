@@ -21,6 +21,7 @@ from pastml.models import MODEL, SCALING_FACTOR, SMOOTHING_FACTOR
 from pastml.models.CustomRatesModel import CustomRatesModel, CUSTOM_RATES
 from pastml.models.EFTModel import EFTModel, EFT
 from pastml.models.F81Model import F81Model, F81
+from pastml.models.GLMModel import GLM, GLMModel
 from pastml.models.HKYModel import HKYModel, HKY, HKY_STATES
 from pastml.models.JCModel import JCModel, JC
 from pastml.models.JTTModel import JTTModel, JTT, JTT_STATES
@@ -34,7 +35,8 @@ from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, 
 from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 
-model2class = {F81: F81Model, JC: JCModel, CUSTOM_RATES: CustomRatesModel, HKY: HKYModel, JTT: JTTModel, EFT: EFTModel}
+model2class = {F81: F81Model, JC: JCModel, CUSTOM_RATES: CustomRatesModel, HKY: HKYModel, JTT: JTTModel, EFT: EFTModel,
+               GLM: GLMModel}
 
 
 PASTML_VERSION = '1.9.40'
@@ -78,8 +80,7 @@ def _serialize_acr(args):
 def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPPA, model=F81,
         column2parameters=None, column2rates=None,
         force_joint=True, threads=0,
-        reoptimise=False, tau=0, resolve_polytomies=False, frequency_smoothing=False,
-        glm=None, glm_coefficients=None):
+        reoptimise=False, tau=0, resolve_polytomies=False, frequency_smoothing=False):
     """
     Reconstructs ancestral states for the given tree and
     all the characters specified as columns of the given annotation dataframe.
@@ -103,24 +104,6 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         or pastml.ml.SCALING_FACTOR (then the value should be the scaling factor for three branches,
         e.g. set to 1 to keep the original branches). Could also be in a form {column: path_to_param_file}.
     :type column2parameters: dict
-    :param glm: (only for pastml.models.glm.GLM model) paths to the files
-        specifying the GLM matrices.
-        Each GLM matrix file should specify character states in its first line,
-        preceded by '# ' and separated by spaces.
-        The following lines should contain a symmetric squared rate matrix with positive rates
-        (and zeros on the diagonal), separated by spaces,
-        in the same order at the character states specified in the first line.
-        For example for four states, A, C, G, T and the rates A<->C 1, A<->G 4, A<->T 1, C<->G 1, C<->T 4, G<->T 1,
-        the rate matrix file would look like:
-        # A C G T
-        0 1 4 1
-        1 0 1 4
-        4 1 0 1
-        1 4 1 0
-    :type glm: list(str)
-    :param glm_coefficients (only for pastml.models.glm.GLM model) fixed coefficients for the GLM matrices.
-        The order of the coefficients should correspond to the order of the GLM matrices given in the argument glm.
-    :type glm_coefficients: list(float)
     :param reoptimise: (False by default) if set to True and the parameters are specified,
         they will be considered as an optimisation starting point instead, and the parameters will be optimised.
     :type reoptimise: bool
@@ -164,9 +147,6 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
 
     prediction_methods = value2list(len(columns), prediction_method, MPPA)
     models = value2list(len(columns), model, F81)
-
-    # if sum(1 for _ in models if GLM == _) > 1:
-    #     raise ValueError('Only one column at a time can be analysed with GLM')
 
     def get_states(method, model, column):
         initial_states = column2states[column]
@@ -346,7 +326,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
                     itol_tree_name=None, offline=False, threads=0, reoptimise=False, focus=None,
                     resolve_polytomies=False, smoothing=False, frequency_smoothing=False,
-                    pajek=None, glm=None, glm_coefficients=None):
+                    pajek=None):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -428,24 +408,6 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         4 1 0 1
         1 4 1 0
     :type rate_matrix: str or list(str) or dict
-    :param glm: (only for pastml.models.glm.GLM model) paths to the files
-        specifying the GLM matrices.
-        Each GLM matrix file should specify character states in its first line,
-        preceded by '# ' and separated by spaces.
-        The following lines should contain a symmetric squared rate matrix with positive rates
-        (and zeros on the diagonal), separated by spaces,
-        in the same order at the character states specified in the first line.
-        For example for four states, A, C, G, T and the rates A<->C 1, A<->G 4, A<->T 1, C<->G 1, C<->T 4, G<->T 1,
-        the rate matrix file would look like:
-        # A C G T
-        0 1 4 1
-        1 0 1 4
-        4 1 0 1
-        1 4 1 0
-    :type glm: list(str)
-    :param glm_coefficients (only for pastml.models.glm.GLM model) fixed coefficients for the GLM matrices.
-        The order of the coefficients should correspond to the order of the GLM matrices given in the argument glm.
-    :type glm_coefficients: list(float)
     :param reoptimise: (False by default) if set to True and the parameters are specified,
         they will be considered as an optimisation starting point instead, and optimised.
     :type reoptimise: bool
@@ -569,8 +531,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                       prediction_method=prediction_method, model=model, column2parameters=parameters,
                       column2rates=rates,
                       force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=None if smoothing else 0,
-                      resolve_polytomies=resolve_polytomies, frequency_smoothing=frequency_smoothing,
-                      glm=glm, glm_coefficients=glm_coefficients)
+                      resolve_polytomies=resolve_polytomies, frequency_smoothing=frequency_smoothing)
 
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
 
@@ -977,7 +938,7 @@ def main():
                            help='add {joint} state to the {mppa} state selection '
                                 'even if it is not selected by Brier score.'.format(joint=JOINT, mppa=MPPA))
     acr_group.add_argument('-m', '--model', default=F81,
-                           choices=[JC, F81, EFT, HKY, JTT, CUSTOM_RATES],
+                           choices=[JC, F81, EFT, HKY, JTT, CUSTOM_RATES, GLM],
                            type=str, nargs='*',
                            help='evolutionary model for ML methods (ignored by MP methods). '
                                 'When multiple ancestral characters are specified (see -c, --columns), '
@@ -1019,25 +980,6 @@ def main():
                                 '1 0 1 4\n'
                                 '4 1 0 1\n'
                                 '1 4 1 0'.format(CUSTOM_RATES))
-    # acr_group.add_argument('--glm', type=str, nargs='*',
-    #                        help='(only for {} model) paths to the files specifying the GLM matrices. '
-    #                             'Each GLM matrix file should specify character states in its first line, '
-    #                             'preceded by \'# \' and separated by spaces. '
-    #                             'The following lines should contain a symmetric squared rate matrix with positive rates'
-    #                             '(and zeros on the diagonal), separated by spaces,'
-    #                             'in the same order at the character states specified in the first line.'
-    #                             'For example for four states, A, C, G, T '
-    #                             'and the rates A<->C 1, A<->G 4, A<->T 1, C<->G 1, C<->T 4, G<->T 1,'
-    #                             'the rate matrix file would look like:\n'
-    #                             '# A C G T\n'
-    #                             '0 1 4 1\n'
-    #                             '1 0 1 4\n'
-    #                             '4 1 0 1\n'
-    #                             '1 4 1 0'.format(GLM))
-    # acr_group.add_argument('--glm_coefficients', type=float, nargs='*',
-    #                        help='(only for {}) fixed coefficients for the GLM matrices. '
-    #                             'The order of the coefficients should correspond to the order of the GLM matrices '
-    #                             'given in the argument --glm.'.format(GLM))
     acr_group.add_argument('--reoptimise', action='store_true',
                            help='if the parameters are specified, they will be considered as an optimisation '
                                 'starting point instead and optimised.')
