@@ -11,16 +11,14 @@ GLM_COEFFICIENTS = 'COEFFICIENTS'
 GLM_SELECTORS = 'SELECTORS'
 
 
-def save_custom_rates(states, rate_matrix, outfile):
-    np.savetxt(outfile, rate_matrix, delimiter=' ', fmt='%.18e', header=' '.join(states))
-
-
-def load_GLM_matrix(infile):
+def load_matrix(infile):
     """
     Read input matrix from a file, and check that it looks ok.
+
     :param infile: input file path
     :return: tuple(states, matrix) with character states and the read matrix
     """
+    # TODO: check and update this method
     try:
         rate_matrix = np.loadtxt(infile, dtype=np.float64, comments='#', delimiter=' ')
     except:
@@ -49,6 +47,7 @@ class GLMModel(ModelWithFrequencies):
 
     def __init__(self, states, forest_stats, parameter_file, coefficients=None, sf=None, tau=0,
                  optimise_tau=False, reoptimise=False, **kwargs):
+        
         self._coefficients = None
         self._optimise_coefficients = reoptimise
 
@@ -77,13 +76,30 @@ class GLMModel(ModelWithFrequencies):
     def get_rate_matrix(self):
         """
         Calculates the rate matrix from coefficients and input matrices
+
         :return: np.array containing the rate matrix
         """
         # multiply matrices by their coefficients and selectors
+        # TODO: make sure that the final matrix has no negative values
         weighted_matrices = np.array([m * c for (m, c) in zip(self.matrices, self.coefficients)])
         return weighted_matrices.sum(axis=0)
 
     def parse_parameters(self, params, reoptimise=False):
+        """
+        Update this model's values from the input parameters.
+        For a GLM model, apart from the basic parameters (scaling factor and smoothing factor, see pastml.models.Model),
+        the input might contain:
+        (1) the input matrices (mandatory). The key for this parameter is pastml.models.GLMModel.GLM_MATRICES,
+            and the value contains semicolon-separated paths to the files with matrices;
+        (2) GLM coefficient values (optional).  The key for this parameter is pastml.models.GLMModel.GLM_COEFFICIENTS,
+            and the value contains semicolon-separated coefficients (in order of the corresponding input matrices);
+
+        :param params: dict {key->value}
+        :param reoptimise: whether these model parameters should be treated as starting values (True)
+            or as fixed values (False)
+        :return: dict with parameter values (same as input)
+        """
+
         # this will parse basic model parameters (scaling factor and smoothing factor)
         # and return a dictionary key->value with other named (by key) parameters and their values
         params = Model.parse_parameters(self, params, reoptimise)
@@ -93,7 +109,7 @@ class GLMModel(ModelWithFrequencies):
             raise ValueError('At least one GLM matrix must be given in the parameter file (parameter name "{}"), '
                              'when the model {} is used.'.format(GLM_MATRICES, GLM))
         matrix_files = params[GLM_MATRICES].split(';')
-        states_matrices = [load_GLM_matrix(mf.strip()) for mf in matrix_files]
+        states_matrices = [load_matrix(mf.strip()) for mf in matrix_files]
         if not states_matrices:
             raise ValueError('At least one GLM matrix must be given in the parameter file (parameter name "{}"), '
                              'when the model {} is used.'.format(GLM_MATRICES, GLM))
@@ -104,7 +120,9 @@ class GLMModel(ModelWithFrequencies):
                                  'as they correspond to different states, e.g. "{}" vs "{}"'
                                  .format(', '.join(self.states), ', '.join(sts)))
             self._matrices.append(mx)
-        self._matrices = np.array(self._matrices)
+
+        # TODO: check that the matrices are not co-linear and raise an issue if they are
+        # ...
 
         # Let's save the matrix location in order to be able to write it to the output file
         self._glm_matrix_location = params[GLM_MATRICES]
@@ -122,13 +140,13 @@ class GLMModel(ModelWithFrequencies):
 
                 # TODO: perform some coefficient checks here.
                 # Here we assume that
-                # each coefficient c should satisfy: -1 <= c <= 1. TODO: check if this assumption is good
+                # each coefficient c should satisfy: 0 < c <= 1. TODO: check if this assumption is good
                 if np.any(self._coefficients > 1):
                     raise ValueError('Coefficients given in parameters ({}) must all be not greater than 1, '
                                      'but yours are not. Please fix them.'
                                      .format(self._coefficients, self._coefficients.sum()))
-                if np.any(self._coefficients < -1):
-                    raise ValueError('Coefficients given in parameters ({}) must all be not less than -1, '
+                if np.any(self._coefficients <= 0):
+                    raise ValueError('Coefficients given in parameters ({}) must all be positive, '
                                      'but yours are not. Please fix them.'
                                      .format(self._coefficients, self._coefficients.sum()))
             except:
@@ -150,6 +168,7 @@ class GLMModel(ModelWithFrequencies):
             self._coefficients = coefficients
         else:
             raise NotImplementedError('The coefficients are preset and cannot be changed.')
+        # If the coefficients just got changed, we need to update our precomputed diagonalization
         self.D_DIAGONAL, self.A, self.A_INV = get_diagonalisation(self.frequencies, self.get_rate_matrix())
 
     @property
@@ -223,7 +242,8 @@ class GLMModel(ModelWithFrequencies):
         if not self.extra_params_fixed():
             extras = []
             if self._optimise_coefficients:
-                extras += [np.array([-1, 1], np.float64)] * len(self.coefficients)
+                # putting 1e-6 as a very small number close to zero, in order not to allow for zero itself
+                extras += [np.array([1e-6, 1], np.float64)] * len(self.coefficients)
             return np.array((*ModelWithFrequencies.get_bounds(self), *extras))
         return Model.get_bounds(self)
 
@@ -242,7 +262,7 @@ class GLMModel(ModelWithFrequencies):
 
     def freeze(self):
         """
-        Prohibit parameter optimization.
+        Prohibit parameter optimization by setting all optimization flags to False.
 
         :return: void
         """

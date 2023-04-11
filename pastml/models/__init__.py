@@ -158,6 +158,23 @@ class Model(object):
         return (1 if self._optimise_sf else 0) + (1 if self._optimise_tau else 0)
 
     def parse_parameters(self, params, reoptimise=False):
+        """
+        Update this model's values from the input parameters.
+        The input might contain:
+        (1) the scaling factor, by which each branch length will be multiplied (optional).
+            The key for this parameter is pastml.models.SCALING_FACTOR;
+        (2) the smoothing factor, which will be added to each branch length
+            before the branches are renormalized to keep the initial tree length (optional).
+            The key for this parameter is pastml.models.SMOOTHING_FACTOR;
+
+        :param params: dict {key->value}
+            or a path to the file containing a tab-delimited table with the first column containing keys
+                and the second (named 'value') containing values.
+        :param reoptimise: whether these model parameters should be treated as starting values (True)
+            or as fixed values (False)
+        :return: dict with parameter values
+        """
+
         logger = logging.getLogger('pastml')
         frequencies, sf, kappa, tau = None, None, None, None
         if params is None:
@@ -291,6 +308,18 @@ class ModelWithFrequencies(Model):
         return Model.get_bounds(self)
 
     def parse_parameters(self, params, reoptimise=False):
+        """
+        Update this model's values from the input parameters.
+        For a model with frequencies, apart from the basic parameters
+        (scaling factor and smoothing factor, see pastml.models.Model),
+        the input might contain the frequency values:
+        the key for each frequency value is the name of the corresponding character state.
+
+        :param params: dict {key->value}
+        :param reoptimise: whether these model parameters should be treated as starting values (True)
+            or as fixed values (False)
+        :return: dict with parameter values (same as input)
+        """
         params = Model.parse_parameters(self, params, reoptimise)
         logger = logging.getLogger('pastml')
         known_freq_states = set(self.states) & set(params.keys())

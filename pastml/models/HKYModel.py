@@ -111,6 +111,18 @@ class HKYModel(ModelWithFrequencies):
                         *([np.array([1e-6, 20.])] if self._optimise_kappa else [])))
 
     def parse_parameters(self, params, reoptimise=False):
+        """
+        Update this model's values from the input parameters.
+        For the HKY model, apart from the basic parameters (scaling factor and smoothing factor) and the frequencies
+        (see pastml.models.ModelWithFrequencies),
+        the input might contain an optional kappa value:
+        the key for kappa value is the pastml.models.HKYModel.KAPPA.
+
+        :param params: dict {key->value}
+        :param reoptimise: whether these model parameters should be treated as starting values (True)
+            or as fixed values (False)
+        :return: dict with parameter values (same as input)
+        """
         params = ModelWithFrequencies.parse_parameters(self, params, reoptimise)
         logger = logging.getLogger('pastml')
         if KAPPA in params:
