@@ -90,6 +90,14 @@ class HKYModel(ModelWithFrequencies):
         return ModelWithFrequencies.get_num_params(self) + (1 if self._optimise_kappa else 0)
 
     def set_params_from_optimised(self, ps, **kwargs):
+        """
+        Update this model parameter values from a vector representing parameters
+        for the likelihood optimization algorithm.
+
+        :param ps: np.array containing parameters of the likelihood optimization algorithm
+        :param kwargs: dict of eventual other arguments
+        :return: void, update this model
+        """
         if self.extra_params_fixed():
             Model.set_params_from_optimised(self, ps, **kwargs)
         else:
@@ -99,12 +107,23 @@ class HKYModel(ModelWithFrequencies):
                 self.kappa = ps[n_params]
 
     def get_optimised_parameters(self):
+        """
+        Converts this model parameters to a vector representing parameters
+        for the likelihood optimization algorithm.
+
+        :return: np.array containing parameters of the likelihood optimization algorithm
+        """
         if self.extra_params_fixed():
             return Model.get_optimised_parameters(self)
         return np.hstack((ModelWithFrequencies.get_optimised_parameters(self),
                           [self.kappa] if self._optimise_kappa else []))
 
     def get_bounds(self):
+        """
+        Get bounds for parameters for likelihood optimization algorithm.
+
+        :return: np.array containing lower and upper (potentially infinite) bounds for each parameter
+        """
         if self.extra_params_fixed():
             return Model.get_bounds(self)
         return np.array((*ModelWithFrequencies.get_bounds(self),
@@ -141,14 +160,30 @@ class HKYModel(ModelWithFrequencies):
         return params
 
     def _print_parameters(self):
+        """
+        Constructs a string representing parameter values (to be used to logging).
+
+        :return: str representing parameter values
+        """
         return '{}' \
                '\tkappa\t{:.6f}\t{}\n'.format(ModelWithFrequencies.get_optimised_parameters(self),
                                           self.kappa, '(optimised)' if self._optimise_kappa else '(fixed)')
 
     def freeze(self):
+        """
+        Prohibit parameter optimization by setting all optimization flags to False.
+
+        :return: void
+        """
         ModelWithFrequencies.freeze(self)
         self._optimise_kappa = False
 
     def save_parameters(self, filehandle):
+        """
+        Writes this model parameter values to the parameter file (in the same format as the input parameter file).
+
+        :param filehandle: filehandle for the file where the parameter values should be written.
+        :return: void
+        """
         ModelWithFrequencies.save_parameters(self, filehandle)
         filehandle.write('{}\t{:g}\n'.format(KAPPA, self.kappa))
