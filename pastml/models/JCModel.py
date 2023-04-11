@@ -16,6 +16,11 @@ class JCModel(F81Model):
         self.name = JC
 
     def _print_parameters(self):
+        """
+        Constructs a string representing parameter values (to be used to logging).
+
+        :return: str representing parameter values
+        """
         return '{}' \
                '\tfrequencies\tall equal to {:g}\t(fixed)\n'.format(Model._print_parameters(self), 1 / len(self.states))
 

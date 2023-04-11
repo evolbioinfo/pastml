@@ -16,6 +16,11 @@ class EFTModel(F81Model):
         self.name = EFT
 
     def _print_parameters(self):
+        """
+        Constructs a string representing parameter values (to be used to logging).
+
+        :return: str representing parameter values
+        """
         return '{}' \
                '\tfrequencies:\tobserved in the tree\t(fixed)\n'.format(Model._print_parameters(self))
 

@@ -47,6 +47,11 @@ class Model(object):
                         self._print_parameters())
 
     def _print_parameters(self):
+        """
+        Constructs a string representing parameter values (to be used to logging).
+
+        :return: str representing parameter values
+        """
         return self._print_basic_parameters()
 
     def _print_basic_parameters(self):
@@ -57,6 +62,12 @@ class Model(object):
                     self.tau, '(optimised)' if self._optimise_tau else '(fixed)')
 
     def save_parameters(self, filehandle):
+        """
+        Writes this model parameter values to the parameter file (in the same format as the input parameter file).
+
+        :param filehandle: filehandle for the file where the parameter values should be written.
+        :return: void
+        """
         filehandle.write('{}\t{}\n'.format(MODEL, self.name))
         filehandle.write('{}\t{}\n'.format(NUM_NODES, self.forest_stats.num_nodes))
         filehandle.write('{}\t{}\n'.format(NUM_TIPS, self.forest_stats.num_tips))
@@ -131,16 +142,35 @@ class Model(object):
         raise NotImplementedError("Please implement this method in the Model subclass")
 
     def set_params_from_optimised(self, ps, **kwargs):
+        """
+        Update this model parameter values from a vector representing parameters
+        for the likelihood optimization algorithm.
+
+        :param ps: np.array containing parameters of the likelihood optimization algorithm
+        :param kwargs: dict of eventual other arguments
+        :return: void, update this model
+        """
         if self._optimise_sf:
             self.sf = ps[0]
         if self._optimise_tau:
             self.tau = ps[1 if self._optimise_sf else 0]
 
     def get_optimised_parameters(self):
+        """
+        Converts this model parameters to a vector representing parameters
+        for the likelihood optimization algorithm.
+
+        :return: np.array containing parameters of the likelihood optimization algorithm
+        """
         return np.hstack(([self.sf] if self._optimise_sf else [],
                           [self.tau] if self._optimise_tau else []))
 
     def get_bounds(self):
+        """
+        Get bounds for parameters for likelihood optimization algorithm.
+
+        :return: np.array containing lower and upper (potentially infinite) bounds for each parameter
+        """
         bounds = []
         if self._optimise_sf:
             bounds += [np.array([0.001 / self.forest_stats.avg_nonzero_brlen,
@@ -227,6 +257,11 @@ class Model(object):
         return params
 
     def freeze(self):
+        """
+        Prohibit parameter optimization by setting all optimization flags to False.
+
+        :return: void
+        """
         self._optimise_sf = False
         self._optimise_tau = False
 
@@ -273,6 +308,14 @@ class ModelWithFrequencies(Model):
                   if self._optimise_frequencies else (1 if self._frequency_smoothing else 0))
 
     def set_params_from_optimised(self, ps, **kwargs):
+        """
+        Update this model parameter values from a vector representing parameters
+        for the likelihood optimization algorithm.
+
+        :param ps: np.array containing parameters of the likelihood optimization algorithm
+        :param kwargs: dict of eventual other arguments
+        :return: void, update this model
+        """
         Model.set_params_from_optimised(self, ps, **kwargs)
         if not self.extra_params_fixed():
             n_freq = len(self.frequencies)
@@ -291,6 +334,12 @@ class ModelWithFrequencies(Model):
                 self.frequencies = freqs
 
     def get_optimised_parameters(self):
+        """
+        Converts this model parameters to a vector representing parameters
+        for the likelihood optimization algorithm.
+
+        :return: np.array containing parameters of the likelihood optimization algorithm
+        """
         if not self.extra_params_fixed():
             return np.hstack((Model.get_optimised_parameters(self),
                               self.frequencies[:-1] / self.frequencies[-1] if self._optimise_frequencies
@@ -298,6 +347,11 @@ class ModelWithFrequencies(Model):
         return Model.get_optimised_parameters(self)
 
     def get_bounds(self):
+        """
+        Get bounds for parameters for likelihood optimization algorithm.
+
+        :return: np.array containing lower and upper (potentially infinite) bounds for each parameter
+        """
         if not self.extra_params_fixed():
             extras = []
             if self._optimise_frequencies:
@@ -359,6 +413,11 @@ class ModelWithFrequencies(Model):
         return params
 
     def _print_parameters(self):
+        """
+        Constructs a string representing parameter values (to be used to logging).
+
+        :return: str representing parameter values
+        """
         return '{}' \
                '\tfrequencies\t{}\n' \
                '{}\n'.format(Model._print_parameters(self),
@@ -368,6 +427,11 @@ class ModelWithFrequencies(Model):
                                        for (state, freq) in zip(self.states, self.frequencies)))
 
     def freeze(self):
+        """
+        Prohibit parameter optimization by setting all optimization flags to False.
+
+        :return: void
+        """
         Model.freeze(self)
         self._optimise_frequencies = False
         self._frequency_smoothing = False
@@ -379,6 +443,12 @@ class ModelWithFrequencies(Model):
         return not Model.get_num_params(self)
 
     def save_parameters(self, filehandle):
+        """
+        Writes this model parameter values to the parameter file (in the same format as the input parameter file).
+
+        :param filehandle: filehandle for the file where the parameter values should be written.
+        :return: void
+        """
         Model.save_parameters(self, filehandle)
         for state, frequency in zip(self.states, self.frequencies):
             filehandle.write('{}\t{}\n'.format(state, frequency))
