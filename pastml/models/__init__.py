@@ -19,7 +19,7 @@ class Model(object):
     def __init__(self, states, forest_stats, sf=None, tau=0, optimise_tau=False,
                  parameter_file=None, reoptimise=False, **kwargs):
         self._name = None
-        self._states = states
+        self._states = np.sort(states)
         self._forest_stats = forest_stats
         self._optimise_tau = optimise_tau
         self._optimise_sf = True
