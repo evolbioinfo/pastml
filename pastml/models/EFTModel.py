@@ -1,6 +1,4 @@
-import numpy as np
-
-from pastml.models import ModelWithFrequencies, Model
+from pastml.models import Model
 from pastml.models.F81Model import F81Model
 
 EFT = 'EFT'
