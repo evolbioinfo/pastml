@@ -38,8 +38,7 @@ from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
 model2class = {F81: F81Model, JC: JCModel, CUSTOM_RATES: CustomRatesModel, HKY: HKYModel, JTT: JTTModel, EFT: EFTModel,
                GLM: GLMModel}
 
-
-PASTML_VERSION = '1.9.40'
+PASTML_VERSION = '1.9.41'
 
 warnings.filterwarnings("ignore", append=True)
 
@@ -732,7 +731,7 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
                     for n in root.traverse():
                         n.name = n.name.strip("'").strip('"')
 
-        filtered_df = df.loc[common_ids, :]
+        filtered_df = df.loc[list(common_ids), :]
         if not filtered_df.shape[0]:
             tip_name_representatives = []
             for _ in roots[0].iter_leaves():

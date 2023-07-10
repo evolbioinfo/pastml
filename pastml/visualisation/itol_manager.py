@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 
 import pandas as pd
 
@@ -55,7 +56,7 @@ POPUP_CONTENT_TEMPLATE = "<b>{key}: </b>" \
                          "<div style='overflow:auto;max-width:50vw;'>" \
                          "<span style='white-space:nowrap;'>{value}</span></div>"
 
-DEFAULT_ITOL_PROJECT='Sample project'
+DEFAULT_ITOL_PROJECT = 'Sample project'
 
 
 def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
@@ -144,14 +145,16 @@ def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
         if tree_id:
             with open(os.path.join(work_dir, 'iTOL_tree_id.txt'), 'w+') as f:
                 f.write(tree_id)
+    else:
+        logging.getLogger('pastml').debug('To upload your tree(s) to iTOL, please specify the itol_id argument.')
 
 
 def upload_to_itol(tree_path, dataset_paths, tree_name=None, tree_description=None, project_name=None, upload_id=None):
     try:
         itol_uploader = Itol()
-        itol_uploader.add_file(tree_path)
+        itol_uploader.add_file(Path(tree_path))
         for annotation_file in dataset_paths:
-            itol_uploader.add_file(annotation_file)
+            itol_uploader.add_file(Path(annotation_file))
         if tree_name:
             itol_uploader.params['treeName'] = tree_name
         if tree_description:
