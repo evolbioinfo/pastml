@@ -150,6 +150,11 @@ class Model(object):
         return np.array(bounds, np.float64)
 
     def get_num_params(self):
+        """
+        Returns the number of optimized parameters for this model.
+
+        :return: the number of optimized parameters
+        """
         return (1 if self._optimise_sf else 0) + (1 if self._optimise_tau else 0)
 
     def parse_parameters(self, params, reoptimise=False):
@@ -241,6 +246,11 @@ class ModelWithFrequencies(Model):
             raise NotImplementedError('The frequencies are preset and cannot be changed.')
 
     def get_num_params(self):
+        """
+        Returns the number of optimized parameters for this model.
+
+        :return: the number of optimized parameters
+        """
         return Model.get_num_params(self) \
                + ((len(self.frequencies) - 1)
                   if self._optimise_frequencies else (1 if self._frequency_smoothing else 0))
