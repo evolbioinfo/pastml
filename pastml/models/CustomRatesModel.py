@@ -65,7 +65,10 @@ class CustomRatesModel(ModelWithFrequencies):
 
     @ModelWithFrequencies.frequencies.setter
     def frequencies(self, frequencies):
-        self._frequencies = frequencies
+        if self._optimise_frequencies or self._frequency_smoothing:
+            self._frequencies = frequencies
+        else:
+            raise NotImplementedError('The frequencies are preset and cannot be changed.')
         self.D_DIAGONAL, self.A, self.A_INV = get_diagonalisation(frequencies, self.rate_matrix)
 
     def get_Pij_t(self, t, *args, **kwargs):
