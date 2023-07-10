@@ -2,15 +2,11 @@ from collections import Counter
 
 import numpy as np
 
-from pastml.annotation import get_forest_stats
-
 
 def simulate_states(tree, model, character, n_repetitions=1_000):
     n_states = len(model.states)
     state_ids = np.array(range(n_states))
 
-    avg_br_len, num_nodes, num_tips, tree_len = get_forest_stats([tree])
-    num_edges = num_nodes - 1
     get_pij = model.get_Pij_t
 
     for n in tree.traverse('levelorder'):
