@@ -20,6 +20,15 @@ class JCModel(F81Model):
                '\tfrequencies\tall equal to {:g}\t(fixed)\n'.format(Model._print_parameters(self), 1 / len(self.states))
 
     def parse_parameters(self, params, reoptimise=False):
+        """
+        Update this model's values from the input parameters.
+        JC model can only have the basic parameters (scaling factor and smoothing factor, see pastml.models.Model).
+
+        :param params: dict {key->value}
+        :param reoptimise: whether these model parameters should be treated as starting values (True)
+            or as fixed values (False)
+        :return: dict with parameter values (same as input)
+        """
         # This model sets equal frequencies
         # and hence should only read the basic parameters (scaling and smoothing factors) from the input file
         return Model.parse_parameters(self, params, reoptimise)

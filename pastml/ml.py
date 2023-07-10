@@ -177,7 +177,7 @@ def optimize_likelihood_params(forest, character, observed_frequencies, model):
     Optimizes the likelihood parameters (state frequencies and scaling factor) for the given trees.
 
     :param model: model of character evolution
-    :type model: str
+    :type model: pastml.model.Model
     :param avg_br_len: avg branch length
     :type avg_br_len: float
     :param forest: trees of interest

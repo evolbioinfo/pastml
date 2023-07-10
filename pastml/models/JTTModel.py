@@ -79,6 +79,16 @@ class JTTModel(CustomRatesModel):
         raise NotImplementedError('The JTT states are preset and cannot be changed.')
 
     def parse_parameters(self, params, reoptimise=False):
+        """
+        Update this model's values from the input parameters.
+        JTT model can only have the basic parameters (scaling factor and smoothing factor, see pastml.models.Model).
+
+        :param params: dict {key->value}
+        :param reoptimise: whether these model parameters should be treated as starting values (True)
+            or as fixed values (False)
+        :return: dict with parameter values (same as input)
+        """
+
         # This model sets fixed frequencies
         # and hence should only read the basic parameters (scaling and smoothing factors) from the input file
         return Model.parse_parameters(self, params, reoptimise)

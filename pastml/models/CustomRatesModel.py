@@ -8,10 +8,6 @@ from pastml.models.generator import get_diagonalisation, get_pij_matrix
 CUSTOM_RATES = 'CUSTOM_RATES'
 
 
-def save_custom_rates(states, rate_matrix, outfile):
-    np.savetxt(outfile, rate_matrix, delimiter=' ', fmt='%.18e', header=' '.join(states))
-
-
 def load_custom_rates(infile):
     rate_matrix = np.loadtxt(infile, dtype=np.float64, comments='#', delimiter=' ')
     if not len(rate_matrix.shape) == 2 or not rate_matrix.shape[0] == rate_matrix.shape[1]:

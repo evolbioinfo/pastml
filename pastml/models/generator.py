@@ -1,6 +1,18 @@
 import numpy as np
 
 
+def save_matrix(states, matrix, outfile):
+    """
+    Saves a matrix into a file.
+
+    :param states: names of the columns/rows, will be saved in a commented (starting with #) header line before the matrix
+    :param matrix: np.array matrix to be saved
+    :param outfile: path to the file where the matrix should be saved
+    :return: void
+    """
+    np.savetxt(outfile, matrix, delimiter=' ', fmt='%.18e', header=' '.join(states))
+
+
 def get_diagonalisation(frequencies, rate_matrix=None):
     """
     Normalises and diagonalises the rate matrix.

@@ -9,8 +9,9 @@ from pastml.acr import acr, _serialize_acr, _set_up_pastml_logger
 from pastml.annotation import ForestStats
 from pastml.file import get_pastml_parameter_file
 from pastml.ml import MPPA, LOG_LIKELIHOOD, MARGINAL_PROBABILITIES
-from pastml.models.CustomRatesModel import load_custom_rates, save_custom_rates, CUSTOM_RATES
+from pastml.models.CustomRatesModel import load_custom_rates, CUSTOM_RATES
 from pastml.models.JTTModel import JTTModel, JTT_STATES, JTT_RATE_MATRIX, JTT
+from pastml.models.generator import save_matrix
 from pastml.utilities.state_simulator import simulate_states
 
 
@@ -23,14 +24,14 @@ WD = os.path.join(DATA_DIR, 'cr_vs_jtt_test')
 class CUSTOM_RATESTest(unittest.TestCase):
 
     def test_rate_serialisation(self):
-        save_custom_rates(JTT_STATES, JTT_RATE_MATRIX, RM)
+        save_matrix(JTT_STATES, JTT_RATE_MATRIX, RM)
         states, rate_matrix = load_custom_rates(RM)
         self.assertTrue(np.all(JTT_RATE_MATRIX == rate_matrix),
                         msg='JTT rate matrix was not saved properly')
         os.remove(RM)
 
     def test_state_serialisation(self):
-        save_custom_rates(JTT_STATES, JTT_RATE_MATRIX, RM)
+        save_matrix(JTT_STATES, JTT_RATE_MATRIX, RM)
         states, rate_matrix = load_custom_rates(RM)
         self.assertTrue(np.all(JTT_STATES == states),
                         msg='JTT states were not saved properly')
@@ -51,7 +52,7 @@ class CUSTOM_RATESTest(unittest.TestCase):
         _serialize_acr((acr_result_jtt, WD))
         params = os.path.join(WD, get_pastml_parameter_file(MPPA, JTT, 'state1'))
 
-        save_custom_rates(JTT_STATES, JTT_RATE_MATRIX, RM)
+        save_matrix(JTT_STATES, JTT_RATE_MATRIX, RM)
         acr_result_cr = acr(tree, columns=['state2'], prediction_method=MPPA, model=CUSTOM_RATES,
                             column2parameters={'state2': params}, column2rates={'state2': RM},
                             column2states={'state2': JTT_STATES})[0]
@@ -76,7 +77,7 @@ class CUSTOM_RATESTest(unittest.TestCase):
         _serialize_acr((acr_result_jtt, WD))
         params = os.path.join(WD, get_pastml_parameter_file(MPPA, JTT, 'state1'))
 
-        save_custom_rates(JTT_STATES, JTT_RATE_MATRIX, RM)
+        save_matrix(JTT_STATES, JTT_RATE_MATRIX, RM)
         acr_result_cr = acr(tree, columns=['state2'], prediction_method=MPPA, model=CUSTOM_RATES,
                             column2parameters={'state2': params}, column2rates={'state2': RM},
                             column2states={'state2': JTT_STATES})[0]
