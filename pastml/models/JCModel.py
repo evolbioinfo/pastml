@@ -9,8 +9,9 @@ JC = 'JC'
 class JCModel(F81Model):
 
     def __init__(self, states, forest_stats, sf=None, tau=0, optimise_tau=False, parameter_file=None, reoptimise=False, **kwargs):
+        kwargs['frequency_smoothing'] = False
         F81Model.__init__(self, states=states, forest_stats=forest_stats, sf=sf, tau=tau, optimise_tau=optimise_tau,
-                          frequencies=np.ones(len(states), dtype=np.float64) / len(states), frequency_smoothing=False,
+                          frequencies=np.ones(len(states), dtype=np.float64) / len(states),
                           reoptimise=reoptimise, parameter_file=parameter_file, **kwargs)
         self._optimise_frequencies = False
         self.name = JC
