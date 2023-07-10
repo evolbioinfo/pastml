@@ -27,7 +27,7 @@ if '__main__' == __name__:
     used_ids = Counter()
 
     df = pd.read_csv(params.input_tab, header=0, index_col=0, sep='\t')
-    df = df.loc[set(ids), :]
+    df = df.loc[list(set(ids)), :]
 
     def get_seq(id):
         seq = id2seq[id]
