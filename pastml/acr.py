@@ -32,7 +32,7 @@ from pastml.visualisation import get_formatted_date
 from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT, \
     DIST_TO_ROOT_LABEL, DATE_LABEL
 from pastml.visualisation.itol_manager import generate_itol_annotations
-from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS
+from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS, VERTICAL, HORIZONTAL, TRIM
 
 PASTML_VERSION = '1.9.41'
 
@@ -323,7 +323,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
                     itol_tree_name=None, offline=False, threads=0, reoptimise=False, focus=None,
                     resolve_polytomies=False, smoothing=False, frequency_smoothing=False,
-                    pajek=None):
+                    pajek=None, pajek_timing=VERTICAL):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -464,9 +464,14 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     :type out_data: str
     :param html_compressed: path to the output compressed visualisation file (html).
     :type html_compressed: str
-    :param pajek: path to the output vertically compressed visualisation file (Pajek NET Format).
-        Prooduced only if html_compressed is specified.
+    :param pajek: path to the output compressed visualisation file (Pajek NET Format).
+        Produced only if html_compressed is specified.
     :type pajek: str
+    :param pajek_timing: the type of the compressed visualisation to be saved in Pajek NET Format (if pajek is specified).
+        Can be either 'VERTICAL' (default, after the nodes underwent vertical compression),
+        'HORIZONTAL' (after the nodes underwent vertical and horizontal compression)
+        or 'TRIM' (after the nodes underwent vertical and horizontal compression and minor node trimming).
+    :type pajek_timing: str
     :param html: (optional) path to the output tree visualisation file (html).
     :type html: str
     :param html_mixed: (optional) path to the output mostly compressed map visualisation file (html),
@@ -650,7 +655,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         visualize(roots, column2states=column2states, html=html, html_compressed=html_compressed, html_mixed=html_mixed,
                   name_column=name_column, tip_size_threshold=tip_size_threshold, date_label=age_label,
                   timeline_type=timeline_type, work_dir=work_dir, local_css_js=offline, column2colours=colours,
-                  focus=focus, pajek=pajek)
+                  focus=focus, pajek=pajek, pajek_timing=pajek_timing)
 
     if threads > 1:
         async_result.wait()
@@ -1058,6 +1063,14 @@ def main():
     out_group.add_argument('--pajek', required=False, default=None, type=str,
                            help="path to the output vertically compressed visualisation file (Pajek NET Format). "
                                 "Prooduced only if --html_compressed is specified.")
+    out_group.add_argument('--pajek_timing', required=False, default=VERTICAL, choices=(VERTICAL, HORIZONTAL, TRIM),
+                           type=str,
+                           help="the type of the compressed visualisation to be saved in Pajek NET Format "
+                                "(if --pajek is specified). "
+                                "Can be either {} (default, after the nodes underwent vertical compression), "
+                                "{} (after the nodes underwent vertical and horizontal compression) "
+                                "or {} (after the nodes underwent vertical and horizontal compression"
+                                " and minor node trimming)".format(VERTICAL, HORIZONTAL, TRIM))
     out_group.add_argument('--html', required=False, default=None, type=str,
                            help="path to the output full tree visualisation file (html).")
     out_group.add_argument('--html_mixed', required=False, default=None, type=str,

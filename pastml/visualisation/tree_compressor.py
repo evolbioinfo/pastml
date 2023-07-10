@@ -4,6 +4,10 @@ from pastml.tree import IS_POLYTOMY, copy_forest
 
 import numpy as np
 
+VERTICAL = 'VERTICAL'
+HORIZONTAL = 'HORIZONTAL'
+TRIM = 'TRIM'
+
 IS_TIP = 'is_tip'
 
 REASONABLE_NUMBER_OF_TIPS = 15
@@ -27,20 +31,8 @@ AROUND_FOCUS = 'around_focus'
 UP_FOCUS = 'up_focus'
 
 
-def save_to_pajek(compressed_tree, pajek, columns):
-    """
-    *vertices 3
-    1 "154:codon usage/sequence bias" x_fact 7.2814 y_fact 7.2814 ic RawSienna
-    2 "156:cytokine bias/t helper" x_fact 7.2814 y_fact 7.2814 ic RawSienna
-    3 "158:incorporation bias/verification bias" x_fact 7.2814 y_fact 7.2814 ic RawSienna
-    *arcs
-    1 2
-    :return: 
-    """
+def _tree2pajek_vertices_arcs(compressed_tree, nodes, edges, columns):
     n2id = {}
-    edges = []
-    nodes = []
-    columns = sorted(columns)
 
     def get_states(n, columns):
         res = []
@@ -50,13 +42,36 @@ def save_to_pajek(compressed_tree, pajek, columns):
             res.append('{}:{}'.format(column, value))
         return res
 
-    for id, n in enumerate(compressed_tree.traverse('preorder'), start=1):
+    for id, n in enumerate(compressed_tree.traverse('preorder'), start=len(nodes) + 1):
         n2id[n] = id
         if not n.is_root():
-            edges.append('{} {}'.format(n2id[n.up], id))
-        nodes.append('{} "{}" "{}" {}'.format(id, n.name, ','.join(_.name for _ in getattr(n, TIPS_INSIDE)),
+            edges.append('{} {} {}'.format(n2id[n.up], id, len(getattr(n, ROOTS))))
+        nodes.append('{} "{}" "{}" {}'.format(id, n.name,
+                                              (';'.join(','.join(_.name for _ in ti) for ti in getattr(n, TIPS_INSIDE))),
                                               ' '.join('"{}"'.format(_) for _ in get_states(n, columns))))
 
+
+def save_to_pajek(nodes, edges, pajek):
+    """
+    Saves a compressed tree into Pajek format:
+
+    *vertices <number_of_vertices>
+    <id_1> "<vertex_name>" "<tips_inside>" "<column1>:<state(s)>" ["<column2>:<state(s)>" ...]
+    ...
+    *arcs
+    <source_id> <target_id> <weight>
+    ...
+
+    <tips_inside> list tips that were vertically compressed inside this node: they are comma-separated.
+    If the node was also horizontally merged (i.e. represents several similar configurations),
+    the tip sets corresponding to different configurations are semicolon-separated.
+
+    <state(s)> lists the states predicted for the corresponding column:
+    if there are several states, they are separated with " or ".
+
+
+    :return: void (creates a file specified in the pajek argument)
+    """
     with open(pajek, 'w+') as f:
         f.write('*vertices {}\n'.format(len(nodes)))
         f.write('\n'.join(nodes))
@@ -65,7 +80,8 @@ def save_to_pajek(compressed_tree, pajek, columns):
         f.write('\n'.join(edges))
 
 
-def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, mixed=False, pajek=None):
+def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, mixed=False,
+                  pajek=None, pajek_timing=VERTICAL):
     compressed_tree = copy_forest([tree], features=columns | set(tree.features))[0]
 
     for n_compressed, n in zip(compressed_tree.traverse('postorder'), tree.traverse('postorder')):
@@ -80,8 +96,8 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
         n.add_feature(COMPRESSED_NODE, n_compressed)
 
     collapse_vertically(compressed_tree, columns, mixed=mixed)
-    if pajek:
-        save_to_pajek(compressed_tree, pajek, columns)
+    if pajek is not None and VERTICAL == pajek_timing:
+        _tree2pajek_vertices_arcs(compressed_tree, *pajek, columns=sorted(columns))
 
     for n in compressed_tree.traverse():
         n.add_feature(NUM_TIPS_INSIDE, len(getattr(n, TIPS_INSIDE)))
@@ -95,6 +111,9 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
         get_bin = lambda _: int(np.log10(max(1, _)))
         logging.getLogger('pastml').debug('Allowed merging nodes of different sizes.')
         collapse_horizontally(compressed_tree, columns, get_bin, mixed=mixed)
+
+    if pajek is not None and HORIZONTAL == pajek_timing:
+        _tree2pajek_vertices_arcs(compressed_tree, *pajek, columns=sorted(columns))
 
     if len(compressed_tree) > tip_size_threshold:
         for n in compressed_tree.traverse('preorder'):
@@ -135,6 +154,10 @@ def compress_tree(tree, columns, can_merge_diff_sizes=True, tip_size_threshold=R
                               to_be_removed=lambda _: get_tsize(_) < threshold)
             remove_mediators(compressed_tree, columns)
             collapse_horizontally(compressed_tree, columns, get_bin, mixed=mixed)
+
+    if pajek is not None and TRIM == pajek_timing:
+        _tree2pajek_vertices_arcs(compressed_tree, *pajek, columns=sorted(columns))
+
     return compressed_tree
 
 

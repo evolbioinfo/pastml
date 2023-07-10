@@ -15,7 +15,7 @@ from pastml.visualisation import get_formatted_date
 from pastml.visualisation.colour_generator import get_enough_colours, WHITE, parse_colours
 from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, TIPS_INSIDE, TIPS_BELOW, \
     REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP, ROOT_DATES, IN_FOCUS, AROUND_FOCUS, \
-    UP_FOCUS
+    UP_FOCUS, save_to_pajek, VERTICAL
 
 JS_LIST = ["https://pastml.pasteur.fr/static/js/jquery.min.js",
            "https://pastml.pasteur.fr/static/js/jquery.qtip.min.js",
@@ -687,7 +687,7 @@ def get_column_value_str(n, column, format_list=True, list_value=''):
 
 def visualize(forest, column2states, work_dir, name_column=None, html=None, html_compressed=None, html_mixed=None,
               tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, date_label='Dist. to root', timeline_type=TIMELINE_SAMPLED,
-              local_css_js=False, column2colours=None, focus=None, pajek=None):
+              local_css_js=False, column2colours=None, focus=None, pajek=None, pajek_timing=VERTICAL):
     for tree in forest:
         nodes_in_focus = set()
         for node in tree.traverse():
@@ -799,8 +799,13 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
         forest_mixed = forest
 
     if html_compressed:
+        pajek_vert_arcs = [[], []] if pajek else None
         compressed_forest = [compress_tree(tree, columns=column2states.keys(), tip_size_threshold=tip_size_threshold,
-                                           mixed=False, pajek=pajek) for tree in forest]
+                                           mixed=False, pajek=pajek_vert_arcs, pajek_timing=pajek_timing)
+                             for tree in forest]
+        if pajek:
+            save_to_pajek(*pajek_vert_arcs, pajek)
+
         milestone_labels, milestones = update_milestones(forest, date_label, milestone_labels, milestones,
                                                          timeline_type)
 
