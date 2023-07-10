@@ -36,7 +36,7 @@ class MRANDJCTest(unittest.TestCase):
         simulate_states(tree, model, character=sim_character, n_repetitions=n_sim_repetitions)
         good_indices = np.ones(n_sim_repetitions, dtype=int)
         n_states = len(states)
-        state2id = dict(zip(states, range(n_states)))
+        state2id = dict(zip(np.sort(states), range(n_states)))
         for tip in tree:
             state_id = state2id[next(iter(getattr(tip, character)))]
             good_indices *= (getattr(tip, sim_character) == state_id).astype(int)
