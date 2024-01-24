@@ -237,7 +237,7 @@ def parsimonious_acr(forest, character, prediction_method, states, num_nodes, nu
     :type forest: list(ete3.Tree)
     :param character: character for which the parsimonious states are reconstructed
     :type character: str
-    :param prediction_method: ACCTRAN (accelerated transformation), DELTRAN (delayed transformation), DOWNPASS or MP
+    :param prediction_method: ACCTRAN (accelerated transformation), DELTRAN (delayed transformation) or DOWNPASS
     :type prediction_method: str
     :param states: possible character states
     :type states: np.array(str)

@@ -277,6 +277,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
     return acr_results
 
 
+
 def calculate_observed_freqs(character, forest, states):
     n = len(states)
     missing_data = 0.
@@ -529,12 +530,6 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
 
     state_df = _serialize_predicted_states(sorted(column2states.keys()), out_data, roots,
                                            dates_are_dates=age_label == DATE_LABEL)
-
-    # a meta-method would have added a suffix to the name feature
-    if html_compressed and name_column and name_column not in column2states:
-        ml_name_column = get_personalized_feature_name(name_column, get_default_ml_method())
-        name_column = ml_name_column if ml_name_column in column2states \
-            else get_personalized_feature_name(name_column, get_default_mp_method())
 
     itol_result = None
     new_tree = os.path.join(work_dir, get_named_tree_file(tree))

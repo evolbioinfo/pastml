@@ -639,7 +639,7 @@ def ml_acr(forest, character, prediction_method, model, observed_frequencies, fo
     """
     Calculates ML states on the trees and stores them in the corresponding feature.
 
-    :param prediction_method: MPPA (marginal approximation), MAP (max a posteriori), JOINT or ML
+    :param prediction_method: MPPA (marginal approximation), MAP (max a posteriori) or JOINT
     :type prediction_method: str
     :param forest: trees of interest
     :type forest: list(ete3.Tree)
