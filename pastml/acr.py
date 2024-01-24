@@ -16,7 +16,7 @@ from pastml.annotation import preannotate_forest, ForestStats
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file, get_pastml_work_dir
 from pastml.ml import MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
-    ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method
+    ML_METHODS, MAP, JOINT, MARGINAL_ML_METHODS, get_default_ml_method
 from pastml.models import MODEL, SCALING_FACTOR, SMOOTHING_FACTOR
 from pastml.models.CustomRatesModel import CustomRatesModel, CUSTOM_RATES
 from pastml.models.EFTModel import EFTModel, EFT
@@ -24,7 +24,7 @@ from pastml.models.F81Model import F81Model, F81
 from pastml.models.HKYModel import HKYModel, HKY, HKY_STATES
 from pastml.models.JCModel import JCModel, JC
 from pastml.models.JTTModel import JTTModel, JTT, JTT_STATES
-from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
+from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, \
     get_default_mp_method
 from pastml.tree import name_tree, annotate_dates, DATE, read_forest, DATE_CI, resolve_trees, IS_POLYTOMY, \
     unresolve_trees, clear_extra_features
@@ -231,8 +231,6 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
     else:
         acr_results = [_work(character) for character in character2settings.keys()]
 
-    acr_results = flatten_lists(acr_results)
-
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
     column2copy = {acr_result[CHARACTER]: acr_result[METHOD] == COPY for acr_result in acr_results}
     if resolve_polytomies and resolve_trees(column2states, forest):
@@ -276,7 +274,6 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                 acr_results = [_work(character) for character in character2settings.keys()]
             logger.setLevel(level)
         logger.setLevel(level)
-        acr_results = flatten_lists(acr_results)
     return acr_results
 
 
@@ -298,16 +295,6 @@ def calculate_observed_freqs(character, forest, states):
     observed_frequencies /= observed_frequencies.sum()
     missing_data /= total_count
     return missing_data, observed_frequencies, state2index
-
-
-def flatten_lists(lists):
-    result = []
-    for _ in lists:
-        if isinstance(_, list):
-            result.extend(_)
-        else:
-            result.append(_)
-    return result
 
 
 def _quote(str_list):
@@ -918,24 +905,18 @@ def main():
                                 "If not specified, all columns are considered.",
                            type=str)
     acr_group.add_argument('--prediction_method',
-                           choices=[MPPA, MAP, JOINT, DOWNPASS, ACCTRAN, DELTRAN, COPY, ALL, ML, MP],
+                           choices=[MPPA, MAP, JOINT, DOWNPASS, ACCTRAN, DELTRAN, COPY],
                            type=str, nargs='*', default=MPPA,
                            help='ancestral character reconstruction (ACR) method, '
                                 'can be one of the max likelihood (ML) methods: {ml}, '
                                 'one of the max parsimony (MP) methods: {mp}; '
                                 'or {copy} to keep the annotated character states as-is without inference. '
-                                'One can also specify one of the meta-methods {meta} that would perform ACR '
-                                'with multiple methods (all of them for {meta_all}, '
-                                'all the ML methods for {meta_ml}, or all the MP methods for {meta_mp}) '
-                                'and save/visualise the results as multiple characters '
-                                'suffixed with the corresponding method.'
                                 'When multiple ancestral characters are specified (see -c, --columns), '
                                 'the same method can be used for all of them (if only one method is specified), '
                                 'or different methods can be used (specified in the same order as -c, --columns). '
                                 'If multiple methods are given, but not for all the characters, '
                                 'for the rest of them the default method ({default}) is chosen.'
-                           .format(ml=', '.join(ML_METHODS), mp=', '.join(MP_METHODS), copy=COPY, default=MPPA,
-                                   meta=', '.join(META_ML_METHODS | {MP}), meta_ml=ML, meta_mp=MP, meta_all=ALL))
+                           .format(ml=', '.join(ML_METHODS), mp=', '.join(MP_METHODS), copy=COPY, default=MPPA))
     acr_group.add_argument('--forced_joint', action='store_true',
                            help='add {joint} state to the {mppa} state selection '
                                 'even if it is not selected by Brier score.'.format(joint=JOINT, mppa=MPPA))

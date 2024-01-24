@@ -8,7 +8,6 @@ from scipy.optimize import minimize
 from pastml import get_personalized_feature_name, CHARACTER, METHOD, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
     NUM_STATES_PER_NODE, PERC_UNRESOLVED, STATES
 from pastml.models import ModelWithFrequencies
-from pastml.parsimony import parsimonious_acr, MP
 
 LOG_LIKELIHOOD = 'log_likelihood'
 RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR = '{}_restricted_{{}}'.format(LOG_LIKELIHOOD)
@@ -16,8 +15,6 @@ RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR = '{}_restricted_{{}}'.format(LOG_LIKELIHOO
 JOINT = 'JOINT'
 MPPA = 'MPPA'
 MAP = 'MAP'
-ALL = 'ALL'
-ML = 'ML'
 
 MARGINAL_PROBABILITIES = 'marginal_probabilities'
 
@@ -28,7 +25,6 @@ MAX_VALUE = np.log10(np.finfo(np.float64).max)
 
 MARGINAL_ML_METHODS = {MPPA, MAP}
 ML_METHODS = MARGINAL_ML_METHODS | {JOINT}
-META_ML_METHODS = {ML, ALL}
 
 BU_LH = 'BOTTOM_UP_LIKELIHOOD'
 TD_LH = 'TOP_DOWN_LIKELIHOOD'
@@ -50,7 +46,7 @@ def is_marginal(method):
     :type method: str
     :return: bool
     """
-    return method in MARGINAL_ML_METHODS or method in META_ML_METHODS
+    return method in MARGINAL_ML_METHODS
 
 
 def is_ml(method):
@@ -61,7 +57,7 @@ def is_ml(method):
     :type method: str
     :return: bool
     """
-    return method in ML_METHODS or method in META_ML_METHODS
+    return method in ML_METHODS
 
 
 def is_meta_ml(method):
@@ -664,13 +660,11 @@ def ml_acr(forest, character, prediction_method, model, observed_frequencies, fo
     results = []
 
     def process_reconstructed_states(method):
-        if method == prediction_method or is_meta_ml(prediction_method):
-            method_character = get_personalized_feature_name(character, method) \
-                if prediction_method != method else character
+        if method == prediction_method:
             for tree in forest:
-                convert_allowed_states2feature(tree, character, model.states, method_character)
+                convert_allowed_states2feature(tree, character, model.states, character)
             res = result.copy()
-            res[CHARACTER] = method_character
+            res[CHARACTER] = character
             res[METHOD] = method
             results.append(res)
 
@@ -715,25 +709,7 @@ def ml_acr(forest, character, prediction_method, model, observed_frequencies, fo
         result[MARGINAL_PROBABILITIES] = pd.concat(mps, copy=False) if len(mps) != 1 else mps[0]
         process_restricted_likelihood_and_states(MAP)
 
-        if MPPA == prediction_method or is_meta_ml(prediction_method):
-
-            if ALL == prediction_method:
-                pars_acr_results = parsimonious_acr(forest, character, MP, model.states,
-                                                    model.forest_stats.num_nodes, model.forest_stats.num_tips)
-                results.extend(pars_acr_results)
-                for pars_acr_res in pars_acr_results:
-                    for tree in forest:
-                        _parsimonious_states2allowed_states(tree, pars_acr_res[CHARACTER], character, model.states)
-                    try:
-                        restricted_likelihood = \
-                            sum(get_bottom_up_loglikelihood(tree=tree, character=character, is_marginal=True,
-                                                            model=model, alter=True)
-                                for tree in forest)
-                        note_restricted_likelihood(pars_acr_res[METHOD], restricted_likelihood)
-                    except PastMLLikelihoodError as e:
-                        logger.error('{}\n{} parsimonious state selection is inconsistent in terms of ML.'
-                                     .format(e.message, pars_acr_res[METHOD]))
-
+        if MPPA == prediction_method:
             result[NUM_SCENARIOS], result[NUM_UNRESOLVED_NODES], result[NUM_STATES_PER_NODE] = 1, 0, 0
             for tree in forest:
                 ns, nun, nspn = choose_ancestral_states_mppa(tree, character, model.states, force_joint=force_joint)
@@ -749,7 +725,7 @@ def ml_acr(forest, character, prediction_method, model, observed_frequencies, fo
                                  result[NUM_STATES_PER_NODE], 's' if result[NUM_STATES_PER_NODE] > 1 else ''))
             process_restricted_likelihood_and_states(MPPA)
 
-    return results
+    return results[0]
 
 
 def marginal_counts(forest, character, model, n_repetitions=1_000):

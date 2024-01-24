@@ -1,8 +1,7 @@
 import os
 
-from pastml.parsimony import is_meta_mp, get_default_mp_method
-from pastml import col_name2cat, get_personalized_feature_name
-from pastml.ml import is_ml, is_marginal, is_meta_ml, get_default_ml_method
+from pastml import col_name2cat
+from pastml.ml import is_ml, is_marginal
 
 PASTML_WORK_DIR = '{tree}_pastml'
 
@@ -16,14 +15,7 @@ PASTML_MARGINAL_PROBS_TAB = 'marginal_probabilities.character_{state}.model_{mod
 
 
 def get_column_method(column, method):
-    column = col_name2cat(column)
-    if is_meta_ml(method):
-        method = get_default_ml_method()
-    elif is_meta_mp(method):
-        method = get_default_mp_method()
-    else:
-        return column, method
-    return get_personalized_feature_name(column, method), method
+    return col_name2cat(column), method
 
 
 def get_pastml_parameter_file(method, model, column):

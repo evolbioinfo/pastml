@@ -9,26 +9,13 @@ STEPS = 'steps'
 DOWNPASS = 'DOWNPASS'
 ACCTRAN = 'ACCTRAN'
 DELTRAN = 'DELTRAN'
-MP = 'MP'
 
 MP_METHODS = {DOWNPASS, ACCTRAN, DELTRAN}
-META_MP_METHODS = {MP}
 
 BU_PARS_STATES = 'BOTTOM_UP_PARSIMONY'
 TD_PARS_STATES = 'TOP_DOWN_PARSIMONY'
 PARS_STATES = 'PARSIMONY'
 PARS_STATE2NUM = 'PARSIMONY_STEPS'
-
-
-def is_meta_mp(method):
-    """
-    Checks if the method is a meta max parsimony method, combining several methods, i.e. MP.
-
-    :param method: prediction method
-    :type method: str
-    :return: bool
-    """
-    return method in META_MP_METHODS
 
 
 def get_default_mp_method():
@@ -45,7 +32,7 @@ def is_parsimonious(method):
     :return: whether the method is parsimonious
     :rtype: bool
     """
-    return method in MP_METHODS | {MP}
+    return method in MP_METHODS
 
 
 def initialise_parsimonious_states(tree, feature, states):
@@ -290,10 +277,8 @@ def parsimonious_acr(forest, character, prediction_method, states, num_nodes, nu
         res[METHOD] = method
         results.append(res)
 
-    if prediction_method in {ACCTRAN, MP}:
+    if prediction_method == ACCTRAN:
         feature = get_personalized_feature_name(character, PARS_STATES)
-        if prediction_method == MP:
-            feature = get_personalized_feature_name(feature, ACCTRAN)
         result[STEPS] = 0
         for tree in forest:
             acctran(tree, character, feature)
@@ -306,18 +291,17 @@ def parsimonious_acr(forest, character, prediction_method, states, num_nodes, nu
                 if prediction_method == ACCTRAN:
                     node.del_feature(bu_feature)
                 node.del_feature(feature)
-
-    if prediction_method != ACCTRAN:
+    else:
         feature = get_personalized_feature_name(character, PARS_STATES)
         result[STEPS] = 0
         for tree in forest:
             downpass(tree, character, states)
-            if prediction_method in {DOWNPASS, MP}:
+            if prediction_method == DOWNPASS:
                 result[STEPS] += get_num_parsimonious_steps(tree, feature)
-        if prediction_method in {DOWNPASS, MP}:
+        if prediction_method == DOWNPASS:
             process_result(DOWNPASS, feature)
         result[STEPS] = 0
-        if prediction_method in {DELTRAN, MP}:
+        if prediction_method == DELTRAN:
             for tree in forest:
                 deltran(tree, character)
                 result[STEPS] += get_num_parsimonious_steps(tree, feature)
@@ -328,7 +312,7 @@ def parsimonious_acr(forest, character, prediction_method, states, num_nodes, nu
 
     logger.debug("Parsimonious reconstruction for {} requires {} state changes."
                  .format(character, result[STEPS]))
-    return results
+    return results[0]
 
 
 def choose_parsimonious_states(tree, ps_feature, out_feature):
