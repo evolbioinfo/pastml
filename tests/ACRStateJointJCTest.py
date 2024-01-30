@@ -5,8 +5,9 @@ from collections import Counter
 import pandas as pd
 import numpy as np
 
+from pastml.annotation import annotate_forest
 from pastml.models.JCModel import JC
-from pastml.tree import read_tree, collapse_zero_branches
+from pastml.tree import collapse_zero_branches, read_forest
 from pastml.acr import acr
 from pastml.ml import JOINT
 
@@ -15,16 +16,18 @@ TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')
 STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')
 
 feature = 'Country'
-df = pd.read_csv(STATES_INPUT, index_col=0, header=0)[[feature]]
-tree = read_tree(TREE_NWK)
-acr(tree, df, prediction_method=JOINT, model=JC)
+tree = read_forest(TREE_NWK)[0]
+collapse_zero_branches([tree])
+_, column2states = annotate_forest([tree], columns=feature, data=STATES_INPUT, data_sep=',')
+acr_result = acr([tree], character=feature, states=column2states[feature], prediction_method=JOINT, model=JC)
 
 
 class ACRStateJointJCTest(unittest.TestCase):
 
     def test_collapsed_vs_full(self):
-        tree_uncollapsed = read_tree(TREE_NWK)
-        acr(tree_uncollapsed, df, prediction_method=JOINT, model=JC)
+        tree_uncollapsed = read_forest(TREE_NWK)[0]
+        annotate_forest([tree_uncollapsed], columns=feature, data=STATES_INPUT, data_sep=',')
+        acr([tree_uncollapsed], character=feature, states=column2states[feature], prediction_method=JOINT, model=JC)
 
         def get_state(node):
             state = getattr(node, feature)

@@ -2,21 +2,20 @@ import os
 import unittest
 from collections import Counter
 
-import pandas as pd
-
-from pastml.tree import read_tree, collapse_zero_branches
 from pastml.acr import acr
+from pastml.annotation import annotate_forest
 from pastml.parsimony import ACCTRAN, STEPS
+from pastml.tree import collapse_zero_branches, read_forest
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')
 STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')
 
 feature = 'Country'
-df = pd.read_csv(STATES_INPUT, index_col=0, header=0)[[feature]]
-tree = read_tree(TREE_NWK)
+tree = read_forest(TREE_NWK)[0]
 collapse_zero_branches([tree])
-acr_result = acr(tree, df, prediction_method=ACCTRAN)[0]
+_, column2states = annotate_forest([tree], columns=feature, data=STATES_INPUT, data_sep=',')
+acr_result = acr([tree], character=feature, states=column2states[feature], prediction_method=ACCTRAN)
 
 
 class ACRStateAcctranTest(unittest.TestCase):

@@ -706,6 +706,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
     one_column = next(iter(column2states.keys())) if len(column2states) == 1 else None
 
     name2colour = {}
+    logger = logging.getLogger('pastml')
     for column, states in column2states.items():
         num_unique_values = len(states)
         colours = None
@@ -713,7 +714,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
             try:
                 colours = parse_colours(column2colours[column], states)
             except ValueError as e:
-                logging.getLogger('pastml').error('Failed to parse the input colours: {}'.format(e))
+                logger.error('Failed to parse the input colours: {}'.format(e))
         if colours is None:
             colours = get_enough_colours(num_unique_values)
         for value, col in zip(states, colours):
@@ -734,9 +735,9 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
             f.write('state\tcolour\n')
             for s in sorted(states):
                 f.write('{}\t{}\n'.format(s, state2color[s]))
-        logging.getLogger('pastml').debug('Mapped states to colours for {} as following: {} -> {}, '
+        logger.debug('Mapped states to colours for {} as following: {} -> {}, '
                                           'and serialized this mapping to {}.'
-                                          .format(column, states, colours, out_colour_file))
+                     .format(column, states, colours, out_colour_file))
     for tree in forest:
         for node in tree.traverse():
             if node.is_leaf():
@@ -783,9 +784,9 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
     if html:
         total_num_tips = sum(len(tree) for tree in forest)
         if total_num_tips > MAX_TIPS_FOR_FULL_TREE_VISUALISATION:
-            logging.getLogger('pastml').error('The full tree{} will not be visualised as {} too large ({} tips): '
+            logger.error('The full tree{} will not be visualised as {} too large ({} tips): '
                                               'the limit is {} tips. Check out upload to iTOL option instead.'
-                                              .format('s' if len(forest) > 1 else '',
+                         .format('s' if len(forest) > 1 else '',
                                                       'they are' if len(forest) > 1 else 'it is',
                                                       total_num_tips, MAX_TIPS_FOR_FULL_TREE_VISUALISATION))
         else:
@@ -793,6 +794,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
                                    name_feature='name', compressed_forest=None, milestone_label=date_label,
                                    timeline_type=timeline_type, milestones=milestones, get_date=get_date,
                                    work_dir=work_dir, local_css_js=local_css_js, milestone_labels=milestone_labels)
+            logger.debug('Saved full tree visualization as {}'.format(html))
     if html_compressed and html_mixed:
         forest_mixed = copy_forest(forest)
     else:
@@ -815,6 +817,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
                                milestone_label=date_label, timeline_type=timeline_type,
                                milestones=milestones, get_date=get_date, work_dir=work_dir, local_css_js=local_css_js,
                                milestone_labels=milestone_labels, is_mixed=False)
+        logger.debug('Saved compressed tree visualization as {}'.format(html_compressed))
 
     if html_mixed:
         mixed_forest = [compress_tree(tree, columns=column2states.keys(), tip_size_threshold=tip_size_threshold,
@@ -827,6 +830,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
                                milestone_label=date_label, timeline_type=timeline_type,
                                milestones=milestones, get_date=get_date, work_dir=work_dir, local_css_js=local_css_js,
                                milestone_labels=milestone_labels, is_mixed=True)
+        logger.debug('Saved mixed tree visualization as {}'.format(html_mixed))
 
 
 def update_milestones(forest, date_label, milestone_labels, milestones, timeline_type):

@@ -2,33 +2,44 @@ import os
 import unittest
 
 import numpy as np
-import pandas as pd
 
 from pastml import get_personalized_feature_name, STATES
 from pastml.acr import acr
+from pastml.annotation import annotate_forest
 from pastml.models import MODEL, SCALING_FACTOR
 from pastml.models.HKYModel import KAPPA, HKY
 from pastml.ml import LH, LH_SF, MPPA, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, MARGINAL_PROBABILITIES
 from pastml.models.JCModel import JC
-from pastml.tree import read_tree
+from pastml.tree import read_forest
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'tree.152taxa.sf_0.5.A_0.25.C_0.25.G_0.25.T_0.25.nwk')
 STATES_INPUT = os.path.join(DATA_DIR, 'tree.152taxa.sf_0.5.A_0.25.C_0.25.G_0.25.T_0.25.pastml.tab')
 
 feature = 'ACR'
-acr_result_jc = acr(read_tree(TREE_NWK), pd.read_csv(STATES_INPUT, index_col=0, header=0, sep='\t')[[feature]],
-                    prediction_method=MPPA, model=JC)[0]
 
-df = pd.read_csv(STATES_INPUT, index_col=0, header=0, sep='\t')[[feature]]
-tree = read_tree(TREE_NWK)
-acr_result_hky = acr(tree, df, prediction_method=MPPA, model=HKY,
-                     column2parameters={feature: {KAPPA: 1, 'A': .25, 'T': .25, 'C': .25, 'G': .25}})[0]
-acr_result_hky_free_kappa = acr(read_tree(TREE_NWK), df, prediction_method=MPPA, model=HKY,
-                                column2parameters={feature: {'A': .25, 'T': .25, 'C': .25, 'G': .25}})[0]
-acr_result_hky_free_freqs = acr(read_tree(TREE_NWK), df, prediction_method=MPPA, model=HKY,
-                                column2parameters={feature: {KAPPA: 1}})[0]
-acr_result_hky_free = acr(read_tree(TREE_NWK), df, prediction_method=MPPA, model=HKY)[0]
+
+def read_tree():
+    tree = read_forest(TREE_NWK)[0]
+    _, column2states = annotate_forest([tree], columns=feature, data=STATES_INPUT)
+    return tree, column2states[feature]
+
+
+tree, states = read_tree()
+acr_result_jc = acr([tree], character=feature, states=states, prediction_method=MPPA, model=JC)
+
+tree, states = read_tree()
+acr_result_hky = acr([tree], character=feature, prediction_method=MPPA, model=HKY, states=states,
+                     parameters={KAPPA: 1, 'A': .25, 'T': .25, 'C': .25, 'G': .25})
+
+tree, states = read_tree()
+acr_result_hky_free_kappa = acr([tree], character=feature, prediction_method=MPPA, model=HKY, states=states,
+                                parameters={'A': .25, 'T': .25, 'C': .25, 'G': .25})
+tree, states = read_tree()
+acr_result_hky_free_freqs = acr([tree], character=feature, prediction_method=MPPA, model=HKY, states=states,
+                                parameters={KAPPA: 1})
+tree, states = read_tree()
+acr_result_hky_free = acr([tree], character=feature, prediction_method=MPPA, model=HKY, states=states)
 
 print("Log lh for HKY-all-fixed {}, HKY-freqs-fixed {}, HKY-kappa-fixed {}, HKY {}"
       .format(acr_result_hky[LOG_LIKELIHOOD], acr_result_hky_free_kappa[LOG_LIKELIHOOD],

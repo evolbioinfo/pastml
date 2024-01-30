@@ -5,9 +5,10 @@ import shutil
 import numpy as np
 from ete3 import Tree
 
-from pastml.acr import acr, _serialize_acr, _set_up_pastml_logger
+from pastml.acr import acr, serialize_acr
 from pastml.annotation import ForestStats
 from pastml.file import get_pastml_parameter_file
+from pastml.logger import set_up_pastml_logger
 from pastml.ml import MPPA, LOG_LIKELIHOOD, MARGINAL_PROBABILITIES
 from pastml.models.CustomRatesModel import load_custom_rates, CUSTOM_RATES
 from pastml.models.JTTModel import JTTModel, JTT_STATES, JTT_RATE_MATRIX, JTT
@@ -38,7 +39,7 @@ class CUSTOM_RATESTest(unittest.TestCase):
         os.remove(RM)
 
     def test_tree_likelihood(self):
-        _set_up_pastml_logger(True)
+        set_up_pastml_logger(True)
         tree = Tree(TREE_NWK, format=3)
         model = JTTModel(forest_stats=ForestStats([tree]), sf=1)
         simulate_states(tree, model, character='jtt', n_repetitions=1)
@@ -47,15 +48,14 @@ class CUSTOM_RATESTest(unittest.TestCase):
             tip.add_feature('state2', {JTT_STATES[getattr(tip, 'jtt')][0]})
 
         acr_result_jtt = \
-        acr(tree, columns=['state1'], column2states={'state1': JTT_STATES}, prediction_method=MPPA, model=JTT)[0]
+        acr([tree], character='state1', states=JTT_STATES, prediction_method=MPPA, model=JTT)
         os.makedirs(WD, exist_ok=True)
-        _serialize_acr((acr_result_jtt, WD))
+        serialize_acr((acr_result_jtt, WD))
         params = os.path.join(WD, get_pastml_parameter_file(MPPA, JTT, 'state1'))
 
         save_matrix(JTT_STATES, JTT_RATE_MATRIX, RM)
-        acr_result_cr = acr(tree, columns=['state2'], prediction_method=MPPA, model=CUSTOM_RATES,
-                            column2parameters={'state2': params}, column2rates={'state2': RM},
-                            column2states={'state2': JTT_STATES})[0]
+        acr_result_cr = acr([tree], character='state2', prediction_method=MPPA, model=CUSTOM_RATES,
+                            parameters=params, rate_file=RM, states=JTT_STATES)
         self.assertEqual(acr_result_jtt[LOG_LIKELIHOOD], acr_result_cr[LOG_LIKELIHOOD],
                          msg='Likelihood should be the same for JTT and CR with JTT matrix')
 
@@ -63,7 +63,7 @@ class CUSTOM_RATESTest(unittest.TestCase):
         os.remove(RM)
 
     def test_marginal_probs_internal_nodes(self):
-        _set_up_pastml_logger(True)
+        set_up_pastml_logger(True)
         tree = Tree(TREE_NWK, format=3)
         model = JTTModel(forest_stats=ForestStats([tree]), sf=1)
         simulate_states(tree, model, character='jtt', n_repetitions=1)
@@ -72,15 +72,14 @@ class CUSTOM_RATESTest(unittest.TestCase):
             tip.add_feature('state2', {JTT_STATES[getattr(tip, 'jtt')][0]})
 
         acr_result_jtt = \
-        acr(tree, columns=['state1'], column2states={'state1': JTT_STATES}, prediction_method=MPPA, model=JTT)[0]
+        acr([tree], character='state1', states=JTT_STATES, prediction_method=MPPA, model=JTT)
         os.makedirs(WD, exist_ok=True)
-        _serialize_acr((acr_result_jtt, WD))
+        serialize_acr((acr_result_jtt, WD))
         params = os.path.join(WD, get_pastml_parameter_file(MPPA, JTT, 'state1'))
 
         save_matrix(JTT_STATES, JTT_RATE_MATRIX, RM)
-        acr_result_cr = acr(tree, columns=['state2'], prediction_method=MPPA, model=CUSTOM_RATES,
-                            column2parameters={'state2': params}, column2rates={'state2': RM},
-                            column2states={'state2': JTT_STATES})[0]
+        acr_result_cr = acr([tree], character='state2', prediction_method=MPPA, model=CUSTOM_RATES,
+                            parameters=params, rate_file=RM, states=JTT_STATES)
         self.assertEqual(acr_result_jtt[LOG_LIKELIHOOD], acr_result_cr[LOG_LIKELIHOOD],
                          msg='Likelihood should be the same for JTT and CR with JTT matrix')
 

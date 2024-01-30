@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime
 
-from pastml.acr import datetime2numeric, numeric2datetime
+from pastml import numeric2datetime, datetime2numeric
 
 
 class DateConversionTest(unittest.TestCase):

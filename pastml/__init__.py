@@ -1,5 +1,7 @@
 from datetime import datetime
 
+PASTML_VERSION = '1.9.42'
+
 METHOD = 'method'
 STATES = 'states'
 CHARACTER = 'character'
@@ -75,17 +77,3 @@ def get_personalized_feature_name(character, feature):
     return '{}_{}'.format(character, feature)
 
 
-def value2list(n, value, default_value):
-    # create a variable for n columns
-    # specifying the default value if nothing was chosen
-    if value is None:
-        value = default_value
-    # and propagating the chosen value to all columns
-    if not isinstance(value, list):
-        value = [value] * n
-    elif len(value) == 1:
-        value = value * n
-    # or making sure that the default value is chosen for the columns for which the value was not specified
-    else:
-        value += [default_value] * (n - len(value))
-    return value

@@ -2,15 +2,15 @@ import os
 import unittest
 
 import numpy as np
-import pandas as pd
 
-from pastml.models import SCALING_FACTOR
-from pastml.models.JCModel import JC
-from pastml.tree import read_tree
 from pastml import get_personalized_feature_name, STATES
 from pastml.acr import acr
+from pastml.annotation import annotate_forest
 from pastml.ml import LH, LH_SF, MPPA, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, MARGINAL_PROBABILITIES, \
     MODEL
+from pastml.models import SCALING_FACTOR
+from pastml.models.JCModel import JC
+from pastml.tree import read_forest
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')
@@ -18,7 +18,7 @@ STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')
 
 
 def reroot_tree_randomly():
-    rerooted_tree = read_tree(TREE_NWK)
+    rerooted_tree = read_forest(TREE_NWK)[0]
     new_root = np.random.choice([_ for _ in rerooted_tree.traverse()
                                  if not _.is_root() and not _.up.is_root() and _.dist])
     old_root_child = rerooted_tree.children[0]
@@ -33,13 +33,14 @@ def reroot_tree_randomly():
     for _ in new_root.traverse():
         if not _.name:
             _.name = 'unknown'
+    annotate_forest([new_root], columns=feature, data=STATES_INPUT, data_sep=',')
     return new_root
 
 
 feature = 'Country'
-df = pd.read_csv(STATES_INPUT, index_col=0, header=0)[[feature]]
-tree = read_tree(TREE_NWK)
-acr_result = acr(tree, df, prediction_method=MPPA, model=JC)[0]
+tree = read_forest(TREE_NWK)[0]
+_, column2states = annotate_forest([tree], columns=feature, data=STATES_INPUT, data_sep=',')
+acr_result = acr([tree], character=feature, states=column2states[feature], prediction_method=MPPA, model=JC)
 
 
 class ACRParameterOptimisationMPPAJCTest(unittest.TestCase):
@@ -47,7 +48,8 @@ class ACRParameterOptimisationMPPAJCTest(unittest.TestCase):
     def test_rerooted_values_are_the_same(self):
         for _ in range(5):
             rerooted_tree = reroot_tree_randomly()
-            rerooted_acr_result = acr(rerooted_tree, df, prediction_method=MPPA, model=JC)[0]
+            rerooted_acr_result = acr([rerooted_tree], character=feature, states=column2states[feature],
+                                      prediction_method=MPPA, model=JC)
             for (state, freq, refreq) in zip(acr_result[STATES], acr_result[MODEL].frequencies,
                                              rerooted_acr_result[MODEL].frequencies):
                 self.assertAlmostEqual(freq, refreq, places=2,

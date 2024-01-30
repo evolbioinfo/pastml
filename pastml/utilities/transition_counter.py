@@ -3,10 +3,10 @@ import os
 import numpy as np
 import pandas as pd
 
-from pastml.acr import _validate_input, PASTML_VERSION, _set_up_pastml_logger, \
-    calculate_observed_freqs
-from pastml.annotation import ForestStats
+from pastml.acr import PASTML_VERSION, calculate_observed_freqs
+from pastml.annotation import ForestStats, annotate_forest
 from pastml.file import get_pastml_work_dir
+from pastml.logger import set_up_pastml_logger
 from pastml.ml import marginal_counts
 from pastml.models import SCALING_FACTOR, SMOOTHING_FACTOR
 from pastml.models.CustomRatesModel import CUSTOM_RATES, CustomRatesModel
@@ -15,6 +15,7 @@ from pastml.models.F81Model import F81, F81Model
 from pastml.models.HKYModel import HKY, HKYModel, HKY_STATES
 from pastml.models.JCModel import JC, JCModel
 from pastml.models.JTTModel import JTT, JTTModel, JTT_STATES
+from pastml.tree import read_forest
 from pastml.visualisation.colour_generator import parse_colours, get_enough_colours
 from pastml.visualisation.cytoscape_manager import save_as_transition_html
 
@@ -111,17 +112,15 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
 
     :return: void
     """
-    logger = _set_up_pastml_logger(verbose)
+    logger = set_up_pastml_logger(verbose)
 
     threshold = max(0, threshold)
+    forest = read_forest(tree, columns=[column] if data is None else None)
+    _, column2states = annotate_forest(forest, columns=[column], data=data, data_sep=data_sep, id_index=id_index,
+                                       unknown_treshold=.9, state_threshold=.75)
+    column = next(iter(column2states.keys()))
 
-    forest, columns, column2states, name_column, age_label, parameters, rates = \
-        _validate_input(tree, [column], None, data, data_sep, id_index, None, parameters=[parameters],
-                        rates=[rate_matrix])
-
-    column = columns[0]
     states = column2states[column]
-    parameters = parameters[column]
 
     if model in {HKY, JTT}:
         initial_states = states
@@ -134,7 +133,7 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
     missing_data, observed_frequencies, state2index = calculate_observed_freqs(column, forest, states)
 
     model = model2class[model](parameter_file=parameters,
-                               rate_matrix_file=rates[column] if column in rates else None,
+                               rate_matrix_file=rate_matrix,
                                reoptimise=False, states=states, forest_stats=ForestStats(forest),
                                observed_frequencies=observed_frequencies)
 

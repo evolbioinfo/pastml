@@ -33,7 +33,10 @@ setup(
     install_requires=['ete3>=3.1.1', 'pandas>=1.0.0', 'numpy>=1.22', 'jinja2>=2.11.0', 'scipy>=1.5.0', 'itolapi>=4.0.0', 'biopython>=1.70'],
     entry_points={
             'console_scripts': [
-                'pastml = pastml.acr:main',
+                'pastml = pastml.all_in_one:main'
+                'pastml_acr = pastml.acr:main',
+                'pastml_polytomy = pastml.polytomy:main',
+                'pastml_viz = pastml.visualize:main',
                 'geomap = pastml.visualisation.generate_geomap:main',
                 'transition_counter = pastml.utilities.transition_counter:main',
             ]

@@ -4,7 +4,8 @@ import re
 from collections import Counter, defaultdict
 from datetime import datetime
 
-from Bio import Phylo
+from Bio.Phylo import NewickIO, write, parse
+from Bio.Phylo.NewickIO import StringIO
 from ete3 import Tree, TreeNode
 
 POSTORDER = 'postorder'
@@ -34,26 +35,14 @@ def get_dist_to_root(tip):
     return dist_to_root
 
 
-def annotate_dates(forest, root_dates=None):
-    if root_dates is None:
-        root_dates = [0] * len(forest)
-    for tree, root_date in zip(forest, root_dates):
-        for node in tree.traverse('preorder'):
-            if getattr(node, DATE, None) is None:
-                if node.is_root():
-                    node.add_feature(DATE, root_date if root_date else 0)
-                else:
-                    node.add_feature(DATE, getattr(node.up, DATE) + node.dist)
-            else:
-                node.add_feature(DATE, float(getattr(node, DATE)))
-            ci = getattr(node, DATE_CI, None)
-            if ci and not isinstance(ci, list) and not isinstance(ci, tuple):
-                node.del_feature(DATE_CI)
-                if isinstance(ci, str) and '|' in ci:
-                    try:
-                        node.add_feature(DATE_CI, [float(_) for _ in ci.split('|')])
-                    except:
-                        pass
+def strip_quotes(tree):
+    """
+    Removes quotes from node names
+    :param tree: tree whose node names are to be processed
+    :return: void, modifies the initial trees
+    """
+    for n in tree.traverse():
+        n.name = n.name.strip("'").strip('"')
 
 
 def name_tree(tree, suffix=""):
@@ -159,15 +148,29 @@ def remove_certain_leaves(tr, to_remove=lambda node: False):
 def read_forest(tree_path, columns=None):
     try:
         roots = parse_nexus(tree_path, columns=columns)
-        if roots:
-            return roots
+        if not roots:
+            raise ValueError('The tree is not in NEXUS format')
     except:
-        pass
-    with open(tree_path, 'r') as f:
-        nwks = f.read().replace('\n', '').split(';')
-    if not nwks:
-        raise ValueError('Could not find any trees (in newick or nexus format) in the file {}.'.format(tree_path))
-    return [read_tree(nwk + ';', columns) for nwk in nwks[:-1]]
+        with open(tree_path, 'r') as f:
+            nwks = f.read().replace('\n', '').split(';')
+        if not nwks:
+            raise ValueError('Could not find any trees (in newick or nexus format) in the file {}.'.format(tree_path))
+        roots = [read_tree(nwk + ';', columns) for nwk in nwks[:-1]]
+    num_neg = 0
+    for root in roots:
+        for _ in root.traverse():
+            if _.dist < 0:
+                num_neg += 1
+                _.dist = 0
+    logger = logging.getLogger('pastml')
+    if num_neg:
+        logger.warning('Input tree{} contained {} negative branches: we put them to zero.'
+                       .format('s' if len(roots) > 0 else '', num_neg))
+    logger.debug('Read the tree{} {}.'.format('s' if len(roots) > 0 else '', tree_path))
+    for i, tree in enumerate(roots):
+        strip_quotes(tree)
+        name_tree(tree, suffix='' if len(roots) == 1 else '_{}'.format(i))
+    return roots
 
 
 def read_tree(tree_path, columns=None):
@@ -293,7 +296,7 @@ def read_nexus(tree_path):
     temp = tree_path + '.{}.temp'.format(datetime.timestamp(datetime.now()))
     with open(temp, 'w') as f:
         f.write(nexus)
-    trees = list(Phylo.parse(temp, 'nexus'))
+    trees = list(parse(temp, 'nexus'))
     os.remove(temp)
     return trees
 
@@ -369,14 +372,16 @@ def group_children_if_needed(n, children, columns, state):
     dist = child.dist
     pol = n.add_child(dist=dist, name='{}.polytomy_{}'.format(n.name, state))
     pol.add_feature(IS_POLYTOMY, 1)
-    c_date = getattr(child, DATE)
-    pol.add_feature(DATE, c_date)
+    c_date = getattr(child, DATE, None)
+    if c_date is not None:
+        pol.add_feature(DATE, c_date)
     n_ci = getattr(n, DATE_CI, None)
     c_ci = getattr(child, DATE_CI, None)
-    pol.add_feature(DATE_CI, (None if not n_ci or not isinstance(n_ci, list)
-                              else [n_ci[0],
-                                    (c_ci[1] if c_ci and isinstance(c_ci, list) and len(c_ci) > 1
-                                     else c_date)]))
+    if n_ci is not None or c_ci is not None:
+        pol.add_feature(DATE_CI, (None if not n_ci or not isinstance(n_ci, list)
+                                  else [n_ci[0],
+                                        (c_ci[1] if c_ci and isinstance(c_ci, list) and len(c_ci) > 1
+                                         else c_date)]))
     for c in columns:
         pol.add_feature(c, getattr(child, c))
     for c in children:
@@ -459,6 +464,21 @@ def unresolve_trees(column2states, forest):
     return num_removed_nodes
 
 
+def refine_states(forest, feature, states):
+    """
+    Make sure only allowed states appear in the node annotations
+    :param forest: list of trees
+    :param feature: character of interest
+    :param states: allowed states
+    :return: void, modifies the annotations of the tree nodes
+    """
+    state_set = set(states)
+    for root in forest:
+        for n in root.traverse():
+            if hasattr(n, feature):
+                n.add_feature(feature, state_set & getattr(n, feature))
+
+
 def clear_extra_features(forest, features):
     features = set(features) | {'name', 'dist', 'support'}
     for tree in forest:
@@ -486,3 +506,29 @@ def copy_forest(forest, features=None):
             for c in n.children:
                 todo.append((c, copied_n.add_child()))
     return copied_forest
+
+
+def save_tree(roots, columns, nwk):
+    logger = logging.getLogger('pastml')
+    features = [DATE, DATE_CI] + list(columns)
+    clear_extra_features(roots, features)
+    nwks = '\n'.join([root.write(format_root_node=True, format=3, features=features) for root in roots])
+    with open(nwk, 'w+') as f:
+        f.write(nwks)
+    logger.debug('Saved annotated tree in newick format to {}.'.format(nwk))
+    try:
+        nexus = nwk.replace('.nwk', '.nexus')
+        if '.nexus' not in nexus:
+            nexus = '{}.nexus'.format(nexus)
+        write(NewickIO.parse(StringIO(nwks)), nexus, 'nexus')
+        with open(nexus, 'r') as f:
+            nexus_str = f.read().replace('&&NHX:', '&')
+            for feature in features:
+                nexus_str = nexus_str.replace(':{}='.format(feature), ',{}='.format(feature))
+        with open(nexus, 'w') as f:
+            f.write(nexus_str)
+        logger.debug('Saved annotated tree in nexus format to {}.'.format(nexus))
+    except Exception as e:
+        logger.error(
+            'Did not manage to save the annotated tree in nexus format due to the following error: {}'.format(e))
+        pass

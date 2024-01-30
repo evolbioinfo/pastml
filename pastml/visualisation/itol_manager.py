@@ -4,23 +4,23 @@ from pathlib import Path
 
 import pandas as pd
 
-from pastml.ml import is_marginal, MARGINAL_PROBABILITIES, MODEL
-from pastml import METHOD, CHARACTER, STATES
+from pastml.visualisation import get_formatted_date
 from pastml.visualisation.colour_generator import get_enough_colours, parse_colours
 from itolapi import Itol
 
 from pastml.tree import DATE
+from pastml.visualisation.cytoscape_manager import DATE_LABEL
 
 STYLE_FILE_HEADER_TEMPLATE = """DATASET_STYLE
 
 SEPARATOR TAB
-DATASET_LABEL	{column} ({method})
+DATASET_LABEL	{column} (branch colours)
 COLOR	#ffffff
 
 LEGEND_COLORS	{colours}
 LEGEND_LABELS	{states}
 LEGEND_SHAPES	{shapes}
-LEGEND_TITLE	{column} ({method})
+LEGEND_TITLE	{column}
 
 DATA
 #NODE_ID TYPE   NODE  COLOR SIZE_FACTOR LABEL_OR_STYLE
@@ -33,7 +33,7 @@ BORDER_WIDTH	0.5
 MARGIN	5
 STRIP_WIDTH	25
 COLOR	#ffffff
-DATASET_LABEL	{column}
+DATASET_LABEL	{column} (colour strip)
 
 LEGEND_COLORS	{colours}
 LEGEND_LABELS	{states}
@@ -59,22 +59,13 @@ POPUP_CONTENT_TEMPLATE = "<b>{key}: </b>" \
 DEFAULT_ITOL_PROJECT = 'Sample project'
 
 
-def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
+def generate_itol_annotations(forest, column2states, work_dir, date_col,
                               tree_path, itol_id=None, itol_project=None, itol_tree_name=None,
                               column2colours=None):
     annotation_files = []
     popup_file = os.path.join(work_dir, 'iTOL_popup_info.txt')
-    with open(popup_file, 'w+') as pf:
-        pf.write(POPUP_FILE_HEADER)
 
-    state_df['itol_type'] = 'branch'
-    state_df['itol_node'] = 'node'
-    state_df['itol_style'] = 'normal'
-    state_df['itol_size'] = 2
-
-    for acr_result in acrs:
-        column = acr_result[CHARACTER]
-        states = acr_result[STATES]
+    for column, states in column2states.items():
         num_unique_values = len(states)
         if column2colours and column in column2colours:
             colours = parse_colours(column2colours[column], states)
@@ -85,14 +76,13 @@ def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
         with open(style_file, 'w+') as sf:
             sf.write(STYLE_FILE_HEADER_TEMPLATE
                      .format(column=column, colours='\t'.join(colours), states='\t'.join(states),
-                             shapes='\t'.join(['1'] * len(states)),
-                             method='{}{}'.format(acr_result[METHOD],
-                                                  ('+{}'.format(acr_result[MODEL].name) if MODEL in acr_result else ''))))
-        col_df = state_df[state_df[column].apply(len) == 1]
-        col_df['itol_label'] = col_df[column].apply(lambda _: next(iter(_)))
-        col_df['itol_colour'] = col_df['itol_label'].apply(lambda _: value2colour[_])
-        col_df[['itol_type', 'itol_node', 'itol_colour', 'itol_size', 'itol_style']].to_csv(style_file, sep='\t',
-                                                                                            header=False, mode='a')
+                             shapes='\t'.join(['1'] * len(states))))
+            for tree in forest:
+                for node in tree.traverse():
+                    if len(getattr(node, column, set())) == 1:
+                        state = next(iter(getattr(node, column)))
+                        sf.write('{name}\tbranch\tnode\t{color}\t2\tnormal\n'
+                                 .format(name=node.name, color=value2colour[state]))
         annotation_files.append(style_file)
         logging.getLogger('pastml').debug('Generated iTol style file for {}: {}.'.format(column, style_file))
 
@@ -101,38 +91,34 @@ def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
             csf.write(COLORSTRIP_FILE_HEADER_TEMPLATE.format(column=column, colours='\t'.join(colours),
                                                              states='\t'.join(states),
                                                              shapes='\t'.join(['1'] * len(states))))
-        col_df[['itol_colour', 'itol_label']].to_csv(colorstrip_file, sep='\t', header=False, mode='a')
+            for tree in forest:
+                for tip in tree:
+                    if len(getattr(tip, column, set())) == 1:
+                        state = next(iter(getattr(tip, column)))
+                        csf.write('{name}\t{color}\t{name}\n'
+                                  .format(name=tip.name, color=value2colour[state]))
         annotation_files.append(colorstrip_file)
         logging.getLogger('pastml').debug('Generated iTol colorstrip file for {}: {}.'.format(column, colorstrip_file))
 
-    state_df = state_df[list(column2states.keys()) + ['dist', DATE]]
-    for c in column2states.keys():
-        state_df[c] = state_df[c].apply(lambda _: ' or '.join(sorted(_)))
-    state_df.columns = ['ACR {} predicted state'.format(c) for c in column2states.keys()] + ['Node dist', date_col]
-    state_df['Node id'] = state_df.index
-
-    for acr_result in acrs:
-        if is_marginal(acr_result[METHOD]):
-            df = acr_result[MARGINAL_PROBABILITIES]
-            state_df.loc[df.index.map(str),
-                         'ACR {character} marginal probabilities'.format(character=acr_result[CHARACTER])] = \
-                df.apply(lambda vs: ', '.join(('{}: {:g}'.format(c, mp) for (c, mp) in zip(df.columns, vs))),
-                         axis=1)
-    cols = sorted(state_df.columns, reverse=True)
-    state_df['popup_info'] = \
-        state_df[cols].apply(lambda vs: '<br>'.join(((POPUP_CONTENT_TEMPLATE
-                                                      if c.startswith('ACR ') else '<b>{key}: </b>: {value}')
-                                                    .format(key=c, value=v) for (c, v) in zip(cols, vs)
-                                                     if not pd.isna(v))),
-                             axis=1)
-    state_df['label'] = 'ACR results'
-    state_df[['label', 'popup_info']].to_csv(popup_file, sep='\t', mode='a', header=False)
+    with open(popup_file, 'w+') as pf:
+        pf.write(POPUP_FILE_HEADER)
+        for tree in forest:
+            for node in tree.traverse():
+                info = ['<b>{key}: </b> {value}'.format(key=k, value=v)
+                        for (k, v) in (('node id', node.name), ('node dist', node.dist),
+                                       (date_col, get_formatted_date(node, date_col == DATE_LABEL)))]
+                for c in sorted(column2states.keys()):
+                    v = getattr(node, c, set())
+                    if pd.isna(v) or v is None:
+                        v = []
+                    info.append(POPUP_CONTENT_TEMPLATE.format(key=c, value=' or '.join(sorted(v))))
+                pf.write('{name}\tACR results\t{info}\n'.format(name=node.name, info='<br>'.join(info)))
     annotation_files.append(popup_file)
     logging.getLogger('pastml').debug('Generated iTol pop-up file: {}.'.format(popup_file))
 
     if itol_id:
         if not itol_project:
-            logging.getLogger('pastml').debug('Trying "{}" as iTOL project, the tree will be uploaded to. '
+            logging.getLogger('pastml').info('Trying "{}" as iTOL project, the tree will be uploaded to. '
                                               'To upload to a different project, use itol_project argument.'
                                               .format(DEFAULT_ITOL_PROJECT))
         if not itol_tree_name:
@@ -146,7 +132,7 @@ def generate_itol_annotations(column2states, work_dir, acrs, state_df, date_col,
             with open(os.path.join(work_dir, 'iTOL_tree_id.txt'), 'w+') as f:
                 f.write(tree_id)
     else:
-        logging.getLogger('pastml').debug('To upload your tree(s) to iTOL, please specify the itol_id argument.')
+        logging.getLogger('pastml').info('To upload your tree(s) to iTOL, please specify the itol_id argument.')
 
 
 def upload_to_itol(tree_path, dataset_paths, tree_name=None, tree_description=None, project_name=None, upload_id=None):
@@ -164,7 +150,7 @@ def upload_to_itol(tree_path, dataset_paths, tree_name=None, tree_description=No
             if project_name:
                 itol_uploader.params['projectName'] = project_name
         if itol_uploader.upload():
-            logging.getLogger('pastml').debug(
+            logging.getLogger('pastml').info(
                 'Successfully uploaded your tree ({}) to iTOL: {}.'.format(itol_uploader.comm.tree_id,
                                                                            itol_uploader.get_webpage()))
             return itol_uploader.comm.tree_id, itol_uploader.get_webpage()
@@ -177,6 +163,6 @@ def upload_to_itol(tree_path, dataset_paths, tree_name=None, tree_description=No
             .format(status,
                     (', e.g. your iTOL batch upload id ({}){}'
                      .format(upload_id,
-                             (' and whether the project {} exists'.format(project_name) if project_name else '')))
+                             (' and whether the project "{}" exists'.format(project_name) if project_name else '')))
                     if upload_id else ''))
     return None, None

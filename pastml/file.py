@@ -6,6 +6,7 @@ from pastml.ml import is_ml, is_marginal
 PASTML_WORK_DIR = '{tree}_pastml'
 
 COMBINED_ANCESTRAL_STATE_TAB = 'combined_ancestral_states.tab'
+ANCESTRAL_STATE_TAB = 'ancestral_states.character_{state}.tab'
 NAMED_TREE_NWK = 'named.tree_{tree}.nwk'
 
 PASTML_ML_PARAMS_TAB = 'params.character_{state}.method_{method}.model_{model}.tab'
@@ -55,6 +56,16 @@ def get_combined_ancestral_state_file():
     :return: str, filename
     """
     return COMBINED_ANCESTRAL_STATE_TAB
+
+
+def get_ancestral_state_file(character):
+    """
+    Get the filename where the ancestral states for a given character are saved.
+    This file is inside the work_dir that can be specified for the pastml_pipeline method.
+
+    :return: str, filename
+    """
+    return ANCESTRAL_STATE_TAB.format(state=character)
 
 
 def get_pastml_work_dir(tree):
