@@ -60,15 +60,6 @@ def is_ml(method):
     return method in ML_METHODS
 
 
-def is_meta_ml(method):
-    """
-    Checks if the method is a meta max likelihood method, combining several methods, i.e. ML or ALL.
-
-    :param method: prediction method
-    :type method: str
-    :return: bool
-    """
-    return method in META_ML_METHODS
 
 
 def get_default_ml_method():
@@ -539,6 +530,9 @@ def choose_ancestral_states_mppa(tree, feature, states, force_joint=True):
         if hasattr(node, allowed_state_feature + '.initial'):
             marginal_likelihoods *= getattr(node, allowed_state_feature + '.initial')
         marginal_probs = marginal_likelihoods / marginal_likelihoods.sum()
+
+        if node.name == 'node_3598':
+            print(marginal_probs)
         if force_joint:
             joint_index = getattr(node, joint_state_feature)
             joint_prob = marginal_probs[joint_index]
@@ -549,6 +543,8 @@ def choose_ancestral_states_mppa(tree, feature, states, force_joint=True):
         best_correstion = np.inf
         for k in range(1, n + 1):
             correction = np.hstack((np.zeros(n - k), np.ones(k) / k)) - marginal_probs
+            if node.name == 'node_3598':
+                print(k, correction, correction.dot(correction))
             correction = correction.dot(correction)
             if correction < best_correstion:
                 best_correstion = correction
