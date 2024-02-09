@@ -61,10 +61,6 @@ FONT_SIZE = 'node_fontsize'
 
 MILESTONE = 'mile'
 
-DATE_LABEL = 'date'
-
-DIST_TO_ROOT_LABEL = 'dist. to root'
-
 
 def get_fake_node(n_id, x, y):
     attributes = {ID: n_id, 'fake': 1}
@@ -516,7 +512,7 @@ def get_tooltip(n, columns):
 
 
 def save_as_cytoscape_html(forest, out_html, column2states, name_feature, name2colour, compressed_forest,
-                           milestone_label, timeline_type, milestones, get_date, work_dir, local_css_js=False,
+                           timeline_type, milestones, get_date, work_dir, local_css_js=False,
                            milestone_labels=None, is_mixed=False):
     """
     Converts a forest to an html representation using Cytoscape.js.
@@ -536,15 +532,16 @@ def save_as_cytoscape_html(forest, out_html, column2states, name_feature, name2c
     if milestone_labels is None:
         milestone_labels = ['{:g}'.format(_) for _ in milestones]
 
+    dates_are_dates = getattr(forest[0], DATE, 0) != forest[0].dist
     if compressed_forest is not None:
         json_dict, clazzes \
             = _forest2json_compressed(forest, compressed_forest, columns, name_feature=name_feature, get_date=get_date,
-                                      milestones=milestones, dates_are_dates=milestone_label == DATE_LABEL,
+                                      milestones=milestones, dates_are_dates=dates_are_dates,
                                       is_mixed=is_mixed)
     else:
         json_dict, clazzes \
             = _forest2json(forest, columns, name_feature=name_feature, get_date=get_date, milestones=milestones,
-                           timeline_type=timeline_type, dates_are_dates=milestone_label == DATE_LABEL)
+                           timeline_type=timeline_type, dates_are_dates=dates_are_dates)
     loader = PackageLoader('pastml')
     env = Environment(loader=loader)
     template = env.get_template('pie_tree.js') if compressed_forest is not None \
@@ -566,10 +563,11 @@ def save_as_cytoscape_html(forest, out_html, column2states, name_feature, name2c
                             else ('lineages ending' if TIMELINE_LTT == timeline_type else 'external nodes'),
                             internal_nodes='internal nodes' if TIMELINE_NODES == timeline_type
                             else 'diversification events',
-                            age_label=milestone_label)
+                            age_label='date' if dates_are_dates else 'distance to root')
     slider = env.get_template('time_slider.html').render(min_date=0, max_date=len(milestones) - 1,
                                                          cur_date=len(milestones) - 1,
-                                                         name=milestone_label) if len(milestones) > 1 else ''
+                                                         name='date' if dates_are_dates else 'distance to root') \
+        if len(milestones) > 1 else ''
 
     template = env.get_template('index.html')
     os.makedirs(os.path.abspath(os.path.dirname(out_html)), exist_ok=True)
@@ -686,7 +684,7 @@ def get_column_value_str(n, column, format_list=True, list_value=''):
 
 
 def visualize(forest, column2states, work_dir, name_column=None, html=None, html_compressed=None, html_mixed=None,
-              tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, date_label='Dist. to root', timeline_type=TIMELINE_SAMPLED,
+              tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, timeline_type=TIMELINE_SAMPLED,
               local_css_js=False, column2colours=None, focus=None, pajek=None, pajek_timing=VERTICAL):
     for tree in forest:
         nodes_in_focus = set()
@@ -773,7 +771,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
                          dates[len(dates) // 2], dates[5 * len(dates) // 8], dates[3 * len(dates) // 4],
                          dates[7 * len(dates) // 8], dates[-1]})
     milestone_labels = None
-    if DATE_LABEL == date_label:
+    if getattr(forest[0], DATE, 0) != forest[0].dist:
         try:
             milestone_labels = [numeric2datetime(_).strftime("%d %b %Y") for _ in milestones]
         except:
@@ -791,7 +789,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
                                                       total_num_tips, MAX_TIPS_FOR_FULL_TREE_VISUALISATION))
         else:
             save_as_cytoscape_html(forest, html, column2states=column2states, name2colour=name2colour,
-                                   name_feature='name', compressed_forest=None, milestone_label=date_label,
+                                   name_feature='name', compressed_forest=None,
                                    timeline_type=timeline_type, milestones=milestones, get_date=get_date,
                                    work_dir=work_dir, local_css_js=local_css_js, milestone_labels=milestone_labels)
             logger.debug('Saved full tree visualization as {}'.format(html))
@@ -808,7 +806,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
         if pajek:
             save_to_pajek(*pajek_vert_arcs, pajek)
 
-        milestone_labels, milestones = update_milestones(forest, date_label, milestone_labels, milestones,
+        milestone_labels, milestones = update_milestones(forest, milestone_labels, milestones,
                                                          timeline_type)
 
         save_as_cytoscape_html(forest, html_compressed,
@@ -822,7 +820,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
     if html_mixed:
         mixed_forest = [compress_tree(tree, columns=column2states.keys(), tip_size_threshold=tip_size_threshold,
                                       mixed=True) for tree in forest_mixed]
-        milestone_labels, milestones = update_milestones(forest_mixed, date_label, milestone_labels, milestones,
+        milestone_labels, milestones = update_milestones(forest_mixed, milestone_labels, milestones,
                                                          timeline_type)
         save_as_cytoscape_html(forest_mixed, html_mixed,
                                column2states=column2states, name2colour=name2colour,
@@ -833,7 +831,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
         logger.debug('Saved mixed tree visualization as {}'.format(html_mixed))
 
 
-def update_milestones(forest, date_label, milestone_labels, milestones, timeline_type):
+def update_milestones(forest, milestone_labels, milestones, timeline_type):
     # If we trimmed a few tips while compressing and they happened to be the oldest/newest ones,
     # we should update the milestones accordingly.
     first_date, last_date = np.inf, -np.inf
@@ -846,7 +844,7 @@ def update_milestones(forest, date_label, milestone_labels, milestones, timeline
         milestones.insert(0, first_date)
     if milestones[-1] < last_date:
         milestones.append(last_date)
-    if DATE_LABEL == date_label:
+    if getattr(forest[0], DATE) != forest[0].dist:
         try:
             milestone_labels = [numeric2datetime(_).strftime("%d %b %Y") for _ in milestones]
         except:

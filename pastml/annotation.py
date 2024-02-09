@@ -1,12 +1,11 @@
 import logging
 from collections import Counter, defaultdict
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-from pastml import col_name2cat, datetime2numeric
-from pastml.tree import DATE, DATE_CI
-from pastml.visualisation.cytoscape_manager import DIST_TO_ROOT_LABEL, DATE_LABEL
+from pastml import col_name2cat, MODEL_ID, quote
+from pastml.tree import DATE
 
 
 def get_min_forest_stats(forest):
@@ -33,77 +32,309 @@ def get_min_forest_stats(forest):
 
 class ForestStats(object):
 
-    def __init__(self, forest):
-        self.avg_nonzero_brlen, self.num_nodes, self.num_tips, self.forest_length = get_forest_stats(forest)
-        self.num_trees = len(forest)
+    def __init__(self, forest, character=None, min_date=-np.inf, max_date=np.inf):
+        self._forest = forest
+        self._character = character
+        self._min_interval_date = min_date
+        self._max_interval_date = max_date
+        self._min_tree_date, self._max_tree_date = None, None
+        self._observed_frequencies, self._missing_data = None, None
+        self._n_trees, self._n_nodes, self._n_tips, self._n_zero_nodes, self._n_zero_tips, \
+            self._length, self._avg_dist, self._n_polytomies \
+            = None, None, None, None, None, None, None, None
 
+    @property
+    def min_interval_date(self):
+        """
+        Returns the lower bound (inclusive) of the time interval that is considered.
 
-def get_forest_stats(forest):
-    len_sum_ext = 0
-    len_sum_int = 0
-    num_zero_nodes = 0
-    max_polynomy = 0
-    max_len_ext = 0
-    max_len_int = 0
-    min_len_ext = np.inf
-    min_len_int = np.inf
-    num_tips = 0
-    num_nodes = 0
-    num_zero_tips = 0
-    tip_len_sum = 0
+        :return: the lower bound of the time interval.
+        """
+        return self._min_interval_date
 
-    for tree in forest:
-        for node in tree.traverse():
-            num_nodes += 1
-            max_polynomy = max(len(node.children), max_polynomy)
+    @property
+    def max_interval_date(self):
+        """
+        Returns the upper bound (exclusive) of the time interval that is considered.
 
-            if not node.dist:
-                num_zero_nodes += 1
+        :return: the upper bound of the time interval.
+        """
+        return self._max_interval_date
 
-            if node.is_leaf():
-                num_tips += 1
-                tip_len_sum += node.dist
-                if node.dist:
-                    min_len_ext = min(node.dist, min_len_ext)
-                    len_sum_ext += node.dist
-                    max_len_ext = max(max_len_ext, node.dist)
-                else:
-                    num_zero_tips += 1
-            else:
-                if node.dist:
-                    min_len_int = min(node.dist, min_len_int)
-                    len_sum_int += node.dist
-                    max_len_int = max(max_len_int, node.dist)
+    @property
+    def min_tree_date(self):
+        """
+        Returns the minimal root tree among the forest trees.
+        If the interval is given, this date will be corrected by the interval
+        (and set to np.inf if all the trees are outside the interval).
 
-    avg_len = (len_sum_ext + len_sum_int) / (num_nodes - num_zero_nodes) if num_nodes > num_zero_nodes else 0
-    avg_len_ext = len_sum_ext / (num_tips - num_zero_tips) if num_tips > num_zero_tips else 0
-    avg_len_int = len_sum_int / (num_nodes - num_tips - num_zero_nodes + num_zero_tips) \
-        if (num_nodes - num_tips - num_zero_nodes + num_zero_tips) > 0 else 0
+        :return: the minimal root tree among the forest trees.
+        """
 
-    logging.getLogger('pastml').debug('\n=============TREE STATISTICS===================\n'
-                                      '\tnumber of tips:\t{}\n'
-                                      '\tnumber of zero-branch tips:\t{}\n'
-                                      '\tnumber of internal nodes:\t{}\n'
-                                      '\tmax number of children per node:\t{}\n'
-                                      '\tmax tip branch length:\t{:.5f}\n'
-                                      '\tmax internal branch length:\t{:.5f}\n'
-                                      '\tmin non-zero tip branch length:\t{:.5f}\n'
-                                      '\tmin non-zero internal branch length:\t{:.5f}\n'
-                                      '\tavg non-zero tip branch length:\t{:.5f}\n'
-                                      '\tavg non-zero internal branch length:\t{:.5f}\n'
-                                      '\tavg non-zero branch length:\t{:.5f}.'
-                                      .format(num_tips,
-                                              num_zero_tips,
-                                              num_nodes - num_tips,
-                                              max_polynomy,
-                                              max_len_ext,
-                                              max_len_int,
-                                              min_len_ext,
-                                              min_len_int,
-                                              avg_len_ext,
-                                              avg_len_int,
-                                              avg_len))
-    return [avg_len, num_nodes, num_tips, len_sum_ext + len_sum_int]
+        def analyse_tree(tree):
+            return max(getattr(tree, DATE) - tree.dist, self._min_interval_date) \
+                if self.tree_within_bounds(tree) else np.inf
+
+        if self._min_tree_date is None:
+            self._min_tree_date = min(analyse_tree(_) for _ in self._forest)
+        return self._min_tree_date
+
+    @property
+    def max_tree_date(self):
+        """
+        Returns the minimal root tree among the forest trees.
+        If the interval is given, this date will be corrected by the interval
+        (and set to -np.inf if all the trees are outside the interval).
+
+        :return: the minimal root tree among the forest trees.
+        """
+
+        def analyse_tree(tree):
+            return min(max(getattr(tip, DATE) for tip in tree), self._max_interval_date) \
+                if self.tree_within_bounds(tree) else -np.inf
+
+        if self._max_tree_date is None:
+            self._max_tree_date = max(analyse_tree(tree) for tree in self._forest)
+        return self._max_tree_date
+
+    def node_within_bounds(self, node):
+        return self._min_interval_date <= getattr(node, DATE) < self._max_interval_date
+
+    def tree_within_bounds(self, tree):
+        return getattr(tree, DATE) - tree.dist < self._max_interval_date \
+            and max(getattr(tip, DATE) for tip in tree) >= self._min_interval_date
+
+    def branch_within_bounds(self, node):
+        """
+        Checks if the node's branch is (at least partially) within the time interval.
+
+        :param node: tree node
+        :return: whether the branch is (at least partially) within the time interval.
+        """
+        date = getattr(node, DATE)
+        up_date = date - node.dist
+        return up_date < self._max_interval_date and date >= self._min_interval_date
+
+    @property
+    def n_nodes(self):
+        """
+        Returns the total number of nodes in all the forest trees.
+        If a time interval is given, only nodes within it will be counted.
+
+        :return: number of nodes
+        """
+        if self._n_nodes is None:
+            # We check for branch and not for node as if the branch is within bounds and not node,
+            # it creates a "new tip"
+            self._n_nodes = sum(sum(1 for _ in tree.traverse()
+                                    if self.branch_within_bounds(_)) for tree in self._forest)
+        return self._n_nodes
+
+    @property
+    def n_trees(self):
+        """
+        Returns the number of trees in the forest.
+        If a time interval is given, only trees that intersect with it will be counted
+        (an initial tree might become split into several subtrees if its top part is cut).
+
+        :return: number of trees
+        """
+        if self._n_trees is None:
+            self._n_trees = 0
+            for tree in self._forest:
+                if max(getattr(tip, DATE) for tip in tree) < self._min_interval_date:
+                    continue
+                todo = [tree]
+                while todo:
+                    n = todo.pop()
+                    if self.branch_within_bounds(n):
+                        self._n_trees += 1
+                    else:
+                        todo.extend(n.children)
+        return self._n_trees
+
+    @property
+    def n_zero_nodes(self):
+        """
+        Returns the total number of nodes with zero branch length in the trees of the forest.
+        If a time interval is given, only the tree parts that intersect with it will be considered
+        and pending branches will be considered as tips.
+
+        :return: number of zero-branch nodes
+        """
+        if self._n_zero_nodes is None:
+            self._n_zero_nodes = 0
+            todo = list(self._forest)
+            while todo:
+                n = todo.pop()
+                date = getattr(n, DATE)
+                if self.branch_within_bounds(n):
+                    up_date = date - n.dist
+                    if min(self._max_interval_date, date) - max(self._min_interval_date, up_date) == 0:
+                        self._n_zero_nodes += 1
+                if date < self._max_interval_date:
+                    todo.extend(n.children)
+        return self._n_zero_nodes
+
+    @property
+    def n_zero_tips(self):
+        """
+        Returns the total number of tips with zero branch length in the trees of the forest.
+        If a time interval is given, only the tree parts that intersect with it will be considered
+        and pending branches will be considered as tips.
+
+        :return: number of zero-branch tips
+        """
+        if self._n_zero_tips is None:
+            self._n_zero_tips = 0
+            todo = list(self._forest)
+            while todo:
+                n = todo.pop()
+                date = getattr(n, DATE)
+                if (n.dist == 0 and n.is_leaf()) or date == self._min_interval_date:
+                    self._n_zero_tips += 1
+                if date < self._max_interval_date:
+                    todo.extend(n.children)
+        return self._n_zero_tips
+
+    @property
+    def n_tips(self):
+        """
+        Calculate the number of tips in the forest. If time interval is specified, and this time interval cuts the tree,
+        pending branches (cut by the interval) will be counted as tips.
+
+        :return: number of tips
+        """
+        if self._n_tips is None:
+            self._n_tips = 0
+            todo = list(self._forest)
+            while todo:
+                n = todo.pop()
+                date = getattr(n, DATE)
+                if self.branch_within_bounds(n):
+                    if date >= self._max_interval_date or n.is_leaf():
+                        self._n_tips += 1
+                if date < self._max_interval_date:
+                    todo.extend(n.children)
+        return self._n_tips
+
+    @property
+    def length(self):
+        """
+        Calculate the length of the tree parts of the forest that are within the time interval.
+
+        :return: length
+        """
+        if self._length is None:
+            self._length = 0
+            todo = list(self._forest)
+            while todo:
+                n = todo.pop()
+                date = getattr(n, DATE)
+                if self.branch_within_bounds(n):
+                    up_date = date - n.dist
+                    self._length += min(date, self._max_interval_date) - max(up_date, self._min_interval_date)
+                if date < self._max_interval_date:
+                    todo.extend(n.children)
+        return self._length
+
+    @property
+    def avg_dist(self):
+        """
+        Calculates the average branch distance among non-zero tree branches of the forest trees.
+        If time interval is specified, and this time interval cuts the tree,
+        only the branch parts that are within the interval will be considered.
+
+        :return: average branch distance among non-zero tree branches
+        """
+        if self._avg_dist is None:
+            n_non_zero_nodes = self.n_nodes - self.n_zero_nodes
+            self._avg_dist = self.length / n_non_zero_nodes if n_non_zero_nodes else 0
+        return self._avg_dist
+
+    @property
+    def n_polytomies(self):
+        """
+        Returns the total number of unresolved internal nodes (i.e., with more than two children)
+        in the trees of the forest.
+        If a time interval is given, only the tree parts that intersect with it will be considered.
+
+        :return: number of polytomies
+        """
+        if self._n_polytomies is None:
+            self._n_polytomies = \
+                sum(sum(1 for _ in tree.traverse() if len(_.children) > 2 and self.node_within_bounds(_))
+                    for tree in self._forest)
+        return self._n_polytomies
+
+    def __str__(self):
+        return '\n=============FOREST STATISTICS{}===================\n' \
+               '\tnumber of trees:\t{}\n' \
+               '\ttime period covered by trees:\t{}-{}\n' \
+               '\tnumber of tips:\t{}\n' \
+               '\tnumber of zero-branch tips:\t{}\n' \
+               '\ttotal number of nodes:\t{}\n' \
+               '\tnumber of polytomies:\t{}\n' \
+               '\taverage non-zero branch length:\t{:.5f}\n' \
+               '\tobserved frequencies for {}:{}{}' \
+            .format(' ({}-{})'.format(self.min_interval_date, self.max_interval_date)
+                    if self.min_interval_date > -np.inf or self.max_interval_date < np.inf else '',
+                    self.n_trees,
+                    self.min_tree_date, self.max_tree_date,
+                    self.n_tips, self.n_zero_tips,
+                    self.n_nodes,
+                    self.n_polytomies,
+                    self.avg_dist,
+                    self._character,
+                    ''.join('\n\t\t{}:\t{:.6f}'.format(state, self.observed_frequencies[state])
+                            for state in sorted(self.observed_frequencies.keys())),
+                    '\n\t\tfraction of missing data:\t{:.6f}'.format(self.missing_data) if self.missing_data else ''
+                    )
+
+    @property
+    def observed_frequencies(self):
+        """
+        Returns a dictionary with the frequencies of character states observed at tips of the forest trees.
+        If the time interval is specified, only tips (actual, not created by cutting branches by skyline) within it
+        will be considered.
+
+        :return: dict{state: its frequency}
+        """
+        if self._observed_frequencies is None:
+            self._calculate_observed_frequencies()
+        return self._observed_frequencies
+
+    @property
+    def missing_data(self):
+        """
+        Returns the proportion of tips with unknown states in the forest trees.
+        If the time interval is specified, only tips (actual, not created by cutting branches by skyline) within it
+        will be considered.
+
+        :return: proportion of tips with unknown states (between 0 and 1)
+        """
+        if self._observed_frequencies is None:
+            self._calculate_observed_frequencies()
+        return self._missing_data
+
+    def _calculate_observed_frequencies(self):
+        self._missing_data = 0
+        total_data = 0
+        self._observed_frequencies = defaultdict(lambda: 0)
+        for tree in self._forest:
+            for _ in tree:
+                if self.node_within_bounds(_):
+                    state = getattr(_, self._character, set())
+                    total_data += 1
+                    if state:
+                        num_node_states = len(state)
+                        for _ in state:
+                            self._observed_frequencies[_] += 1. / num_node_states
+                    else:
+                        self._missing_data += 1
+        for _ in self._observed_frequencies.keys():
+            self._observed_frequencies[_] /= (total_data - self._missing_data)
+        self._missing_data /= total_data
 
 
 def df2gdf(df):
@@ -126,54 +357,6 @@ def preannotate_forest(forest, df=None, gdf=None):
                 for c in gdf.columns:
                     node.del_feature(c)
     return gdf.columns, gdf
-
-
-def _quote(str_list):
-    return ', '.join('"{}"'.format(_) for _ in str_list) if str_list is not None else ''
-
-
-def parse_date(d):
-    try:
-        return float(d)
-    except ValueError:
-        try:
-            return datetime2numeric(pd.to_datetime(d, infer_datetime_format=True))
-        except ValueError:
-            raise ValueError('Could not infer the date format for root date "{}", please check it.'
-                             .format(d))
-
-
-def annotate_dates(forest, root_dates=None):
-    # Process root dates
-    if root_dates is not None:
-        root_dates = [parse_date(d) for d in (root_dates if isinstance(root_dates, list) else [root_dates])]
-        if 1 < len(root_dates) < len(forest):
-            raise ValueError('{} trees are given, but only {} root dates.'.format(len(forest), len(root_dates)))
-        elif 1 == len(root_dates):
-            root_dates *= len(forest)
-    age_label = DIST_TO_ROOT_LABEL \
-        if (root_dates is None and not next((True for root in forest if getattr(root, DATE, None) is not None), False)) \
-        else DATE_LABEL
-    if root_dates is None:
-        root_dates = [0] * len(forest)
-    for tree, root_date in zip(forest, root_dates):
-        for node in tree.traverse('preorder'):
-            if getattr(node, DATE, None) is None:
-                if node.is_root():
-                    node.add_feature(DATE, root_date if root_date else 0)
-                else:
-                    node.add_feature(DATE, getattr(node.up, DATE) + node.dist)
-            else:
-                node.add_feature(DATE, float(getattr(node, DATE)))
-            ci = getattr(node, DATE_CI, None)
-            if ci and not isinstance(ci, list) and not isinstance(ci, tuple):
-                node.del_feature(DATE_CI)
-                if isinstance(ci, str) and '|' in ci:
-                    try:
-                        node.add_feature(DATE_CI, [float(_) for _ in ci.split('|')])
-                    except:
-                        pass
-    return age_label
 
 
 def annotate_forest(forest, columns=None, data=None, data_sep='\t', id_index=0,
@@ -242,9 +425,9 @@ def annotate_forest(forest, columns=None, data=None, data_sep='\t', id_index=0,
         if unknown_columns:
             raise ValueError('{} of the specified columns ({}) {} not found among the annotation columns: {}.'
                              .format('One' if len(unknown_columns) == 1 else 'Some',
-                                     _quote(unknown_columns),
+                                     quote(unknown_columns),
                                      'is' if len(unknown_columns) == 1 else 'are',
-                                     _quote(new_columns)))
+                                     quote(new_columns)))
         if not columns:
             columns = new_columns
 
@@ -286,3 +469,111 @@ def annotate_forest(forest, columns=None, data=None, data_sep='\t', id_index=0,
 
     return columns, {c: np.array(sorted(states)) for c, states in column2states.items()}
 
+
+def annotate_skyline(forest, skyline, character, skyline_mapping=None):
+    """
+    Verifies that the skyline points are well-defined, annotates the tree with skyline model ids,
+    and parses the state mapping table if the states changes between skyline intervals.
+
+    :param forest: list of trees to be annotated (with DATE annotations on their nodes)
+    :param skyline: dates of model/state changes
+    :param character: character of interest
+    :param skyline_mapping: an optional file, containing skyline state mapping
+    :return: skyline (sorted array of model/state change dates),
+        a tuple (skyline mapping table, a list of lists of states (for each time interval)).
+        The latter is None if the mapping was not specified.
+    """
+    min_date, max_date = min(getattr(tree, DATE) - tree.dist for tree in forest), \
+        max(max(getattr(_, DATE) for _ in tree) for tree in forest)
+    skyline = sorted(skyline)
+    if skyline[0] >= max_date or skyline[-1] <= min_date:
+        raise ValueError('You have specified dates of model/state changes ({}), '
+                         'however they are outside of your tree date interval: {}-{}.'
+                         .format(', '.join(str(_) for _ in skyline), min_date, max_date))
+
+    logging.getLogger('pastml').debug('The tree(s) cover the period between {} and {}, '
+                                      'the models/states change at the following dates: {}.'
+                                      .format(min_date, max_date, ', '.join(str(_) for _ in skyline)))
+
+    if skyline_mapping:
+        skyline_mapping = parse_skyline_mapping(character, skyline, skyline_mapping)
+    else:
+        skyline_mapping = None
+
+    def annotate_node_skyline(node, i):
+        # Skyline contains the times when the model changes,
+        # hence the root nodes (model 0) should be before the first skyline point,
+        # and the most recent leaf should be after the last
+        for j in range(i, len(skyline) + 1):
+            if j == len(skyline):
+                break
+            n_date = getattr(node, DATE)
+            if skyline[j] > n_date and (j == 0 or n_date >= skyline[j - 1]):
+                break
+        node.add_feature(MODEL_ID, j)
+        for child in node.children:
+            annotate_node_skyline(child, j)
+
+    for tree in forest:
+        annotate_node_skyline(tree, 0)
+
+    return skyline, skyline_mapping
+
+
+def parse_skyline_mapping(character, skyline, skyline_mapping):
+    df = pd.read_csv(skyline_mapping, sep='\t')
+
+    def convert_col(c):
+        cc = col_name2cat(c)
+        if cc == character:
+            return cc
+        try:
+            return float(c)
+        except:
+            return c
+
+    df.columns = [convert_col(_) for _ in df.columns]
+    try:
+        df = df[[character] + skyline]
+    except KeyError:
+        raise ValueError('Skyline mapping is specified in {} but instead of containing columns {} it contains {}'
+                         .format(skyline_mapping, ', '.join([character] + reversed([str(_) for _ in skyline])),
+                                 df.columns))
+
+    def get_states(source_state, source_col, target_col):
+        target_states = {str(_) for _ in df.loc[df[source_col] == source_state, target_col].unique()
+                         if not pd.isna(_)}
+        if not target_states:
+            raise ValueError('Could not find the states corresponding to {} of {} in {}'
+                             .format(source_state, source_col, target_col))
+        return target_states
+
+    mapping = {}
+    prev_states = {}
+    prev_col = None
+    all_states = []
+    # character corresponds to column names at the most recent time interval
+    for i, col in enumerate(skyline + [character], start=0):
+        states = {str(_) for _ in df[col].unique() if not pd.isna(_)}
+        all_states.append(np.array(sorted(states)))
+        if i > 0:
+            mapping[(i - 1, i)] = {prev_state: get_states(prev_state, prev_col, col) for prev_state in prev_states}
+            mapping[(i, i - 1)] = {state: get_states(state, col, prev_col) for state in states}
+        prev_col, prev_states = col
+
+    skyline_mapping = {}
+    for (i, j), state2states in mapping.items():
+        mapping_ij = np.zeros(shape=(len(all_states[i]), len(all_states[j])), dtype=float)
+        skyline_mapping[(i, j)] = mapping_ij
+        for (from_i, from_state) in enumerate(all_states[i]):
+            to_states = state2states[from_state]
+            for (to_j, to_state) in enumerate(all_states[j]):
+                if to_state in to_states:
+                    mapping_ij[from_i, to_j] = 1
+    return skyline_mapping, all_states
+
+
+def remove_skyline(forest):
+    for tree in forest:
+        for n in tree.traverse('postorder'):
+            n.del_feature(MODEL_ID)

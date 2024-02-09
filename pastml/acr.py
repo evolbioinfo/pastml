@@ -4,8 +4,8 @@ import warnings
 
 import numpy as np
 
-from pastml import STATES, METHOD, CHARACTER, PASTML_VERSION
-from pastml.annotation import annotate_forest, ForestStats
+from pastml import METHOD, CHARACTER, PASTML_VERSION
+from pastml.annotation import annotate_forest, ForestStats, annotate_skyline
 from pastml.file import get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file, get_pastml_work_dir, get_ancestral_state_file
 from pastml.logger import set_up_pastml_logger
@@ -15,11 +15,13 @@ from pastml.models import MODEL, SCALING_FACTOR, SMOOTHING_FACTOR
 from pastml.models.CustomRatesModel import CustomRatesModel, CUSTOM_RATES
 from pastml.models.EFTModel import EFTModel, EFT
 from pastml.models.F81Model import F81Model, F81
-from pastml.models.HKYModel import HKYModel, HKY, HKY_STATES
+from pastml.models.HKYModel import HKYModel, HKY
 from pastml.models.JCModel import JCModel, JC
-from pastml.models.JTTModel import JTTModel, JTT, JTT_STATES
+from pastml.models.JTTModel import JTTModel, JTT
+from pastml.models.SkylineModel import SkylineModel
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS
-from pastml.tree import read_forest, save_tree, refine_states
+from pastml import value2list
+from pastml.tree import read_forest, save_tree
 
 model2class = {F81: F81Model, JC: JCModel, CUSTOM_RATES: CustomRatesModel, HKY: HKYModel, JTT: JTTModel, EFT: EFTModel}
 
@@ -39,7 +41,7 @@ def serialize_acr(args):
         f.write('parameter\tvalue\n')
         f.write('pastml_version\t{}\n'.format(PASTML_VERSION))
         for name in sorted(acr_result.keys()):
-            if name not in [STATES, MARGINAL_PROBABILITIES, METHOD, MODEL]:
+            if name not in [MARGINAL_PROBABILITIES, METHOD, MODEL]:
                 f.write('{}\t{}\n'.format(name, acr_result[name]))
         f.write('{}\t{}\n'.format(METHOD, acr_result[METHOD]))
         if is_ml(acr_result[METHOD]):
@@ -59,7 +61,8 @@ def serialize_acr(args):
 
 def acr(forest, character, states, prediction_method=MPPA, model=F81,
         parameters=None, rate_file=None, force_joint=True,
-        reoptimise=False, tau=0, frequency_smoothing=False):
+        reoptimise=False, tau=0, frequency_smoothing=False,
+        skyline=None, skyline_mapping=None):
     """
     Reconstructs ancestral states for the given tree(s) and the given character.
     The tree tip/node states should be preannotated with this character.
@@ -71,7 +74,7 @@ def acr(forest, character, states, prediction_method=MPPA, model=F81,
     :param states: array of possible character states
     :type states: np.array(str)
     :param model: (optional, default is F81) model to be used by PASTML.
-    :type model: str
+    :type model: str or list(str)
     :param prediction_method: (optional, default is MPPA) ancestral state prediction method(s) to be used by PASTML.
     :type prediction_method: str
     :param parameters: an optional way to fix some parameters,
@@ -95,75 +98,88 @@ def acr(forest, character, states, prediction_method=MPPA, model=F81,
     :return: an ACR result dictionary.
     :rtype: dict
     """
-    forest_stats = ForestStats(forest)
     logger = logging.getLogger('pastml')
     logger.debug('ACR settings for {}:\n\tMethod:\t{}{}.'
                  .format(character, prediction_method,
                          '\n\tModel:\t{}'.format(model) if model and is_ml(prediction_method) else ''))
     if is_parsimonious(prediction_method):
+        forest_stats = ForestStats(forest, character)
+        logger.debug(forest_stats)
         return parsimonious_acr(forest=forest, character=character, prediction_method=prediction_method,
-                                states=states, num_nodes=forest_stats.num_nodes, num_tips=forest_stats.num_tips)
+                                states=states, num_nodes=forest_stats.n_nodes, num_tips=forest_stats.n_tips)
     elif is_ml(prediction_method):
+        n_sky = (len(skyline) if skyline else 0) + 1
+        model = value2list(n_sky, model, F81)
+        parameters = value2list(n_sky, parameters, None)
+        rate_file = rate_matrix2list(model, rate_file)
+
         optimise_tau = tau is None or reoptimise
         if tau is None:
             tau = 0
-        missing_data, observed_frequencies, state2index = calculate_observed_freqs(character, forest, states)
-        logger.debug('Observed frequencies for {}:{}{}.'
-                     .format(character,
-                             ''.join('\n\tfrequency of {}:\t{:.6f}'
-                                     .format(state, observed_frequencies[state2index[state]]) for state in states),
-                             '\n\tfraction of missing data:\t{:.6f}'
-                             .format(missing_data) if missing_data else '')
-                     )
 
-        if is_ml(prediction_method) and model in {HKY, JTT}:
-            initial_states = states
-            states = HKY_STATES if HKY == model else JTT_STATES
-            if not set(initial_states) & set(states):
-                raise ValueError('The allowed states for model {} are {}, '
-                                 'but your annotation file/tree specifies {} as states for character {}.'
-                                 .format(model, ', '.join(states), ', '.join(initial_states), character))
-            if not np.all(states == initial_states):
-                refine_states(forest, character, states)
+        forest_stats = ForestStats(forest, character)
 
-        model_instance = model2class[model](parameter_file=parameters, rate_matrix_file=rate_file,
-                                            reoptimise=reoptimise,
-                                            frequency_smoothing=frequency_smoothing, tau=tau,
-                                            optimise_tau=optimise_tau, states=states, forest_stats=forest_stats,
-                                            observed_frequencies=observed_frequencies)
+        if skyline:
+            start_date = -np.inf
+            skyline_models = []
+            for i in range(n_sky):
+                end_date = skyline[i] if i < len(skyline) else np.inf
+                sub_forest_stats = ForestStats(forest, character, start_date, end_date)
+                logger.debug(sub_forest_stats)
+                m = model2class[model[i]](parameter_file=parameters[i],
+                                          rate_matrix_file=rate_file[i],
+                                          reoptimise=reoptimise, frequency_smoothing=frequency_smoothing, tau=tau,
+                                          optimise_tau=optimise_tau,
+                                          states=states if not skyline_mapping else skyline_mapping[1][i],
+                                          forest_stats=sub_forest_stats)
+                skyline_models.append(m)
+            model_instance = SkylineModel(models=skyline_models, dates=skyline,
+                                          skyline_mapping=skyline_mapping[0] if skyline_mapping else None,
+                                          forest_stats=forest_stats)
+        else:
+            logger.debug(forest_stats)
+            model_instance = model2class[model[0]](parameter_file=parameters[0], rate_matrix_file=rate_file[0],
+                                                   reoptimise=reoptimise,
+                                                   frequency_smoothing=frequency_smoothing, tau=tau,
+                                                   optimise_tau=optimise_tau, states=states, forest_stats=forest_stats)
         return ml_acr(forest=forest, character=character, prediction_method=prediction_method,
-                      model=model_instance, force_joint=force_joint, observed_frequencies=observed_frequencies)
+                      model=model_instance, force_joint=force_joint)
     else:
         raise ValueError('Method {} is unknown, should be one of ML ({}) or one of MP ({})'
                          .format(prediction_method, ', '.join(ML_METHODS), ', '.join(MP_METHODS)))
 
 
-def calculate_observed_freqs(character, forest, states):
-    n = len(states)
-    missing_data = 0.
-    state2index = dict(zip(states, range(n)))
-    observed_frequencies = np.zeros(n, np.float64)
-    for tree in forest:
-        for _ in tree:
-            state = getattr(_, character, set())
-            if state:
-                num_node_states = len(state)
-                for _ in state:
-                    observed_frequencies[state2index[_]] += 1. / num_node_states
-            else:
-                missing_data += 1
-    total_count = observed_frequencies.sum() + missing_data
-    observed_frequencies /= observed_frequencies.sum()
-    missing_data /= total_count
-    return missing_data, observed_frequencies, state2index
+def rate_matrix2list(models, rate_file):
+    rate_matrices = []
+    i = 0
+    if not rate_file:
+        rate_file = []
+    if isinstance(rate_file, str):
+        rate_file = [rate_file]
+    for m in models:
+        if CUSTOM_RATES == m:
+            if i > len(rate_file):
+                raise ValueError('A rate matrix must be specified for each {} model.'
+                                 .format(CUSTOM_RATES))
+            rate_matrices.append(rate_file[i])
+            i += 1
+        else:
+            rate_matrices.append(None)
+    if i < len(rate_file):
+        raise ValueError('Extra rate matrices are specified '
+                         '(as many rate matrices must be given as intervals with the {} model).'
+                         .format(CUSTOM_RATES))
+    rate_file = rate_matrices
+    return rate_file
 
 
 def acr_pipeline(tree, data=None, data_sep='\t', id_index=0,
-                 column=None, prediction_method=MPPA, model=F81,
+                 column=None, prediction_method=MPPA, model=None,
                  parameters=None, rate_matrix=None,
                  out_data=None, work_dir=None,
                  verbose=False, forced_joint=False,
-                 reoptimise=False, smoothing=False, frequency_smoothing=False):
+                 reoptimise=False, smoothing=False, frequency_smoothing=False,
+                 skyline=None, skyline_mapping=None):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -173,9 +189,11 @@ def acr_pipeline(tree, data=None, data_sep='\t', id_index=0,
     :param data: (optional) path to the annotation file in tab/csv format with the first row containing the column names.
         If not given, the annotations should be contained in the tree file itself.
     :type data: str
+
     :param data_sep: (optional, by default '\t') column separator for the annotation table.
         By default, it is set to tab, i.e. for tab-delimited file. Set it to ',' if your file is csv.
     :type data_sep: char
+
     :param id_index: (optional, by default is 0) index of the column in the annotation table
         that contains the tree tip names, indices start from zero.
     :type id_index: int
@@ -183,28 +201,42 @@ def acr_pipeline(tree, data=None, data_sep='\t', id_index=0,
     :param column: (optional) name of the annotation table column that contains the character
         to be analysed. If not specified the first columns will be considered.
     :type column: str
+
     :param prediction_method: (optional, default is pastml.ml.MPPA) ancestral character reconstruction method,
         can be one of the max likelihood (ML) methods: pastml.ml.MPPA, pastml.ml.MAP, pastml.ml.JOINT,
         or one of the max parsimony (MP) methods: pastml.parsimony.ACCTRAN, pastml.parsimony.DELTRAN,
         pastml.parsimony.DOWNPASS.
     :type prediction_method: str
+
     :param forced_joint: (optional, default is False) add JOINT state to the MPPA state selection
         even if it is not selected by Brier score.
     :type forced_joint: bool
-    :param model: (optional, default is pastml.models.f81_like.F81) evolutionary model for ML methods
-        (ignored by MP methods).
-    :type model: str
-    :param parameters: optional way to fix some of the ML-method parameters.
+
+    :param model: evolutionary model for ML methods (ignored by MP methods).
+        If a skyline with M intervals is used, then up to M models can be specified.
+        If there are M skyline intervals, and N < M models,
+        they will be associated with the first (oldest, closest to the root) N intervals,
+        and the other M-N intervals will get the default model (pastml.models.f81_like.F81).
+    :type model: str or list(str)
+
+    :param parameters: optional way to fix (some of) the ML-method parameters.
         Could be specified as
         (1) a dict {param: value},
-        or (2) as a path to parameter file.
+        or (2) as a path to parameter file,
+        or (3) a list of (1) or (2).
         The file should be tab-delimited, with two columns: the first one containing parameter names,
         and the second, named "value", containing parameter values.
-        Parameters can include character state frequencies (parameter name should be the corresponding state,
+        Parameters depend on the selected model. Common parameter examples include
+        character state frequencies (parameter name should be the corresponding state,
         and parameter value - the float frequency value, between 0 and 1),
         tree branch scaling factor (parameter name pastml.ml.SCALING_FACTOR),
         and tree branch smoothing factor (parameter name pastml.ml.SMOOTHING_FACTOR).
-    :type parameters: str or dict
+        If a skyline with M intervals is used, then up to M parameter files/dictionaries can be specified. '
+        If there are M skyline intervals, and N < M parameter files/dictionaries,
+        they will be associated with the first (oldest, closest to the root) N intervals.
+        If needed, some of these files can be empty.
+    :type parameters: str or dict or list(str) or list(dict)
+
     :param rate_matrix: (only for pastml.models.rate_matrix.CUSTOM_RATES model) path to the file
         specifying the rate matrix.
         Should be specified as a path to rate matrix file.
@@ -218,21 +250,45 @@ def acr_pipeline(tree, data=None, data_sep='\t', id_index=0,
         0 1 4 1
         1 0 1 4
         4 1 0 1
-        1 4 1 0
-    :type rate_matrix: str
+        1 4 1 0.
+        If a skyline is used with several intervals using the pastml.models.rate_matrix.CUSTOM_RATES model,
+        then as many paths to the corresponding matrix files should be specified.
+    :type rate_matrix: str or list(str)
+
     :param reoptimise: (False by default) if set to True and the parameters are specified,
         they will be considered as an optimisation starting point instead, and optimised.
     :type reoptimise: bool
+
     :param smoothing: (optional, default is False) apply a smoothing factor (optimised) to branch lengths
         during likelihood calculation.
     :type smoothing: bool
+
     :param frequency_smoothing: (optional, default is False) apply a smoothing factor (optimised) to state frequencies
         (given as input parameters, see parameters argument) during likelihood calculation.
         If the selected model (model argument) does not allow for frequency optimisation, this option will be ignored.
         If reoptimise argument is also set to True, the frequencies will only be smoothed but not reoptimised.
     :type frequency_smoothing: bool
+
+    :param skyline: date(s) of the changes in model parameters
+        (for non-dated tree(s) should be expressed as distance to root), if specified,
+        character states, models and their parameters will be allowed to change between the time intervals.
+    :type skyline: list(float)
+
+    :param skyline_mapping: optional way to specify the mappings between different skyline states if they change over time.
+        Should be specified as a path to the mapping file (only for the first character).
+        The file should be tab-delimited, with length of the skyline + 1 columns:
+        the first one containing character states at the date of the latest tip and named as the character,
+        and the others, named by skyline dates, containing the corresponding states at those years, e.g.
+        country 1991    1917
+        Russia  USSR    Russian Empire
+        Belarus  USSR    Russian Empire
+        France  France  France
+        ... ... ...
+    :type skyline_mapping: str
+
     :param out_data: path to the output annotation file with the reconstructed ancestral character states.
     :type out_data: str
+
     :param work_dir: (optional) path to the folder where pastml parameter, named tree
         and marginal probability (for marginal ML methods (pastml.ml.MPPA, pastml.ml.MAP) only) files are to be stored.
         Default is <path_to_input_file>/<input_file_name>_pastml. If the folder does not exist, it will be created.
@@ -249,24 +305,43 @@ def acr_pipeline(tree, data=None, data_sep='\t', id_index=0,
     _, column2states = annotate_forest(roots, columns=column, data=data, data_sep=data_sep, id_index=id_index,
                                        unknown_treshold=.9, state_threshold=.75)
     column = next(iter(column2states.keys()))
+
     if parameters:
-        if not isinstance(parameters, str) and not isinstance(parameters, dict):
-            raise ValueError('Parameters should be either a path to the parameter file or a dict, got {}.'
+        if isinstance(parameters, str) or isinstance(parameters, dict):
+            parameters = [parameters]
+        if not isinstance(parameters, list):
+            raise ValueError('Parameters should be either a path to the parameter file or a dict '
+                             '(or several paths/dictionaries if the skyline is used), got {} instead.'
                              .format(type(parameters)))
     else:
-        parameters = None
+        parameters = []
+
     if rate_matrix:
-        if not isinstance(rate_matrix, str):
-            raise ValueError('Rate matrix should be specified as a path to the file, got {}.'.format(type(rate_matrix)))
+        if isinstance(rate_matrix, str):
+            rate_matrix = [rate_matrix]
+        if not isinstance(rate_matrix, list):
+            raise ValueError('Rate matrix should be be specified as a path to the file '
+                             '(or several paths if the skyline is used), got {} instead.'
+                             .format(type(rate_matrix)))
     else:
-        rate_matrix = None
+        rate_matrix = []
+
+    if skyline:
+        skyline, skyline_mapping = annotate_skyline(roots, skyline, column, skyline_mapping)
+        n_sky = len(skyline) + 1
+
+        models = value2list(n_sky, model, F81)
+        parameters = value2list(n_sky, parameters, None)
+        rate_matrix = rate_matrix2list(models, rate_matrix)
+
     logger.debug('Finished input validation.')
 
     acr_result = acr(forest=roots, character=column, states=column2states[column],
                      prediction_method=prediction_method, model=model,
                      parameters=parameters, rate_file=rate_matrix, force_joint=forced_joint,
                      reoptimise=reoptimise,
-                     tau=None if smoothing else 0, frequency_smoothing=frequency_smoothing)
+                     tau=None if smoothing else 0, frequency_smoothing=frequency_smoothing,
+                     skyline_mapping=skyline_mapping, skyline=skyline)
 
     logger.debug('\n=============SAVING RESULTS=============')
     if not work_dir:
@@ -346,31 +421,43 @@ def main():
                                 "If not specified, the first column will be considered.",
                            type=str)
     acr_group.add_argument('--prediction_method',
-                           choices=[MPPA, MAP, JOINT, DOWNPASS, ACCTRAN, DELTRAN, COPY],
+                           choices=[MPPA, MAP, JOINT, DOWNPASS, ACCTRAN, DELTRAN],
                            type=str, default=MPPA,
                            help='ancestral character reconstruction (ACR) method, '
                                 'can be one of the max likelihood (ML) methods: {ml}, '
                                 'or one of the max parsimony (MP) methods: {mp}. '
-                           .format(ml=', '.join(ML_METHODS), mp=', '.join(MP_METHODS), copy=COPY, default=MPPA))
+                           .format(ml=', '.join(ML_METHODS), mp=', '.join(MP_METHODS), default=MPPA))
     acr_group.add_argument('--forced_joint', action='store_true',
                            help='add {joint} state to the {mppa} state selection '
                                 'even if it is not selected by Brier score.'.format(joint=JOINT, mppa=MPPA))
-    acr_group.add_argument('-m', '--model', default=F81,
+    acr_group.add_argument('-m', '--model',
                            choices=[JC, F81, EFT, HKY, JTT, CUSTOM_RATES],
-                           type=str,
-                           help='evolutionary model for ML methods (ignored by MP methods). ')
-    acr_group.add_argument('--parameters', type=str,
+                           type=str, nargs='*',
+                           help='evolutionary model for ML methods (ignored by MP methods).'
+                                'If a skyline with M intervals is used, '
+                                'then up to M models can be specified. '
+                                'If there are M skyline intervals, and N < M models, '
+                                'they will be associated with the first (oldest, closest to the root) N intervals, '
+                                'and the other M-N intervals will get the default model ({}).'.format(F81)
+                           )
+    acr_group.add_argument('--parameters', type=str, nargs='*',
                            help='optional way to fix some of the ML-method parameters '
                                 'by specifying a file that contain them. '
                                 'The file should be tab-delimited, with two columns: '
                                 'the first one containing parameter names, '
                                 'and the second, named "value", containing parameter values. '
-                                'Parameters can include character state frequencies '
+                                'Parameters depend on the selected model. '
+                                'Common parameter examples include character state frequencies '
                                 '(parameter name should be the corresponding state, '
                                 'and parameter value - the float frequency value, between 0 and 1),'
                                 'tree branch scaling factor (parameter name {}),'.format(SCALING_FACTOR) +
-                                'and tree branch smoothing factor (parameter name {}),'.format(SMOOTHING_FACTOR))
-    acr_group.add_argument('--rate_matrix', type=str,
+                                'and tree branch smoothing factor (parameter name {}).\n'.format(SMOOTHING_FACTOR) +
+                                'If a skyline with M intervals is used, '
+                                'then up to M parameter files can be specified. '
+                                'If there are M skyline intervals, and N < M parameter files, '
+                                'they will be associated with the first (oldest, closest to the root) N intervals. '
+                                'If needed, some of these files can be empty.')
+    acr_group.add_argument('--rate_matrix', type=str, nargs='*',
                            help='(only for {} model) path to the file containing the rate matrix. '
                                 'The rate matrix file should specify character states in its first line, '
                                 'preceded by #  and separated by spaces. '
@@ -384,7 +471,10 @@ def main():
                                 '0 1 4 1\n'
                                 '1 0 1 4\n'
                                 '4 1 0 1\n'
-                                '1 4 1 0'.format(CUSTOM_RATES))
+                                '1 4 1 0\n'
+                                'If a skyline is used with several intervals using the {} model, '
+                                'then as many paths to the corresponding matrix files should be specified.'
+                           .format(CUSTOM_RATES, CUSTOM_RATES))
     acr_group.add_argument('--reoptimise', action='store_true',
                            help='if the parameters are specified, they will be considered as an optimisation '
                                 'starting point instead and optimised.')
@@ -397,14 +487,28 @@ def main():
                                 'If the selected model (--model) does not allow for frequency optimisation,'
                                 ' this option will be ignored. '
                                 'If --reoptimise is also specified, '
-                                'the frequencies will only be smoothed but not reoptimised. ')
-    acr_group.add_argument('--resolve_polytomies', action='store_true',
-                           help='When specified, the polytomies with a state change '
-                                '(i.e. a parent node, P, in state A has more than 2 children, '
-                                'including m > 1 children, C_1, ..., C_m, in state B) are resolved '
-                                'by grouping together same-state (different from the parent state) nodes '
-                                '(i.e. a new internal node N in state B is created and becomes the child of P '
-                                'and the parent of C_1, ..., C_m).')
+                                'the frequencies will only be smoothed but not reoptimised.')
+    acr_group.add_argument('--skyline', required=False, default=None,
+                           help="date(s) of the changes in model parameters "
+                                "(for non-dated tree(s) should be expressed as distance to root), "
+                                "if specified, character states, models and their parameters "
+                                "will be allowed to change between the time intervals.",
+                           type=float, nargs='*')
+    acr_group.add_argument('--skyline_mapping', required=False, default=None,
+                           help="optional way to specify the mappings between different skyline states, "
+                                "if they change over time. "
+                                "Should contain the paths to the mapping file, "
+                                "which should be tab-delimited, with length of the skyline + 1 columns:"
+                                "the first one containing character states at the date of the latest tip "
+                                "and named as the character,"
+                                "and the others, named by skyline dates, "
+                                "containing the corresponding states at those years, e.g.\n"
+                                "country\t1991\t1917\n"
+                                "Russia\tUSSR\tRussian Empire\n"
+                                "Belarus\tUSSR\tRussian Empire\n"
+                                "France\tFrance\tFrance\n"
+                                "...\t...\t...",
+                           type=str)
 
     out_group = parser.add_argument_group('output-related arguments')
     out_group.add_argument('-o', '--out_data', required=False, type=str,
@@ -427,3 +531,5 @@ def main():
 
 if '__main__' == __name__:
     main()
+
+# TODO: add root date parameter

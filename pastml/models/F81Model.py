@@ -23,9 +23,10 @@ class F81Model(ModelWithFrequencies):
 
         :return: mutation rate \mu = 1 / (1 - sum_i \pi_i^2)
         """
-        return 1. / (1. - self.frequencies.dot(self.frequencies))
+        frequencies = self.get_frequencies()
+        return 1. / (1. - frequencies.dot(frequencies))
 
-    def get_Pij_t(self, t, *args, **kwargs):
+    def get_Pij_t(self, t, **kwargs):
         """
         Calculate the probability of substitution i->j over time t, given the mutation rate mu:
         For F81 (and JC which is a simpler version of it)
@@ -43,4 +44,4 @@ class F81Model(ModelWithFrequencies):
         mu = self.get_mu()
         # if mu == inf (e.g. just one state) and t == 0, we should prioritise mu
         exp_mu_t = 0. if (mu == np.inf) else np.exp(-mu * t)
-        return (1 - exp_mu_t) * self.frequencies + np.eye(len(self.frequencies)) * exp_mu_t
+        return (1 - exp_mu_t) * self.get_frequencies() + np.eye(len(self.get_frequencies())) * exp_mu_t

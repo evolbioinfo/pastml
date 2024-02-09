@@ -34,7 +34,8 @@ def load_custom_rates(infile):
 
 class CustomRatesModel(ModelWithFrequencies):
 
-    def __init__(self, forest_stats, sf=None, frequencies=None, rate_matrix_file=None, states=None, rate_matrix=None, tau=0,
+    def __init__(self, forest_stats, sf=None, frequencies=None, rate_matrix_file=None, states=None,
+                 rate_matrix=None, tau=0,
                  optimise_tau=False, frequency_smoothing=False, parameter_file=None, reoptimise=False, **kwargs):
         ModelWithFrequencies.__init__(self, states=states, forest_stats=forest_stats,
                                       sf=sf, tau=tau, frequencies=frequencies, optimise_tau=optimise_tau,
@@ -49,7 +50,7 @@ class CustomRatesModel(ModelWithFrequencies):
             self._rate_matrix = rate_matrix
         else:
             self._states, self._rate_matrix = load_custom_rates(rate_matrix_file)
-        self.D_DIAGONAL, self.A, self.A_INV = get_diagonalisation(self.frequencies, self._rate_matrix)
+        self.D_DIAGONAL, self.A, self.A_INV = get_diagonalisation(self.get_frequencies(), self._rate_matrix)
 
     @property
     def rate_matrix(self):
@@ -59,15 +60,14 @@ class CustomRatesModel(ModelWithFrequencies):
     def rate_matrix(self, rate_matrix):
         raise NotImplementedError('The rate matrix is preset and cannot be changed.')
 
-    @ModelWithFrequencies.frequencies.setter
-    def frequencies(self, frequencies):
+    def set_frequencies(self, frequencies):
         if self._optimise_frequencies or self._frequency_smoothing:
             self._frequencies = frequencies
         else:
             raise NotImplementedError('The frequencies are preset and cannot be changed.')
         self.D_DIAGONAL, self.A, self.A_INV = get_diagonalisation(frequencies, self.rate_matrix)
 
-    def get_Pij_t(self, t, *args, **kwargs):
+    def get_Pij_t(self, t, **kwargs):
         """
         Returns a function of t that calculates the probability matrix of substitutions i->j over time t,
         with the given rate matrix.

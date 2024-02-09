@@ -3,9 +3,9 @@ import warnings
 from collections import defaultdict
 from multiprocessing.pool import ThreadPool
 
-from pastml import col_name2cat, STATES, METHOD, CHARACTER, PASTML_VERSION
+from pastml import value2list, col_name2cat, METHOD, CHARACTER, PASTML_VERSION, quote
 from pastml.acr import acr, serialize_predicted_states, serialize_acr
-from pastml.annotation import annotate_forest, _quote, annotate_dates
+from pastml.annotation import annotate_forest
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_work_dir
 from pastml.logger import set_up_pastml_logger
 from pastml.ml import MPPA, ML_METHODS, MAP, JOINT, MARGINAL_ML_METHODS
@@ -17,7 +17,7 @@ from pastml.models.HKYModel import HKY
 from pastml.models.JCModel import JC
 from pastml.models.JTTModel import JTT
 from pastml.parsimony import ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS
-from pastml.politomy import value2list, resolve_polytomies_based_on_acr, COPY
+from pastml.politomy import resolve_polytomies_based_on_acr, COPY
 from pastml.tree import read_forest, save_tree, copy_forest
 from pastml.visualisation.cytoscape_manager import TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS, VERTICAL, HORIZONTAL, TRIM
@@ -229,19 +229,17 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     logger.debug('\n=============INPUT DATA VALIDATION=============')
     if isinstance(columns, str):
         columns = [columns]
-    roots = read_forest(tree, columns=columns if data is None else None)
+    roots = read_forest(tree, columns=columns if data is None else None, root_dates=root_date)
     columns, column2states = annotate_forest(roots, columns=columns, data=data, data_sep=data_sep, id_index=id_index,
                                              unknown_treshold=.9, state_threshold=.75)
     if name_column:
         name_column = col_name2cat(name_column)
         if name_column not in columns:
             raise ValueError('The name column ("{}") should be one of those specified as columns ({}).'
-                             .format(name_column, _quote(columns)))
+                             .format(name_column, quote(columns)))
     elif len(columns) == 1:
         name_column = columns[0]
 
-    age_label = annotate_dates(roots,
-                               root_dates=root_date if html_compressed or html or html_mixed or upload_to_itol else None)
     if resolve_polytomies:
         copied_roots = copy_forest(roots)
 
@@ -286,11 +284,12 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     def _work(character):
         prediction_method = column2method[character]
         if COPY == prediction_method:
-            return {CHARACTER: character, STATES: column2states[character], METHOD: prediction_method}
+            return {CHARACTER: character, METHOD: prediction_method}
         acr_res = acr(roots, character, column2states[character],
-                   prediction_method=column2method[character], model=column2model[character],
-                   parameters=column2parameters[character], rate_file=column2rates[character], force_joint=forced_joint,
-                   reoptimise=reoptimise, tau=smoothing, frequency_smoothing=frequency_smoothing)
+                      prediction_method=column2method[character], model=column2model[character],
+                      parameters=column2parameters[character], rate_file=column2rates[character],
+                      force_joint=forced_joint,
+                      reoptimise=reoptimise, tau=smoothing, frequency_smoothing=frequency_smoothing)
         serialize_acr((acr_res, work_dir))
         return acr_res
 
@@ -314,7 +313,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     new_nwk = get_named_tree_file(tree)
     save_tree(roots, columns=columns, nwk=os.path.join(work_dir, new_nwk))
 
-    visualize_itol_html_pajek(age_label, colours, column2states, focus, html, html_compressed, html_mixed, itol_id,
+    visualize_itol_html_pajek(colours, column2states, focus, html, html_compressed, html_mixed, itol_id,
                               itol_project, itol_tree_name, name_column, new_nwk, offline, pajek, pajek_timing,
                               roots, timeline_type, tip_size_threshold, upload_to_itol, work_dir)
 

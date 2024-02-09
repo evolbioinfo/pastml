@@ -3,13 +3,11 @@ import os
 from pathlib import Path
 
 import pandas as pd
-
-from pastml.visualisation import get_formatted_date
-from pastml.visualisation.colour_generator import get_enough_colours, parse_colours
 from itolapi import Itol
 
 from pastml.tree import DATE
-from pastml.visualisation.cytoscape_manager import DATE_LABEL
+from pastml.visualisation import get_formatted_date
+from pastml.visualisation.colour_generator import get_enough_colours, parse_colours
 
 STYLE_FILE_HEADER_TEMPLATE = """DATASET_STYLE
 
@@ -59,7 +57,7 @@ POPUP_CONTENT_TEMPLATE = "<b>{key}: </b>" \
 DEFAULT_ITOL_PROJECT = 'Sample project'
 
 
-def generate_itol_annotations(forest, column2states, work_dir, date_col,
+def generate_itol_annotations(forest, column2states, work_dir,
                               tree_path, itol_id=None, itol_project=None, itol_tree_name=None,
                               column2colours=None):
     annotation_files = []
@@ -103,10 +101,12 @@ def generate_itol_annotations(forest, column2states, work_dir, date_col,
     with open(popup_file, 'w+') as pf:
         pf.write(POPUP_FILE_HEADER)
         for tree in forest:
+            dates_are_dates = float(getattr(tree, DATE, 0)) != tree.dist
+            date_col = 'date' if dates_are_dates else 'distance to root'
             for node in tree.traverse():
                 info = ['<b>{key}: </b> {value}'.format(key=k, value=v)
                         for (k, v) in (('node id', node.name), ('node dist', node.dist),
-                                       (date_col, get_formatted_date(node, date_col == DATE_LABEL)))]
+                                       (date_col, get_formatted_date(node, dates_are_dates)))]
                 for c in sorted(column2states.keys()):
                     v = getattr(node, c, set())
                     if pd.isna(v) or v is None:

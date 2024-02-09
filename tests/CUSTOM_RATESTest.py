@@ -1,9 +1,8 @@
 import os
-import unittest
 import shutil
+import unittest
 
 import numpy as np
-from ete3 import Tree
 
 from pastml.acr import acr, serialize_acr
 from pastml.annotation import ForestStats
@@ -13,8 +12,8 @@ from pastml.ml import MPPA, LOG_LIKELIHOOD, MARGINAL_PROBABILITIES
 from pastml.models.CustomRatesModel import load_custom_rates, CUSTOM_RATES
 from pastml.models.JTTModel import JTTModel, JTT_STATES, JTT_RATE_MATRIX, JTT
 from pastml.models.generator import save_matrix
+from pastml.tree import read_forest
 from pastml.utilities.state_simulator import simulate_states
-
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 RM = os.path.join(DATA_DIR, 'rate_matrix.txt')
@@ -40,7 +39,7 @@ class CUSTOM_RATESTest(unittest.TestCase):
 
     def test_tree_likelihood(self):
         set_up_pastml_logger(True)
-        tree = Tree(TREE_NWK, format=3)
+        tree = read_forest(TREE_NWK)[0]
         model = JTTModel(forest_stats=ForestStats([tree]), sf=1)
         simulate_states(tree, model, character='jtt', n_repetitions=1)
         for tip in tree:
@@ -64,7 +63,7 @@ class CUSTOM_RATESTest(unittest.TestCase):
 
     def test_marginal_probs_internal_nodes(self):
         set_up_pastml_logger(True)
-        tree = Tree(TREE_NWK, format=3)
+        tree = read_forest(TREE_NWK)[0]
         model = JTTModel(forest_stats=ForestStats([tree]), sf=1)
         simulate_states(tree, model, character='jtt', n_repetitions=1)
         for tip in tree:

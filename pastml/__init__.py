@@ -3,7 +3,6 @@ from datetime import datetime
 PASTML_VERSION = '1.9.42'
 
 METHOD = 'method'
-STATES = 'states'
 CHARACTER = 'character'
 
 NUM_SCENARIOS = 'num_scenarios'
@@ -12,6 +11,9 @@ NUM_STATES_PER_NODE = 'num_states_per_node_avg'
 PERC_UNRESOLVED = 'percentage_of_unresolved_nodes'
 NUM_NODES = 'num_nodes'
 NUM_TIPS = 'num_tips'
+
+MODEL_ID = 'MODEL_ID'
+SKYLINE = 'skyline'
 
 
 def datetime2numeric(d):
@@ -65,6 +67,10 @@ def col_name2cat(column):
     return column_string
 
 
+def quote(str_list):
+    return ', '.join('"{}"'.format(_) for _ in str_list) if str_list is not None else ''
+
+
 def get_personalized_feature_name(character, feature):
     """
     Precedes the feature name by the character name
@@ -77,3 +83,14 @@ def get_personalized_feature_name(character, feature):
     return '{}_{}'.format(character, feature)
 
 
+def value2list(n, value, default_value):
+    # create a variable for n columns
+    # specifying the default value if nothing was chosen
+    if value is None:
+        value = default_value
+    if not isinstance(value, list):
+        value = [value]
+    # and making sure that the default value is chosen for the columns for which the value was not specified
+    if len(value) < n:
+        value += [default_value] * (n - len(value))
+    return value

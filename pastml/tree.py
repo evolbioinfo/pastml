@@ -4,9 +4,12 @@ import re
 from collections import Counter, defaultdict
 from datetime import datetime
 
+import pandas as pd
 from Bio.Phylo import NewickIO, write, parse
 from Bio.Phylo.NewickIO import StringIO
 from ete3 import Tree, TreeNode
+
+from pastml import datetime2numeric
 
 POSTORDER = 'postorder'
 
@@ -145,7 +148,7 @@ def remove_certain_leaves(tr, to_remove=lambda node: False):
     return tr
 
 
-def read_forest(tree_path, columns=None):
+def read_forest(tree_path, columns=None, root_dates=None):
     try:
         roots = parse_nexus(tree_path, columns=columns)
         if not roots:
@@ -170,6 +173,7 @@ def read_forest(tree_path, columns=None):
     for i, tree in enumerate(roots):
         strip_quotes(tree)
         name_tree(tree, suffix='' if len(roots) == 1 else '_{}'.format(i))
+    annotate_dates(roots, root_dates=root_dates)
     return roots
 
 
@@ -464,19 +468,18 @@ def unresolve_trees(column2states, forest):
     return num_removed_nodes
 
 
-def refine_states(forest, feature, states):
+def refine_states(forest, feature, model):
     """
     Make sure only allowed states appear in the node annotations
+
     :param forest: list of trees
     :param feature: character of interest
-    :param states: allowed states
+    :param model: model whose states are allowed
     :return: void, modifies the annotations of the tree nodes
     """
-    state_set = set(states)
     for root in forest:
         for n in root.traverse():
-            if hasattr(n, feature):
-                n.add_feature(feature, state_set & getattr(n, feature))
+            model.refine_states(n, feature)
 
 
 def clear_extra_features(forest, features):
@@ -532,3 +535,43 @@ def save_tree(roots, columns, nwk):
         logger.error(
             'Did not manage to save the annotated tree in nexus format due to the following error: {}'.format(e))
         pass
+
+
+def annotate_dates(forest, root_dates=None):
+    # Process root dates
+    if root_dates is not None:
+        root_dates = [parse_date(d) for d in (root_dates if isinstance(root_dates, list) else [root_dates])]
+        if 1 < len(root_dates) < len(forest):
+            raise ValueError('{} trees are given, but only {} root dates.'.format(len(forest), len(root_dates)))
+        elif 1 == len(root_dates):
+            root_dates *= len(forest)
+    if root_dates is None:
+        root_dates = [0] * len(forest)
+    for tree, root_date in zip(forest, root_dates):
+        for node in tree.traverse('preorder'):
+            if getattr(node, DATE, None) is None:
+                if node.is_root():
+                    node.add_feature(DATE, root_date if root_date else 0)
+                else:
+                    node.add_feature(DATE, getattr(node.up, DATE) + node.dist)
+            else:
+                node.add_feature(DATE, float(getattr(node, DATE)))
+            ci = getattr(node, DATE_CI, None)
+            if ci and not isinstance(ci, list) and not isinstance(ci, tuple):
+                node.del_feature(DATE_CI)
+                if isinstance(ci, str) and '|' in ci:
+                    try:
+                        node.add_feature(DATE_CI, [float(_) for _ in ci.split('|')])
+                    except:
+                        pass
+
+
+def parse_date(d):
+    try:
+        return float(d)
+    except ValueError:
+        try:
+            return datetime2numeric(pd.to_datetime(d, infer_datetime_format=True))
+        except ValueError:
+            raise ValueError('Could not infer the date format for root date "{}", please check it.'
+                             .format(d))

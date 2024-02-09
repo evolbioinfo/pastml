@@ -2,8 +2,8 @@ import logging
 import os
 from collections import defaultdict
 
-from pastml import col_name2cat, PASTML_VERSION
-from pastml.acr import model2class, calculate_observed_freqs, serialize_predicted_states
+from pastml import col_name2cat, PASTML_VERSION, value2list
+from pastml.acr import model2class, serialize_predicted_states
 from pastml.annotation import ForestStats, annotate_forest, annotate_dates
 from pastml.file import get_pastml_work_dir, get_combined_ancestral_state_file, get_named_tree_file
 from pastml.logger import set_up_pastml_logger
@@ -19,22 +19,6 @@ from pastml.parsimony import MP_METHODS, is_parsimonious, parsimonious_acr, DOWN
 from pastml.tree import resolve_trees, IS_POLYTOMY, unresolve_trees, read_forest, save_tree, DATE
 
 COPY = 'COPY'
-
-
-def value2list(n, value, default_value):
-    # create a variable for n columns
-    # specifying the default value if nothing was chosen
-    if value is None:
-        value = default_value
-    # and propagating the chosen value to all columns
-    if not isinstance(value, list):
-        value = [value] * n
-    elif len(value) == 1:
-        value = value * n
-    # or making sure that the default value is chosen for the columns for which the value was not specified
-    else:
-        value += [default_value] * (n - len(value))
-    return value
 
 
 def polytomy_pipeline(tree, data=None, data_sep='\t', id_index=0,
@@ -138,8 +122,6 @@ def polytomy_pipeline(tree, data=None, data_sep='\t', id_index=0,
     roots = read_forest(tree, columns=columns if data is None else None)
     columns, column2states = annotate_forest(roots, columns=columns, data=data, data_sep=data_sep, id_index=id_index,
                                              unknown_treshold=.9, state_threshold=.75)
-    if next((True for root in roots if getattr(root, DATE, None) is not None)):
-        annotate_dates(roots)
     logger.debug('Finished input validation.')
 
     if parameters:
@@ -223,8 +205,6 @@ def resolve_polytomies_based_on_acr(forest, columns, column2states=None, predict
 
     logger = logging.getLogger('pastml')
 
-    forest_stats = ForestStats(forest)
-
     logger.debug('\n=============POLYTOMY RESOLUTION===================')
 
     column2parameters = column2parameters if column2parameters else defaultdict(lambda: None)
@@ -233,7 +213,7 @@ def resolve_polytomies_based_on_acr(forest, columns, column2states=None, predict
     prediction_methods = value2list(len(column2states), prediction_method, MPPA)
     models = value2list(len(column2states), model, F81)
 
-    # If we gonna resolve polytomies we might need to get back to the initial states so let's memorise them
+    # If we are going to resolve polytomies we might need to get back to the initial states so let's memorise them
     n2c2states = defaultdict(dict)
     for root in forest:
         for n in root.traverse():
@@ -252,14 +232,11 @@ def resolve_polytomies_based_on_acr(forest, columns, column2states=None, predict
         if COPY == prediction_method or is_parsimonious(prediction_method):
             character2settings[character] = [prediction_method, None]
         elif is_ml(prediction_method):
-            missing_data, observed_frequencies, state2index = \
-                calculate_observed_freqs(character, forest, column2states[character])
             model_instance = model2class[model](parameter_file=column2parameters[character],
                                                 rate_matrix_file=column2rates[character],
                                                 reoptimise=False,
                                                 frequency_smoothing=False, states=column2states[character],
-                                                forest_stats=forest_stats,
-                                                observed_frequencies=observed_frequencies)
+                                                forest_stats=ForestStats(forest, character))
             if model_instance.get_num_params():
                 raise ValueError('All the parameters must be fixed for polytomy resolution, '
                                  'but it is not the case for character {} (model {}). '
@@ -270,18 +247,19 @@ def resolve_polytomies_based_on_acr(forest, columns, column2states=None, predict
             raise ValueError('Method {} is unknown, should be one of ML ({}), one of MP ({}) or {}'
                              .format(prediction_method, ', '.join(ML_METHODS), ', '.join(MP_METHODS), COPY))
 
-    def acr(forest_stats):
+    def acr():
         for character, (prediction_method, model) in character2settings.items():
             if is_ml(prediction_method):
-                model.forest_stats = forest_stats
+                model.forest_stats = ForestStats(forest, character)
                 ml_acr(forest=forest, character=character, prediction_method=prediction_method,
-                       model=model, force_joint=force_joint, observed_frequencies=observed_frequencies)
+                       model=model, force_joint=force_joint)
             if is_parsimonious(prediction_method):
                 parsimonious_acr(forest=forest, character=character, prediction_method=prediction_method,
                                  states=column2states[character],
-                                 num_nodes=forest_stats.num_nodes, num_tips=forest_stats.num_tips)
+                                 num_nodes=sum(sum(1 for _ in tree.traverse()) for tree in forest),
+                                 num_tips=sum(len(tree) for tree in forest))
 
-    acr(forest_stats)
+    acr()
 
     if resolve_trees(column2states, forest):
         level = logger.level
@@ -298,11 +276,11 @@ def resolve_polytomies_based_on_acr(forest, columns, column2states=None, predict
                     elif not getattr(n, IS_POLYTOMY, False) or not character2settings[c][0] == COPY:
                         n.del_feature(c)
 
-        acr(ForestStats(forest))
+        acr()
         logger.setLevel(level)
         while unresolve_trees(column2states, forest):
             logger.setLevel(logging.ERROR)
-            acr(ForestStats(forest))
+            acr()
             logger.setLevel(level)
         logger.setLevel(level)
 

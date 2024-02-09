@@ -6,8 +6,9 @@ import pandas as pd
 from scipy.optimize import minimize
 
 from pastml import get_personalized_feature_name, CHARACTER, METHOD, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
-    NUM_STATES_PER_NODE, PERC_UNRESOLVED, STATES
+    NUM_STATES_PER_NODE, PERC_UNRESOLVED
 from pastml.models import ModelWithFrequencies
+from pastml.tree import refine_states
 
 LOG_LIKELIHOOD = 'log_likelihood'
 RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR = '{}_restricted_{{}}'.format(LOG_LIKELIHOOD)
@@ -36,6 +37,21 @@ TD_LH_SF = 'TOP_DOWM_LIKELIHOOD_SF'
 ALLOWED_STATES = 'ALLOWED_STATES'
 STATE_COUNTS = 'STATE_COUNTS'
 JOINT_STATE = 'JOINT_STATE'
+AIC = 'AIC'
+
+
+def calculate_AIC(loglh, k):
+    """
+    Calculates the Akaike information criterion (AIC) for the given model likelihood and parameter number.
+
+    :param loglh: model loglikelihood
+    :type loglh: float
+    :param k: number of free model parameters
+    :type k: int
+    :return: AIC value
+    :rtype: float
+    """
+    return 2 * k - 2 * loglh
 
 
 def is_marginal(method):
@@ -60,8 +76,6 @@ def is_ml(method):
     return method in ML_METHODS
 
 
-
-
 def get_default_ml_method():
     return MPPA
 
@@ -73,7 +87,7 @@ def get_bottom_up_loglikelihood(tree, character, model, is_marginal=True, alter=
     given by get_personalised_feature_name(feature, BU_LH).
 
     :param model: model of character evolution
-    :type model: pastml.models.Model
+    :type model: pastml.models.SimpleModel
     :param is_marginal: whether the likelihood reconstruction is marginal (true) or joint (false)
     :type is_marginal: bool
     :param tree: tree of interest
@@ -85,19 +99,18 @@ def get_bottom_up_loglikelihood(tree, character, model, is_marginal=True, alter=
     """
 
     altered_nodes = []
-    if 0 == model.tau and alter:
-        altered_nodes = alter_zero_node_allowed_states(tree, character)
+    if alter:
+        altered_nodes = alter_zero_node_allowed_states(tree, character, model)
 
     lh_sf_feature = get_personalized_feature_name(character, BU_LH_SF)
     lh_feature = get_personalized_feature_name(character, BU_LH)
     lh_joint_state_feature = get_personalized_feature_name(character, BU_LH_JOINT_STATES)
     allowed_state_feature = get_personalized_feature_name(character, ALLOWED_STATES)
 
-    get_pij = model.get_Pij_t
     for node in tree.traverse('postorder'):
         calc_node_bu_likelihood(node, allowed_state_feature, lh_feature, lh_sf_feature, lh_joint_state_feature,
-                                is_marginal, get_pij)
-    root_likelihoods = getattr(tree, lh_feature) * model.frequencies
+                                is_marginal, model)
+    root_likelihoods = getattr(tree, lh_feature) * model.get_frequencies(tree)
     root_likelihoods = root_likelihoods.sum() if is_marginal else root_likelihoods.max()
 
     if altered_nodes:
@@ -110,12 +123,12 @@ def get_bottom_up_loglikelihood(tree, character, model, is_marginal=True, alter=
 
 
 def calc_node_bu_likelihood(node, allowed_state_feature, lh_feature, lh_sf_feature, lh_joint_state_feature, is_marginal,
-                            get_pij):
+                            model):
     allowed_states = getattr(node, allowed_state_feature)
     log_likelihood_array = np.log10(np.ones(len(allowed_states), dtype=np.float64) * allowed_states)
     factors = 0
     for child in node.children:
-        child_likelihoods = get_pij(child.dist) * getattr(child, lh_feature)
+        child_likelihoods = model.get_p_ij_child(child) * getattr(child, lh_feature)
         if is_marginal:
             child_likelihoods = child_likelihoods.sum(axis=1)
         else:
@@ -159,30 +172,17 @@ def rescale_log(loglikelihood_array):
     return factors
 
 
-def optimize_likelihood_params(forest, character, observed_frequencies, model):
+def optimize_likelihood_params(forest, character, model):
     """
     Optimizes the likelihood parameters (state frequencies and scaling factor) for the given trees.
 
     :param model: model of character evolution
     :type model: pastml.model.Model
-    :param avg_br_len: avg branch length
-    :type avg_br_len: float
     :param forest: trees of interest
     :type forest: list(ete3.Tree)
-    :param character: character for which the likelihood is optimised
+    :param character: character for which the likelihood is optimized
     :type character: str
-    :param frequencies: array of initial state frequencies
-    :type frequencies: numpy.array
-    :param sf: initial scaling factor
-    :type sf: float
-    :param optimise_sf: whether the scaling factor needs to be optimised
-    :type optimise_sf: bool
-    :param optimise_frequencies: whether the state frequencies need to be optimised
-    :type optimise_frequencies: bool
-    :param tau: a smoothing factor to apply to branch lengths during likelihood calculation.
-        If set to zero (default), zero internal branches will be collapsed instead.
-    :type tau: float
-    :return: optimized parameters and log likelihood: ((frequencies, scaling_factor), optimum)
+    :return: optimized log likelihood
     :rtype: tuple
     """
     bounds = model.get_bounds()
@@ -195,14 +195,11 @@ def optimize_likelihood_params(forest, character, observed_frequencies, model):
                   for tree in forest)
         return np.inf if pd.isnull(res) else -res
 
-    if np.any(observed_frequencies <= 0):
-        observed_frequencies = np.maximum(observed_frequencies, 1e-10)
-
     x0_JC = model.get_optimised_parameters()
     optimise_frequencies = isinstance(model, ModelWithFrequencies) and model._optimise_frequencies
     x0_EFT = x0_JC
     if optimise_frequencies:
-        model.frequencies = observed_frequencies
+        model.set_frequencies(model.observed_frequencies)
         x0_EFT = model.get_optimised_parameters()
     log_lh_JC = -get_v(x0_JC)
     log_lh_EFT = log_lh_JC if not optimise_frequencies else -get_v(x0_EFT)
@@ -242,7 +239,7 @@ def calculate_top_down_likelihood(tree, character, model):
     For the root node we assume its top-down likelihood to be 1 for all the states.
 
     :param model: model of character evolution
-    :type model: pastml.models.Model
+    :type model: pastml.models.SimpleModel
     :param character: character whose ancestral state likelihood is being calculated
     :type character: str
     :param tree: tree of interest (with bottom-up likelihood pre-calculated)
@@ -254,18 +251,17 @@ def calculate_top_down_likelihood(tree, character, model):
     bu_lh_feature = get_personalized_feature_name(character, BU_LH)
     bu_lh_sf_feature = get_personalized_feature_name(character, BU_LH_SF)
 
-    get_pij = model.get_Pij_t
     for node in tree.traverse('preorder'):
-        calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, get_pij)
+        calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, model)
 
 
-def calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, get_pij):
+def calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, model):
     if node.is_root():
         node.add_feature(td_lh_feature, np.ones(len(getattr(node, bu_lh_feature)), np.float64))
         node.add_feature(td_lh_sf_feature, 0)
         return
     parent = node.up
-    node_pjis = np.transpose(get_pij(node.dist))
+    node_pjis = model.get_p_ji_child(node)
     node_contribution = getattr(node, bu_lh_feature).dot(node_pjis)
     node_contribution[node_contribution <= 0] = 1
     parent_loglikelihood = np.log10(getattr(parent, td_lh_feature)) \
@@ -279,7 +275,7 @@ def calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature
     node.add_feature(td_lh_sf_feature, factors)
 
 
-def initialize_allowed_states(tree, feature, states):
+def initialize_allowed_states(tree, feature, model):
     """
     Initializes the allowed state arrays for tips based on their states given by the feature.
 
@@ -288,26 +284,17 @@ def initialize_allowed_states(tree, feature, states):
     :param feature: feature in which the tip states are stored
         (the value could be None for a missing state or list if multiple stated are possible)
     :type feature: str
-    :param states: ordered array of states.
-    :type states: numpy.array
+    :param model: model used for ACR.
+    :type model: pastml.models.Model
     :return: void, adds the get_personalised_feature_name(feature, ALLOWED_STATES) feature to tree tips.
     """
     allowed_states_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
-    n = len(states)
-    state2index = dict(zip(states, range(n)))
 
     for node in tree.traverse():
-        node_states = getattr(node, feature, set())
-        if not node_states:
-            allowed_states = np.ones(n, dtype=int)
-        else:
-            allowed_states = np.zeros(n, dtype=int)
-            for state in node_states:
-                allowed_states[state2index[state]] = 1
-        node.add_feature(allowed_states_feature, allowed_states)
+        node.add_feature(allowed_states_feature, model.get_allowed_states(node, feature))
 
 
-def get_zero_clusters_with_states(tree, feature):
+def get_zero_clusters_with_states(tree, feature, model):
     """
     Returns the zero-distance clusters in the given tree.
 
@@ -330,7 +317,7 @@ def get_zero_clusters_with_states(tree, feature):
             if has_state(n):
                 zero_cluster_with_states.append(n)
             for c in n.children:
-                if c.dist == 0:
+                if c.dist == 0 and 0 == model.get_tau(n):
                     extension.append(c)
                 else:
                     todo.append(c)
@@ -338,7 +325,7 @@ def get_zero_clusters_with_states(tree, feature):
             yield zero_cluster_with_states
 
 
-def alter_zero_node_allowed_states(tree, feature):
+def alter_zero_node_allowed_states(tree, feature, model):
     """
     Alters the bottom-up likelihood arrays for zero-distance nodes
     to make sure they do not contradict with other zero-distance node siblings/ancestors/descendants.
@@ -352,7 +339,7 @@ def alter_zero_node_allowed_states(tree, feature):
 
     altered_nodes = []
 
-    for zero_cluster_with_states in get_zero_clusters_with_states(tree, feature):
+    for zero_cluster_with_states in get_zero_clusters_with_states(tree, feature, model):
         # If there is a common state do nothing
         counts = None
         for c in zero_cluster_with_states:
@@ -417,7 +404,7 @@ def unalter_zero_node_joint_states(altered_nodes, feature):
                     joint_states[i] = allowed_index
 
 
-def calculate_marginal_likelihoods(tree, feature, frequencies, clean_up=True):
+def calculate_marginal_likelihoods(tree, feature, model, clean_up=True):
     """
     Calculates marginal likelihoods for each tree node
     by multiplying state frequencies with their bottom-up and top-down likelihoods.
@@ -437,13 +424,13 @@ def calculate_marginal_likelihoods(tree, feature, frequencies, clean_up=True):
 
     for node in tree.traverse('preorder'):
         calc_node_marginal_likelihood(node, lh_feature, lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, td_lh_feature,
-                                      td_lh_sf_feature, allowed_state_feature, frequencies, clean_up)
+                                      td_lh_sf_feature, allowed_state_feature, model, clean_up)
 
 
 def calc_node_marginal_likelihood(node, lh_feature, lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, td_lh_feature,
-                                  td_lh_sf_feature, allowed_state_feature, frequencies, clean_up):
+                                  td_lh_sf_feature, allowed_state_feature, model, clean_up):
     loglikelihood = np.log10(getattr(node, bu_lh_feature)) + np.log10(getattr(node, td_lh_feature)) \
-                    + np.log10(frequencies * getattr(node, allowed_state_feature))
+                    + np.log10(model.get_frequencies(node) * getattr(node, allowed_state_feature))
     factors = rescale_log(loglikelihood)
     node.add_feature(lh_feature, np.power(10, loglikelihood))
     node.add_feature(lh_sf_feature, factors + getattr(node, td_lh_sf_feature) + getattr(node, bu_lh_sf_feature))
@@ -472,26 +459,7 @@ def check_marginal_likelihoods(tree, feature):
             assert (round(node_loglh, 2) == round(parent_loglh, 2))
 
 
-def convert_likelihoods_to_probabilities(tree, feature, states):
-    """
-    Normalizes each node marginal likelihoods to convert them to marginal probabilities.
-
-    :param states: numpy array of states in the order corresponding to the marginal likelihood arrays
-    :param tree: ete3.Tree, the tree of interest
-    :param feature: str, character for which the probabilities are calculated
-    :return: pandas DataFrame, that maps node names to their marginal likelihoods.
-    """
-    lh_feature = get_personalized_feature_name(feature, LH)
-    name2probs = {}
-
-    for node in tree.traverse():
-        lh = getattr(node, lh_feature)
-        name2probs[node.name] = lh / lh.sum()
-
-    return pd.DataFrame.from_dict(name2probs, orient='index', columns=states)
-
-
-def choose_ancestral_states_mppa(tree, feature, states, force_joint=True):
+def choose_ancestral_states_mppa(tree, feature, force_joint=True):
     """
     Chooses node ancestral states based on their marginal probabilities using MPPA method.
 
@@ -501,8 +469,6 @@ def choose_ancestral_states_mppa(tree, feature, states, force_joint=True):
     :type tree: ete3.Tree
     :param feature: character for which the ancestral states are to be chosen
     :type feature: str
-    :param states: possible character states in order corresponding to the probabilities array
-    :type states: numpy.array
     :return: number of ancestral scenarios selected,
         calculated by multiplying the number of selected states for all nodes.
         Also modified the get_personalized_feature_name(feature, ALLOWED_STATES) feature of each node
@@ -513,9 +479,6 @@ def choose_ancestral_states_mppa(tree, feature, states, force_joint=True):
     allowed_state_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
     joint_state_feature = get_personalized_feature_name(feature, JOINT_STATE)
 
-    n = len(states)
-    _, state2array = get_state2allowed_states(states, False)
-
     num_scenarios = 1
     unresolved_nodes = 0
     num_states = 0
@@ -525,14 +488,14 @@ def choose_ancestral_states_mppa(tree, feature, states, force_joint=True):
     # for this we sort the marginal probabilities array as [lowest_non_joint_mp, ..., highest_non_joint_mp, joint_mp]
     # select k in 1:n such as the correction between choosing 0, 0, ..., 1/k, ..., 1/k and our sorted array is min
     # and return the corresponding states
+
     for node in tree.traverse():
         marginal_likelihoods = getattr(node, lh_feature)
         if hasattr(node, allowed_state_feature + '.initial'):
             marginal_likelihoods *= getattr(node, allowed_state_feature + '.initial')
         marginal_probs = marginal_likelihoods / marginal_likelihoods.sum()
+        n = len(marginal_probs)
 
-        if node.name == 'node_3598':
-            print(marginal_probs)
         if force_joint:
             joint_index = getattr(node, joint_state_feature)
             joint_prob = marginal_probs[joint_index]
@@ -557,46 +520,44 @@ def choose_ancestral_states_mppa(tree, feature, states, force_joint=True):
                                       key=lambda _: (0 if n == joint_index else 1, -marginal_likelihoods[_]))[:best_k]
         else:
             indices_selected = sorted(range(n), key=lambda _: -marginal_likelihoods[_])[:best_k]
-        if best_k == 1:
-            allowed_states = state2array[indices_selected[0]]
-        else:
-            allowed_states = np.zeros(len(states), dtype=int)
-            allowed_states[indices_selected] = 1
+        if best_k > 1:
             unresolved_nodes += 1
+
+        allowed_states = np.zeros(n, dtype=int)
+        allowed_states[indices_selected] = 1
         node.add_feature(allowed_state_feature, allowed_states)
 
     return num_scenarios, unresolved_nodes, num_states
 
 
-def choose_ancestral_states_map(tree, feature, states):
+def choose_ancestral_states_map(tree, feature):
     """
     Chooses node ancestral states based on their marginal probabilities using MAP method.
 
     :param tree: ete3.Tree, the tree of interest
     :param feature: str, character for which the ancestral states are to be chosen
-    :param states: numpy.array of possible character states in order corresponding to the probabilities array
     :return: void, modified the get_personalized_feature_name(feature, ALLOWED_STATES) feature of each node
         to only contain the selected states.
     """
     lh_feature = get_personalized_feature_name(feature, LH)
     allowed_state_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
-    _, state2array = get_state2allowed_states(states, False)
 
     for node in tree.traverse():
         marginal_likelihoods = getattr(node, lh_feature)
         if hasattr(node, allowed_state_feature + '.initial'):
             marginal_likelihoods *= getattr(node, allowed_state_feature + '.initial')
-        node.add_feature(allowed_state_feature, state2array[marginal_likelihoods.argmax()])
+        allowed_state_array = np.zeros(len(marginal_likelihoods), int)
+        allowed_state_array[marginal_likelihoods.argmax()] = 1
+        node.add_feature(allowed_state_feature, allowed_state_array)
 
 
-def choose_ancestral_states_joint(tree, feature, states, frequencies):
+def choose_ancestral_states_joint(tree, feature, model):
     """
     Chooses node ancestral states based on their marginal probabilities using joint method.
 
-    :param frequencies: numpy array of state frequencies
     :param tree: ete3.Tree, the tree of interest
     :param feature: str, character for which the ancestral states are to be chosen
-    :param states: numpy.array of possible character states in order corresponding to the probabilities array
+    :param model: model used for ACR
     :return: void, modified the get_personalized_feature_name(feature, ALLOWED_STATES) feature of each node
         to only contain the selected states.
     """
@@ -604,34 +565,31 @@ def choose_ancestral_states_joint(tree, feature, states, frequencies):
     lh_state_feature = get_personalized_feature_name(feature, BU_LH_JOINT_STATES)
     allowed_state_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
     joint_state_feature = get_personalized_feature_name(feature, JOINT_STATE)
-    _, state2array = get_state2allowed_states(states, False)
 
     def chose_consistent_state(node, state_index):
         node.add_feature(joint_state_feature, state_index)
-        node.add_feature(allowed_state_feature, state2array[state_index])
+        n = len(getattr(node, lh_feature))
+        allowed_state_array = np.zeros(n, int)
+        allowed_state_array[state_index] = 1
+        node.add_feature(allowed_state_feature, allowed_state_array)
 
         for child in node.children:
             chose_consistent_state(child, getattr(child, lh_state_feature)[state_index])
 
-    chose_consistent_state(tree, (getattr(tree, lh_feature) * frequencies).argmax())
+    chose_consistent_state(tree, (getattr(tree, lh_feature) * model.get_frequencies(tree)).argmax())
 
 
-def get_state2allowed_states(states, by_name=True):
+def get_state2allowed_states(n):
     # tips allowed state arrays won't be modified so we might as well just share them
-    n = len(states)
-    all_ones = np.ones(n, int)
     state2array = {}
-    for index, state in enumerate(states):
+    for index in range(n):
         allowed_state_array = np.zeros(n, int)
         allowed_state_array[index] = 1
-        state2array[state if by_name else index] = allowed_state_array
-    if by_name:
-        state2array[None] = all_ones
-        state2array[''] = all_ones
-    return all_ones, state2array
+        state2array[index] = allowed_state_array
+    return state2array
 
 
-def ml_acr(forest, character, prediction_method, model, observed_frequencies, force_joint=True):
+def ml_acr(forest, character, prediction_method, model, force_joint=True):
     """
     Calculates ML states on the trees and stores them in the corresponding feature.
 
@@ -642,23 +600,24 @@ def ml_acr(forest, character, prediction_method, model, observed_frequencies, fo
     :param character: character for which the ML states are reconstructed
     :type character: str
     :param model: character state change model
-    :type model: pastml.models.Model
+    :type model: pastml.models.SimpleModel
     :return: mapping between reconstruction parameters and values
     :rtype: dict
     """
     logger = logging.getLogger('pastml')
+    refine_states(forest, character, model)
     likelihood = \
-        optimise_likelihood(forest=forest, character=character, model=model,
-                            observed_frequencies=observed_frequencies)
+        optimise_likelihood(forest=forest, character=character, model=model)
     result = {LOG_LIKELIHOOD: likelihood, CHARACTER: character, METHOD: prediction_method, MODEL: model,
-              STATES: model.states}
+              AIC: calculate_AIC(likelihood, model.get_num_params())}
+    logger.debug('AIC for {} with {} free parameters is {}'.format(model, model.get_num_params(), result[AIC]))
 
     results = []
 
     def process_reconstructed_states(method):
         if method == prediction_method:
             for tree in forest:
-                convert_allowed_states2feature(tree, character, model.states, character)
+                convert_allowed_states2feature(tree, character, model, character)
             res = result.copy()
             res[CHARACTER] = character
             res[METHOD] = method
@@ -683,37 +642,38 @@ def ml_acr(forest, character, prediction_method, model, observed_frequencies, fo
                                             is_marginal=False, model=model, alter=True) for tree in forest)
         note_restricted_likelihood(JOINT, restricted_likelihood)
         for tree in forest:
-            choose_ancestral_states_joint(tree, character, model.states, model.frequencies)
+            choose_ancestral_states_joint(tree, character, model)
         process_reconstructed_states(JOINT)
 
     if is_marginal(prediction_method):
-        mps = []
+        lh_feature = get_personalized_feature_name(character, LH)
+        name2probs = {}
         for tree in forest:
-            initialize_allowed_states(tree, character, model.states)
-            altered_nodes = []
-            if 0 == model.tau:
-                altered_nodes = alter_zero_node_allowed_states(tree, character)
+            initialize_allowed_states(tree, character, model)
+            altered_nodes = alter_zero_node_allowed_states(tree, character, model)
             get_bottom_up_loglikelihood(tree=tree, character=character, is_marginal=True, model=model, alter=False)
             calculate_top_down_likelihood(tree, character, model=model)
-            calculate_marginal_likelihoods(tree, character, model.frequencies)
+            calculate_marginal_likelihoods(tree, character, model)
             # check_marginal_likelihoods(tree, character)
-            mps.append(convert_likelihoods_to_probabilities(tree, character, model.states))
+
+            for node in tree.traverse():
+                name2probs[node.name] = model.likelihood2marginal_probability_array(getattr(node, lh_feature), node)
 
             if altered_nodes:
                 unalter_zero_node_allowed_states(altered_nodes, character)
-            choose_ancestral_states_map(tree, character, model.states)
-        result[MARGINAL_PROBABILITIES] = pd.concat(mps, copy=False) if len(mps) != 1 else mps[0]
+            choose_ancestral_states_map(tree, character)
+        result[MARGINAL_PROBABILITIES] = pd.DataFrame.from_dict(name2probs, orient='index', columns=model.get_states())
         process_restricted_likelihood_and_states(MAP)
 
         if MPPA == prediction_method:
             result[NUM_SCENARIOS], result[NUM_UNRESOLVED_NODES], result[NUM_STATES_PER_NODE] = 1, 0, 0
             for tree in forest:
-                ns, nun, nspn = choose_ancestral_states_mppa(tree, character, model.states, force_joint=force_joint)
+                ns, nun, nspn = choose_ancestral_states_mppa(tree, character, force_joint=force_joint)
                 result[NUM_SCENARIOS] *= ns
                 result[NUM_UNRESOLVED_NODES] += nun
                 result[NUM_STATES_PER_NODE] += nspn
-            result[NUM_STATES_PER_NODE] /= model.forest_stats.num_nodes
-            result[PERC_UNRESOLVED] = result[NUM_UNRESOLVED_NODES] * 100 / model.forest_stats.num_nodes
+            result[NUM_STATES_PER_NODE] /= model.forest_stats.n_nodes
+            result[PERC_UNRESOLVED] = result[NUM_UNRESOLVED_NODES] * 100 / model.forest_stats.n_nodes
             logger.debug('{} node{} unresolved ({:.2f}%) for {} by {}, '
                          'i.e. {:.4f} state{} per node in average.'
                          .format(result[NUM_UNRESOLVED_NODES], 's are' if result[NUM_UNRESOLVED_NODES] != 1 else ' is',
@@ -750,25 +710,23 @@ def marginal_counts(forest, character, model, n_repetitions=1_000):
     initial_allowed_state_feature = allowed_state_feature + '.initial'
     state_count_feature = get_personalized_feature_name(character, STATE_COUNTS)
 
-    get_pij = model.get_Pij_t
-    n_states = len(model.states)
+    n_states = len(model.get_states())
+    # TODO: currently this does not seem to work for a SkylineModel
     state_ids = np.array(list(range(n_states)))
 
     result = np.zeros((n_states, n_states), dtype=float)
 
     for tree in forest:
-        initialize_allowed_states(tree, character, model.states)
-        altered_nodes = []
-        if 0 == model.tau:
-            altered_nodes = alter_zero_node_allowed_states(tree, character)
+        initialize_allowed_states(tree, character, model)
+        altered_nodes = alter_zero_node_allowed_states(tree, character, model)
         get_bottom_up_loglikelihood(tree=tree, character=character, is_marginal=True, model=model, alter=False)
         calculate_top_down_likelihood(tree, character, model=model)
 
         for parent in tree.traverse('levelorder'):
             if parent.is_root():
                 calc_node_marginal_likelihood(parent, lh_feature, lh_sf_feature, bu_lh_feature, bu_lh_sf_feature,
-                                              td_lh_feature, td_lh_sf_feature, allowed_state_feature, model.frequencies,
-                                              False)
+                                              td_lh_feature, td_lh_sf_feature, allowed_state_feature,
+                                              model, False)
                 marginal_likelihoods = getattr(parent, lh_feature)
                 marginal_probs = marginal_likelihoods / marginal_likelihoods.sum()
                 # draw random states according to marginal probabilities (n_repetitions times)
@@ -791,9 +749,9 @@ def marginal_counts(forest, character, model, n_repetitions=1_000):
             same_state_counts = np.zeros(n_states)
 
             for node in parent.children:
-                node_pjis = np.transpose(get_pij(node.dist))
+                node_pjis = model.get_p_ji_child(node)
                 marginal_loglikelihood = np.log10(getattr(node, bu_lh_feature)) + np.log10(node_pjis) \
-                                         + np.log10(model.frequencies * getattr(node, allowed_state_feature))
+                                         + np.log10(model.get_frequencies(node) * getattr(node, allowed_state_feature))
                 rescale_log(marginal_loglikelihood)
                 marginal_likelihood = np.power(10, marginal_loglikelihood)
                 marginal_probs = marginal_likelihood / marginal_likelihood.sum(axis=1)[:, np.newaxis]
@@ -837,9 +795,9 @@ def marginal_counts(forest, character, model, n_repetitions=1_000):
     return result / n_repetitions
 
 
-def optimise_likelihood(forest, character, model, observed_frequencies):
+def optimise_likelihood(forest, character, model):
     for tree in forest:
-        initialize_allowed_states(tree, character, model.states)
+        initialize_allowed_states(tree, character, model)
     logger = logging.getLogger('pastml')
     likelihood = sum(get_bottom_up_loglikelihood(tree=tree, character=character,
                                                  is_marginal=True, model=model, alter=True)
@@ -853,19 +811,18 @@ def optimise_likelihood(forest, character, model, observed_frequencies):
     if not model.get_num_params():
         logger.debug('All the parameters are fixed for {}:\n{}{}.'
                      .format(character,
-                             model._print_parameters(),
+                             model.print_parameters(),
                              '\tlog likelihood:\t{:.6f}'.format(likelihood))
                      )
     else:
         logger.debug('Initial values for {} parameter optimisation:\n{}{}.'
                      .format(character,
-                             model._print_parameters(),
+                             model.print_parameters(),
                              '\tlog likelihood:\t{:.6f}'.format(likelihood))
                      )
         if not model.basic_params_fixed():
             model.fix_extra_params()
-            likelihood = optimize_likelihood_params(forest=forest, character=character, model=model,
-                                                    observed_frequencies=observed_frequencies)
+            likelihood = optimize_likelihood_params(forest=forest, character=character, model=model)
             if np.any(np.isnan(likelihood) or likelihood == -np.inf):
                 raise PastMLLikelihoodError('Failed to optimise the likelihood for your tree, '
                                             'please check that you do not have contradicting {} states specified '
@@ -876,12 +833,11 @@ def optimise_likelihood(forest, character, model, observed_frequencies):
             if not model.extra_params_fixed():
                 logger.debug('Pre-optimised basic parameters for {}:\n{}{}.'
                              .format(character,
-                                     model._print_basic_parameters(),
+                                     model.print_basic_parameters(),
                                      '\tlog likelihood:\t{:.6f}'.format(likelihood)))
         if not model.extra_params_fixed():
             likelihood = \
-                optimize_likelihood_params(forest=forest, character=character, model=model,
-                                           observed_frequencies=observed_frequencies)
+                optimize_likelihood_params(forest=forest, character=character, model=model)
             if np.any(np.isnan(likelihood) or likelihood == -np.inf):
                 raise PastMLLikelihoodError('Failed to calculate the likelihood for your tree, '
                                             'please check that you do not have contradicting {} states specified '
@@ -890,17 +846,17 @@ def optimise_likelihood(forest, character, model, observed_frequencies):
                                             .format(character))
         logger.debug('Optimised parameters for {}:\n{}{}'
                      .format(character,
-                             model._print_parameters(),
+                             model.print_parameters(),
                              '\tlog likelihood:\t{:.6f}'.format(likelihood)))
     return likelihood
 
 
-def convert_allowed_states2feature(tree, feature, states, out_feature=None):
+def convert_allowed_states2feature(tree, feature, model, out_feature=None):
     if out_feature is None:
         out_feature = feature
     allowed_states_feature = get_personalized_feature_name(feature, ALLOWED_STATES)
     for node in tree.traverse():
-        node.add_feature(out_feature, set(states[getattr(node, allowed_states_feature).astype(bool)]))
+        node.add_feature(out_feature, set(model.get_states(node)[getattr(node, allowed_states_feature).astype(bool)]))
 
 
 def _parsimonious_states2allowed_states(tree, ps_feature, feature, states):

@@ -1,6 +1,6 @@
 import numpy as np
 
-from pastml.models import Model
+from pastml.models import SimpleModel
 from pastml.models.CustomRatesModel import CustomRatesModel
 
 """
@@ -74,8 +74,7 @@ class JTTModel(CustomRatesModel):
         self._optimise_frequencies = False
         self.name = JTT
 
-    @CustomRatesModel.states.setter
-    def states(self, states):
+    def set_states(self, states, **kwargs):
         raise NotImplementedError('The JTT states are preset and cannot be changed.')
 
     def parse_parameters(self, params, reoptimise=False):
@@ -91,5 +90,5 @@ class JTTModel(CustomRatesModel):
 
         # This model sets fixed frequencies
         # and hence should only read the basic parameters (scaling and smoothing factors) from the input file
-        return Model.parse_parameters(self, params, reoptimise)
+        return SimpleModel.parse_parameters(self, params, reoptimise)
 

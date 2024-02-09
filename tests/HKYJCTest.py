@@ -3,7 +3,7 @@ import unittest
 
 import numpy as np
 
-from pastml import get_personalized_feature_name, STATES
+from pastml import get_personalized_feature_name
 from pastml.acr import acr
 from pastml.annotation import annotate_forest
 from pastml.models import MODEL, SCALING_FACTOR
@@ -52,8 +52,8 @@ class HKYJCTest(unittest.TestCase):
         for param in (LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR.format(MPPA)):
             self.assertAlmostEqual(acr_result_hky[param], acr_result_jc[param], places=3,
                                    msg='{} was supposed to be the same for two models'.format(param))
-        value_hky = acr_result_hky[MODEL].sf
-        value_f81 = acr_result_jc[MODEL].sf
+        value_hky = acr_result_hky[MODEL].get_sf()
+        value_f81 = acr_result_jc[MODEL].get_sf()
         self.assertAlmostEqual(value_hky, value_f81, places=2,
                                msg='{} was supposed to be the same for two models'.format(SCALING_FACTOR))
 
@@ -89,7 +89,7 @@ class HKYJCTest(unittest.TestCase):
         node_name = 'ROOT'
         mps_hky = acr_result_hky[MARGINAL_PROBABILITIES]
         mps_f81 = acr_result_jc[MARGINAL_PROBABILITIES]
-        for state in acr_result_jc[STATES]:
+        for state in acr_result_jc[MODEL].get_states():
             self.assertAlmostEqual(mps_f81.loc[node_name, state], mps_hky.loc[node_name, state], places=3,
                                    msg='{}: Marginal probability of {} was supposed to be the same for two models'
                                    .format(node_name, state))
@@ -98,7 +98,7 @@ class HKYJCTest(unittest.TestCase):
         node_name = 'node_4'
         mps_hky = acr_result_hky[MARGINAL_PROBABILITIES]
         mps_f81 = acr_result_jc[MARGINAL_PROBABILITIES]
-        for state in acr_result_jc[STATES]:
+        for state in acr_result_jc[MODEL].get_states():
             self.assertAlmostEqual(mps_f81.loc[node_name, state], mps_hky.loc[node_name, state], places=3,
                                    msg='{}: Marginal probability of {} was supposed to be the same for two models'
                                    .format(node_name, state))
@@ -107,7 +107,7 @@ class HKYJCTest(unittest.TestCase):
         node_name = '02ALAY1660'
         mps_hky = acr_result_hky[MARGINAL_PROBABILITIES]
         mps_f81 = acr_result_jc[MARGINAL_PROBABILITIES]
-        for state in acr_result_jc[STATES]:
+        for state in acr_result_jc[MODEL].get_states():
             self.assertAlmostEqual(mps_f81.loc[node_name, state], mps_hky.loc[node_name, state], places=3,
                                    msg='{}: Marginal probability of {} was supposed to be the same for two models'
                                    .format(node_name, state))

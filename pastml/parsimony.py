@@ -1,7 +1,7 @@
 import logging
 from collections import Counter
 
-from pastml import get_personalized_feature_name, METHOD, STATES, CHARACTER, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
+from pastml import get_personalized_feature_name, METHOD, CHARACTER, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
     NUM_NODES, NUM_TIPS, NUM_STATES_PER_NODE, PERC_UNRESOLVED
 
 STEPS = 'steps'
@@ -253,7 +253,7 @@ def parsimonious_acr(forest, character, prediction_method, states, num_nodes, nu
         uppass(tree, character)
 
     results = []
-    result = {STATES: states, NUM_NODES: num_nodes, NUM_TIPS: num_tips}
+    result = {NUM_NODES: num_nodes, NUM_TIPS: num_tips}
 
     logger = logging.getLogger('pastml')
 

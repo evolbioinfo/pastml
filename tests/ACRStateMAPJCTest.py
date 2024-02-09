@@ -59,7 +59,7 @@ class ACRStateMAPJCTest(unittest.TestCase):
         expected_state = {'Africa'}
         state = getattr(tree, feature)
         self.assertSetEqual(expected_state, state,
-                         msg='Root state was supposed to be {}, got {}.'.format(expected_state, state))
+                            msg='Root state was supposed to be {}, got {}.'.format(expected_state, state))
 
     def test_state_node_79(self):
         expected_state = {'Africa'}
@@ -67,7 +67,7 @@ class ACRStateMAPJCTest(unittest.TestCase):
             if 'node_79' == node.name:
                 state = getattr(node, feature)
                 self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
-                                 .format(node.name, expected_state, state))
+                                    .format(node.name, expected_state, state))
                 break
 
     def test_state_node_32(self):
@@ -76,7 +76,7 @@ class ACRStateMAPJCTest(unittest.TestCase):
             if 'node_32' == node.name:
                 state = getattr(node, feature)
                 self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
-                                 .format(node.name, expected_state, state))
+                                    .format(node.name, expected_state, state))
                 break
 
     def test_state_node_80(self):
@@ -85,7 +85,7 @@ class ACRStateMAPJCTest(unittest.TestCase):
             if 'node_80' == node.name:
                 state = getattr(node, feature)
                 self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
-                                 .format(node.name, expected_state, state))
+                                    .format(node.name, expected_state, state))
                 break
 
     def test_state_node_25(self):
@@ -94,7 +94,7 @@ class ACRStateMAPJCTest(unittest.TestCase):
             if 'node_25' == node.name:
                 state = getattr(node, feature)
                 self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
-                                 .format(node.name, expected_state, state))
+                                    .format(node.name, expected_state, state))
                 break
 
     def test_state_node_48(self):
@@ -103,7 +103,7 @@ class ACRStateMAPJCTest(unittest.TestCase):
             if 'node_48' == node.name:
                 state = getattr(node, feature)
                 self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
-                                 .format(node.name, expected_state, state))
+                                    .format(node.name, expected_state, state))
                 break
 
     def test_state_zero_tip(self):
@@ -112,7 +112,7 @@ class ACRStateMAPJCTest(unittest.TestCase):
             if '01ALAY1715' == node.name:
                 state = getattr(node, feature)
                 self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
-                                 .format(node.name, expected_state, state))
+                                    .format(node.name, expected_state, state))
                 break
 
     def test_state_tip(self):
@@ -121,5 +121,5 @@ class ACRStateMAPJCTest(unittest.TestCase):
             if '94SEAF9671' == node.name:
                 state = getattr(node, feature)
                 self.assertSetEqual(expected_state, state, msg='{} state was supposed to be {}, got {}.'
-                                 .format(node.name, expected_state, state))
+                                    .format(node.name, expected_state, state))
                 break

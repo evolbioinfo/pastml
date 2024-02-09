@@ -27,7 +27,7 @@ class MRANDJCTest(unittest.TestCase):
         preannotate_forest([tree], df=df)
         states = np.array([_ for _ in df[character].unique() if not pd.isna(_) and '' != _])
 
-        model = JCModel(forest_stats=ForestStats([tree]), states=states, parameter_file=PARAMS_INPUT)
+        model = JCModel(forest_stats=ForestStats([tree], character), states=states, parameter_file=PARAMS_INPUT)
         n_repetitions = 50_000
         counts = marginal_counts([tree], character, model, n_repetitions=n_repetitions)
 

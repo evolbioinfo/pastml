@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 
-from pastml.models import Model, ModelWithFrequencies
+from pastml.models import SimpleModel, ModelWithFrequencies
 
 HKY = 'HKY'
 HKY_STATES = np.array(['A', 'C', 'G', 'T'])
@@ -36,12 +36,11 @@ class HKYModel(ModelWithFrequencies):
         else:
             raise NotImplementedError('The kappa value is preset and cannot be changed.')
 
-    @Model.states.setter
-    def states(self, states):
+    def set_states(self, states, **kwargs):
         raise NotImplementedError("The HKY model is only implemented for nucleotides: "
                                   "the states are A, C, G, T and cannot be reset")
 
-    def get_Pij_t(self, t, *args, **kwargs):
+    def get_Pij_t(self, t, **kwargs):
         """
         Calculates the probability matrix of substitutions i->j over time t,
         with HKY model [Hasegawa, Kishino and Yano 1985], given state frequencies and kappa.
@@ -54,7 +53,7 @@ class HKYModel(ModelWithFrequencies):
         """
         t = self.transform_t(t)
 
-        pi_a, pi_c, pi_g, pi_t = self.frequencies
+        pi_a, pi_c, pi_g, pi_t = self.get_frequencies()
         pi_ag = pi_a + pi_g
         pi_ct = pi_c + pi_t
         beta = .5 / (pi_ag * pi_ct + self.kappa * (pi_a * pi_g + pi_c * pi_t))
@@ -65,7 +64,7 @@ class HKYModel(ModelWithFrequencies):
         ct_sum = (pi_ct + pi_ag * exp_min_beta_t) / pi_ct
         ag_sum = (pi_ag + pi_ct * exp_min_beta_t) / pi_ag
         p = np.ones((4, 4), dtype=np.float64) * (1 - exp_min_beta_t)
-        p *= self.frequencies
+        p *= self.get_frequencies()
 
         p[T, T] = pi_t * ct_sum + pi_c * exp_ct
         p[T, C] = pi_c * ct_sum - pi_c * exp_ct
@@ -99,7 +98,7 @@ class HKYModel(ModelWithFrequencies):
         :return: void, update this model
         """
         if self.extra_params_fixed():
-            Model.set_params_from_optimised(self, ps, **kwargs)
+            SimpleModel.set_params_from_optimised(self, ps, **kwargs)
         else:
             ModelWithFrequencies.set_params_from_optimised(self, ps, **kwargs)
             n_params = ModelWithFrequencies.get_num_params(self)
@@ -114,7 +113,7 @@ class HKYModel(ModelWithFrequencies):
         :return: np.array containing parameters of the likelihood optimization algorithm
         """
         if self.extra_params_fixed():
-            return Model.get_optimised_parameters(self)
+            return SimpleModel.get_optimised_parameters(self)
         return np.hstack((ModelWithFrequencies.get_optimised_parameters(self),
                           [self.kappa] if self._optimise_kappa else []))
 
@@ -125,7 +124,7 @@ class HKYModel(ModelWithFrequencies):
         :return: np.array containing lower and upper (potentially infinite) bounds for each parameter
         """
         if self.extra_params_fixed():
-            return Model.get_bounds(self)
+            return SimpleModel.get_bounds(self)
         return np.array((*ModelWithFrequencies.get_bounds(self),
                         *([np.array([1e-6, 20.])] if self._optimise_kappa else [])))
 
@@ -159,7 +158,7 @@ class HKYModel(ModelWithFrequencies):
                 self._kappa = None
         return params
 
-    def _print_parameters(self):
+    def print_parameters(self):
         """
         Constructs a string representing parameter values (to be used to logging).
 

@@ -3,7 +3,7 @@ import unittest
 
 import numpy as np
 
-from pastml import get_personalized_feature_name, STATES
+from pastml import get_personalized_feature_name
 from pastml.acr import acr
 from pastml.annotation import annotate_forest
 from pastml.ml import LH, LH_SF, MPPA, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, MARGINAL_PROBABILITIES, \
@@ -48,8 +48,8 @@ class HKYF81Test(unittest.TestCase):
         for param in (LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR.format(MPPA)):
             self.assertAlmostEqual(acr_result_hky[param], acr_result_f81[param], places=3,
                                    msg='{} was supposed to be the same for two models'.format(param))
-        value_hky = acr_result_hky[MODEL].sf
-        value_f81 = acr_result_f81[MODEL].sf
+        value_hky = acr_result_hky[MODEL].get_sf()
+        value_f81 = acr_result_f81[MODEL].get_sf()
         self.assertAlmostEqual(value_hky, value_f81, places=2,
                                msg='{} was supposed to be the same for two models'.format(SCALING_FACTOR))
 
@@ -58,9 +58,9 @@ class HKYF81Test(unittest.TestCase):
                            msg='Likelihood with free kappa was supposed to be better')
 
     def test_frequencies(self):
-        for state in acr_result_f81[STATES]:
-            value_f81 = acr_result_f81[MODEL].frequencies[np.where(acr_result_f81[STATES] == state)][0]
-            value_hky = acr_result_hky[MODEL].frequencies[np.where(acr_result_hky[STATES] == state)][0]
+        for state in acr_result_f81[MODEL].get_states():
+            value_f81 = acr_result_f81[MODEL].get_frequencies()[np.where(acr_result_f81[MODEL].get_states() == state)][0]
+            value_hky = acr_result_hky[MODEL].get_frequencies()[np.where(acr_result_hky[MODEL].get_states() == state)][0]
             self.assertAlmostEqual(value_f81, value_hky, places=3,
                                    msg='Frequency of {} was supposed to be the same for two models'
                                    .format(state))
@@ -85,7 +85,7 @@ class HKYF81Test(unittest.TestCase):
         node_name = 'ROOT'
         mps_hky = acr_result_hky[MARGINAL_PROBABILITIES]
         mps_f81 = acr_result_f81[MARGINAL_PROBABILITIES]
-        for state in acr_result_f81[STATES]:
+        for state in acr_result_f81[MODEL].get_states():
             self.assertAlmostEqual(mps_f81.loc[node_name, state], mps_hky.loc[node_name, state], places=3,
                                    msg='{}: Marginal probability of {} was supposed to be the same for two models'
                                    .format(node_name, state))
@@ -94,7 +94,7 @@ class HKYF81Test(unittest.TestCase):
         node_name = 'node_4'
         mps_hky = acr_result_hky[MARGINAL_PROBABILITIES]
         mps_f81 = acr_result_f81[MARGINAL_PROBABILITIES]
-        for state in acr_result_f81[STATES]:
+        for state in acr_result_f81[MODEL].get_states():
             self.assertAlmostEqual(mps_f81.loc[node_name, state], mps_hky.loc[node_name, state], places=3,
                                    msg='{}: Marginal probability of {} was supposed to be the same for two models'
                                    .format(node_name, state))
@@ -103,7 +103,7 @@ class HKYF81Test(unittest.TestCase):
         node_name = '02ALAY1660'
         mps_hky = acr_result_hky[MARGINAL_PROBABILITIES]
         mps_f81 = acr_result_f81[MARGINAL_PROBABILITIES]
-        for state in acr_result_f81[STATES]:
+        for state in acr_result_f81[MODEL].get_states():
             self.assertAlmostEqual(mps_f81.loc[node_name, state], mps_hky.loc[node_name, state], places=3,
                                    msg='{}: Marginal probability of {} was supposed to be the same for two models'
                                    .format(node_name, state))

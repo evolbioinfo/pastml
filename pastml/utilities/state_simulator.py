@@ -4,16 +4,14 @@ import numpy as np
 
 
 def simulate_states(tree, model, character, n_repetitions=1_000):
-    n_states = len(model.states)
+    n_states = len(model.get_states())
     state_ids = np.array(range(n_states))
-
-    get_pij = model.get_Pij_t
 
     for n in tree.traverse('levelorder'):
         if n.is_root():
-            random_states = np.random.choice(state_ids, size=n_repetitions, p=model.frequencies)
+            random_states = np.random.choice(state_ids, size=n_repetitions, p=model.get_frequencies(n))
         else:
-            probs = get_pij(n.dist)
+            probs = model.get_p_ij_child(n)
             probs = np.maximum(probs, 0)
             random_states = np.zeros(n_repetitions, dtype=int)
             parent_states = getattr(n.up, character)

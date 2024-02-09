@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from pastml.acr import PASTML_VERSION, calculate_observed_freqs
+from pastml.acr import PASTML_VERSION
 from pastml.annotation import ForestStats, annotate_forest
 from pastml.file import get_pastml_work_dir
 from pastml.logger import set_up_pastml_logger
@@ -130,12 +130,9 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
                              'but your annotation file specifies {} as states in column {}.'
                              .format(model, ', '.join(states), ', '.join(initial_states), column))
 
-    missing_data, observed_frequencies, state2index = calculate_observed_freqs(column, forest, states)
-
     model = model2class[model](parameter_file=parameters,
                                rate_matrix_file=rate_matrix,
-                               reoptimise=False, states=states, forest_stats=ForestStats(forest),
-                               observed_frequencies=observed_frequencies)
+                               reoptimise=False, states=states, forest_stats=ForestStats(forest))
 
     state_set = set(states)
     counts = np.zeros(len(states))

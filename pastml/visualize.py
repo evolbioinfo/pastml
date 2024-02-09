@@ -3,16 +3,13 @@ import os
 import warnings
 from collections import defaultdict
 
-from Bio.Phylo import NewickIO, write
-from Bio.Phylo.NewickIO import StringIO
-
-from pastml import col_name2cat, get_personalized_feature_name, PASTML_VERSION
-from pastml.annotation import annotate_forest, _quote, annotate_dates
+from pastml import col_name2cat, get_personalized_feature_name, PASTML_VERSION, quote
+from pastml.annotation import annotate_forest, annotate_dates
 from pastml.file import get_named_tree_file, get_pastml_work_dir
 from pastml.logger import set_up_pastml_logger
 from pastml.ml import MARGINAL_ML_METHODS, get_default_ml_method
 from pastml.parsimony import get_default_mp_method
-from pastml.tree import DATE, read_forest, DATE_CI, clear_extra_features, save_tree
+from pastml.tree import read_forest, save_tree
 from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT
 from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS, VERTICAL, HORIZONTAL, TRIM
@@ -133,18 +130,16 @@ def vis_pipeline(tree, data=None, data_sep='\t', id_index=0,
     """
     logger = set_up_pastml_logger(verbose, default_level=logging.INFO)
     logger.debug('\n=============INPUT DATA VALIDATION=============')
-    roots = read_forest(tree, columns=columns if data is None else None)
+    roots = read_forest(tree, columns=columns if data is None else None, root_dates=root_date)
     columns, column2states = annotate_forest(roots, columns=columns, data=data, data_sep=data_sep, id_index=id_index,
                                              unknown_treshold=1, state_threshold=1)
     if name_column:
         name_column = col_name2cat(name_column)
         if name_column not in column2states:
             raise ValueError('The name column ("{}") should be one of those specified as columns ({}).'
-                             .format(name_column, _quote(columns)))
+                             .format(name_column, quote(columns)))
     elif len(column2states) == 1:
         name_column = columns[0]
-    age_label = annotate_dates(roots,
-                               root_dates=root_date if html_compressed or html or html_mixed or upload_to_itol else None)
     logger.debug('Finished input validation.')
 
     if not work_dir:
@@ -153,12 +148,12 @@ def vis_pipeline(tree, data=None, data_sep='\t', id_index=0,
     new_nwk = os.path.join(work_dir, get_named_tree_file(tree))
     save_tree(roots, columns=column2states.keys(), nwk=new_nwk)
 
-    visualize_itol_html_pajek(age_label, colours, column2states, focus, html, html_compressed, html_mixed, itol_id,
+    visualize_itol_html_pajek(colours, column2states, focus, html, html_compressed, html_mixed, itol_id,
                               itol_project, itol_tree_name, logger, name_column, new_nwk, offline, pajek, pajek_timing,
                               roots, timeline_type, tip_size_threshold, upload_to_itol, work_dir)
 
 
-def visualize_itol_html_pajek(age_label, colours, column2states, focus, html, html_compressed, html_mixed, itol_id,
+def visualize_itol_html_pajek(colours, column2states, focus, html, html_compressed, html_mixed, itol_id,
                               itol_project, itol_tree_name, name_column, new_nwk, offline, pajek, pajek_timing,
                               roots, timeline_type, tip_size_threshold, upload_to_itol, work_dir):
     logger = logging.getLogger('pastml')
@@ -175,8 +170,7 @@ def visualize_itol_html_pajek(age_label, colours, column2states, focus, html, ht
         else:
             colours = {}
     if upload_to_itol:
-        generate_itol_annotations(roots, column2states, work_dir, age_label,
-                                  new_nwk, itol_id, itol_project, itol_tree_name, colours)
+        generate_itol_annotations(roots, column2states, work_dir, new_nwk, itol_id, itol_project, itol_tree_name, colours)
     if html or html_compressed or html_mixed:
         logger.debug('\n=============VISUALISATION=====================')
 
@@ -219,7 +213,7 @@ def visualize_itol_html_pajek(age_label, colours, column2states, focus, html, ht
                 focus[c].add(v)
 
         visualize(roots, column2states=column2states, html=html, html_compressed=html_compressed, html_mixed=html_mixed,
-                  name_column=name_column, tip_size_threshold=tip_size_threshold, date_label=age_label,
+                  name_column=name_column, tip_size_threshold=tip_size_threshold,
                   timeline_type=timeline_type, work_dir=work_dir, local_css_js=offline, column2colours=colours,
                   focus=focus, pajek=pajek, pajek_timing=pajek_timing)
 
