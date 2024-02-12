@@ -261,8 +261,8 @@ def calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature
         node.add_feature(td_lh_sf_feature, 0)
         return
     parent = node.up
-    node_pjis = model.get_p_ji_child(node)
-    node_contribution = getattr(node, bu_lh_feature).dot(node_pjis)
+    node_pijs = model.get_p_ij_child(node)
+    node_contribution = node_pijs.dot(getattr(node, bu_lh_feature))
     node_contribution[node_contribution <= 0] = 1
     parent_loglikelihood = np.log10(getattr(parent, td_lh_feature)) \
                            + np.log10(getattr(parent, bu_lh_feature)) - np.log10(node_contribution)
@@ -270,7 +270,8 @@ def calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature
               + getattr(parent, bu_lh_sf_feature) - getattr(node, bu_lh_sf_feature)
     factors += rescale_log(parent_loglikelihood)
     parent_likelihood = np.power(10, parent_loglikelihood)
-    td_likelihood = parent_likelihood.dot(node_pjis)
+    node_pjis = model.get_p_ji_child(node)
+    td_likelihood = node_pjis.dot(parent_likelihood)
     node.add_feature(td_lh_feature, np.maximum(td_likelihood, 0))
     node.add_feature(td_lh_sf_feature, factors)
 

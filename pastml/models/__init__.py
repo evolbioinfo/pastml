@@ -428,7 +428,7 @@ class SimpleModel(Model, ABC):
         :return: probability matrix
         :rtype: np.array
         """
-        return np.transpose(self.get_Pij_t(node.dist))
+        return self.get_Pij_t(node.dist)
 
     def set_params_from_optimised(self, ps, **kwargs):
         """
@@ -616,9 +616,11 @@ class ModelWithFrequencies(SimpleModel):
 
         :return: the number of optimized parameters
         """
-        return SimpleModel.get_num_params(self) \
-            + ((len(self._frequencies) - 1)
-               if self._optimise_frequencies else (1 if self._frequency_smoothing else 0))
+        n_basic_params = SimpleModel.get_num_params(self)
+        if self.extra_params_fixed():
+            return n_basic_params
+        return n_basic_params + ((len(self._frequencies) - 1)
+                                 if self._optimise_frequencies else (1 if self._frequency_smoothing else 0))
 
     def set_params_from_optimised(self, ps, **kwargs):
         """
@@ -751,7 +753,7 @@ class ModelWithFrequencies(SimpleModel):
         self._frequency_smoothing = False
 
     def extra_params_fixed(self):
-        return self._extra_params_fixed or SimpleModel.get_num_params(self) == self.get_num_params()
+        return self._extra_params_fixed or not self._optimise_frequencies and not self._frequency_smoothing
 
     def basic_params_fixed(self):
         return not SimpleModel.get_num_params(self)

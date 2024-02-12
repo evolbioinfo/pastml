@@ -4,23 +4,20 @@ import unittest
 import numpy as np
 from ete3 import Tree
 
-from pastml import MODEL_ID, get_personalized_feature_name
-from pastml.acr import acr, model2class
-from pastml.annotation import ForestStats, annotate_skyline
-from pastml.ml import MPPA, LOG_LIKELIHOOD, LH, BU_LH, TD_LH, ALLOWED_STATES, MARGINAL_PROBABILITIES
+from pastml import MODEL_ID
+from pastml.acr import acr
+from pastml.annotation import ForestStats, annotate_skyline, parse_skyline_mapping
+from pastml.ml import MPPA, LOG_LIKELIHOOD, MARGINAL_PROBABILITIES
 from pastml.models import SCALING_FACTOR
 from pastml.models.F81Model import F81, F81Model
 from pastml.models.HKYModel import HKY_STATES
-from pastml.models.JCModel import JCModel
+from pastml.models.JCModel import JCModel, JC
 from pastml.models.SkylineModel import SkylineModel
 from pastml.tree import annotate_dates
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
-TREE_NEXUS = os.path.join(DATA_DIR, 'hiv1C.nexus')
-TREE_NWK = os.path.join(DATA_DIR, 'hiv1C.M184V.nwk')
-PS_SKY = os.path.join(DATA_DIR, 'params.skyline.tab')
-PS_NOSKY = os.path.join(DATA_DIR, 'params.noskyline.tab')
 WD = os.path.join(DATA_DIR, 'skyline_test')
+
 
 def get_forest():
     tree1 = Tree('(A:1,(B:0.5,C:1.5)BC:2)r1:0;', format=3)
@@ -76,7 +73,7 @@ class SkylineTest(unittest.TestCase):
                          states=['Africa', 'Europe'], forest_stats=sub_forest_stats)
             skyline_models.append(m)
         sky_model = SkylineModel(models=skyline_models, dates=skyline,
-                                      skyline_mapping=None, forest_stats=forest_stats)
+                                 skyline_mapping=None, forest_stats=forest_stats)
         self.assertTrue(np.all(np.eye(2) == sky_model._skyline_mapping[(0, 1)]))
         self.assertTrue(np.all(np.eye(2) == sky_model._skyline_mapping[(1, 0)]))
 
@@ -94,31 +91,6 @@ class SkylineTest(unittest.TestCase):
         self.assertEqual(1, getattr(tree2.children[0], MODEL_ID))
         self.assertEqual(1, getattr(tree2.children[1], MODEL_ID))
         self.assertEqual(1, getattr(tree2.children[2], MODEL_ID))
-
-    def test_skyline_Pij(self):
-        forest = get_forest()
-        start_date = -np.inf
-        skyline_models = []
-        skyline = [1905]
-        n_sky = len(skyline) + 1
-        param_dict = {SCALING_FACTOR: 0.1, 'Africa': 0.4, 'Europe': 0.6}
-        forest_stats = ForestStats(forest, 'loc1')
-        for i in range(n_sky):
-            end_date = skyline[i] if i < len(skyline) else np.inf
-            sub_forest_stats = ForestStats(forest, 'loc1', start_date, end_date)
-            m = F81Model(parameter_file=param_dict, rate_matrix_file=None,
-                         states=['Africa', 'Europe'], forest_stats=sub_forest_stats)
-            skyline_models.append(m)
-        sky_model = SkylineModel(models=skyline_models, dates=skyline,
-                                 skyline_mapping=None, forest_stats=forest_stats)
-
-        C = next(t for t in forest[0] if 'C' == t.name)
-        p = m.get_p_ij_child(C)
-
-        annotate_skyline(forest, skyline, 'loc1')
-        sky_p = sky_model.get_p_ij_child(C)
-        print(sky_p, p)
-        self.assertTrue(np.all(np.round(sky_p, 3) == np.round(p, 3)))
 
     def test_allowed_states(self):
         forest = get_forest()
@@ -139,9 +111,10 @@ class SkylineTest(unittest.TestCase):
         annotate_skyline(forest, skyline, 'loc1')
         for tree in forest:
             for node in tree.traverse():
-                self.assertTrue(np.all(sky_model.get_allowed_states(node, 'loc1') == m.get_allowed_states(node, 'loc1')))
+                self.assertTrue(
+                    np.all(sky_model.get_allowed_states(node, 'loc1') == m.get_allowed_states(node, 'loc1')))
 
-    def test_skyline_Pji(self):
+    def test_skyline_Pij(self):
         forest = get_forest()
         start_date = -np.inf
         skyline_models = []
@@ -159,12 +132,58 @@ class SkylineTest(unittest.TestCase):
                                  skyline_mapping=None, forest_stats=forest_stats)
 
         C = next(t for t in forest[0] if 'C' == t.name)
-        p = m.get_p_ji_child(C)
+        p_ij = skyline_models[1].get_p_ij_child(C)
+        p_ji = skyline_models[1].get_p_ji_child(C)
 
         annotate_skyline(forest, skyline, 'loc1')
-        sky_p = sky_model.get_p_ji_child(C)
-        print(sky_p, p)
-        self.assertTrue(np.all(np.round(sky_p, 3) == np.round(p, 3)))
+        sky_p_ij = sky_model.get_p_ij_child(C)
+        sky_p_ji = sky_model.get_p_ji_child(C)
+        self.assertTrue(np.all(np.round(sky_p_ij, 3) == np.round(p_ij, 3)))
+        self.assertTrue(np.all(np.round(sky_p_ji, 3) == np.round(p_ji, 3)))
+
+        freq0 = skyline_models[0].get_frequencies()
+        freq1 = skyline_models[1].get_frequencies()
+        # Check reversibility
+        for i in range(2):
+            for j in range(2):
+                print(freq0[i] * sky_p_ij[i, j], freq1[j] * sky_p_ji[j, i])
+                self.assertAlmostEqual(freq0[i] * sky_p_ij[i, j], freq1[j] * sky_p_ji[j, i])
+
+    def test_skyline_Pij_different_parameters(self):
+        forest = get_forest()
+        start_date = -np.inf
+        skyline_models = []
+        skyline = [1905]
+        n_sky = len(skyline) + 1
+        parameters = [{SCALING_FACTOR: 0.1, 'Africa': 0.4, 'Europe': 0.6},
+                      {SCALING_FACTOR: 0.1, 'Africa': 0.25, 'Europe': 0.75}]
+        forest_stats = ForestStats(forest, 'loc1')
+        for i in range(n_sky):
+            end_date = skyline[i] if i < len(skyline) else np.inf
+            sub_forest_stats = ForestStats(forest, 'loc1', start_date, end_date)
+            m = F81Model(parameter_file=parameters[i], rate_matrix_file=None,
+                         states=['Africa', 'Europe'], forest_stats=sub_forest_stats)
+            skyline_models.append(m)
+        sky_model = SkylineModel(models=skyline_models, dates=skyline,
+                                 skyline_mapping=None, forest_stats=forest_stats)
+
+        C = next(t for t in forest[0] if 'C' == t.name)
+        p_ij = skyline_models[1].get_p_ij_child(C)
+        p_ji = skyline_models[1].get_p_ji_child(C)
+
+        annotate_skyline(forest, skyline, 'loc1')
+        sky_p_ij = sky_model.get_p_ij_child(C)
+        sky_p_ji = sky_model.get_p_ji_child(C)
+        self.assertFalse(np.all(np.round(sky_p_ij, 3) == np.round(p_ij, 3)))
+        self.assertFalse(np.all(np.round(sky_p_ji, 3) == np.round(p_ji, 3)))
+
+        freq0 = skyline_models[0].get_frequencies()
+        freq1 = skyline_models[1].get_frequencies()
+        # Check reversibility
+        for i in range(2):
+            for j in range(2):
+                print(freq0[i] * sky_p_ij[i, j], freq1[j] * sky_p_ji[j, i])
+                self.assertAlmostEqual(freq0[i] * sky_p_ij[i, j], freq1[j] * sky_p_ji[j, i])
 
     def test_parameter_skyline_same_params(self):
         forest_nosky = get_forest()
@@ -209,104 +228,55 @@ class SkylineTest(unittest.TestCase):
                              prediction_method=MPPA, model=[F81, F81], skyline=skyline)
         print(acr_result_sky[LOG_LIKELIHOOD], acr_result_nosky[LOG_LIKELIHOOD])
         self.assertGreater(acr_result_sky[LOG_LIKELIHOOD], acr_result_nosky[LOG_LIKELIHOOD],
-                               msg='Loglikelihood should be higher with the skyline.')
+                           msg='Loglikelihood should be higher with the skyline.')
 
+    def test_skyline_mapping_parsing(self):
+        skyline_mapping = os.path.join(DATA_DIR, 'skyline_mapping.tab')
+        with open(skyline_mapping, 'w+') as f:
+            f.write("loc2\t1905\nFrance\tEurope\nUK\tEurope\nAfrica\tAfrica")
 
+        skyline_mapping, all_states = parse_skyline_mapping('loc2', [1905], skyline_mapping)
 
-    #
-    # def test_aic_noskyline(self):
-    #     set_up_pastml_logger(True)
-    #     states = np.array(['resistant', 'sensitive'])
-    #     tree = read_forest(TREE_NEXUS)[0]
-    #     annotate_dates([tree])
-    #     name_tree(tree)
-    #     simulate_states(tree, model=F81, frequencies=np.array([np.array([0.2, 0.8])]),
-    #                     kappa=None, tau=0, sf=np.array([1 / 10.]),
-    #                     character='M184V', rate_matrix=None, n_repetitions=1, root_state_id=1)
-    #
-    #     for tip in tree:
-    #         tip.add_feature('state', {states[getattr(tip, 'M184V')][0]})
-    #         tip.add_feature('state2', {states[getattr(tip, 'M184V')][0]})
-    #
-    #     acr_result_nosky = acr(tree, columns=['state'], column2states={'state': states},
-    #                            prediction_method=MPPA, model=F81, skyline=None)[0][0]
-    #     acr_result_sky = acr(tree, columns=['state2'], column2states={'state2': states},
-    #                          prediction_method=MPPA, model=F81, skyline=[1996])[0][0]
-    #
-    #     self.assertGreater(acr_result_sky[AIC], acr_result_nosky[AIC], msg='NO skyline model should be selected')
-    #
-    # def test_aic_skyline(self):
-    #     set_up_pastml_logger(True)
-    #     states = np.array(['resistant', 'sensitive'])
-    #     tree = read_forest(TREE_NWK, columns=['state', 'state2'])[0]
-    #     # tree = read_forest(TREE_NEXUS)[0]
-    #     annotate_dates([tree])
-    #     name_tree(tree)
-    #     skyline = [2000]
-    #     # annotate_skyline([tree], skyline=skyline, column2states={'M184V': states}, first_column='M184V')
-    #     # simulate_states(tree, model=F81, frequencies=np.array([np.array([0.01, 1 - 0.01]), np.array([0.4, 0.6])]),
-    #     #                 kappa=None, tau=0, sf=np.array([1 / 100., 1 / 10.]),
-    #     #                 character='M184V', rate_matrix=None, n_repetitions=1, root_state_id=1)
-    #     # remove_skyline([tree])
-    #     # for tip in tree:
-    #     #     tip.add_feature('state', {states[getattr(tip, 'M184V')][0]})
-    #     #     tip.add_feature('state2', {states[getattr(tip, 'M184V')][0]})
-    #     #
-    #     # tree.write(outfile=TREE_NWK, features=[DATE, 'state', 'state2'], format=3)
-    #
-    #     acr_result_nosky = acr(tree, columns=['state'], column2states={'state': states},
-    #                            prediction_method=MPPA, model=F81, skyline=None)[0][0]
-    #     acr_result_sky = \
-    #         acr(tree, columns=['state2'], column2states={'state2': states},
-    #             prediction_method=MPPA, model=F81, skyline=skyline)[0][0]
-    #
-    #     self.assertGreater(acr_result_nosky[AIC], acr_result_sky[AIC], msg='Skyline model should be selected')
-    #
-    # def test_num_skyline_nodes(self):
-    #     tree = read_forest(TREE_NEXUS)[0]
-    #
-    #     skyline = [1991]
-    #     states = np.array(['resistant', 'sensitive'])
-    #     annotate_skyline([tree], skyline=skyline, column2states={'M184V': states}, first_column='M184V')
-    #
-    #     n_sky = sum(1 for n in tree.traverse() if getattr(n, SKYLINE, False))
-    #     self.assertEqual(3359, n_sky / 2, msg='3359 skyline nodes were expected, found {}'.format(n_sky))
-    #
-    # def test_skyline_node_dates(self):
-    #     tree = read_forest(TREE_NEXUS)[0]
-    #
-    #     skyline = [1991]
-    #     states = np.array(['resistant', 'sensitive'])
-    #     annotate_skyline([tree], skyline=skyline, column2states={'M184V': states}, first_column='M184V')
-    #
-    #     for node in (n for n in tree.traverse() if getattr(n, SKYLINE, False)):
-    #         self.assertEqual(getattr(node, DATE), 1991,
-    #                          msg='Skyline node\'s date was supposed to be 1991, got {}'.format(getattr(node, DATE)))
-    #         self.assertGreater(1991, getattr(node.up if node.dist else node.up.up, DATE),
-    #                            msg='Skyline node\'s parent\'s date was supposed to be before 1991, got {}'
-    #                            .format(getattr(node.up if node.dist else node.up.up, DATE)))
-    #         self.assertGreater(
-    #             getattr(node.children[0] if node.children[0].dist else node.children[0].children[0], DATE), 1991,
-    #             msg='Skyline node\'s child\'s date was supposed to be after 1991, got {}'
-    #                 .format(getattr(node.children[0] if node.children[0].dist else node.children[0].children[0], DATE)))
-    #
-    # def test_skyline_node_is_singular(self):
-    #     tree = read_forest(TREE_NEXUS)[0]
-    #
-    #     skyline = [1991]
-    #     annotate_skyline([tree], skyline=skyline,
-    #                      first_column='M184V', column2states={'M184V': ['resistant', 'sensitive']}, skyline_mapping=None)
-    #
-    #     for node in (n for n in tree.traverse() if getattr(n, SKYLINE, False)):
-    #         self.assertEqual(len(node.children), 1,
-    #                          msg='Skyline node was supposed to have 1 child, got {}'.format(len(node.children)))
-    #
-    # def test_skyline_removal(self):
-    #     tree = read_forest(TREE_NEXUS)[0]
-    #
-    #     skyline = [1991]
-    #     states = np.array(['resistant', 'sensitive'])
-    #     annotate_skyline([tree], skyline=skyline, column2states={'M184V': states}, first_column='M184V')
-    #     remove_skyline([tree])
-    #     n_sky = sum(1 for n in tree.traverse() if getattr(n, SKYLINE, False))
-    #     self.assertEqual(0, n_sky, msg='Found {} skyline nodes that were supposed to be removed'.format(n_sky))
+        self.assertTrue(np.all(np.array(['Africa', 'Europe']) == all_states[0]))
+        self.assertTrue(np.all(np.array(['Africa', 'France', 'UK']) == all_states[1]))
+
+        self.assertTrue(np.all(skyline_mapping[(0, 1)] == np.array([[1, 0, 0], [0, 1, 1]])))
+        self.assertTrue(np.all(skyline_mapping[(1, 0)] == np.array([[1, 0], [0, 1], [0, 1]])))
+
+    def test_skyline_Pij_different_states(self):
+        skyline = [1905]
+        skyline_mapping = os.path.join(DATA_DIR, 'skyline_mapping.tab')
+        with open(skyline_mapping, 'w+') as f:
+            f.write("loc2\t1905\nFrance\tEurope\nUK\tEurope\nAfrica\tAfrica")
+        forest = get_forest()
+        skyline, skyline_mapping = annotate_skyline(forest, skyline, 'loc2', skyline_mapping)
+        start_date = -np.inf
+        skyline_models = []
+        n_sky = len(skyline) + 1
+        params = [{SCALING_FACTOR: 0.1, 'Africa': 0.4, 'Europe': 0.6},
+                  {SCALING_FACTOR: 0.1, 'Africa': 0.4, 'France': 0.3, 'UK': 0.3}]
+        forest_stats = ForestStats(forest, 'loc2')
+        for i in range(n_sky):
+            end_date = skyline[i] if i < len(skyline) else np.inf
+            sub_forest_stats = ForestStats(forest, 'loc2', start_date, end_date)
+            m = F81Model(parameter_file=params[i], rate_matrix_file=None,
+                         states=skyline_mapping[1][i], forest_stats=sub_forest_stats)
+            skyline_models.append(m)
+        sky_model = SkylineModel(models=skyline_models, dates=skyline,
+                                 skyline_mapping=skyline_mapping[0], forest_stats=forest_stats)
+
+        C = next(t for t in forest[0] if 'C' == t.name)
+        sky_p_ij = sky_model.get_p_ij_child(C)
+        sky_p_ji = sky_model.get_p_ji_child(C)
+
+        # nosky_p = skyline_models[1].get_p_ij_child(C)
+        self.assertEqual((2, 3), sky_p_ij.shape)
+        self.assertEqual((3, 2), sky_p_ji.shape)
+
+        freq0 = skyline_models[0].get_frequencies()
+        freq1 = skyline_models[1].get_frequencies()
+        # Check reversibility
+        for i in range(len(freq0)):
+            for j in range(len(freq1)):
+                print(i, j, freq0[i] * sky_p_ij[i, j], freq1[j] * sky_p_ji[j, i])
+                self.assertAlmostEqual(freq0[i] * sky_p_ij[i, j], freq1[j] * sky_p_ji[j, i])
