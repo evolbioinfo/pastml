@@ -559,7 +559,7 @@ def parse_skyline_mapping(character, skyline, skyline_mapping):
         if i > 0:
             mapping[(i - 1, i)] = {prev_state: get_states(prev_state, prev_col, col) for prev_state in prev_states}
             mapping[(i, i - 1)] = {state: get_states(state, col, prev_col) for state in states}
-        prev_col, prev_states = col
+        prev_col, prev_states = col, states
 
     skyline_mapping = {}
     for (i, j), state2states in mapping.items():

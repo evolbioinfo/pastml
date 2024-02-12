@@ -89,7 +89,7 @@ class SkylineModel(Model):
         start = 0
         for model in self._models:
             n = model.get_num_params()
-            model.set_params_from_optimised(ps[start: n], **kwargs)
+            model.set_params_from_optimised(ps[start: start + n], **kwargs)
             start += n
 
     def get_optimised_parameters(self):
@@ -99,7 +99,7 @@ class SkylineModel(Model):
 
         :return: np.array containing parameters of the likelihood optimization algorithm
         """
-        return np.hstack((model.get_optimised_parameters() for model in self._models))
+        return np.hstack([model.get_optimised_parameters() for model in self._models])
 
     def get_bounds(self):
         """
@@ -107,7 +107,10 @@ class SkylineModel(Model):
 
         :return: np.array containing lower and upper (potentially infinite) bounds for each parameter
         """
-        return np.hstack((model.get_bounds() for model in self._models))
+        bounds = []
+        for model in self._models:
+            bounds.extend(model.get_bounds())
+        return np.array(bounds)
 
     def print_parameters(self):
         """
@@ -181,18 +184,34 @@ class SkylineModel(Model):
         parent_date = child_date - node.dist
         model_up = getattr(node.up, MODEL_ID, 0) if not node.is_root() else self.get_model_id_at_time(parent_date)
         if model_up == model_down:
-            return self._models[model_up].get_Pij_t(node.dist)
+            return self._models[model_up].get_p_ij_child(node)
 
         p_ij = None
         while model_up != model_down:
             model_change_date = self.get_interval(model_up)[1]
             cur_p_ij = self._models[model_up].get_Pij_t(model_change_date - parent_date)
             p_ij = cur_p_ij if p_ij is None else p_ij.dot(cur_p_ij)
-            p_ij = p_ij.dot(self._skyline_mapping[(model_up, model_up + 1)])
+            mapping = self.get_mapping(model_up, model_up + 1)
+            p_ij = p_ij.dot(mapping)
 
             parent_date = model_change_date
             model_up += 1
         return p_ij.dot(self._models[model_up].get_Pij_t(child_date - parent_date))
+
+    def get_mapping(self, source_model, target_model):
+        """
+        Returns the state mapping matrix from the states of the source model to the states of the target model.
+        If a state A (with frequency f_A) of the source model corresponds to
+        states A1 or A2 (with frequencies f_A1 and f_A2) of the target model,
+        then the mapping matrix at row A contains all zeros, except for columns A1 and A2,
+        whose values are 1/f_A and 1/f_A.
+
+        :param source_model: source model
+        :param target_model: target model
+        :return: the mapping matrix
+        """
+        return np.transpose(np.transpose(self._skyline_mapping[(source_model, target_model)])
+                            / self._models[source_model].get_frequencies())
 
     def get_p_ji_child(self, node):
         """
@@ -207,18 +226,22 @@ class SkylineModel(Model):
         parent_date = child_date - node.dist
         model_up = getattr(node.up, MODEL_ID, 0) if not node.is_root() else self.get_model_id_at_time(parent_date)
         if model_up == model_down:
-            return np.transpose(self._models[model_up].get_Pij_t(node.dist))
+            return self._models[model_up].get_p_ji_child(node)
 
         p_ji = None
         while model_down != model_up:
             model_change_date = self.get_interval(model_down)[0]
-            cur_p_ji = np.transpose(self._models[model_down].get_Pij_t(child_date - model_change_date))
+            cur_p_ji = self._models[model_down].get_Pij_t(child_date - model_change_date)
             p_ji = cur_p_ji if p_ji is None else p_ji.dot(cur_p_ji)
-            p_ji = p_ji.dot(self._skyline_mapping[(model_down, model_down - 1)])
+            # remap the frequencies in a way that if a state A (with frequency f_A)
+            # is mapped to A1 or A2 (with frequencies f_A1 and f_A2),
+            # then its mapping becomes f_A1/f_A for A1 and f_A2/f_A for A2.
+            mapping = self.get_mapping(model_down, model_down - 1)
+            p_ji = p_ji.dot(mapping)
 
             child_date = model_change_date
             model_down -= 1
-        return p_ji.dot(np.transpose(self._models[model_down].get_Pij_t(child_date - parent_date)))
+        return p_ji.dot(self._models[model_down].get_Pij_t(child_date - parent_date))
 
     def get_states(self, node=None, **kwargs):
         if node:
@@ -228,7 +251,7 @@ class SkylineModel(Model):
 
     def get_model_id_at_time(self, date, start_id=0, stop_id=np.inf):
         stop_id = min(len(self._models), stop_id)
-        cur_id = int((start_id + stop_id)/ 2)
+        cur_id = int((start_id + stop_id) / 2)
         start, stop = self.get_interval(cur_id)
         if start <= date < stop:
             return cur_id
