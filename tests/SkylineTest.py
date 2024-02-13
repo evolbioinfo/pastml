@@ -4,15 +4,14 @@ import unittest
 import numpy as np
 from ete3 import Tree
 
-from pastml import MODEL_ID
 from pastml.acr import acr
-from pastml.annotation import ForestStats, annotate_skyline, parse_skyline_mapping
+from pastml.annotation import ForestStats
 from pastml.ml import MPPA, LOG_LIKELIHOOD, MARGINAL_PROBABILITIES
 from pastml.models import SCALING_FACTOR
 from pastml.models.F81Model import F81, F81Model
 from pastml.models.HKYModel import HKY_STATES
 from pastml.models.JCModel import JCModel, JC
-from pastml.models.SkylineModel import SkylineModel
+from pastml.models.SkylineModel import SkylineModel, annotate_skyline, parse_skyline_mapping, MODEL_ID
 from pastml.tree import annotate_dates
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
@@ -132,14 +131,10 @@ class SkylineTest(unittest.TestCase):
                                  skyline_mapping=None, forest_stats=forest_stats)
 
         C = next(t for t in forest[0] if 'C' == t.name)
-        p_ij = skyline_models[1].get_p_ij_child(C)
-        p_ji = skyline_models[1].get_p_ji_child(C)
 
         annotate_skyline(forest, skyline, 'loc1')
         sky_p_ij = sky_model.get_p_ij_child(C)
         sky_p_ji = sky_model.get_p_ji_child(C)
-        self.assertTrue(np.all(np.round(sky_p_ij, 3) == np.round(p_ij, 3)))
-        self.assertTrue(np.all(np.round(sky_p_ji, 3) == np.round(p_ji, 3)))
 
         freq0 = skyline_models[0].get_frequencies()
         freq1 = skyline_models[1].get_frequencies()
@@ -148,6 +143,13 @@ class SkylineTest(unittest.TestCase):
             for j in range(2):
                 print(freq0[i] * sky_p_ij[i, j], freq1[j] * sky_p_ji[j, i])
                 self.assertAlmostEqual(freq0[i] * sky_p_ij[i, j], freq1[j] * sky_p_ji[j, i])
+
+        # Check it's the same as without the skyline
+        p_ij = skyline_models[1].get_p_ij_child(C)
+        p_ji = skyline_models[1].get_p_ji_child(C)
+        self.assertTrue(np.all(np.round(sky_p_ij, 3) == np.round(p_ij, 3)))
+        self.assertTrue(np.all(np.round(sky_p_ji, 3) == np.round(p_ji, 3)))
+
 
     def test_skyline_Pij_different_parameters(self):
         forest = get_forest()
@@ -168,14 +170,10 @@ class SkylineTest(unittest.TestCase):
                                  skyline_mapping=None, forest_stats=forest_stats)
 
         C = next(t for t in forest[0] if 'C' == t.name)
-        p_ij = skyline_models[1].get_p_ij_child(C)
-        p_ji = skyline_models[1].get_p_ji_child(C)
 
         annotate_skyline(forest, skyline, 'loc1')
         sky_p_ij = sky_model.get_p_ij_child(C)
         sky_p_ji = sky_model.get_p_ji_child(C)
-        self.assertFalse(np.all(np.round(sky_p_ij, 3) == np.round(p_ij, 3)))
-        self.assertFalse(np.all(np.round(sky_p_ji, 3) == np.round(p_ji, 3)))
 
         freq0 = skyline_models[0].get_frequencies()
         freq1 = skyline_models[1].get_frequencies()
@@ -184,6 +182,12 @@ class SkylineTest(unittest.TestCase):
             for j in range(2):
                 print(freq0[i] * sky_p_ij[i, j], freq1[j] * sky_p_ji[j, i])
                 self.assertAlmostEqual(freq0[i] * sky_p_ij[i, j], freq1[j] * sky_p_ji[j, i])
+
+        # Check it's not the same as without the skyline
+        p_ij = skyline_models[1].get_p_ij_child(C)
+        p_ji = skyline_models[1].get_p_ji_child(C)
+        self.assertFalse(np.all(np.round(sky_p_ij, 3) == np.round(p_ij, 3)))
+        self.assertFalse(np.all(np.round(sky_p_ji, 3) == np.round(p_ji, 3)))
 
     def test_parameter_skyline_same_params(self):
         forest_nosky = get_forest()

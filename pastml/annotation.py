@@ -4,7 +4,7 @@ from collections import Counter, defaultdict
 import numpy as np
 import pandas as pd
 
-from pastml import col_name2cat, MODEL_ID, quote
+from pastml import col_name2cat, quote
 from pastml.tree import DATE
 
 
@@ -468,107 +468,4 @@ def annotate_forest(forest, columns=None, data=None, data_sep='\t', id_index=0,
                              .format(c, len(states), states, 'tree' if len(forest) == 1 else 'forest', num_tips))
 
     return columns, {c: np.array(sorted(states)) for c, states in column2states.items()}
-
-
-def annotate_skyline(forest, skyline, character, skyline_mapping=None):
-    """
-    Verifies that the skyline points are well-defined, annotates the tree with skyline model ids,
-    and parses the state mapping table if the states changes between skyline intervals.
-
-    :param forest: list of trees to be annotated (with DATE annotations on their nodes)
-    :param skyline: dates of model/state changes
-    :param character: character of interest
-    :param skyline_mapping: an optional file, containing skyline state mapping
-    :return: skyline (sorted array of model/state change dates),
-        a tuple (skyline mapping table, a list of lists of states (for each time interval)).
-        The latter is None if the mapping was not specified.
-    """
-    min_date, max_date = min(getattr(tree, DATE) - tree.dist for tree in forest), \
-        max(max(getattr(_, DATE) for _ in tree) for tree in forest)
-    skyline = sorted(skyline)
-    if skyline[0] >= max_date or skyline[-1] <= min_date:
-        raise ValueError('You have specified dates of model/state changes ({}), '
-                         'however they are outside of your tree date interval: {}-{}.'
-                         .format(', '.join(str(_) for _ in skyline), min_date, max_date))
-
-    logging.getLogger('pastml').debug('The tree(s) cover the period between {} and {}, '
-                                      'the models/states change at the following dates: {}.'
-                                      .format(min_date, max_date, ', '.join(str(_) for _ in skyline)))
-
-    if skyline_mapping:
-        skyline_mapping = parse_skyline_mapping(character, skyline, skyline_mapping)
-    else:
-        skyline_mapping = None
-
-    def annotate_node_skyline(node, i):
-        # Skyline contains the times when the model changes,
-        # hence the root nodes (model 0) should be before the first skyline point,
-        # and the most recent leaf should be after the last
-        for j in range(i, len(skyline) + 1):
-            if j == len(skyline):
-                break
-            n_date = getattr(node, DATE)
-            if skyline[j] > n_date and (j == 0 or n_date >= skyline[j - 1]):
-                break
-        node.add_feature(MODEL_ID, j)
-        for child in node.children:
-            annotate_node_skyline(child, j)
-
-    for tree in forest:
-        annotate_node_skyline(tree, 0)
-
-    return skyline, skyline_mapping
-
-
-def parse_skyline_mapping(character, skyline, skyline_mapping):
-    df = pd.read_csv(skyline_mapping, sep='\t')
-
-    def convert_col(c):
-        cc = col_name2cat(c)
-        if cc == character:
-            return cc
-        try:
-            return float(c)
-        except:
-            return c
-
-    df.columns = [convert_col(_) for _ in df.columns]
-    try:
-        df = df[[character] + skyline]
-    except KeyError:
-        raise ValueError('Skyline mapping is specified in {} but instead of containing columns {} it contains {}'
-                         .format(skyline_mapping, ', '.join([character] + reversed([str(_) for _ in skyline])),
-                                 df.columns))
-
-    def get_states(source_state, source_col, target_col):
-        target_states = {str(_) for _ in df.loc[df[source_col] == source_state, target_col].unique()
-                         if not pd.isna(_)}
-        if not target_states:
-            raise ValueError('Could not find the states corresponding to {} of {} in {}'
-                             .format(source_state, source_col, target_col))
-        return target_states
-
-    mapping = {}
-    prev_states = {}
-    prev_col = None
-    all_states = []
-    # character corresponds to column names at the most recent time interval
-    for i, col in enumerate(skyline + [character], start=0):
-        states = {str(_) for _ in df[col].unique() if not pd.isna(_)}
-        all_states.append(np.array(sorted(states)))
-        if i > 0:
-            mapping[(i - 1, i)] = {prev_state: get_states(prev_state, prev_col, col) for prev_state in prev_states}
-            mapping[(i, i - 1)] = {state: get_states(state, col, prev_col) for state in states}
-        prev_col, prev_states = col, states
-
-    skyline_mapping = {}
-    for (i, j), state2states in mapping.items():
-        mapping_ij = np.zeros(shape=(len(all_states[i]), len(all_states[j])), dtype=float)
-        skyline_mapping[(i, j)] = mapping_ij
-        for (from_i, from_state) in enumerate(all_states[i]):
-            to_states = state2states[from_state]
-            for (to_j, to_state) in enumerate(all_states[j]):
-                if to_state in to_states:
-                    mapping_ij[from_i, to_j] = 1
-    return skyline_mapping, all_states
 

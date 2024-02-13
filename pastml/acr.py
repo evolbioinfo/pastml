@@ -5,7 +5,7 @@ import warnings
 import numpy as np
 
 from pastml import METHOD, CHARACTER, PASTML_VERSION
-from pastml.annotation import annotate_forest, ForestStats, annotate_skyline
+from pastml.annotation import annotate_forest, ForestStats
 from pastml.file import get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file, get_pastml_work_dir, get_ancestral_state_file
 from pastml.logger import set_up_pastml_logger
@@ -18,7 +18,7 @@ from pastml.models.F81Model import F81Model, F81
 from pastml.models.HKYModel import HKYModel, HKY
 from pastml.models.JCModel import JCModel, JC
 from pastml.models.JTTModel import JTTModel, JTT
-from pastml.models.SkylineModel import SkylineModel
+from pastml.models.SkylineModel import SkylineModel, annotate_skyline
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS
 from pastml import value2list
 from pastml.tree import read_forest, save_tree
