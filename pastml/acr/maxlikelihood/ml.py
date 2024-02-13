@@ -5,27 +5,14 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
-from pastml import get_personalized_feature_name, CHARACTER, METHOD, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
-    NUM_STATES_PER_NODE, PERC_UNRESOLVED
-from pastml.models import ModelWithFrequencies
+from pastml import get_personalized_feature_name
+from pastml.acr import CHARACTER, METHOD, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
+    NUM_STATES_PER_NODE, PERC_UNRESOLVED, NUM_NODES, NUM_TIPS
+from pastml.acr.maxlikelihood import MIN_VALUE, MAX_VALUE, JOINT, is_marginal, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, \
+    MAP, LOG_LIKELIHOOD, AIC, calculate_AIC, MARGINAL_PROBABILITIES, MPPA, MODEL
+from pastml.acr.maxlikelihood.models import ModelWithFrequencies
 from pastml.tree import refine_states
 
-LOG_LIKELIHOOD = 'log_likelihood'
-RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR = '{}_restricted_{{}}'.format(LOG_LIKELIHOOD)
-
-JOINT = 'JOINT'
-MPPA = 'MPPA'
-MAP = 'MAP'
-
-MARGINAL_PROBABILITIES = 'marginal_probabilities'
-
-MODEL = 'model'
-
-MIN_VALUE = np.log10(np.finfo(np.float64).eps)
-MAX_VALUE = np.log10(np.finfo(np.float64).max)
-
-MARGINAL_ML_METHODS = {MPPA, MAP}
-ML_METHODS = MARGINAL_ML_METHODS | {JOINT}
 
 BU_LH = 'BOTTOM_UP_LIKELIHOOD'
 TD_LH = 'TOP_DOWN_LIKELIHOOD'
@@ -37,47 +24,6 @@ TD_LH_SF = 'TOP_DOWM_LIKELIHOOD_SF'
 ALLOWED_STATES = 'ALLOWED_STATES'
 STATE_COUNTS = 'STATE_COUNTS'
 JOINT_STATE = 'JOINT_STATE'
-AIC = 'AIC'
-
-
-def calculate_AIC(loglh, k):
-    """
-    Calculates the Akaike information criterion (AIC) for the given model likelihood and parameter number.
-
-    :param loglh: model loglikelihood
-    :type loglh: float
-    :param k: number of free model parameters
-    :type k: int
-    :return: AIC value
-    :rtype: float
-    """
-    return 2 * k - 2 * loglh
-
-
-def is_marginal(method):
-    """
-    Checks if the method is marginal, i.e. MAP, MPPA, or one of the meta-methods (ALL, ML).
-
-    :param method: prediction method
-    :type method: str
-    :return: bool
-    """
-    return method in MARGINAL_ML_METHODS
-
-
-def is_ml(method):
-    """
-    Checks if the method is max likelihood, i.e. JOINT or one of the marginal ones.
-
-    :param method: prediction method
-    :type method: str
-    :return: bool
-    """
-    return method in ML_METHODS
-
-
-def get_default_ml_method():
-    return MPPA
 
 
 def get_bottom_up_loglikelihood(tree, character, model, is_marginal=True, alter=True):
@@ -412,7 +358,8 @@ def calculate_marginal_likelihoods(tree, feature, model, clean_up=True):
 
     :param tree: ete3.Tree, the tree of interest
     :param feature: str, character for which the likelihood is calculated
-    :param frequencies: numpy array of state frequencies
+    :param model: model used for ACR
+    :param clean_up: whether to remove extra node annotations (top/down likelihoods) once the likelihoods are calculated
     :return: void, stores the node marginal likelihoods in the get_personalised_feature_name(feature, LH) feature.
     """
     bu_lh_feature = get_personalized_feature_name(feature, BU_LH)
@@ -594,6 +541,7 @@ def ml_acr(forest, character, prediction_method, model, force_joint=True):
     """
     Calculates ML states on the trees and stores them in the corresponding feature.
 
+    :param force_joint: whether to force the JOINT state inclusion even if it is not selected by the Brier score
     :param prediction_method: MPPA (marginal approximation), MAP (max a posteriori) or JOINT
     :type prediction_method: str
     :param forest: trees of interest
@@ -610,8 +558,9 @@ def ml_acr(forest, character, prediction_method, model, force_joint=True):
     likelihood = \
         optimise_likelihood(forest=forest, character=character, model=model)
     result = {LOG_LIKELIHOOD: likelihood, CHARACTER: character, METHOD: prediction_method, MODEL: model,
-              AIC: calculate_AIC(likelihood, model.get_num_params())}
-    logger.debug('AIC for {} with {} free parameters is {}'.format(model, model.get_num_params(), result[AIC]))
+              AIC: calculate_AIC(likelihood, model.get_num_params()),
+              NUM_NODES: model.forest_stats.n_nodes, NUM_TIPS: model.forest_stats.n_tips}
+    logger.debug('AIC for {} with {} free parameters is {}'.format(model.name, model.get_num_params(), result[AIC]))
 
     results = []
 

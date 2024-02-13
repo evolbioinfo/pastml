@@ -63,4 +63,3 @@ def get_pij_matrix(t, diag, A, A_inv):
     :rtype: numpy.ndarray
     """
     return A.dot(np.diag(np.exp(diag * t))).dot(A_inv)
-

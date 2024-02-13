@@ -4,23 +4,24 @@ import warnings
 
 import numpy as np
 
-from pastml import METHOD, CHARACTER, PASTML_VERSION
+from pastml import PASTML_VERSION, value2list
+from pastml.acr import METHOD, CHARACTER, save_acr_stats
+from pastml.acr.maxlikelihood.ml import ml_acr
 from pastml.annotation import annotate_forest, ForestStats
 from pastml.file import get_named_tree_file, get_pastml_parameter_file, \
-    get_pastml_marginal_prob_file, get_pastml_work_dir, get_ancestral_state_file
+    get_pastml_marginal_prob_file, get_pastml_work_dir, get_ancestral_state_file, get_pastml_stats_file
 from pastml.logger import set_up_pastml_logger
-from pastml.ml import MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
+from pastml.acr.maxlikelihood import MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, \
     ML_METHODS, MAP, JOINT, MARGINAL_ML_METHODS
-from pastml.models import MODEL, SCALING_FACTOR, SMOOTHING_FACTOR
-from pastml.models.CustomRatesModel import CustomRatesModel, CUSTOM_RATES
-from pastml.models.EFTModel import EFTModel, EFT
-from pastml.models.F81Model import F81Model, F81
-from pastml.models.HKYModel import HKYModel, HKY
-from pastml.models.JCModel import JCModel, JC
-from pastml.models.JTTModel import JTTModel, JTT
-from pastml.models.SkylineModel import SkylineModel, annotate_skyline
-from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS
-from pastml import value2list
+from pastml.acr.maxlikelihood.models import MODEL, SCALING_FACTOR, SMOOTHING_FACTOR
+from pastml.acr.maxlikelihood.models.CustomRatesModel import CustomRatesModel, CUSTOM_RATES
+from pastml.acr.maxlikelihood.models.EFTModel import EFTModel, EFT
+from pastml.acr.maxlikelihood.models.F81Model import F81Model, F81
+from pastml.acr.maxlikelihood.models.HKYModel import HKYModel, HKY
+from pastml.acr.maxlikelihood.models.JCModel import JCModel, JC
+from pastml.acr.maxlikelihood.models.JTTModel import JTTModel, JTT
+from pastml.acr.maxlikelihood.models.SkylineModel import SkylineModel, annotate_skyline
+from pastml.acr.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS
 from pastml.tree import read_forest, save_tree
 
 model2class = {F81: F81Model, JC: JCModel, CUSTOM_RATES: CustomRatesModel, HKY: HKYModel, JTT: JTTModel, EFT: EFTModel}
@@ -29,34 +30,34 @@ warnings.filterwarnings("ignore", append=True)
 
 
 def serialize_acr(args):
+    logger = logging.getLogger('pastml')
     acr_result, work_dir = args
-    out_param_file = \
-        os.path.join(work_dir,
-                     get_pastml_parameter_file(method=acr_result[METHOD],
-                                               model=acr_result[MODEL].name if MODEL in acr_result else None,
-                                               column=acr_result[CHARACTER]))
+    out_stats_file = os.path.join(work_dir,
+                                  get_pastml_stats_file(model=acr_result[MODEL].name if MODEL in acr_result else None,
+                                                        method=acr_result[METHOD], column=acr_result[CHARACTER]))
 
-    # Not using DataFrames to speed up document writing
-    with open(out_param_file, 'w+') as f:
-        f.write('parameter\tvalue\n')
-        f.write('pastml_version\t{}\n'.format(PASTML_VERSION))
-        for name in sorted(acr_result.keys()):
-            if name not in [MARGINAL_PROBABILITIES, METHOD, MODEL]:
-                f.write('{}\t{}\n'.format(name, acr_result[name]))
-        f.write('{}\t{}\n'.format(METHOD, acr_result[METHOD]))
-        if is_ml(acr_result[METHOD]):
-            acr_result[MODEL].save_parameters(f)
-    logging.getLogger('pastml').debug('Serialized ACR parameters and statistics for {} to {}.'
-                                      .format(acr_result[CHARACTER], out_param_file))
+    save_acr_stats(acr_result, out_stats_file)
+    logger.debug('Serialized ACR statistics for {} to {}.'
+                 .format(acr_result[CHARACTER], out_stats_file))
 
-    if is_marginal(acr_result[METHOD]):
-        out_mp_file = \
+    if is_ml(acr_result[METHOD]):
+        out_param_file = \
             os.path.join(work_dir,
-                         get_pastml_marginal_prob_file(method=acr_result[METHOD], model=acr_result[MODEL].name,
-                                                       column=acr_result[CHARACTER]))
-        acr_result[MARGINAL_PROBABILITIES].to_csv(out_mp_file, sep='\t', index_label='node')
-        logging.getLogger('pastml').debug('Serialized marginal probabilities for {} to {}.'
-                                          .format(acr_result[CHARACTER], out_mp_file))
+                         get_pastml_parameter_file(model=acr_result[MODEL].name if MODEL in acr_result else None,
+                                                   column=acr_result[CHARACTER]))
+        out_param_file = acr_result[MODEL].save_parameters(out_param_file)
+
+        logger.debug('Serialized {} model parameters for {} to {}.'
+                     .format(acr_result[MODEL].name, acr_result[CHARACTER], out_param_file))
+
+        if is_marginal(acr_result[METHOD]):
+            out_mp_file = \
+                os.path.join(work_dir,
+                             get_pastml_marginal_prob_file(model=acr_result[MODEL].name,
+                                                           column=acr_result[CHARACTER]))
+            acr_result[MARGINAL_PROBABILITIES].to_csv(out_mp_file, sep='\t', index_label='node')
+            logger.debug('Serialized marginal probabilities for {} under model {} to {}.'
+                         .format(acr_result[CHARACTER], acr_result[MODEL].name, out_mp_file))
 
 
 def acr(forest, character, states, prediction_method=MPPA, model=F81,
@@ -133,6 +134,7 @@ def acr(forest, character, states, prediction_method=MPPA, model=F81,
                                           states=states if not skyline_mapping else skyline_mapping[1][i],
                                           forest_stats=sub_forest_stats)
                 skyline_models.append(m)
+                start_date = end_date
             model_instance = SkylineModel(models=skyline_models, dates=skyline,
                                           skyline_mapping=skyline_mapping[0] if skyline_mapping else None,
                                           forest_stats=forest_stats)
@@ -328,11 +330,6 @@ def acr_pipeline(tree, data=None, data_sep='\t', id_index=0,
 
     if skyline:
         skyline, skyline_mapping = annotate_skyline(roots, skyline, column, skyline_mapping)
-        n_sky = len(skyline) + 1
-
-        models = value2list(n_sky, model, F81)
-        parameters = value2list(n_sky, parameters, None)
-        rate_matrix = rate_matrix2list(models, rate_matrix)
 
     logger.debug('Finished input validation.')
 

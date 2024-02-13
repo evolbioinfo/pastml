@@ -4,22 +4,23 @@ import numpy as np
 import pandas as pd
 
 from pastml.acr import PASTML_VERSION
+from pastml.acr.maxlikelihood.models.CustomRatesModel import CUSTOM_RATES, CustomRatesModel
+from pastml.acr.maxlikelihood.models.EFTModel import EFT, EFTModel
+from pastml.acr.maxlikelihood.models.F81Model import F81, F81Model
+from pastml.acr.maxlikelihood.models.HKYModel import HKY, HKYModel, HKY_STATES
+from pastml.acr.maxlikelihood.models.JCModel import JC, JCModel
+from pastml.acr.maxlikelihood.models.JTTModel import JTT, JTTModel
 from pastml.annotation import ForestStats, annotate_forest
 from pastml.file import get_pastml_work_dir
 from pastml.logger import set_up_pastml_logger
-from pastml.ml import marginal_counts
-from pastml.models import SCALING_FACTOR, SMOOTHING_FACTOR
-from pastml.models.CustomRatesModel import CUSTOM_RATES, CustomRatesModel
-from pastml.models.EFTModel import EFT, EFTModel
-from pastml.models.F81Model import F81, F81Model
-from pastml.models.HKYModel import HKY, HKYModel, HKY_STATES
-from pastml.models.JCModel import JC, JCModel
-from pastml.models.JTTModel import JTT, JTTModel, JTT_STATES
-from pastml.tree import read_forest
+from pastml.acr.maxlikelihood.ml import marginal_counts
+from pastml.acr.maxlikelihood.models import SCALING_FACTOR, SMOOTHING_FACTOR
+from pastml.tree import read_forest, refine_states
 from pastml.visualisation.colour_generator import parse_colours, get_enough_colours
 from pastml.visualisation.cytoscape_manager import save_as_transition_html
 
-model2class = {F81: F81Model, JC: JCModel, CUSTOM_RATES: CustomRatesModel, HKY: HKYModel, JTT: JTTModel, EFT: EFTModel}
+model2class = {F81: F81Model, JC: JCModel, CUSTOM_RATES: CustomRatesModel, HKY: HKYModel,
+               JTT: JTTModel, EFT: EFTModel}
 
 
 def count_transitions(tree, data, column, parameters, out_transitions, data_sep='\t', id_index=0, model=F81,
@@ -122,18 +123,10 @@ def count_transitions(tree, data, column, parameters, out_transitions, data_sep=
 
     states = column2states[column]
 
-    if model in {HKY, JTT}:
-        initial_states = states
-        states = HKY_STATES if HKY == model else JTT_STATES
-        if not set(initial_states) & set(states):
-            raise ValueError('The allowed states for model {} are {}, '
-                             'but your annotation file specifies {} as states in column {}.'
-                             .format(model, ', '.join(states), ', '.join(initial_states), column))
-
     model = model2class[model](parameter_file=parameters,
                                rate_matrix_file=rate_matrix,
                                reoptimise=False, states=states, forest_stats=ForestStats(forest))
-
+    refine_states(forest, column, model)
     state_set = set(states)
     counts = np.zeros(len(states))
     state2i = dict(zip(states, range(len(states))))

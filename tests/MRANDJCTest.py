@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 
 from pastml.annotation import preannotate_forest, ForestStats
-from pastml.ml import marginal_counts
-from pastml.models.JCModel import JCModel
+from pastml.acr.maxlikelihood.ml import marginal_counts
+from pastml.acr.maxlikelihood.models.JCModel import JCModel
 from pastml.tree import read_tree
 from pastml.utilities.state_simulator import simulate_states
 

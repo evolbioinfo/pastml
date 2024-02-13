@@ -1,5 +1,5 @@
-from pastml.models import SimpleModel
-from pastml.models.F81Model import F81Model
+from pastml.acr.maxlikelihood.models import SimpleModel
+from pastml.acr.maxlikelihood.models.F81Model import F81Model
 
 EFT = 'EFT'
 

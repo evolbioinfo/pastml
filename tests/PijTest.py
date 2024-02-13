@@ -2,11 +2,10 @@ import unittest
 
 import numpy as np
 
-from pastml.models.CustomRatesModel import CustomRatesModel
-from pastml.models.F81Model import F81Model
-from pastml.models.HKYModel import HKYModel
-from pastml.models.JCModel import JCModel
-from pastml.models.HKYModel import A, G, T, C, HKY_STATES
+from pastml.acr.maxlikelihood.models.CustomRatesModel import CustomRatesModel
+from pastml.acr.maxlikelihood.models.F81Model import F81Model
+from pastml.acr.maxlikelihood.models.HKYModel import HKYModel, A, G, T, C, HKY_STATES
+from pastml.acr.maxlikelihood.models.JCModel import JCModel
 
 
 class PijTest(unittest.TestCase):

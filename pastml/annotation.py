@@ -270,14 +270,14 @@ class ForestStats(object):
     def __str__(self):
         return '\n=============FOREST STATISTICS{}===================\n' \
                '\tnumber of trees:\t{}\n' \
-               '\ttime period covered by trees:\t{}-{}\n' \
+               '\ttime period covered by trees:\t{:g}-{:g}\n' \
                '\tnumber of tips:\t{}\n' \
                '\tnumber of zero-branch tips:\t{}\n' \
                '\ttotal number of nodes:\t{}\n' \
                '\tnumber of polytomies:\t{}\n' \
                '\taverage non-zero branch length:\t{:.5f}\n' \
                '\tobserved frequencies for {}:{}{}' \
-            .format(' ({}-{})'.format(self.min_interval_date, self.max_interval_date)
+            .format(' ({:g}-{:g})'.format(self.min_interval_date, self.max_interval_date)
                     if self.min_interval_date > -np.inf or self.max_interval_date < np.inf else '',
                     self.n_trees,
                     self.min_tree_date, self.max_tree_date,
@@ -334,7 +334,8 @@ class ForestStats(object):
                         self._missing_data += 1
         for _ in self._observed_frequencies.keys():
             self._observed_frequencies[_] /= (total_data - self._missing_data)
-        self._missing_data /= total_data
+        if total_data:
+            self._missing_data /= total_data
 
 
 def df2gdf(df):
@@ -468,4 +469,3 @@ def annotate_forest(forest, columns=None, data=None, data_sep='\t', id_index=0,
                              .format(c, len(states), states, 'tree' if len(forest) == 1 else 'forest', num_tips))
 
     return columns, {c: np.array(sorted(states)) for c, states in column2states.items()}
-

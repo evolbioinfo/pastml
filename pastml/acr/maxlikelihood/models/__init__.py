@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 import numpy as np
 import pandas as pd
 
-from pastml import NUM_NODES, NUM_TIPS
 from pastml import quote
 
 MODEL = 'model'
@@ -61,12 +60,12 @@ class Model(ABC):
         pass
 
     @abstractmethod
-    def save_parameters(self, filehandle):
+    def save_parameters(self, filepath, **kwargs):
         """
         Writes this model parameter values to the parameter file (in the same format as the input parameter file).
 
-        :param filehandle: filehandle for the file where the parameter values should be written.
-        :return: void
+        :param filepath: path to the file where the parameter values should be written.
+        :return: the actual filepath used
         """
         pass
 
@@ -336,19 +335,23 @@ class SimpleModel(Model, ABC):
                     '(optimised)' if self._optimise_sf else '(fixed)',
                     self.get_tau(), '(optimised)' if self._optimise_tau else '(fixed)')
 
-    def save_parameters(self, filehandle):
+    def save_parameters(self, filepath, **kwargs):
         """
         Writes this model parameter values to the parameter file (in the same format as the input parameter file).
 
-        :param filehandle: filehandle for the file where the parameter values should be written.
-        :return: void
+        :param filepath: path to the file where the parameter values should be written.
+        :return: the actual filepath used
         """
-        filehandle.write('{}\t{}\n'.format(MODEL, self.name))
-        filehandle.write('{}\t{}\n'.format(NUM_NODES, self.forest_stats.n_nodes))
-        filehandle.write('{}\t{}\n'.format(NUM_TIPS, self.forest_stats.n_tips))
-        filehandle.write('{}\t{}\n'.format(SCALING_FACTOR, self.get_sf()))
-        filehandle.write('{}\t{}\n'.format(CHANGES_PER_AVG_BRANCH, self.get_sf() * self.forest_stats.avg_dist))
-        filehandle.write('{}\t{}\n'.format(SMOOTHING_FACTOR, self.get_tau()))
+        # Not using DataFrames to speed up document writing
+        with open(filepath, 'w+') as filehandle:
+            filehandle.write('parameter\tvalue\n')
+            filehandle.write('{}\t{}\n'.format(MODEL, self.name))
+            # filehandle.write('{}\t{}\n'.format(NUM_NODES, self.forest_stats.n_nodes))
+            # filehandle.write('{}\t{}\n'.format(NUM_TIPS, self.forest_stats.n_tips))
+            filehandle.write('{}\t{}\n'.format(SCALING_FACTOR, self.get_sf()))
+            filehandle.write('{}\t{}\n'.format(CHANGES_PER_AVG_BRANCH, self.get_sf() * self.forest_stats.avg_dist))
+            filehandle.write('{}\t{}\n'.format(SMOOTHING_FACTOR, self.get_tau()))
+        return filepath
 
     def extra_params_fixed(self):
         return self._extra_params_fixed
@@ -758,13 +761,14 @@ class ModelWithFrequencies(SimpleModel):
     def basic_params_fixed(self):
         return not SimpleModel.get_num_params(self)
 
-    def save_parameters(self, filehandle):
+    def save_parameters(self, filepath, **kwargs):
         """
         Writes this model parameter values to the parameter file (in the same format as the input parameter file).
 
-        :param filehandle: filehandle for the file where the parameter values should be written.
+        :param filepath: path to the file where the parameter values should be written.
         :return: void
         """
-        SimpleModel.save_parameters(self, filehandle)
-        for state, frequency in zip(self.get_states(), self.get_frequencies()):
-            filehandle.write('{}\t{}\n'.format(state, frequency))
+        SimpleModel.save_parameters(self, filepath, **kwargs)
+        with open(filepath, 'a') as filehandle:
+            for state, frequency in zip(self.get_states(), self.get_frequencies()):
+                filehandle.write('{}\t{}\n'.format(state, frequency))

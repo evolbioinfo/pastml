@@ -5,9 +5,11 @@ setup(
     name='pastml',
     packages=find_packages(),
     include_package_data=True,
-    package_data={'pastml': [os.path.join('templates', '*.html'), os.path.join('templates', '*.js'),
-                             os.path.join('templates', 'js', '*.js'), os.path.join('templates', 'css', '*.css'),
-                             os.path.join('templates', 'fonts', '*'),
+    package_data={'pastml': [os.path.join('visualisation', 'templates', '*.html'),
+                             os.path.join('visualisation', 'templates', '*.js'),
+                             os.path.join('visualisation', 'templates', 'js', '*.js'),
+                             os.path.join('visualisation', 'templates', 'css', '*.css'),
+                             os.path.join('visualisation', 'templates', 'fonts', '*'),
                              os.path.join('..', 'README.md'), os.path.join('..', 'LICENSE')]},
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
@@ -34,9 +36,9 @@ setup(
     entry_points={
             'console_scripts': [
                 'pastml = pastml.all_in_one:main'
-                'pastml_acr = pastml.acr:main',
+                'pastml_acr = pastml.acr.acr:main',
                 'pastml_polytomy = pastml.polytomy:main',
-                'pastml_viz = pastml.visualize:main',
+                'pastml_viz = pastml.visualisation.visualize:main',
                 'geomap = pastml.visualisation.generate_geomap:main',
                 'transition_counter = pastml.utilities.transition_counter:main',
             ]

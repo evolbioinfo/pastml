@@ -1,7 +1,7 @@
 import numpy as np
 
-from pastml.models import SimpleModel
-from pastml.models.CustomRatesModel import CustomRatesModel
+from pastml.acr.maxlikelihood.models import SimpleModel
+from pastml.acr.maxlikelihood.models.CustomRatesModel import CustomRatesModel
 
 """
 The JTT matrix below is taken from https://www.ebi.ac.uk/goldman-srv/dayhoff/
@@ -63,7 +63,8 @@ JTT_RATE_MATRIX = JTT_RATE_MATRIX[:, state_order][state_order, :]
 
 class JTTModel(CustomRatesModel):
 
-    def __init__(self, forest_stats, sf=None, tau=0, optimise_tau=False, parameter_file=None, reoptimise=False, **kwargs):
+    def __init__(self, forest_stats, sf=None, tau=0, optimise_tau=False, parameter_file=None,
+                 reoptimise=False, **kwargs):
         kwargs['states'] = JTT_STATES
         if 'frequency_smoothing' in kwargs:
             del kwargs['frequency_smoothing']
@@ -91,4 +92,3 @@ class JTTModel(CustomRatesModel):
         # This model sets fixed frequencies
         # and hence should only read the basic parameters (scaling and smoothing factors) from the input file
         return SimpleModel.parse_parameters(self, params, reoptimise)
-

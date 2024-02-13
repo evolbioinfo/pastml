@@ -4,11 +4,11 @@ import warnings
 from collections import defaultdict
 
 from pastml import col_name2cat, get_personalized_feature_name, PASTML_VERSION, quote
-from pastml.annotation import annotate_forest, annotate_dates
+from pastml.acr.maxlikelihood import get_default_ml_method, MARGINAL_ML_METHODS
+from pastml.annotation import annotate_forest
 from pastml.file import get_named_tree_file, get_pastml_work_dir
 from pastml.logger import set_up_pastml_logger
-from pastml.ml import MARGINAL_ML_METHODS, get_default_ml_method
-from pastml.parsimony import get_default_mp_method
+from pastml.acr.parsimony import get_default_mp_method
 from pastml.tree import read_forest, save_tree
 from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT
 from pastml.visualisation.itol_manager import generate_itol_annotations
@@ -31,7 +31,8 @@ def vis_pipeline(tree, data=None, data_sep='\t', id_index=0,
     :param tree: path to the input tree(s) in newick format (must be rooted).
     :type tree: str
 
-    :param data: (optional) path to the annotation file(s) in tab/csv format with the first row containing the column names.
+    :param data: (optional) path to the annotation file(s) in tab/csv format
+        with the first row containing the column names.
         If not given, the annotations should be contained in the tree file itself.
     :type data: list(str)
     :param data_sep: (optional, by default '\t') column separator for the annotation table(s).
@@ -88,7 +89,8 @@ def vis_pipeline(tree, data=None, data_sep='\t', id_index=0,
     :param pajek: path to the output compressed visualisation file (Pajek NET Format).
         Produced only if html_compressed is specified.
     :type pajek: str
-    :param pajek_timing: the type of the compressed visualisation to be saved in Pajek NET Format (if pajek is specified).
+    :param pajek_timing: the type of the compressed visualisation to be saved in Pajek NET Format
+        (if pajek is specified).
         Can be either 'VERTICAL' (default, after the nodes underwent vertical compression),
         'HORIZONTAL' (after the nodes underwent vertical and horizontal compression)
         or 'TRIM' (after the nodes underwent vertical and horizontal compression and minor node trimming).
@@ -98,7 +100,8 @@ def vis_pipeline(tree, data=None, data_sep='\t', id_index=0,
     :param html_mixed: (optional) path to the output mostly compressed map visualisation file (html),
         where the nodes in states specified with the focus argument are uncompressed.
     :type html_mixed: str
-    :param work_dir: (optional) path to the folder where pastml files (such as state-to-colour mapping) are to be stored.
+    :param work_dir: (optional) path to the folder where pastml files (such as state-to-colour mapping)
+        are to be stored.
         Default is <path_to_input_tree>/<input_tree_name>_pastml. If the folder does not exist, it will be created.
     :type work_dir: str
     :param offline: (optional, default is False) By default (offline=False) PastML assumes
@@ -106,14 +109,16 @@ def vis_pipeline(tree, data=None, data_sep='\t', id_index=0,
         which permits it to fetch CSS and JS scripts needed for visualisation online.
         With offline=True, PastML will store all the needed CSS/JS scripts in the folder specified by work_dir,
         so that internet connection is not needed
-        (but you must not move the output html files to any location other that the one specified by html/html_compressed.
+        (but you must not move the output html files to any location other than
+        the one specified by html/html_compressed.
     :type offline: bool
 
     :param verbose: (optional, default is False) print information on the progress of the analysis.
     :type verbose: bool
 
     :param upload_to_itol: (optional, default is False) whether iTOL annotations
-        for the reconstructed characters associated with the named tree (i.e. the one found in work_dir) should be created.
+        for the reconstructed characters associated with the named tree (i.e. the one found in work_dir)
+        should be created.
         If additionally itol_id and itol_project are specified,
         the annotated tree will be automatically uploaded to iTOL (https://itol.embl.de/).
     :type upload_to_itol: bool
@@ -149,7 +154,7 @@ def vis_pipeline(tree, data=None, data_sep='\t', id_index=0,
     save_tree(roots, columns=column2states.keys(), nwk=new_nwk)
 
     visualize_itol_html_pajek(colours, column2states, focus, html, html_compressed, html_mixed, itol_id,
-                              itol_project, itol_tree_name, logger, name_column, new_nwk, offline, pajek, pajek_timing,
+                              itol_project, itol_tree_name, name_column, new_nwk, offline, pajek, pajek_timing,
                               roots, timeline_type, tip_size_threshold, upload_to_itol, work_dir)
 
 
@@ -170,7 +175,8 @@ def visualize_itol_html_pajek(colours, column2states, focus, html, html_compress
         else:
             colours = {}
     if upload_to_itol:
-        generate_itol_annotations(roots, column2states, work_dir, new_nwk, itol_id, itol_project, itol_tree_name, colours)
+        generate_itol_annotations(roots, column2states, work_dir, new_nwk, itol_id, itol_project, itol_tree_name,
+                                  colours)
     if html or html_compressed or html_mixed:
         logger.debug('\n=============VISUALISATION=====================')
 
@@ -269,7 +275,8 @@ def main():
     vis_group.add_argument('--timeline_type', type=str, default=TIMELINE_SAMPLED,
                            help="type of timeline visualisation: at each date/distance to root selected on the slider "
                                 "either ({sampled}) - all the lineages sampled after it are hidden; "
-                                "or ({nodes}) - all the nodes with a more recent date/larger distance to root are hidden; "
+                                "or ({nodes}) - all the nodes with a more recent date/larger distance to root "
+                                "are hidden; "
                                 "or ({ltt}) - all the nodes whose branch started after this date/distance to root "
                                 "are hidden, and the external branches are cut to the specified date/distance to root "
                                 "if needed;".format(sampled=TIMELINE_SAMPLED, ltt=TIMELINE_LTT, nodes=TIMELINE_NODES),

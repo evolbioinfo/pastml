@@ -2,8 +2,8 @@ import logging
 
 import numpy as np
 
-from pastml.models import ModelWithFrequencies
-from pastml.models.generator import get_diagonalisation, get_pij_matrix
+from pastml.acr.maxlikelihood.models import ModelWithFrequencies
+from pastml.acr.maxlikelihood.models.generator import get_diagonalisation, get_pij_matrix
 
 CUSTOM_RATES = 'CUSTOM_RATES'
 
@@ -76,4 +76,3 @@ class CustomRatesModel(ModelWithFrequencies):
         :rtype: lambda t: np.array
         """
         return get_pij_matrix(self.transform_t(t), self.D_DIAGONAL, self.A, self.A_INV)
-

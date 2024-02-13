@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from pastml.models.JTTModel import JTT_RATE_MATRIX
+from pastml.acr.maxlikelihood.models.JTTModel import JTT_RATE_MATRIX
 
 
 class JTTTest(unittest.TestCase):

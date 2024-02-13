@@ -4,14 +4,14 @@ import unittest
 import numpy as np
 from ete3 import Tree
 
-from pastml.acr import acr
+from pastml.acr.acr import acr
+from pastml.acr.maxlikelihood.models.HKYModel import HKY_STATES
 from pastml.annotation import ForestStats
-from pastml.ml import MPPA, LOG_LIKELIHOOD, MARGINAL_PROBABILITIES
-from pastml.models import SCALING_FACTOR
-from pastml.models.F81Model import F81, F81Model
-from pastml.models.HKYModel import HKY_STATES
-from pastml.models.JCModel import JCModel, JC
-from pastml.models.SkylineModel import SkylineModel, annotate_skyline, parse_skyline_mapping, MODEL_ID
+from pastml.acr.maxlikelihood.ml import MPPA, LOG_LIKELIHOOD, MARGINAL_PROBABILITIES
+from pastml.acr.maxlikelihood.models import SCALING_FACTOR
+from pastml.acr.maxlikelihood.models.F81Model import F81, F81Model
+from pastml.acr.maxlikelihood.models.JCModel import JCModel
+from pastml.acr.maxlikelihood.models.SkylineModel import SkylineModel, annotate_skyline, parse_skyline_mapping, MODEL_ID
 from pastml.tree import annotate_dates
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')

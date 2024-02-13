@@ -1,8 +1,7 @@
 import os
 
 from pastml.all_in_one import pastml_pipeline
-from pastml.ml import MPPA
-from pastml.visualisation.cytoscape_manager import TIMELINE_LTT
+from pastml.acr.maxlikelihood.ml import MPPA
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'real', 'raxml_tree.dated.nwk')

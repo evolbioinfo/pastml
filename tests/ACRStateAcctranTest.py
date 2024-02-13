@@ -2,9 +2,9 @@ import os
 import unittest
 from collections import Counter
 
-from pastml.acr import acr
+from pastml.acr.acr import acr
 from pastml.annotation import annotate_forest
-from pastml.parsimony import ACCTRAN, STEPS
+from pastml.acr.parsimony import ACCTRAN, STEPS
 from pastml.tree import collapse_zero_branches, read_forest
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')

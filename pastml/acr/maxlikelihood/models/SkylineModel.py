@@ -6,9 +6,8 @@ import numpy as np
 import pandas as pd
 
 from pastml import col_name2cat
-from pastml.models import Model
+from pastml.acr.maxlikelihood.models import Model
 from pastml.tree import DATE
-
 
 MODEL_ID = 'MODEL_ID'
 
@@ -64,7 +63,7 @@ def annotate_skyline(forest, skyline, character, skyline_mapping=None):
 
 
 def parse_skyline_mapping(character, skyline, skyline_mapping):
-    df = pd.read_csv(skyline_mapping, sep='\t')
+    df = pd.read_csv(skyline_mapping, sep='\t', index_col=None)
 
     def convert_col(c):
         cc = col_name2cat(c)
@@ -80,7 +79,7 @@ def parse_skyline_mapping(character, skyline, skyline_mapping):
         df = df[[character] + skyline]
     except KeyError:
         raise ValueError('Skyline mapping is specified in {} but instead of containing columns {} it contains {}'
-                         .format(skyline_mapping, ', '.join([character] + reversed([str(_) for _ in skyline])),
+                         .format(skyline_mapping, ', '.join([character] + list(reversed([str(_) for _ in skyline]))),
                                  df.columns))
 
     def get_states(source_state, source_col, target_col):
@@ -226,8 +225,9 @@ class SkylineModel(Model):
 
         :return: str representing parameter values
         """
-        return '\n'.join('----skyline interval {}:\n{}'
-                         .format(i, model.print_parameters()) for (i, model) in enumerate(self._models))
+        return ''.join('\t----skyline interval {} ({}):\n{}'
+                       .format(i, self.get_interval_string(i), model.print_parameters())
+                       for (i, model) in enumerate(self._models))
 
     def freeze(self):
         """
@@ -244,27 +244,38 @@ class SkylineModel(Model):
     def basic_params_fixed(self):
         return all((model.basic_params_fixed() for model in self._models))
 
-    def save_parameters(self, filehandle):
+    def save_parameters(self, filepath, **kwargs):
         """
         Writes this model parameter values to the parameter file (in the same format as the input parameter file).
 
-        :param filehandle: filehandle for the file where the parameter values should be written.
-        :return: void
+        :param filepath: path to the file where the parameter values should be written.
+        :return: the actual filepaths used
         """
-        filename, file_extension = os.path.splitext(filehandle)
+        filename, file_extension = os.path.splitext(filepath)
+        filepaths = []
         for i, model in enumerate(self._models):
-            model.save_parameters('{}_interval{}.{}'.format(filename, i, file_extension))
+            fp = '{}_submodel_{}_{}{}'.format(filename, model.name, self.get_interval_string(i), file_extension)
+            filepaths.append(fp)
+            model.save_parameters(fp, **kwargs)
+        return filepaths
+
+    def get_interval_string(self, i):
+        """
+        Returns a string representation of the time interval corresponding to the i-th model.
+        :param i: model number
+        :return: a string representation of the time interval corresponding to the i-th model
+        """
+        return '{:g}-{:g}'.format(*self.get_interval(i))
 
     def __str__(self):
-        return \
-            'Skyline Model:\n' \
-            '\n'.join('----skyline interval {} ({}-{}):\n{}'.format(i, *self.get_interval(i), model)
+        return 'Skyline Model:\n' + \
+            '\n'.join('\t----skyline interval {} ({}):\n{}'.format(i, self.get_interval_string(i), model)
                       for (i, model) in enumerate(self._models))
 
     def print_basic_parameters(self):
-        return '\n'.join('----skyline interval {} ({}-{}):\n{}'
-                         .format(i, *self.get_interval(i), model.print_basic_parameters())
-                         for (i, model) in enumerate(self._models))
+        return ''.join('\t----skyline interval {} ({}):\n{}'
+                       .format(i, self.get_interval_string(i), model.print_basic_parameters())
+                       for (i, model) in enumerate(self._models))
 
     def fix_extra_params(self):
         for model in self._models:
@@ -276,8 +287,13 @@ class SkylineModel(Model):
 
     @property
     def name(self):
-        return 'Skyline Model: {}'.format('>'.join('{}({}-{})'.format(_.name, *self.get_interval(i))
-                                                   for (i, _) in enumerate(self._models)))
+        result = 'Skyline'
+        for i, m in enumerate(self._models):
+            result += '-{}'.format(m.name)
+            if i < len(self._models) - 1:
+                date = self.get_interval(i)[1]
+                result += '-{:g}'.format(date)
+        return result
 
     def get_p_ij_child(self, node):
         """

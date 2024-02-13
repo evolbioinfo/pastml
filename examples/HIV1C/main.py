@@ -1,7 +1,7 @@
 import os
 
 from pastml.all_in_one import pastml_pipeline
-from pastml.ml import MPPA
+from pastml.acr.maxlikelihood.ml import MPPA
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'best', 'pastml_phyml_tree.nwk')

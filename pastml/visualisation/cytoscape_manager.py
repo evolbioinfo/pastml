@@ -14,8 +14,8 @@ from pastml.tree import DATE, IS_POLYTOMY, copy_forest
 from pastml.visualisation import get_formatted_date
 from pastml.visualisation.colour_generator import get_enough_colours, WHITE, parse_colours
 from pastml.visualisation.tree_compressor import NUM_TIPS_INSIDE, TIPS_INSIDE, TIPS_BELOW, \
-    REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP, ROOT_DATES, IN_FOCUS, AROUND_FOCUS, \
-    UP_FOCUS, save_to_pajek, VERTICAL
+    REASONABLE_NUMBER_OF_TIPS, compress_tree, INTERNAL_NODES_INSIDE, ROOTS, IS_TIP, ROOT_DATES, \
+    IN_FOCUS, AROUND_FOCUS, UP_FOCUS, save_to_pajek, VERTICAL
 
 JS_LIST = ["https://pastml.pasteur.fr/static/js/jquery.min.js",
            "https://pastml.pasteur.fr/static/js/jquery.qtip.min.js",
@@ -99,9 +99,9 @@ def get_scaling_function(y_m, y_M, x_m, x_M):
 
 def set_cyto_features_compressed(n, size_scaling, e_size_scaling, font_scaling, transform_size, transform_e_size, state,
                                  root_names, root_dates, suffix='', is_mixed=False):
-    tips_inside, tips_below, internal_nodes_inside, roots = \
-        getattr(n, TIPS_INSIDE, []), getattr(n, TIPS_BELOW, []), \
-        getattr(n, INTERNAL_NODES_INSIDE, []), getattr(n, ROOTS, [])
+    tips_inside, tips_below, internal_nodes_inside = \
+        getattr(n, TIPS_INSIDE, []), getattr(n, TIPS_BELOW, []), getattr(n, INTERNAL_NODES_INSIDE, [])
+    roots = getattr(n, ROOTS, [])
 
     def get_min_max_str(values, default_value=0):
         min_v, max_v = (min(len(_) for _ in values), max(len(_) for _ in values)) \
@@ -148,12 +148,14 @@ def _forest2json_compressed(forest, compressed_forest, columns, name_feature, ge
     e_size_scaling, font_scaling, size_scaling, transform_e_size, transform_size = \
         get_size_transformations(compressed_forest)
 
-    sort_key = lambda n: (getattr(n, UNRESOLVED, 0),
-                          get_column_value_str(n, name_feature, format_list=True) if name_feature else '',
-                          *(get_column_value_str(n, column, format_list=True) for column in columns),
-                          -getattr(n, NUM_TIPS_INSIDE),
-                          -len(getattr(n, ROOTS)),
-                          n.name)
+    def sort_key(n):
+        return getattr(n, UNRESOLVED, 0), \
+            get_column_value_str(n, name_feature, format_list=True) if name_feature else '', \
+            *(get_column_value_str(n, column, format_list=True) for column in columns), \
+            -getattr(n, NUM_TIPS_INSIDE), \
+            -len(getattr(n, ROOTS)), \
+            n.name
+
     i = 0
     node2id = {}
     todo = Queue()
@@ -200,7 +202,7 @@ def _forest2json_compressed(forest, compressed_forest, columns, name_feature, ge
             n2x[n] = n2offset[n] + n2width[n] / 2
             offset = n2offset[n]
             if not n.is_leaf():
-                for c in sorted(n.children, key=lambda c: node2id[c]):
+                for c in sorted(n.children, key=lambda _: node2id[_]):
                     n2offset[c] = offset
                     offset += n2width[c] + min_size
                     n2y[c] = n2y[n] + getattr(n, NODE_SIZE) / 2 + getattr(c, NODE_SIZE) / 2 + min_size
@@ -230,9 +232,9 @@ def _forest2json_compressed(forest, compressed_forest, columns, name_feature, ge
                 for n in nodes:
                     state = n2state[n]
                     tips_inside, tips_below, internal_nodes_inside, roots = getattr(n, TIPS_INSIDE, []), \
-                                                                            getattr(n, TIPS_BELOW, []), \
-                                                                            getattr(n, INTERNAL_NODES_INSIDE, []), \
-                                                                            getattr(n, ROOTS, [])
+                        getattr(n, TIPS_BELOW, []), \
+                        getattr(n, INTERNAL_NODES_INSIDE, []), \
+                        getattr(n, ROOTS, [])
                     tips_inside_i, tips_below_i, internal_nodes_inside_i, roots_i = [], [], [], []
                     for ti, tb, ini, root in zip(tips_inside, tips_below, internal_nodes_inside, roots):
                         if get_date(root) <= milestone:
@@ -412,7 +414,7 @@ def _forest2json_transitions(states, counts, transitions, state2colour, threshol
     max_transition_num = max(positive_nums)
     if max_transition_num <= 2:
         miles = sorted((set({0, threshold, 1 if max_transition_num > 1 else 0}
-                                     | set(np.round(positive_nums, 3))) - {np.round(max_transition_num, 3)}))
+                            | set(np.round(positive_nums, 3))) - {np.round(max_transition_num, 3)}))
     else:
         miles = sorted(set({0, threshold, 1} | set(np.trunc(positive_nums))))
     miles = np.array([_ for _ in miles if threshold <= _ < max_transition_num])
@@ -542,7 +544,7 @@ def save_as_cytoscape_html(forest, out_html, column2states, name_feature, name2c
         json_dict, clazzes \
             = _forest2json(forest, columns, name_feature=name_feature, get_date=get_date, milestones=milestones,
                            timeline_type=timeline_type, dates_are_dates=dates_are_dates)
-    loader = PackageLoader('pastml')
+    loader = PackageLoader('pastml.visualisation')
     env = Environment(loader=loader)
     template = env.get_template('pie_tree.js') if compressed_forest is not None \
         else env.get_template('pie_tree_simple.js')
@@ -734,7 +736,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
             for s in sorted(states):
                 f.write('{}\t{}\n'.format(s, state2color[s]))
         logger.debug('Mapped states to colours for {} as following: {} -> {}, '
-                                          'and serialized this mapping to {}.'
+                     'and serialized this mapping to {}.'
                      .format(column, states, colours, out_colour_file))
     for tree in forest:
         for node in tree.traverse():
@@ -783,10 +785,10 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
         total_num_tips = sum(len(tree) for tree in forest)
         if total_num_tips > MAX_TIPS_FOR_FULL_TREE_VISUALISATION:
             logger.error('The full tree{} will not be visualised as {} too large ({} tips): '
-                                              'the limit is {} tips. Check out upload to iTOL option instead.'
+                         'the limit is {} tips. Check out upload to iTOL option instead.'
                          .format('s' if len(forest) > 1 else '',
-                                                      'they are' if len(forest) > 1 else 'it is',
-                                                      total_num_tips, MAX_TIPS_FOR_FULL_TREE_VISUALISATION))
+                                 'they are' if len(forest) > 1 else 'it is',
+                                 total_num_tips, MAX_TIPS_FOR_FULL_TREE_VISUALISATION))
         else:
             save_as_cytoscape_html(forest, html, column2states=column2states, name2colour=name2colour,
                                    name_feature='name', compressed_forest=None,
@@ -812,7 +814,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
         save_as_cytoscape_html(forest, html_compressed,
                                column2states=column2states, name2colour=name2colour,
                                name_feature=name_column, compressed_forest=compressed_forest,
-                               milestone_label=date_label, timeline_type=timeline_type,
+                               timeline_type=timeline_type,
                                milestones=milestones, get_date=get_date, work_dir=work_dir, local_css_js=local_css_js,
                                milestone_labels=milestone_labels, is_mixed=False)
         logger.debug('Saved compressed tree visualization as {}'.format(html_compressed))
@@ -825,7 +827,7 @@ def visualize(forest, column2states, work_dir, name_column=None, html=None, html
         save_as_cytoscape_html(forest_mixed, html_mixed,
                                column2states=column2states, name2colour=name2colour,
                                name_feature=name_column, compressed_forest=mixed_forest,
-                               milestone_label=date_label, timeline_type=timeline_type,
+                               timeline_type=timeline_type,
                                milestones=milestones, get_date=get_date, work_dir=work_dir, local_css_js=local_css_js,
                                milestone_labels=milestone_labels, is_mixed=True)
         logger.debug('Saved mixed tree visualization as {}'.format(html_mixed))

@@ -4,14 +4,14 @@ import unittest
 
 import numpy as np
 
-from pastml.acr import acr, serialize_acr
+from pastml.acr.acr import acr, serialize_acr
+from pastml.acr.maxlikelihood.models.CustomRatesModel import load_custom_rates, CUSTOM_RATES
+from pastml.acr.maxlikelihood.models.JTTModel import JTT_STATES, JTT_RATE_MATRIX, JTTModel, JTT
+from pastml.acr.maxlikelihood.models.generator import save_matrix
 from pastml.annotation import ForestStats
 from pastml.file import get_pastml_parameter_file
 from pastml.logger import set_up_pastml_logger
-from pastml.ml import MPPA, LOG_LIKELIHOOD, MARGINAL_PROBABILITIES
-from pastml.models.CustomRatesModel import load_custom_rates, CUSTOM_RATES
-from pastml.models.JTTModel import JTTModel, JTT_STATES, JTT_RATE_MATRIX, JTT
-from pastml.models.generator import save_matrix
+from pastml.acr.maxlikelihood.ml import MPPA, LOG_LIKELIHOOD, MARGINAL_PROBABILITIES
 from pastml.tree import read_forest
 from pastml.utilities.state_simulator import simulate_states
 
@@ -50,7 +50,7 @@ class CUSTOM_RATESTest(unittest.TestCase):
         acr([tree], character='state1', states=JTT_STATES, prediction_method=MPPA, model=JTT)
         os.makedirs(WD, exist_ok=True)
         serialize_acr((acr_result_jtt, WD))
-        params = os.path.join(WD, get_pastml_parameter_file(MPPA, JTT, 'state1'))
+        params = os.path.join(WD, get_pastml_parameter_file(JTT, 'state1'))
 
         save_matrix(JTT_STATES, JTT_RATE_MATRIX, RM)
         acr_result_cr = acr([tree], character='state2', prediction_method=MPPA, model=CUSTOM_RATES,
@@ -74,7 +74,7 @@ class CUSTOM_RATESTest(unittest.TestCase):
         acr([tree], character='state1', states=JTT_STATES, prediction_method=MPPA, model=JTT)
         os.makedirs(WD, exist_ok=True)
         serialize_acr((acr_result_jtt, WD))
-        params = os.path.join(WD, get_pastml_parameter_file(MPPA, JTT, 'state1'))
+        params = os.path.join(WD, get_pastml_parameter_file(JTT, 'state1'))
 
         save_matrix(JTT_STATES, JTT_RATE_MATRIX, RM)
         acr_result_cr = acr([tree], character='state2', prediction_method=MPPA, model=CUSTOM_RATES,

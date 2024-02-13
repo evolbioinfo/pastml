@@ -1,7 +1,6 @@
 import os
 
 from pastml import col_name2cat
-from pastml.ml import is_ml, is_marginal
 
 PASTML_WORK_DIR = '{tree}_pastml'
 
@@ -9,31 +8,44 @@ COMBINED_ANCESTRAL_STATE_TAB = 'combined_ancestral_states.tab'
 ANCESTRAL_STATE_TAB = 'ancestral_states.character_{state}.tab'
 NAMED_TREE_NWK = 'named.tree_{tree}.nwk'
 
-PASTML_ML_PARAMS_TAB = 'params.character_{state}.method_{method}.model_{model}.tab'
+PASTML_STATS_TAB = 'stats.character_{state}.{acr}.tab'
+PASTML_PARAMS_TAB = 'params.character_{state}.model_{model}.tab'
 PASTML_COLOUR_TAB = 'colours.character_{state}.tab'
-PASTML_MP_PARAMS_TAB = 'params.character_{state}.method_{method}.tab'
 PASTML_MARGINAL_PROBS_TAB = 'marginal_probabilities.character_{state}.model_{model}.tab'
 
 
-def get_column_method(column, method):
-    return col_name2cat(column), method
-
-
-def get_pastml_parameter_file(method, model, column):
+def get_acr_string(method, model=None):
     """
-    Get the filename where the PastML parameters are saved
-    (for non-ML methods and input parameters will be None, as they have no parameters).
-    This file is inside the work_dir that can be specified for the pastml_pipeline method.
+    Returns a string with ACR settings (method and, for ML methods, model) to be placed in file names.
+    :param method: ACR method
+    :param model: character state evolution model (for ML methods only)
+    :return: a string with ACR settings
+    """
+    return 'method_{method}.model_{model}'.format(method=method, model=model) if model \
+        else 'method_{method}'.format(method=method)
 
-    :param method: str, the ancestral state prediction method used by PASTML.
+
+def get_pastml_parameter_file(model, column):
+    """
+    Get the filename where the PastML model parameters are saved (for max likelihood methods).
+
     :param model: str, the state evolution model used by PASTML.
     :param column: str, the column for which ancestral states are reconstructed with PASTML.
-    :return: str, filename or None for non-ML methods
+    :return: str, filename
     """
-    ml = is_ml(method)
-    template = PASTML_ML_PARAMS_TAB if ml else PASTML_MP_PARAMS_TAB
-    column, method = get_column_method(column, method)
-    return template.format(state=column, method=method, model=model)
+    return PASTML_PARAMS_TAB.format(state=col_name2cat(column), model=model)
+
+
+def get_pastml_stats_file(method, model, column):
+    """
+    Get the filename where the statistics about the ACR are saved.
+
+    :param method: str, the ACR method used by PASTML.
+    :param model: str, the state evolution model used by PASTML (for max likelihood methods only).
+    :param column: str, the column for which ancestral states are reconstructed with PASTML.
+    :return: str, filename
+    """
+    return PASTML_STATS_TAB.format(state=col_name2cat(column), acr=get_acr_string(method=method, model=model))
 
 
 def get_pastml_colour_file(column):
@@ -90,17 +102,12 @@ def get_named_tree_file(tree):
     return NAMED_TREE_NWK.format(tree=tree_name if tree_name else 'tree')
 
 
-def get_pastml_marginal_prob_file(method, model, column):
+def get_pastml_marginal_prob_file(model, column):
     """
-    Get the filename where the PastML marginal probabilities of node states are saved (will be None for non-marginal methods).
-    This file is inside the work_dir that can be specified for the pastml_pipeline method.
+    Get the filename where the PastML marginal probabilities of node states are saved.
 
-    :param method: str, the ancestral state prediction method used by PASTML.
     :param model: str, the state evolution model used by PASTML.
     :param column: str, the column for which ancestral states are reconstructed with PASTML.
     :return: str, filename or None if the method is not marginal.
     """
-    if not is_marginal(method):
-        return None
-    column, method = get_column_method(column, method)
-    return PASTML_MARGINAL_PROBS_TAB.format(state=column, model=model)
+    return PASTML_MARGINAL_PROBS_TAB.format(state=col_name2cat(column), model=model)

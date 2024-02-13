@@ -1,14 +1,15 @@
 import numpy as np
 
-from pastml.models import SimpleModel
-from pastml.models.F81Model import F81Model
+from pastml.acr.maxlikelihood.models import SimpleModel
+from pastml.acr.maxlikelihood.models.F81Model import F81Model
 
 JC = 'JC'
 
 
 class JCModel(F81Model):
 
-    def __init__(self, states, forest_stats, sf=None, tau=0, optimise_tau=False, parameter_file=None, reoptimise=False, **kwargs):
+    def __init__(self, states, forest_stats, sf=None, tau=0, optimise_tau=False, parameter_file=None,
+                 reoptimise=False, **kwargs):
         kwargs['frequency_smoothing'] = False
         F81Model.__init__(self, states=states, forest_stats=forest_stats, sf=sf,
                           tau=tau, optimise_tau=optimise_tau,

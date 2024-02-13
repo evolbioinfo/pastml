@@ -5,10 +5,10 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 
-from pastml.acr import acr
+from pastml.acr.acr import acr
+from pastml.acr.maxlikelihood.models.EFTModel import EFT
 from pastml.annotation import annotate_forest
-from pastml.ml import MAP
-from pastml.models.EFTModel import EFT
+from pastml.acr.maxlikelihood.ml import MAP
 from pastml.tree import collapse_zero_branches, read_forest
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')

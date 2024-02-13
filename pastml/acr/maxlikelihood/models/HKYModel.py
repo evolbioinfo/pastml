@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 
-from pastml.models import SimpleModel, ModelWithFrequencies
+from pastml.acr.maxlikelihood.models import SimpleModel, ModelWithFrequencies
 
 HKY = 'HKY'
 HKY_STATES = np.array(['A', 'C', 'G', 'T'])
@@ -130,7 +130,7 @@ class HKYModel(ModelWithFrequencies):
         if self.extra_params_fixed():
             return SimpleModel.get_bounds(self)
         return np.array((*ModelWithFrequencies.get_bounds(self),
-                        *([np.array([1e-6, 20.])] if self._optimise_kappa else [])))
+                         *([np.array([1e-6, 20.])] if self._optimise_kappa else [])))
 
     def parse_parameters(self, params, reoptimise=False):
         """
@@ -170,7 +170,7 @@ class HKYModel(ModelWithFrequencies):
         """
         return '{}' \
                '\tkappa\t{:.6f}\t{}\n'.format(ModelWithFrequencies.get_optimised_parameters(self),
-                                          self.kappa, '(optimised)' if self._optimise_kappa else '(fixed)')
+                                              self.kappa, '(optimised)' if self._optimise_kappa else '(fixed)')
 
     def freeze(self):
         """
@@ -181,12 +181,14 @@ class HKYModel(ModelWithFrequencies):
         ModelWithFrequencies.freeze(self)
         self._optimise_kappa = False
 
-    def save_parameters(self, filehandle):
+    def save_parameters(self, filepath, **kwargs):
         """
         Writes this model parameter values to the parameter file (in the same format as the input parameter file).
 
-        :param filehandle: filehandle for the file where the parameter values should be written.
-        :return: void
+        :param filepath: path to the file where the parameter values should be written.
+        :return: the actual filepath used
         """
-        ModelWithFrequencies.save_parameters(self, filehandle)
-        filehandle.write('{}\t{:g}\n'.format(KAPPA, self.kappa))
+        ModelWithFrequencies.save_parameters(self, filepath, **kwargs)
+        with open(filepath, 'a') as filehandle:
+            filehandle.write('{}\t{:g}\n'.format(KAPPA, self.kappa))
+        return filepath

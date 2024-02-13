@@ -2,16 +2,6 @@ from datetime import datetime
 
 PASTML_VERSION = '1.9.42'
 
-METHOD = 'method'
-CHARACTER = 'character'
-
-NUM_SCENARIOS = 'num_scenarios'
-NUM_UNRESOLVED_NODES = 'num_unresolved_nodes'
-NUM_STATES_PER_NODE = 'num_states_per_node_avg'
-PERC_UNRESOLVED = 'percentage_of_unresolved_nodes'
-NUM_NODES = 'num_nodes'
-NUM_TIPS = 'num_tips'
-
 
 def datetime2numeric(d):
     """

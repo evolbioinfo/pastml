@@ -6,10 +6,10 @@ import pandas as pd
 import numpy as np
 
 from pastml.annotation import annotate_forest
-from pastml.models.JCModel import JC
+from pastml.acr.maxlikelihood.models.JCModel import JC
 from pastml.tree import collapse_zero_branches, read_forest
-from pastml.acr import acr
-from pastml.ml import JOINT
+from pastml.acr.acr import acr
+from pastml.acr.maxlikelihood.ml import JOINT
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')

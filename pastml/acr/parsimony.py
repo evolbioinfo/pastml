@@ -1,7 +1,8 @@
 import logging
 from collections import Counter
 
-from pastml import get_personalized_feature_name, METHOD, CHARACTER, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
+from pastml import get_personalized_feature_name
+from pastml.acr import METHOD, CHARACTER, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
     NUM_NODES, NUM_TIPS, NUM_STATES_PER_NODE, PERC_UNRESOLVED
 
 STEPS = 'steps'
