@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 
-from pastml.acr.maxlikelihood.models import ModelWithFrequencies
+from pastml.acr.maxlikelihood.models.ModelWithFrequencies import ModelWithFrequencies
 from pastml.acr.maxlikelihood.models.generator import get_diagonalisation, get_pij_matrix
 
 CUSTOM_RATES = 'CUSTOM_RATES'

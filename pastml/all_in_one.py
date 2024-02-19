@@ -15,7 +15,7 @@ from pastml.annotation import annotate_forest
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_work_dir
 from pastml.logger import set_up_pastml_logger
 from pastml.acr.maxlikelihood.ml import MPPA, MAP, JOINT
-from pastml.acr.maxlikelihood.models import SCALING_FACTOR, SMOOTHING_FACTOR
+from pastml.acr.maxlikelihood.models.SimpleModel import SCALING_FACTOR, SMOOTHING_FACTOR
 from pastml.acr.maxlikelihood.models.F81Model import F81
 from pastml.acr.maxlikelihood.models.JCModel import JC
 from pastml.acr.parsimony import ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS

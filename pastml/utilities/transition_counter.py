@@ -14,7 +14,7 @@ from pastml.annotation import ForestStats, annotate_forest
 from pastml.file import get_pastml_work_dir
 from pastml.logger import set_up_pastml_logger
 from pastml.acr.maxlikelihood.ml import marginal_counts
-from pastml.acr.maxlikelihood.models import SCALING_FACTOR, SMOOTHING_FACTOR
+from pastml.acr.maxlikelihood.models.SimpleModel import SCALING_FACTOR, SMOOTHING_FACTOR
 from pastml.tree import read_forest, refine_states
 from pastml.visualisation.colour_generator import parse_colours, get_enough_colours
 from pastml.visualisation.cytoscape_manager import save_as_transition_html

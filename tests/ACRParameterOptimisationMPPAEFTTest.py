@@ -8,7 +8,8 @@ from pastml.acr.acr import acr
 from pastml.acr.maxlikelihood.models.EFTModel import EFT
 from pastml.annotation import annotate_forest
 from pastml.acr.maxlikelihood.ml import LH, LH_SF, MPPA, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, MARGINAL_PROBABILITIES
-from pastml.acr.maxlikelihood.models import MODEL, SCALING_FACTOR
+from pastml.acr.maxlikelihood.models import MODEL
+from pastml.acr.maxlikelihood.models.SimpleModel import SCALING_FACTOR
 from pastml.tree import read_forest, annotate_dates, DATE
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')

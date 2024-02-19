@@ -105,7 +105,7 @@ def parse_skyline_mapping(character, skyline, skyline_mapping):
 
     skyline_mapping = {}
     for (i, j), state2states in mapping.items():
-        mapping_ij = np.zeros(shape=(len(all_states[i]), len(all_states[j])), dtype=float)
+        mapping_ij = np.zeros(shape=(len(all_states[i]), len(all_states[j])), dtype=np.float64)
         skyline_mapping[(i, j)] = mapping_ij
         for (from_i, from_state) in enumerate(all_states[i]):
             to_states = state2states[from_state]
@@ -328,25 +328,33 @@ class SkylineModel(Model):
         If a state A (with frequency f_A) of the source model corresponds to
         states A1 or A2 (with frequencies f_A1 and f_A2) of the target model,
         then the mapping matrix at row A contains all zeros, except for columns A1 and A2,
-        whose values are (f_A1 + f_A)/(2f_A) and (f_A2 + f_A)/(2f_A).
-        This allows to have a one-to-one mapping
-        if the source and target models and their parameters and states are identical,
-        while ensuring the time reversibility (\pi_i^(src) P_ij(b) = \pi_j^(tgt) P_ji(b),
-        where b is a branch that starts in the src_model time interval and ends in the target model time interval:
-        \pi_i^(src) P_ij(b) = \pi_i^(src) \sum_kl P_ik^(src) M_kl^(src->tgt) P_lj^(tgt) =
-        = \sum_kl P_ki^(src) \pi_k^(src) M_kl^(src->tgt) P_jl^(tgt) \pi_j^(tgt) / \pi_l^(tgt) =
-        = \sum_kl \pi_j^(tgt) P_jl^(tgt) M_lk^(tgt->src) P_ik^(src) M_kl^(src->tgt) / M_lk^(tgt->src) * \pi_k^(src) / \pi_l^(tgt) =
-        = ( if M_ab(x->y) = (\pi_a^(x) + \pi_b^(y))/ (2\pi_a^(x))
-            and only pairs a,b (or k,l) where there is a mapping between a and b (or k and l) are considered) =
-        = \pi_j^(tgt) \sum_kl P_jl^(tgt) M_lk^(tgt->src) P_ik^(src) = \pi_j^(tgt) P_ji(b).
+        # whose values are (f_A1 + f_A)/(2f_A) and (f_A2 + f_A)/(2f_A).
+        # This allows to have a one-to-one mapping
+        # if the source and target models and their parameters and states are identical,
+        # while ensuring the time reversibility (\pi_i^(src) P_ij(b) = \pi_j^(tgt) P_ji(b),
+        # where b is a branch that starts in the src_model time interval and ends in the target model time interval:
+        # \pi_i^(src) P_ij(b) = \pi_i^(src) \sum_kl P_ik^(src) M_kl^(src->tgt) P_lj^(tgt) =
+        # = \sum_kl P_ki^(src) \pi_k^(src) M_kl^(src->tgt) P_jl^(tgt) \pi_j^(tgt) / \pi_l^(tgt) =
+        # = \sum_kl \pi_j^(tgt) P_jl^(tgt) M_lk^(tgt->src) P_ik^(src) M_kl^(src->tgt) / M_lk^(tgt->src) * \pi_k^(src) / \pi_l^(tgt) =
+        # = ( if M_ab(x->y) = (\pi_a^(x) + \pi_b^(y))/ (2\pi_a^(x))
+        #     and only pairs a,b (or k,l) where there is a mapping between a and b (or k and l) are considered) =
+        # = \pi_j^(tgt) \sum_kl P_jl^(tgt) M_lk^(tgt->src) P_ik^(src) = \pi_j^(tgt) P_ji(b).
+        whose values are f_A1/(f_A1 + f_A2) and f_A2/(f_A1 + f_A2).
+        # TODO: the model should impose that f_A1 + f_A2 = f_A
 
         :param source_model: source model
         :param target_model: target model
         :return: the mapping matrix
         """
+        # result = np.array(self._skyline_mapping[(source_model, target_model)], dtype=np.float64)
+        # for i, freq_source in enumerate(self._models[source_model].get_frequencies()):
+        #     result[i, :] *= (freq_source + self._models[target_model].get_frequencies()) / freq_source / 2
+        # return result
         result = np.array(self._skyline_mapping[(source_model, target_model)], dtype=np.float64)
         for i, freq_source in enumerate(self._models[source_model].get_frequencies()):
-            result[i, :] *= (freq_source + self._models[target_model].get_frequencies()) / freq_source / 2
+            result[i, :] *= self._models[target_model].get_frequencies()
+            # result[i, :] /= max(result[i, :].sum(), freq_source)
+            result[i, :] /= result[i, :].sum()
         return result
 
     def get_p_ji_child(self, node):
@@ -441,3 +449,14 @@ class SkylineModel(Model):
         res = np.zeros(len(self._all_states), dtype=np.float64)
         res[self._model2state_mask[getattr(node, MODEL_ID, 0)]] = lh / lh.sum()
         return res
+
+    def set_initial_values(self, iteration=0, **kwargs):
+        """
+        Sets initial values for parameter optimization.
+
+        :param iteration: parameter iteration round (assuming some non-random parameters are to be tried first)
+        :return: void, modifies this model by setting its parameters to values used as initial ones
+        for parameter optimization
+        """
+        for model in self._models:
+            model.set_initial_values(iteration, **kwargs)

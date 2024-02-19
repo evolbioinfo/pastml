@@ -10,7 +10,7 @@ from pastml.acr import CHARACTER, METHOD, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
     NUM_STATES_PER_NODE, PERC_UNRESOLVED, NUM_NODES, NUM_TIPS
 from pastml.acr.maxlikelihood import MIN_VALUE, MAX_VALUE, JOINT, is_marginal, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, \
     MAP, LOG_LIKELIHOOD, AIC, calculate_AIC, MARGINAL_PROBABILITIES, MPPA, MODEL
-from pastml.acr.maxlikelihood.models import ModelWithFrequencies
+from pastml.acr.maxlikelihood.models.ModelWithFrequencies import ModelWithFrequencies
 from pastml.tree import refine_states
 
 
@@ -141,30 +141,23 @@ def optimize_likelihood_params(forest, character, model):
                   for tree in forest)
         return np.inf if pd.isnull(res) else -res
 
-    x0_JC = model.get_optimised_parameters()
-    optimise_frequencies = isinstance(model, ModelWithFrequencies) and model._optimise_frequencies
-    x0_EFT = x0_JC
-    if optimise_frequencies:
-        model.set_frequencies(model.observed_frequencies)
-        x0_EFT = model.get_optimised_parameters()
-    log_lh_JC = -get_v(x0_JC)
-    log_lh_EFT = log_lh_JC if not optimise_frequencies else -get_v(x0_EFT)
-
-    best_log_lh = max(log_lh_JC, log_lh_EFT)
+    best_log_lh = -np.inf
+    best_vs = None
 
     for i in range(100):
-        if i == 0:
-            vs = x0_JC
-        elif optimise_frequencies and i == 1:
-            vs = x0_EFT
-        else:
-            vs = np.random.uniform(bounds[:, 0], bounds[:, 1])
+        model.set_initial_values(iteration=i)
+        vs = model.get_optimised_parameters()
+        log_lh = -get_v(vs)
+        if log_lh > best_log_lh:
+            best_vs = vs
+            best_log_lh = log_lh
         fres = minimize(get_v, x0=vs, method='L-BFGS-B', bounds=bounds)
         if fres.success and not np.any(np.isnan(fres.x)):
             if -fres.fun >= best_log_lh:
                 model.set_params_from_optimised(fres.x)
                 return -fres.fun
-    model.set_params_from_optimised(x0_JC if log_lh_JC >= log_lh_EFT else x0_EFT)
+
+    model.set_params_from_optimised(best_vs)
     return best_log_lh
 
 

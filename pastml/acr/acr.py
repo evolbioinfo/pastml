@@ -13,7 +13,8 @@ from pastml.file import get_named_tree_file, get_pastml_parameter_file, \
 from pastml.logger import set_up_pastml_logger
 from pastml.acr.maxlikelihood import MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, \
     ML_METHODS, MAP, JOINT, MARGINAL_ML_METHODS
-from pastml.acr.maxlikelihood.models import MODEL, SCALING_FACTOR, SMOOTHING_FACTOR
+from pastml.acr.maxlikelihood.models import MODEL
+from pastml.acr.maxlikelihood.models.SimpleModel import SCALING_FACTOR, SMOOTHING_FACTOR
 from pastml.acr.maxlikelihood.models.CustomRatesModel import CustomRatesModel, CUSTOM_RATES
 from pastml.acr.maxlikelihood.models.EFTModel import EFTModel, EFT
 from pastml.acr.maxlikelihood.models.F81Model import F81Model, F81

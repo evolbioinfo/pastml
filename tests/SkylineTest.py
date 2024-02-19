@@ -8,7 +8,8 @@ from pastml.acr.acr import acr
 from pastml.acr.maxlikelihood.models.HKYModel import HKY_STATES
 from pastml.annotation import ForestStats
 from pastml.acr.maxlikelihood.ml import MPPA, LOG_LIKELIHOOD, MARGINAL_PROBABILITIES
-from pastml.acr.maxlikelihood.models import SCALING_FACTOR
+from pastml.acr.maxlikelihood.models import MODEL
+from pastml.acr.maxlikelihood.models.SimpleModel import SCALING_FACTOR
 from pastml.acr.maxlikelihood.models.F81Model import F81, F81Model
 from pastml.acr.maxlikelihood.models.JCModel import JCModel
 from pastml.acr.maxlikelihood.models.SkylineModel import SkylineModel, annotate_skyline, parse_skyline_mapping, MODEL_ID
@@ -150,7 +151,6 @@ class SkylineTest(unittest.TestCase):
         self.assertTrue(np.all(np.round(sky_p_ij, 3) == np.round(p_ij, 3)))
         self.assertTrue(np.all(np.round(sky_p_ji, 3) == np.round(p_ji, 3)))
 
-
     def test_skyline_Pij_different_parameters(self):
         forest = get_forest()
         start_date = -np.inf
@@ -231,6 +231,8 @@ class SkylineTest(unittest.TestCase):
         acr_result_sky = acr(forest_sky, character='loc1', states=states,
                              prediction_method=MPPA, model=[F81, F81], skyline=skyline)
         print(acr_result_sky[LOG_LIKELIHOOD], acr_result_nosky[LOG_LIKELIHOOD])
+        print(acr_result_sky[MODEL])
+        print(acr_result_nosky[MODEL])
         self.assertGreater(acr_result_sky[LOG_LIKELIHOOD], acr_result_nosky[LOG_LIKELIHOOD],
                            msg='Loglikelihood should be higher with the skyline.')
 
@@ -247,7 +249,7 @@ class SkylineTest(unittest.TestCase):
         self.assertTrue(np.all(skyline_mapping[(0, 1)] == np.array([[1, 0, 0], [0, 1, 1]])))
         self.assertTrue(np.all(skyline_mapping[(1, 0)] == np.array([[1, 0], [0, 1], [0, 1]])))
 
-    def test_skyline_Pij_different_states(self):
+    def test_skyline_Pij_different_states_consistent_freqs(self):
         skyline = [1905]
         skyline_mapping = os.path.join(DATA_DIR, 'skyline_mapping.tab')
         with open(skyline_mapping, 'w+') as f:
@@ -258,7 +260,87 @@ class SkylineTest(unittest.TestCase):
         skyline_models = []
         n_sky = len(skyline) + 1
         params = [{SCALING_FACTOR: 0.1, 'Africa': 0.4, 'Europe': 0.6},
-                  {SCALING_FACTOR: 0.1, 'Africa': 0.4, 'France': 0.3, 'UK': 0.3}]
+                  {SCALING_FACTOR: 0.1, 'Africa': 0.4, 'France': 0.4, 'UK': 0.2}]
+        forest_stats = ForestStats(forest, 'loc2')
+        for i in range(n_sky):
+            end_date = skyline[i] if i < len(skyline) else np.inf
+            sub_forest_stats = ForestStats(forest, 'loc2', start_date, end_date)
+            m = F81Model(parameter_file=params[i], rate_matrix_file=None,
+                         states=skyline_mapping[1][i], forest_stats=sub_forest_stats)
+            skyline_models.append(m)
+        sky_model = SkylineModel(models=skyline_models, dates=skyline,
+                                 skyline_mapping=skyline_mapping[0], forest_stats=forest_stats)
+
+        C = next(t for t in forest[0] if 'C' == t.name)
+        sky_p_ij = sky_model.get_p_ij_child(C)
+        sky_p_ji = sky_model.get_p_ji_child(C)
+
+        # nosky_p = skyline_models[1].get_p_ij_child(C)
+        self.assertEqual((2, 3), sky_p_ij.shape)
+        self.assertEqual((3, 2), sky_p_ji.shape)
+
+        freq0 = skyline_models[0].get_frequencies()
+        freq1 = skyline_models[1].get_frequencies()
+        # Check reversibility
+        for i in range(len(freq0)):
+            for j in range(len(freq1)):
+                print(i, j, freq0[i] * sky_p_ij[i, j], freq1[j] * sky_p_ji[j, i])
+                self.assertAlmostEqual(freq0[i] * sky_p_ij[i, j], freq1[j] * sky_p_ji[j, i])
+
+    def test_skyline_Pij_different_states_consistent_freqs_3_intervals(self):
+        skyline = [1904.5, 1905]
+        skyline_mapping = os.path.join(DATA_DIR, 'skyline_mapping.tab')
+        with open(skyline_mapping, 'w+') as f:
+            f.write("loc2\t1905\t1904.5\n"
+                    "France\tEurope\tFrance\n"
+                    "UK\tEurope\tUK\n"
+                    "Africa\tAfrica\tAfrica")
+        forest = get_forest()
+        skyline, skyline_mapping = annotate_skyline(forest, skyline, 'loc2', skyline_mapping)
+        start_date = -np.inf
+        skyline_models = []
+        n_sky = len(skyline) + 1
+        params = [{SCALING_FACTOR: 0.3, 'Africa': 0.4, 'France': 0.25, 'UK': 0.35},
+                  {SCALING_FACTOR: 0.1, 'Africa': 0.4, 'Europe': 0.6},
+                  {SCALING_FACTOR: 0.2, 'Africa': 0.4, 'France': 0.4, 'UK': 0.2}]
+        forest_stats = ForestStats(forest, 'loc2')
+        for i in range(n_sky):
+            end_date = skyline[i] if i < len(skyline) else np.inf
+            sub_forest_stats = ForestStats(forest, 'loc2', start_date, end_date)
+            m = F81Model(parameter_file=params[i], rate_matrix_file=None,
+                         states=skyline_mapping[1][i], forest_stats=sub_forest_stats)
+            skyline_models.append(m)
+        sky_model = SkylineModel(models=skyline_models, dates=skyline,
+                                 skyline_mapping=skyline_mapping[0], forest_stats=forest_stats)
+
+        C = next(t for t in forest[0] if 'C' == t.name)
+        sky_p_ij = sky_model.get_p_ij_child(C)
+        sky_p_ji = sky_model.get_p_ji_child(C)
+
+        # nosky_p = skyline_models[1].get_p_ij_child(C)
+        self.assertEqual((3, 3), sky_p_ij.shape)
+        self.assertEqual((3, 3), sky_p_ji.shape)
+
+        freq0 = skyline_models[0].get_frequencies()
+        freq2 = skyline_models[2].get_frequencies()
+        # Check reversibility
+        for i in range(len(freq0)):
+            for j in range(len(freq2)):
+                print(i, j, freq0[i] * sky_p_ij[i, j], freq2[j] * sky_p_ji[j, i])
+                self.assertAlmostEqual(freq0[i] * sky_p_ij[i, j], freq2[j] * sky_p_ji[j, i])
+
+    def test_skyline_Pij_different_states_inconsistent_freqs(self):
+        skyline = [1905]
+        skyline_mapping = os.path.join(DATA_DIR, 'skyline_mapping.tab')
+        with open(skyline_mapping, 'w+') as f:
+            f.write("loc2\t1905\nFrance\tEurope\nUK\tEurope\nAfrica\tAfrica")
+        forest = get_forest()
+        skyline, skyline_mapping = annotate_skyline(forest, skyline, 'loc2', skyline_mapping)
+        start_date = -np.inf
+        skyline_models = []
+        n_sky = len(skyline) + 1
+        params = [{SCALING_FACTOR: 0.1, 'Africa': 0.4, 'Europe': 0.6},
+                  {SCALING_FACTOR: 0.1, 'Africa': 0.2, 'France': 0.4, 'UK': 0.4}]
         forest_stats = ForestStats(forest, 'loc2')
         for i in range(n_sky):
             end_date = skyline[i] if i < len(skyline) else np.inf

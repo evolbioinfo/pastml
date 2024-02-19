@@ -8,7 +8,7 @@ from pastml.acr.acr import acr
 from pastml.annotation import annotate_forest
 from pastml.acr.maxlikelihood.ml import LH, LH_SF, MPPA, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, MARGINAL_PROBABILITIES, \
     MODEL
-from pastml.acr.maxlikelihood.models import SCALING_FACTOR
+from pastml.acr.maxlikelihood.models.SimpleModel import SCALING_FACTOR
 from pastml.acr.maxlikelihood.models.JCModel import JC
 from pastml.tree import read_forest, DATE, annotate_dates
 

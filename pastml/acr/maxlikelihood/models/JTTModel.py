@@ -1,6 +1,6 @@
 import numpy as np
 
-from pastml.acr.maxlikelihood.models import SimpleModel
+from pastml.acr.maxlikelihood.models.SimpleModel import SimpleModel
 from pastml.acr.maxlikelihood.models.CustomRatesModel import CustomRatesModel
 
 """

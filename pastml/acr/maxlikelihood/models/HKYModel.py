@@ -2,7 +2,8 @@ import logging
 
 import numpy as np
 
-from pastml.acr.maxlikelihood.models import SimpleModel, ModelWithFrequencies
+from pastml.acr.maxlikelihood.models.SimpleModel import SimpleModel
+from pastml.acr.maxlikelihood.models.ModelWithFrequencies import ModelWithFrequencies
 
 HKY = 'HKY'
 HKY_STATES = np.array(['A', 'C', 'G', 'T'])

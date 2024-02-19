@@ -1,6 +1,6 @@
 import numpy as np
 
-from pastml.acr.maxlikelihood.models import ModelWithFrequencies
+from pastml.acr.maxlikelihood.models.ModelWithFrequencies import ModelWithFrequencies
 
 F81 = 'F81'
 
