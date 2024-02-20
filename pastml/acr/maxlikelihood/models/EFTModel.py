@@ -15,6 +15,15 @@ class EFTModel(F81Model):
         self._frequency_smoothing = False
         self.name = EFT
 
+    def set_frequency_blocks(self, frequency_blocks):
+        if len(frequency_blocks) > 1:
+            raise NotImplementedError('You cannot set several frequency blocks on the EFT model, '
+                                      'as it has its frequencies fixed (to the values observed at tips). '
+                                      'If you are using a Skyline model, '
+                                      'note that EFT can only be set for the most recent time interval.')
+        else:
+            F81Model.set_frequency_blocks(self, frequency_blocks)
+
     def print_parameters(self):
         """
         Constructs a string representing parameter values (to be used to logging).

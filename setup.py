@@ -32,7 +32,8 @@ setup(
     url='https://github.com/evolbioinfo/pastml',
     keywords=['PASTML', 'visualisation', 'phylogeny', 'ancestral character reconstruction'],
     python_requires='>=3.9',
-    install_requires=['ete3>=3.1.1', 'pandas>=1.0.0', 'numpy>=1.22', 'jinja2>=2.11.0', 'scipy>=1.5.0', 'itolapi>=4.0.0', 'biopython>=1.70'],
+    install_requires=['ete3>=3.1.1', 'pandas>=1.0.0', 'numpy>=1.22', 'jinja2>=2.11.0', 'scipy>=1.5.0', 'itolapi>=4.0.0',
+                      'biopython>=1.70', 'pyarrow'],
     entry_points={
             'console_scripts': [
                 'pastml = pastml.all_in_one:main'

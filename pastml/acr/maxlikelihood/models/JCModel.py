@@ -18,6 +18,15 @@ class JCModel(F81Model):
         self._optimise_frequencies = False
         self.name = JC
 
+    def set_frequency_blocks(self, frequency_blocks):
+        if len(frequency_blocks) > 1:
+            raise NotImplementedError('You cannot set several frequency blocks on the JC model, '
+                                      'as it has its frequencies fixed (to equal values). '
+                                      'If you are using a Skyline model, '
+                                      'note that JC can only be set for the most recent time interval.')
+        else:
+            F81Model.set_frequency_blocks(self, frequency_blocks)
+
     def print_parameters(self):
         """
         Constructs a string representing parameter values (to be used to logging).

@@ -567,9 +567,17 @@ def ml_acr(forest, character, prediction_method, model, force_joint=True):
             results.append(res)
 
     def process_restricted_likelihood_and_states(method):
-        restricted_likelihood = \
-            sum(get_bottom_up_loglikelihood(tree=tree, character=character,
-                                            is_marginal=True, model=model, alter=True) for tree in forest)
+        try:
+            restricted_likelihood = \
+                sum(get_bottom_up_loglikelihood(tree=tree, character=character,
+                                                is_marginal=True, model=model, alter=True) for tree in forest)
+        except PastMLLikelihoodError as e:
+            if MAP == method:
+                logger.error("MAP method might produce inconsistent states: {}".format(e))
+                restricted_likelihood = -np.inf
+            else:
+                raise e
+
         note_restricted_likelihood(method, restricted_likelihood)
         process_reconstructed_states(method)
 

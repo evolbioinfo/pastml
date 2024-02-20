@@ -167,6 +167,61 @@ class SkylineModel(Model):
         self._model2state_mask = [[state2index[s] for s in m.get_states()] for m in self._models]
         Model.__init__(self, forest_stats)
 
+        self._initialize_submodel_frequency_blocks()
+        for i in range(len(self._models) - 2, -1, -1):
+            self._initialize_submodel_frequency_constraints(i)
+            self._models[i].check_frequency_block_consistency()
+
+    def _initialize_submodel_frequency_blocks(self):
+        """
+        Creates submodel frequency blocks based on the state mapping.
+        :return: void, modifies frequency blocks of submodels
+        """
+        n_models = len(self._models)
+        for next_model_id, model_id in zip(range(n_models - 1, 0, -1), range(n_models - 2, -1, -1)):
+            state_mapping = self.get_mapping(next_model_id, model_id)
+            todo = set(range(state_mapping.shape[1]))
+            freq_blocks = []
+            while todo:
+                # Here we first identify the connected matrix blocks,
+                # such that for any i in source_is mapping_i>i-1(i) is subset of target_is,
+                # and for any j in target_is mapping_i-1>i(j) is subset of source_is
+                target_is = [todo.pop()]
+                while True:
+                    source_is = sorted(set(np.nonzero(state_mapping[:, target_is])[0]))
+                    source_target_is = sorted(set(np.nonzero(state_mapping[source_is, :])[1]))
+                    if target_is == source_target_is:
+                        break
+                    target_is = source_target_is
+                todo -= set(target_is)
+                freq_blocks.append(np.array(target_is))
+            self._models[model_id].set_frequency_blocks(freq_blocks)
+
+    def _initialize_submodel_frequency_constraints(self, model_id):
+        """
+        Adds constraint on submodel frequencies based on the state mapping.
+
+        :param model_id: model id, whose constraints should be updated based on the next model (i + 1)
+        :return: void, modifies frequency block sums and lower bounds for submodels
+        """
+        next_model_id = model_id + 1
+        src_frequencies = self._models[next_model_id].get_frequencies()
+        state_mapping = self.get_mapping(next_model_id, model_id)
+        freq_sums = []
+        freq_min_bounds = []
+        for block in self._models[model_id].get_frequency_blocks():
+            source_is = sorted(set(np.nonzero(state_mapping[:, block])[0]))
+            block_sum = sum(src_frequencies[source_is])
+            # Find source ids that only map to this value and take their frequency sum as the lower bound
+            block_min_values = [sum(src_frequencies[
+                                        [src_i for src_i in set(np.nonzero(state_mapping[:, tgt_i])[0])
+                                         if set(np.nonzero(state_mapping[src_i, :])[0]) == {tgt_i}]])
+                                for tgt_i in block]
+            freq_sums.append(block_sum)
+            freq_min_bounds.append(block_min_values)
+        self._models[model_id].set_frequency_block_sums(freq_sums)
+        self._models[model_id].set_frequency_block_min_values(freq_min_bounds)
+
     def get_interval(self, model_id=0):
         """Returns the time interval to which the model_id's model applies.
         The interval is closed on the start date and open on the end date: [start, end[
@@ -193,11 +248,19 @@ class SkylineModel(Model):
         :param kwargs: dict of eventual other arguments
         :return: void, update this model
         """
-        start = 0
-        for model in self._models:
+        # As the frequencies are constrained between models, and the only free is the most recent (i.e. the last one),
+        # we will start by initializing the last model's parameters,
+        # then updating the frequency constraints for the previous model accordingly before intializing its parameters,
+        # etc.
+        end = len(ps)
+        for i in range(len(self._models) - 1, -1, -1):
+            model = self._models[i]
             n = model.get_num_params()
-            model.set_params_from_optimised(ps[start: start + n], **kwargs)
-            start += n
+            model.set_params_from_optimised(ps[end - n: end], **kwargs)
+            model.check_frequency_block_consistency()
+            if i > 0:
+                self._initialize_submodel_frequency_constraints(i - 1)
+            end -= n
 
     def get_optimised_parameters(self):
         """
@@ -316,6 +379,11 @@ class SkylineModel(Model):
             cur_p_ij = self._models[model_up].get_Pij_t(model_change_date - parent_date)
             p_ij = cur_p_ij if p_ij is None else p_ij.dot(cur_p_ij)
             mapping = self.get_mapping(model_up, model_up + 1)
+            # If a state maps to several states, split the likelihood according to their frequencies
+            for i in range(len(self._models[model_up].get_states())):
+                mapping[i, :] *= self._models[model_up + 1].get_frequencies()
+                mapping[i, :] /= mapping[i, :].sum()
+
             p_ij = p_ij.dot(mapping)
 
             parent_date = model_change_date
@@ -348,14 +416,10 @@ class SkylineModel(Model):
         """
         # result = np.array(self._skyline_mapping[(source_model, target_model)], dtype=np.float64)
         # for i, freq_source in enumerate(self._models[source_model].get_frequencies()):
-        #     result[i, :] *= (freq_source + self._models[target_model].get_frequencies()) / freq_source / 2
+        #     result[i, :] *= self._models[target_model].get_frequencies()
+        #     result[i, :] /= result[i, :].sum()
         # return result
-        result = np.array(self._skyline_mapping[(source_model, target_model)], dtype=np.float64)
-        for i, freq_source in enumerate(self._models[source_model].get_frequencies()):
-            result[i, :] *= self._models[target_model].get_frequencies()
-            # result[i, :] /= max(result[i, :].sum(), freq_source)
-            result[i, :] /= result[i, :].sum()
-        return result
+        return np.array(self._skyline_mapping[(source_model, target_model)], dtype=np.float64)
 
     def get_p_ji_child(self, node):
         """
@@ -381,6 +445,10 @@ class SkylineModel(Model):
             # is mapped to A1 or A2 (with frequencies f_A1 and f_A2),
             # then its mapping becomes f_A1/f_A for A1 and f_A2/f_A for A2.
             mapping = self.get_mapping(model_down, model_down - 1)
+            # If a state maps to several states, split the likelihood according to their frequencies
+            for i in range(len(self._models[model_down].get_states())):
+                mapping[i, :] *= self._models[model_down - 1].get_frequencies()
+                mapping[i, :] /= mapping[i, :].sum()
             p_ji = p_ji.dot(mapping)
 
             child_date = model_change_date
@@ -458,5 +526,13 @@ class SkylineModel(Model):
         :return: void, modifies this model by setting its parameters to values used as initial ones
         for parameter optimization
         """
-        for model in self._models:
+        # As the frequencies are constrained between models, and the only free is the most recent (i.e. the last one),
+        # we will start by initializing the last model's parameters,
+        # then updating the frequency constraints for the previous model accordingly before intializing its parameters,
+        # etc.
+        for i in range(len(self._models) - 1, -1, -1):
+            model = self._models[i]
             model.set_initial_values(iteration, **kwargs)
+            model.check_frequency_block_consistency()
+            if i > 0:
+                self._initialize_submodel_frequency_constraints(i - 1)

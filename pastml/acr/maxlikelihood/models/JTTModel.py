@@ -75,6 +75,15 @@ class JTTModel(CustomRatesModel):
         self._optimise_frequencies = False
         self.name = JTT
 
+    def set_frequency_blocks(self, frequency_blocks):
+        if len(frequency_blocks) > 1:
+            raise NotImplementedError('You cannot set several frequency blocks on the JTT model, '
+                                      'as it has its frequencies fixed. '
+                                      'If you are using a Skyline model, '
+                                      'note that JTT can only be set for the most recent time interval.')
+        else:
+            CustomRatesModel.set_frequency_blocks(self, frequency_blocks)
+
     def set_states(self, states, **kwargs):
         raise NotImplementedError('The JTT states are preset and cannot be changed.')
 

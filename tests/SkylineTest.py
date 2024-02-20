@@ -5,15 +5,15 @@ import numpy as np
 from ete3 import Tree
 
 from pastml.acr.acr import acr
-from pastml.acr.maxlikelihood.models.HKYModel import HKY_STATES
-from pastml.annotation import ForestStats
 from pastml.acr.maxlikelihood.ml import MPPA, LOG_LIKELIHOOD, MARGINAL_PROBABILITIES
 from pastml.acr.maxlikelihood.models import MODEL
-from pastml.acr.maxlikelihood.models.SimpleModel import SCALING_FACTOR
 from pastml.acr.maxlikelihood.models.F81Model import F81, F81Model
-from pastml.acr.maxlikelihood.models.JCModel import JCModel
+from pastml.acr.maxlikelihood.models.HKYModel import HKY_STATES
+from pastml.acr.maxlikelihood.models.ModelWithFrequencies import FrequencyBlockError
+from pastml.acr.maxlikelihood.models.SimpleModel import SCALING_FACTOR
 from pastml.acr.maxlikelihood.models.SkylineModel import SkylineModel, annotate_skyline, parse_skyline_mapping, MODEL_ID
-from pastml.tree import annotate_dates
+from pastml.annotation import ForestStats, annotate_forest
+from pastml.tree import annotate_dates, read_forest
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 WD = os.path.join(DATA_DIR, 'skyline_test')
@@ -49,9 +49,48 @@ def get_forest():
 
 class SkylineTest(unittest.TestCase):
 
+    def test_submodel_frequency_blocks(self):
+        skyline = [1905]
+        skyline_mapping = os.path.join(DATA_DIR, 'skyline_mapping2.tab')
+        forest_stats = ForestStats(get_forest(), 'loc1')
+        with open(skyline_mapping, 'w+') as f:
+            f.write("loc2\t1905\n"
+                    "A1\tA\n"
+                    "A2\tA\n"
+                    "B1\tB\n"
+                    "B2\tB\n"
+                    "BC\tB\n"
+                    "BC\tC\n"
+                    "C1\tC\n"
+                    "D\tD1\n"
+                    "D\tD2\n")
+        skyline_mapping = parse_skyline_mapping('loc2', skyline, skyline_mapping)
+        skyline_models = []
+        n_sky = len(skyline) + 1
+        for i in range(n_sky):
+            m = F81Model(states=skyline_mapping[1][i], forest_stats=forest_stats)
+            skyline_models.append(m)
+        sky_model = SkylineModel(models=skyline_models, dates=skyline,
+                                 skyline_mapping=skyline_mapping[0], forest_stats=forest_stats)
+        self.assertTrue(np.all(np.all(a == b for (a, b) in zip(skyline_models[1]._frequency_blocks,
+                                                               [np.array(range(7))]))))
+        self.assertTrue(np.all(np.all(a == b for (a, b) in zip(skyline_models[1]._frequency_block_min_values,
+                                                               [np.zeros(7, dtype=int)]))))
+        self.assertListEqual(list(skyline_models[1]._frequency_block_sums), [1])
+
+        self.assertTrue(np.all(np.all(a == b for (a, b) in zip(skyline_models[0]._frequency_blocks,
+                                                               [[0], [1, 2], [3, 4]]))))
+        self.assertTrue(np.all(np.all(a == b for (a, b) in zip(skyline_models[0]._frequency_block_min_values,
+                                                               [[2/7], [2/7, 1/7], [0, 0]]))))
+        self.assertListEqual(list(skyline_models[0]._frequency_block_sums), [2/7, 4/7, 1/7])
+
+        self.assertEqual(3, skyline_models[0].get_num_params())
+
     def test_get_model_at_time(self):
-        jc_model = JCModel(states=HKY_STATES, forest_stats=None, sf=1)
-        sm = SkylineModel([jc_model, jc_model, jc_model], [10, 20], None, None)
+        sm = SkylineModel([F81Model(states=HKY_STATES, forest_stats=None, sf=1),
+                           F81Model(states=HKY_STATES, forest_stats=None, sf=1),
+                           F81Model(states=HKY_STATES, forest_stats=None, sf=1)],
+                          [10, 20], None, None)
         self.assertEqual(sm.get_model_id_at_time(5), 0)
         self.assertEqual(sm.get_model_id_at_time(10), 1)
         self.assertEqual(sm.get_model_id_at_time(12), 1)
@@ -151,7 +190,7 @@ class SkylineTest(unittest.TestCase):
         self.assertTrue(np.all(np.round(sky_p_ij, 3) == np.round(p_ij, 3)))
         self.assertTrue(np.all(np.round(sky_p_ji, 3) == np.round(p_ji, 3)))
 
-    def test_skyline_Pij_different_parameters(self):
+    def test_skyline_Pij_different_inconsistent_parameters(self):
         forest = get_forest()
         start_date = -np.inf
         skyline_models = []
@@ -166,28 +205,13 @@ class SkylineTest(unittest.TestCase):
             m = F81Model(parameter_file=parameters[i], rate_matrix_file=None,
                          states=['Africa', 'Europe'], forest_stats=sub_forest_stats)
             skyline_models.append(m)
-        sky_model = SkylineModel(models=skyline_models, dates=skyline,
-                                 skyline_mapping=None, forest_stats=forest_stats)
-
-        C = next(t for t in forest[0] if 'C' == t.name)
-
-        annotate_skyline(forest, skyline, 'loc1')
-        sky_p_ij = sky_model.get_p_ij_child(C)
-        sky_p_ji = sky_model.get_p_ji_child(C)
-
-        freq0 = skyline_models[0].get_frequencies()
-        freq1 = skyline_models[1].get_frequencies()
-        # Check reversibility
-        for i in range(2):
-            for j in range(2):
-                print(freq0[i] * sky_p_ij[i, j], freq1[j] * sky_p_ji[j, i])
-                self.assertAlmostEqual(freq0[i] * sky_p_ij[i, j], freq1[j] * sky_p_ji[j, i])
-
-        # Check it's not the same as without the skyline
-        p_ij = skyline_models[1].get_p_ij_child(C)
-        p_ji = skyline_models[1].get_p_ji_child(C)
-        self.assertFalse(np.all(np.round(sky_p_ij, 3) == np.round(p_ij, 3)))
-        self.assertFalse(np.all(np.round(sky_p_ji, 3) == np.round(p_ji, 3)))
+        try:
+            sky_model = SkylineModel(models=skyline_models, dates=skyline,
+                                     skyline_mapping=None, forest_stats=forest_stats)
+            self.assertTrue(False, msg='Skyline model with inconsistent frequencies '
+                                       'should have failed at the moment of its creation.')
+        except FrequencyBlockError:
+            self.assertTrue(True)
 
     def test_parameter_skyline_same_params(self):
         forest_nosky = get_forest()
@@ -220,15 +244,18 @@ class SkylineTest(unittest.TestCase):
                 self.assertEqual(getattr(n_sky, 'loc1'), getattr(n_nosky, 'loc1'))
 
     def test_skyline_is_better_same_states(self):
-        forest_nosky = get_forest()
-        states = ['Africa', 'Europe']
-        acr_result_nosky = acr(forest_nosky, character='loc1', states=states,
+        forest = read_forest(os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre.result.date.nexus'))
+        columns, column2states = annotate_forest(forest, columns=['Country'], data=os.path.join(DATA_DIR, 'data.txt'),
+                                                 data_sep=',')
+        acr_result_nosky = acr(forest, character='Country', states=column2states['Country'],
                                prediction_method=MPPA, model=F81)
 
-        skyline = [1905]
-        forest_sky = get_forest()
-        annotate_skyline(forest_sky, skyline, 'loc1')
-        acr_result_sky = acr(forest_sky, character='loc1', states=states,
+        skyline = [1990]
+        forest_sky = read_forest(os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre.result.date.nexus'))
+        columns, column2states = annotate_forest(forest, columns=['Country'], data=os.path.join(DATA_DIR, 'data.txt'),
+                                                 data_sep=',')
+        annotate_skyline(forest_sky, skyline, 'Country')
+        acr_result_sky = acr(forest_sky, character='Country', states=column2states['Country'],
                              prediction_method=MPPA, model=[F81, F81], skyline=skyline)
         print(acr_result_sky[LOG_LIKELIHOOD], acr_result_nosky[LOG_LIKELIHOOD])
         print(acr_result_sky[MODEL])
@@ -348,21 +375,10 @@ class SkylineTest(unittest.TestCase):
             m = F81Model(parameter_file=params[i], rate_matrix_file=None,
                          states=skyline_mapping[1][i], forest_stats=sub_forest_stats)
             skyline_models.append(m)
-        sky_model = SkylineModel(models=skyline_models, dates=skyline,
-                                 skyline_mapping=skyline_mapping[0], forest_stats=forest_stats)
-
-        C = next(t for t in forest[0] if 'C' == t.name)
-        sky_p_ij = sky_model.get_p_ij_child(C)
-        sky_p_ji = sky_model.get_p_ji_child(C)
-
-        # nosky_p = skyline_models[1].get_p_ij_child(C)
-        self.assertEqual((2, 3), sky_p_ij.shape)
-        self.assertEqual((3, 2), sky_p_ji.shape)
-
-        freq0 = skyline_models[0].get_frequencies()
-        freq1 = skyline_models[1].get_frequencies()
-        # Check reversibility
-        for i in range(len(freq0)):
-            for j in range(len(freq1)):
-                print(i, j, freq0[i] * sky_p_ij[i, j], freq1[j] * sky_p_ji[j, i])
-                self.assertAlmostEqual(freq0[i] * sky_p_ij[i, j], freq1[j] * sky_p_ji[j, i])
+        try:
+            sky_model = SkylineModel(models=skyline_models, dates=skyline,
+                                     skyline_mapping=skyline_mapping[0], forest_stats=forest_stats)
+            self.assertTrue(False, msg='Skyline model with inconsistent frequencies '
+                                       'should have failed at the moment of its creation.')
+        except FrequencyBlockError:
+            self.assertTrue(True)
