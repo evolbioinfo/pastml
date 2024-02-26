@@ -6,6 +6,7 @@ from datetime import datetime
 
 from Bio import Phylo
 from ete3 import Tree, TreeNode
+from ete3.parser.newick import NewickError
 
 POSTORDER = 'postorder'
 
@@ -176,8 +177,12 @@ def read_tree(tree_path, columns=None):
         try:
             tree = Tree(tree_path, format=f)
             break
-        except:
-            continue
+        except NewickError:
+            try:
+                tree = Tree(tree_path, format=f, quoted_node_names=True)
+                break
+            except NewickError:
+                continue
     if not tree:
         raise ValueError('Could not read the tree {}. Is it a valid newick?'.format(tree_path))
     if columns:
