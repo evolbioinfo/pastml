@@ -323,7 +323,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
                     itol_tree_name=None, offline=False, threads=0, reoptimise=False, focus=None,
                     resolve_polytomies=False, smoothing=False, frequency_smoothing=False,
-                    pajek=None, pajek_timing=VERTICAL):
+                    pajek=None, pajek_timing=VERTICAL, recursion_limit=0):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -497,6 +497,13 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         as the number of characters (-c option) being analysed plus one.
     :type threads: int
 
+    :parameter recursion_limit: Set the recursion limit in python.
+        If your tree is very large and pastml produces an overflow error,
+        you could try to set the recursion limit to a large number (e.g., 10000).
+        By default the standard recursion limit is used and should be sufficient
+        for trees of up to several thousand tips.
+    :type recursion_limit: int
+
     :param upload_to_itol: (optional, default is False) whether iTOL annotations
         for the reconstructed characters associated with the named tree (i.e. the one found in work_dir) should be created.
         If additionally itol_id and itol_project are specified,
@@ -514,6 +521,10 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     :return: void
     """
     logger = _set_up_pastml_logger(verbose)
+
+    if recursion_limit and recursion_limit > 0:
+        sys.setrecursionlimit(recursion_limit)
+
     copy_only = COPY == prediction_method or (isinstance(prediction_method, list)
                                               and all(COPY == _ for _ in prediction_method))
 
@@ -1086,6 +1097,12 @@ def main():
                              "By default detected automatically based on the system. "
                              "Note that PastML will at most use as many threads "
                              "as the number of characters (-c option) being analysed plus one.")
+    parser.add_argument('--recursion_limit', required=False, default=0, type=int,
+                        help='Set the recursion limit in python. '
+                             'If your tree is very large and pastml produces an overflow error, '
+                             'you could try to set the recursion limit to a large number (e.g., 10000). '
+                             'By default the standard recursion limit is used and should be sufficient '
+                             'for trees of up to several thousand tips.')
 
     itol_group = parser.add_argument_group('iTOL-related arguments')
     itol_group.add_argument('--upload_to_itol', action='store_true',
