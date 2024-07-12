@@ -34,7 +34,7 @@ from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, 
 from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS, VERTICAL, HORIZONTAL, TRIM
 
-PASTML_VERSION = '1.9.43'
+PASTML_VERSION = '1.9.45'
 
 model2class = {F81: F81Model, JC: JCModel, CUSTOM_RATES: CustomRatesModel, HKY: HKYModel, JTT: JTTModel, EFT: EFTModel}
 
