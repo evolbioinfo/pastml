@@ -7,6 +7,8 @@ from datetime import datetime
 from Bio import Phylo
 from ete3 import Tree, TreeNode
 from ete3.parser.newick import NewickError
+import pandas as pd
+from pastml import datetime2numeric, PASTML_VERSION, _set_up_pastml_logger
 
 POSTORDER = 'postorder'
 
@@ -19,11 +21,22 @@ DATE_CI = 'date_CI'
 
 DATE_REGEX = r'[+-]*[\d]+[.\d]*(?:[e][+-][\d]+){0,1}'
 DATE_COMMENT_REGEX = '[&,:]date[=]["]{{0,1}}({})["]{{0,1}}'.format(DATE_REGEX)
-CI_DATE_REGEX_LSD = '[&,:]CI_date[=]["]{{0,1}}[{{]{{0,1}}({})\s*[,;]{{0,1}}\s*({})[}}]{{0,1}}["]{{0,1}}'.format(DATE_REGEX, DATE_REGEX)
+CI_DATE_REGEX_LSD = '[&,:]CI_date[=]["]{{0,1}}[{{]{{0,1}}({})\s*[,;]{{0,1}}\s*({})[}}]{{0,1}}["]{{0,1}}'.format(
+    DATE_REGEX, DATE_REGEX)
 CI_DATE_REGEX_PASTML = '[&,:]date_CI[=]["]{{0,1}}({})[|]({})["]{{0,1}}'.format(DATE_REGEX, DATE_REGEX)
 COLUMN_REGEX_PASTML = '[&,]{column}[=]([^]^,]+)'
 
 IS_POLYTOMY = 'polytomy'
+
+
+def parse_date(d):
+    try:
+        return float(d)
+    except ValueError:
+        try:
+            return datetime2numeric(pd.to_datetime(d, infer_datetime_format=True))
+        except ValueError:
+            raise ValueError('Could not infer the date format for root date "{}", please check it.'.format(d))
 
 
 def get_dist_to_root(tip):
@@ -35,16 +48,19 @@ def get_dist_to_root(tip):
     return dist_to_root
 
 
-def annotate_dates(forest, root_dates=None):
+def annotate_dates(forest, root_dates=None, annotate_zeros=True):
     if root_dates is None:
-        root_dates = [0] * len(forest)
+        root_dates = [None] * len(forest)
     for tree, root_date in zip(forest, root_dates):
         for node in tree.traverse('preorder'):
             if getattr(node, DATE, None) is None:
                 if node.is_root():
-                    node.add_feature(DATE, root_date if root_date else 0)
+                    if root_date is not None or annotate_zeros:
+                        node.add_feature(DATE, root_date if root_date else 0)
                 else:
-                    node.add_feature(DATE, getattr(node.up, DATE) + node.dist)
+                    parent_date = getattr(node.up, DATE, None)
+                    if parent_date is not None:
+                        node.add_feature(DATE, parent_date + node.dist)
             else:
                 node.add_feature(DATE, float(getattr(node, DATE)))
             ci = getattr(node, DATE_CI, None)
@@ -158,17 +174,29 @@ def remove_certain_leaves(tr, to_remove=lambda node: False):
 
 
 def read_forest(tree_path, columns=None):
+    roots = None
     try:
         roots = parse_nexus(tree_path, columns=columns)
-        if roots:
-            return roots
     except:
         pass
-    with open(tree_path, 'r') as f:
-        nwks = f.read().replace('\n', '').split(';')
-    if not nwks:
-        raise ValueError('Could not find any trees (in newick or nexus format) in the file {}.'.format(tree_path))
-    return [read_tree(nwk + ';', columns) for nwk in nwks[:-1]]
+    if not roots:
+        with open(tree_path, 'r') as f:
+            nwks = f.read().replace('\n', '').split(';')
+        if not nwks:
+            raise ValueError('Could not find any trees (in newick or nexus format) in the file {}.'.format(tree_path))
+        roots = [read_tree(nwk + ';', columns) for nwk in nwks[:-1]]
+
+    num_neg = 0
+    for root in roots:
+        for _ in root.traverse():
+            if _.dist < 0:
+                num_neg += 1
+                _.dist = 0
+    if num_neg:
+        logging.getLogger('pastml').warning('Input tree{} contained {} negative branches: we put them to zero.'
+                                            .format('s' if len(roots) > 0 else '', num_neg))
+    logging.getLogger('pastml').debug('Read the tree{} {}.'.format('s' if len(roots) > 0 else '', tree_path))
+    return roots
 
 
 def read_tree(tree_path, columns=None):
@@ -455,7 +483,7 @@ def unresolve_trees(column2states, forest):
     if num_removed_nodes:
         logging.getLogger('pastml').debug(
             'Removed {} polytomy resolution{} as inconsistent with model parameters.'
-                .format(num_removed_nodes, 's' if num_removed_nodes > 1 else ''))
+            .format(num_removed_nodes, 's' if num_removed_nodes > 1 else ''))
         if num_new_nodes:
             logging.getLogger('pastml').debug(
                 'Created {} new polytomy resolution{}.'.format(num_new_nodes, 's' if num_new_nodes > 1 else ''))
@@ -491,3 +519,58 @@ def copy_forest(forest, features=None):
             for c in n.children:
                 todo.append((c, copied_n.add_child()))
     return copied_forest
+
+
+def main():
+    """
+    Entry point, calling :py:func:`pastml.tree.name_tree` with command-line arguments.
+
+    :return: void
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Name internal tree nodes as PastMl would.", prog='name_tree')
+
+    parser.add_argument('-i', '--in_tree', help="input tree(s) in newick or nexus format (must be rooted).",
+                        type=str, required=True)
+
+    parser.add_argument('-o', '--out_tree', required=False, type=str,
+                        help="path where to save the named output tree(s) in newick format.")
+
+    parser.add_argument('--root_date', required=False, default=None,
+                        help="date(s) of the root(s) (for dated tree(s) only), "
+                             "if specified, the corresponding dates will be added to the tree node annotations.",
+                        type=str, nargs='*')
+    parser.add_argument('-c', '--columns', nargs='*',
+                        help="names of the annotation columns of the input tree (if any) "
+                             "to be kept in the output tree. "
+                             "If there are LSD2-like date-related columns ({} and {}) present in the tree, "
+                             "they will be kept in any case, so no need to specify them among columns here."
+                        .format(DATE, DATE_CI),
+                        type=str)
+    parser.add_argument('--version', action='version',
+                        version='%(prog)s {version}'.format(version=PASTML_VERSION))
+
+    params = parser.parse_args()
+
+    roots = read_forest(params.in_tree, columns=params.columns)
+    root_dates = None
+    if params.root_date is not None:
+        root_dates = [parse_date(d) for d in params.root_date]
+        if 1 < len(root_dates) < len(roots):
+            raise ValueError('{} trees are given, but only {} root dates.'.format(len(roots), len(root_dates)))
+        elif 1 == len(root_dates):
+            root_dates *= len(roots)
+    annotate_dates(roots, root_dates=root_dates, annotate_zeros=False)
+    for i, tree in enumerate(roots):
+        name_tree(tree, suffix='' if len(roots) == 1 else '_{}'.format(i))
+    with open(params.out_tree, 'w+') as f:
+        f.write(
+            '\n'.join(
+                [root.write(format_root_node=True, format=3,
+                            features=[DATE, DATE_CI] + (params.columns if params.columns else []))
+                 for root in roots]))
+
+
+if '__main__' == __name__:
+    main()

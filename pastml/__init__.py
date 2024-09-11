@@ -1,4 +1,7 @@
+import logging
 from datetime import datetime
+
+PASTML_VERSION = '1.9.47'
 
 METHOD = 'method'
 STATES = 'states'
@@ -89,3 +92,15 @@ def value2list(n, value, default_value):
     else:
         value += [default_value] * (n - len(value))
     return value
+
+
+def _set_up_pastml_logger(verbose):
+    logger = logging.getLogger('pastml')
+    logger.setLevel(level=logging.DEBUG if verbose else logging.ERROR)
+    logger.propagate = False
+    if not logger.hasHandlers():
+        ch = logging.StreamHandler()
+        formatter = logging.Formatter('%(name)s:%(levelname)s:%(asctime)s %(message)s', datefmt="%H:%M:%S")
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)
+    return logger

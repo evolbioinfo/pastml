@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 import warnings
 from collections import defaultdict, Counter
 from multiprocessing.pool import ThreadPool
@@ -11,7 +12,7 @@ from Bio.Phylo.NewickIO import StringIO
 from ete3 import Tree
 
 from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, numeric2datetime, \
-    datetime2numeric
+    PASTML_VERSION, _set_up_pastml_logger
 from pastml.annotation import preannotate_forest, ForestStats
 from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, get_pastml_parameter_file, \
     get_pastml_marginal_prob_file, get_pastml_work_dir
@@ -27,14 +28,12 @@ from pastml.models.JTTModel import JTTModel, JTT, JTT_STATES
 from pastml.parsimony import is_parsimonious, parsimonious_acr, ACCTRAN, DELTRAN, DOWNPASS, MP_METHODS, MP, \
     get_default_mp_method
 from pastml.tree import name_tree, annotate_dates, DATE, read_forest, DATE_CI, resolve_trees, IS_POLYTOMY, \
-    unresolve_trees, clear_extra_features
+    unresolve_trees, clear_extra_features, parse_date
 from pastml.visualisation import get_formatted_date
 from pastml.visualisation.cytoscape_manager import visualize, TIMELINE_SAMPLED, TIMELINE_NODES, TIMELINE_LTT, \
     DIST_TO_ROOT_LABEL, DATE_LABEL
 from pastml.visualisation.itol_manager import generate_itol_annotations
 from pastml.visualisation.tree_compressor import REASONABLE_NUMBER_OF_TIPS, VERTICAL, HORIZONTAL, TRIM
-
-PASTML_VERSION = '1.9.46'
 
 model2class = {F81: F81Model, JC: JCModel, CUSTOM_RATES: CustomRatesModel, HKY: HKYModel, JTT: JTTModel, EFT: EFTModel}
 
@@ -675,17 +674,6 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         pool.close()
 
 
-def parse_date(d):
-    try:
-        return float(d)
-    except ValueError:
-        try:
-            return datetime2numeric(pd.to_datetime(d, infer_datetime_format=True))
-        except ValueError:
-            raise ValueError('Could not infer the date format for root date "{}", please check it.'
-                             .format(d))
-
-
 def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_sep='\t', id_index=0,
                     root_dates=None, copy_only=False, parameters=None, rates=None):
     logger = logging.getLogger('pastml')
@@ -700,16 +688,6 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
         columns = [columns]
 
     roots = read_forest(tree_nwk, columns=columns if data is None else None)
-    num_neg = 0
-    for root in roots:
-        for _ in root.traverse():
-            if _.dist < 0:
-                num_neg += 1
-                _.dist = 0
-    if num_neg:
-        logger.warning('Input tree{} contained {} negative branches: we put them to zero.'
-                       .format('s' if len(roots) > 0 else '', num_neg))
-    logger.debug('Read the tree{} {}.'.format('s' if len(roots) > 0 else '', tree_nwk))
 
     column2annotated = Counter()
     column2states = defaultdict(set)
@@ -880,18 +858,6 @@ def _serialize_predicted_states(columns, out_data, roots, dates_are_dates=True):
                     f.write('\n')
     logging.getLogger('pastml').debug('Serialized reconstructed states to {}.'.format(out_data))
     return pd.DataFrame(index=ids, data=data, columns=['dist', DATE] + columns)
-
-
-def _set_up_pastml_logger(verbose):
-    logger = logging.getLogger('pastml')
-    logger.setLevel(level=logging.DEBUG if verbose else logging.ERROR)
-    logger.propagate = False
-    if not logger.hasHandlers():
-        ch = logging.StreamHandler()
-        formatter = logging.Formatter('%(name)s:%(levelname)s:%(asctime)s %(message)s', datefmt="%H:%M:%S")
-        ch.setFormatter(formatter)
-        logger.addHandler(ch)
-    return logger
 
 
 def main():
@@ -1090,7 +1056,8 @@ def main():
     out_group.add_argument('-v', '--verbose', action='store_true',
                            help="print information on the progress of the analysis (to console)")
 
-    parser.add_argument('--version', action='version', version='%(prog)s {version}'.format(version=PASTML_VERSION))
+    parser.add_argument('--version', action='version',
+                        version='%(prog)s {version}'.format(version=PASTML_VERSION))
 
     parser.add_argument('--threads', required=False, default=0, type=int,
                         help="Number of threads PastML can use for parallesation. "

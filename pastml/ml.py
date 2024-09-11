@@ -881,13 +881,13 @@ def optimise_likelihood(forest, character, model, observed_frequencies):
     if not model.get_num_params():
         logger.debug('All the parameters are fixed for {}:\n{}{}.'
                      .format(character,
-                             model._print_parameters,
+                             model._print_parameters(),
                              '\tlog likelihood:\t{:.6f}'.format(likelihood))
                      )
     else:
         logger.debug('Initial values for {} parameter optimisation:\n{}{}.'
                      .format(character,
-                             model._print_parameters,
+                             model._print_parameters(),
                              '\tlog likelihood:\t{:.6f}'.format(likelihood))
                      )
         if not model.basic_params_fixed():
@@ -918,7 +918,7 @@ def optimise_likelihood(forest, character, model, observed_frequencies):
                                             .format(character))
         logger.debug('Optimised parameters for {}:\n{}{}'
                      .format(character,
-                             model._print_parameters,
+                             model._print_parameters(),
                              '\tlog likelihood:\t{:.6f}'.format(likelihood)))
     return likelihood
 

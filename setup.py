@@ -23,7 +23,7 @@ setup(
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3 :: Only',
     ],
-    version='1.9.46',
+    version='1.9.47',
     description='Ancestral character reconstruction and visualisation for rooted phylogenetic trees.',
     author='Anna Zhukova',
     author_email='anna.zhukova@pasteur.fr',
@@ -36,6 +36,7 @@ setup(
                 'pastml = pastml.acr:main',
                 'geomap = pastml.visualisation.generate_geomap:main',
                 'transition_counter = pastml.utilities.transition_counter:main',
+                'name_tree = pastml.tree:main'
             ]
     },
 )
