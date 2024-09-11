@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 
-PASTML_VERSION = '1.9.47'
+PASTML_VERSION = '1.9.48'
 
 METHOD = 'method'
 STATES = 'states'
