@@ -666,8 +666,8 @@ def _clazz_list2css_class(clazz_list):
 
 def _get_node(data, clazz=None, position=None):
     if position:
-        data['node_x'] = position[0]
-        data['node_y'] = position[1]
+        data['node_x'] = float(position[0])
+        data['node_y'] = float(position[1])
     res = {DATA: data}
     if clazz:
         res['classes'] = clazz
