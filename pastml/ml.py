@@ -106,10 +106,9 @@ def get_bottom_up_loglikelihood(tree, character, model, is_marginal=True, alter=
     lh_joint_state_feature = get_personalized_feature_name(character, BU_LH_JOINT_STATES)
     allowed_state_feature = get_personalized_feature_name(character, ALLOWED_STATES)
 
-    get_pij = model.get_Pij_t
     for node in tree.traverse('postorder'):
         calc_node_bu_likelihood(node, allowed_state_feature, lh_feature, lh_sf_feature, lh_joint_state_feature,
-                                is_marginal, get_pij)
+                                is_marginal, model)
     root_likelihoods = getattr(tree, lh_feature) * model.frequencies
     root_likelihoods = root_likelihoods.sum() if is_marginal else root_likelihoods.max()
 
@@ -123,12 +122,12 @@ def get_bottom_up_loglikelihood(tree, character, model, is_marginal=True, alter=
 
 
 def calc_node_bu_likelihood(node, allowed_state_feature, lh_feature, lh_sf_feature, lh_joint_state_feature, is_marginal,
-                            get_pij):
+                            model):
     allowed_states = getattr(node, allowed_state_feature)
     log_likelihood_array = np.log10(np.ones(len(allowed_states), dtype=np.float64) * allowed_states)
     factors = 0
     for child in node.children:
-        child_likelihoods = get_pij(child.dist) * getattr(child, lh_feature)
+        child_likelihoods = model.get_Pij_t(child.dist) * getattr(child, lh_feature)
         if is_marginal:
             child_likelihoods = child_likelihoods.sum(axis=1)
         else:
@@ -267,18 +266,17 @@ def calculate_top_down_likelihood(tree, character, model):
     bu_lh_feature = get_personalized_feature_name(character, BU_LH)
     bu_lh_sf_feature = get_personalized_feature_name(character, BU_LH_SF)
 
-    get_pij = model.get_Pij_t
     for node in tree.traverse('preorder'):
-        calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, get_pij)
+        calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, model)
 
 
-def calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, get_pij):
+def calc_node_td_likelihood(node, td_lh_feature, td_lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, model):
     if node.is_root():
         node.add_feature(td_lh_feature, np.ones(len(getattr(node, bu_lh_feature)), np.float64))
         node.add_feature(td_lh_sf_feature, 0)
         return
     parent = node.up
-    node_pjis = np.transpose(get_pij(node.dist))
+    node_pjis = np.transpose(model.get_Pij_t(node.dist))
     node_contribution = getattr(node, bu_lh_feature).dot(node_pjis)
     node_contribution[node_contribution <= 0] = 1
     parent_loglikelihood = np.log10(getattr(parent, td_lh_feature)) \
@@ -778,7 +776,6 @@ def marginal_counts(forest, character, model, n_repetitions=1_000):
     initial_allowed_state_feature = allowed_state_feature + '.initial'
     state_count_feature = get_personalized_feature_name(character, STATE_COUNTS)
 
-    get_pij = model.get_Pij_t
     n_states = len(model.states)
     state_ids = np.array(list(range(n_states)))
 
@@ -819,7 +816,7 @@ def marginal_counts(forest, character, model, n_repetitions=1_000):
             same_state_counts = np.zeros(n_states)
 
             for node in parent.children:
-                node_pjis = np.transpose(get_pij(node.dist))
+                node_pjis = np.transpose(model.get_Pij_t(node.dist))
                 marginal_loglikelihood = np.log10(getattr(node, bu_lh_feature)) + np.log10(node_pjis) \
                                          + np.log10(model.frequencies * getattr(node, allowed_state_feature))
                 rescale_log(marginal_loglikelihood)

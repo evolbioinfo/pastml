@@ -17,7 +17,7 @@ FREQUENCIES = 'frequencies'
 class Model(object):
 
     def __init__(self, states, forest_stats, sf=None, tau=0, optimise_tau=False,
-                 parameter_file=None, reoptimise=False, **kwargs):
+                 parameter_file=None, reoptimise=False, character=None, **kwargs):
         self._name = None
         self._states = np.sort(states)
         self._forest_stats = forest_stats
@@ -25,6 +25,7 @@ class Model(object):
         self._optimise_sf = True
         self._sf = None
         self._tau = None
+        self._character = character
         self.parse_parameters(parameter_file, reoptimise)
         if self._sf is None:
             self._sf = sf if sf is not None else 1. / forest_stats.avg_nonzero_brlen
@@ -42,8 +43,8 @@ class Model(object):
 
     def __str__(self):
         return \
-            'Model {} with parameter values:\n' \
-            '{}'.format(self.name,
+            'Model {} for character {} with parameter values:\n' \
+            '{}'.format(self.name, self._character,
                         self._print_parameters())
 
     def _print_parameters(self):

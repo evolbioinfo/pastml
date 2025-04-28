@@ -23,7 +23,7 @@ setup(
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3 :: Only',
     ],
-    version='1.9.50',
+    version='1.9.51',
     description='Ancestral character reconstruction and visualisation for rooted phylogenetic trees.',
     author='Anna Zhukova',
     author_email='anna.zhukova@pasteur.fr',

@@ -169,7 +169,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                 if vs:
                     n2c2states[n][c] = vs
 
-    # method, model, states, params, optimise
+    # method, model or states, observed frequencies
     character2settings = {}
     for (character, prediction_method, model) in zip(columns, prediction_methods, models):
         logging.getLogger('pastml') \
@@ -178,7 +178,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                            '\n\tModel:\t{}'.format(model) if model and is_ml(prediction_method) else ''))
         if COPY == prediction_method or is_parsimonious(prediction_method):
             states = get_states(prediction_method, model, character)
-            character2settings[character] = [prediction_method, states]
+            character2settings[character] = [prediction_method, states, None]
         elif is_ml(prediction_method):
             params = column2parameters[character] if character in column2parameters else None
             rate_file = column2rates[character] if character in column2rates else None
@@ -201,8 +201,8 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             model_instance = model2class[model](parameter_file=params, rate_matrix_file=rate_file, reoptimise=reoptimise,
                                                 frequency_smoothing=frequency_smoothing, tau=tau,
                                                 optimise_tau=optimise_tau, states=states, forest_stats=forest_stats,
-                                                observed_frequencies=observed_frequencies)
-            character2settings[character] = [prediction_method, model_instance]
+                                                observed_frequencies=observed_frequencies, character=character)
+            character2settings[character] = [prediction_method, model_instance, observed_frequencies]
         else:
             raise ValueError('Method {} is unknown, should be one of ML ({}), one of MP ({}) or {}'
                              .format(prediction_method, ', '.join(ML_METHODS), ', '.join(MP_METHODS), COPY))
@@ -211,7 +211,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         threads = max(os.cpu_count(), 1)
 
     def _work(character):
-        prediction_method, model_or_states = character2settings[character]
+        prediction_method, model_or_states, observed_frequencies = character2settings[character]
         if COPY == prediction_method:
             return {CHARACTER: character, STATES: model_or_states, METHOD: prediction_method}
         if is_ml(prediction_method):
