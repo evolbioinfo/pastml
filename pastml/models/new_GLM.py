@@ -1,5 +1,7 @@
 from os import listdir
-from numpy import array,genfromtxt,exp,sqrt,max,savetxt
+
+from numpy import array, genfromtxt, exp, sqrt, savetxt
+
 
 def get_rate_matrix(shape,predictors,coefficient,indicators=None):
     L = []
@@ -46,6 +48,14 @@ def filenumber(directory):
 ##      -autoriser l'input de coefficients
 
 def create_predictors2(directory,remove=False):
+    """
+    TODO: extplain how the matrices should look like and what is being done here.
+
+    :param directory:
+    :param remove:
+    :return:
+    """
+
     input_file = listdir(directory)
     names=input_file.copy()
     for file in range(len(input_file)):
@@ -56,6 +66,7 @@ def create_predictors2(directory,remove=False):
                     order_of_localities.append(line.split(',')[0])
                 order_of_localities = tuple(order_of_localities[1:])
         table = genfromtxt(directory + '/' + input_file[file], skip_header=1,delimiter=',')[:, 1:]
+        # TODO: explain what is going on here
         if input_file[file] == 'raw_location.csv':
             table = array(table)
             table = array([[1/sqrt((table[i,0]-table[j,0])**2+(table[i,1]-table[j,1])**2) if i!=j else 1 for j in range (table.shape[0])] for i in range (table.shape[0])])

@@ -11,7 +11,7 @@ from Bio.Phylo import NewickIO, write
 from Bio.Phylo.NewickIO import StringIO
 from ete3 import Tree
 
-from models.GLMModel import GLM, GLMModel
+from pastml.models.GLMModel import GLM, GLMModel
 from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, numeric2datetime, \
     PASTML_VERSION, _set_up_pastml_logger
 from pastml.annotation import preannotate_forest, ForestStats
@@ -408,9 +408,9 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         4 1 0 1
         1 4 1 0
     :type rate_matrix: str or list(str) or dict
-    :param rate_matrix_directory: (only for pastml.models.rate_matrix.GLMModel model) path to the directory with raw
+    :param rate_matrix_directory: (only for pastml.models.GLMModel model) path to the directory with raw
     datas for predictors. Directory should contain:
-        (1) either a raw_location.csv file with Country,latitude and longitude columns, or a position.csv file with already-computed distance (mendatory)
+        (1) either a raw_location.csv file with Country,latitude and longitude columns, or a position.csv file with already-computed distance (mandatory)
         (2) square matrices in csv files with pair-distance for each locality according to the predictor (optional)
     all matrices must have headers and first columns with location names
     :type rate_matrix_directory: str
@@ -434,7 +434,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         if specified, used to visualise a timeline based on dates (otherwise it is based on distances to root).
     :type root_date: str or pandas.datetime or float or list
     :param tip_size_threshold: (optional, by default is 15) recursively remove the tips
-        of size less than threshold-th largest tip from the compressed map (set to 1e10 to keep all).
+        of size less than the threshold-th largest tip from the compressed map (set to 1e10 to keep all).
         The larger it is the less tips will be trimmed.
     :type tip_size_threshold: int
     :param focus: optional way to put a focus on certain character state values,
@@ -509,7 +509,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     :parameter recursion_limit: Set the recursion limit in python.
         If your tree is very large and pastml produces an overflow error,
         you could try to set the recursion limit to a large number (e.g., 10000).
-        By default the standard recursion limit is used and should be sufficient
+        By default, the standard recursion limit is used and should be sufficient
         for trees of up to several thousand tips.
     :type recursion_limit: int
 
