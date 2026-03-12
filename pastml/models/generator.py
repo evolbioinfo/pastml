@@ -46,6 +46,8 @@ def get_normalised_generator(frequencies=None, rate_matrix=None):
         rate_matrix = np.ones(shape=(n, n), dtype=np.float64) - np.eye(n)
     if frequencies is not None:
         generator = rate_matrix * frequencies
+    else:
+        generator = rate_matrix
     generator -= np.diag(generator.sum(axis=1))
     mu = -generator.diagonal().dot(frequencies) if frequencies is not None else -generator.diagonal().sum()
     generator /= mu
