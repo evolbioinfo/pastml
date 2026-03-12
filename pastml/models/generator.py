@@ -13,7 +13,7 @@ def save_matrix(states, matrix, outfile):
     np.savetxt(outfile, matrix, delimiter=' ', fmt='%.18e', header=' '.join(states))
 
 
-def get_diagonalisation(frequencies, rate_matrix=None):
+def get_diagonalisation(frequencies=None, rate_matrix=None):
     """
     Normalises and diagonalises the rate matrix.
 
@@ -30,7 +30,7 @@ def get_diagonalisation(frequencies, rate_matrix=None):
     return d, A, np.linalg.inv(A)
 
 
-def get_normalised_generator(frequencies, rate_matrix=None):
+def get_normalised_generator(frequencies=None, rate_matrix=None):
     """
     Calculates the normalised generator from the rate matrix and character state frequencies.
 
@@ -44,9 +44,10 @@ def get_normalised_generator(frequencies, rate_matrix=None):
     if rate_matrix is None:
         n = len(frequencies)
         rate_matrix = np.ones(shape=(n, n), dtype=np.float64) - np.eye(n)
-    generator = rate_matrix * frequencies
+    if frequencies is not None:
+        generator = rate_matrix * frequencies
     generator -= np.diag(generator.sum(axis=1))
-    mu = -generator.diagonal().dot(frequencies)
+    mu = -generator.diagonal().dot(frequencies) if frequencies is not None else -generator.diagonal().sum()
     generator /= mu
     return generator
 
