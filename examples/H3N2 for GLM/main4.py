@@ -1,0 +1,2 @@
+from pastml.acr import pastml_pipeline
+pastml_pipeline(data='C:/Users/josep/PycharmProjects/pastml/examples/H3N2 for GLM/data_14/data_14_named.txt',data_sep=',',columns=['location14'],tree='C:/Users/josep/PycharmProjects/pastml/examples/H3N2 for GLM/data_14/airCommunities.tre',html_compressed='C:/Users/josep/PycharmProjects/pastml/examples/H3N2 for GLM/airCom14.html',html='C:/Users/josep/PycharmProjects/pastml/examples/H3N2 for GLM/complet_airCom14.html',verbose=True)
