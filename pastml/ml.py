@@ -109,7 +109,10 @@ def get_bottom_up_loglikelihood(tree, character, model, is_marginal=True, alter=
     for node in tree.traverse('postorder'):
         calc_node_bu_likelihood(node, allowed_state_feature, lh_feature, lh_sf_feature, lh_joint_state_feature,
                                 is_marginal, model)
-    root_likelihoods = getattr(tree, lh_feature) * model.frequencies
+    if isinstance(model, ModelWithFrequencies):
+        root_likelihoods = getattr(tree, lh_feature) * model.frequencies
+    else:
+        root_likelihoods = np.array(getattr(tree, lh_feature))
     root_likelihoods = root_likelihoods.sum() if is_marginal else root_likelihoods.max()
 
     if altered_nodes:
@@ -177,23 +180,10 @@ def optimize_likelihood_params(forest, character, observed_frequencies, model):
 
     :param model: model of character evolution
     :type model: pastml.model.Model
-    :param avg_br_len: avg branch length
-    :type avg_br_len: float
     :param forest: trees of interest
     :type forest: list(ete3.Tree)
-    :param character: character for which the likelihood is optimised
+    :param character: character for which the likelihood is optimized
     :type character: str
-    :param frequencies: array of initial state frequencies
-    :type frequencies: numpy.array
-    :param sf: initial scaling factor
-    :type sf: float
-    :param optimise_sf: whether the scaling factor needs to be optimised
-    :type optimise_sf: bool
-    :param optimise_frequencies: whether the state frequencies need to be optimised
-    :type optimise_frequencies: bool
-    :param tau: a smoothing factor to apply to branch lengths during likelihood calculation.
-        If set to zero (default), zero internal branches will be collapsed instead.
-    :type tau: float
     :return: optimized parameters and log likelihood: ((frequencies, scaling_factor), optimum)
     :rtype: tuple
     """
@@ -202,9 +192,11 @@ def optimize_likelihood_params(forest, character, observed_frequencies, model):
     def get_v(ps):
         if np.any(pd.isnull(ps)):
             return np.nan
+        # print(', '.join([f'{_:.8f}' for _ in ps]))
         model.set_params_from_optimised(ps)
         res = sum(get_bottom_up_loglikelihood(tree=tree, character=character, is_marginal=True, model=model, alter=True)
                   for tree in forest)
+        # print(res)
         return np.inf if pd.isnull(res) else -res
 
     if np.any(observed_frequencies <= 0):
@@ -453,8 +445,11 @@ def calculate_marginal_likelihoods(tree, feature, frequencies, clean_up=True):
 
 def calc_node_marginal_likelihood(node, lh_feature, lh_sf_feature, bu_lh_feature, bu_lh_sf_feature, td_lh_feature,
                                   td_lh_sf_feature, allowed_state_feature, frequencies, clean_up):
-    loglikelihood = np.log10(getattr(node, bu_lh_feature)) + np.log10(getattr(node, td_lh_feature)) \
-                    + np.log10(frequencies * getattr(node, allowed_state_feature))
+    loglikelihood = np.log10(getattr(node, bu_lh_feature)) + np.log10(getattr(node, td_lh_feature))
+    if frequencies is not None:
+        loglikelihood += np.log10(frequencies * getattr(node, allowed_state_feature))
+    else:
+        loglikelihood += np.log10(getattr(node, allowed_state_feature))
     factors = rescale_log(loglikelihood)
     node.add_feature(lh_feature, np.power(10, loglikelihood))
     node.add_feature(lh_sf_feature, factors + getattr(node, td_lh_sf_feature) + getattr(node, bu_lh_sf_feature))
@@ -595,7 +590,7 @@ def choose_ancestral_states_map(tree, feature, states):
         node.add_feature(allowed_state_feature, state2array[marginal_likelihoods.argmax()])
 
 
-def choose_ancestral_states_joint(tree, feature, states, frequencies):
+def choose_ancestral_states_joint(tree, feature, states, frequencies=None):
     """
     Chooses node ancestral states based on their marginal probabilities using joint method.
 
@@ -619,7 +614,11 @@ def choose_ancestral_states_joint(tree, feature, states, frequencies):
         for child in node.children:
             chose_consistent_state(child, getattr(child, lh_state_feature)[state_index])
 
-    chose_consistent_state(tree, (getattr(tree, lh_feature) * frequencies).argmax())
+    if frequencies is not None:
+        arg_max = (getattr(tree, lh_feature) *  frequencies).argmax()
+    else:
+        arg_max = getattr(tree, lh_feature).argmax()
+    chose_consistent_state(tree, arg_max)
 
 
 def get_state2allowed_states(states, by_name=True):
@@ -691,7 +690,8 @@ def ml_acr(forest, character, prediction_method, model, observed_frequencies, fo
                                             is_marginal=False, model=model, alter=True) for tree in forest)
         note_restricted_likelihood(JOINT, restricted_likelihood)
         for tree in forest:
-            choose_ancestral_states_joint(tree, character, model.states, model.frequencies)
+            choose_ancestral_states_joint(tree, character, model.states,
+                                          frequencies=model.frequencies if isinstance(model, ModelWithFrequencies) else None)
         process_reconstructed_states(JOINT)
 
     if is_marginal(prediction_method):
@@ -703,7 +703,8 @@ def ml_acr(forest, character, prediction_method, model, observed_frequencies, fo
                 altered_nodes = alter_zero_node_allowed_states(tree, character)
             get_bottom_up_loglikelihood(tree=tree, character=character, is_marginal=True, model=model, alter=False)
             calculate_top_down_likelihood(tree, character, model=model)
-            calculate_marginal_likelihoods(tree, character, model.frequencies)
+            calculate_marginal_likelihoods(tree, character,
+                                           frequencies=model.frequencies if isinstance(model, ModelWithFrequencies) else None)
             # check_marginal_likelihoods(tree, character)
             mps.append(convert_likelihoods_to_probabilities(tree, character, model.states))
 
@@ -792,7 +793,8 @@ def marginal_counts(forest, character, model, n_repetitions=1_000):
         for parent in tree.traverse('levelorder'):
             if parent.is_root():
                 calc_node_marginal_likelihood(parent, lh_feature, lh_sf_feature, bu_lh_feature, bu_lh_sf_feature,
-                                              td_lh_feature, td_lh_sf_feature, allowed_state_feature, model.frequencies,
+                                              td_lh_feature, td_lh_sf_feature, allowed_state_feature,
+                                              model.frequencies if isinstance(model, ModelWithFrequencies) else None,
                                               False)
                 marginal_likelihoods = getattr(parent, lh_feature)
                 marginal_probs = marginal_likelihoods / marginal_likelihoods.sum()
@@ -817,8 +819,11 @@ def marginal_counts(forest, character, model, n_repetitions=1_000):
 
             for node in parent.children:
                 node_pjis = np.transpose(model.get_Pij_t(node.dist))
-                marginal_loglikelihood = np.log10(getattr(node, bu_lh_feature)) + np.log10(node_pjis) \
-                                         + np.log10(model.frequencies * getattr(node, allowed_state_feature))
+                marginal_loglikelihood = np.log10(getattr(node, bu_lh_feature)) + np.log10(node_pjis)
+                if isinstance(model, ModelWithFrequencies):
+                    marginal_loglikelihood += np.log10(model.frequencies * getattr(node, allowed_state_feature))
+                else:
+                    marginal_loglikelihood += np.log10(getattr(node, allowed_state_feature))
                 rescale_log(marginal_loglikelihood)
                 marginal_likelihood = np.power(10, marginal_loglikelihood)
                 marginal_probs = marginal_likelihood / marginal_likelihood.sum(axis=1)[:, np.newaxis]
@@ -882,10 +887,11 @@ def optimise_likelihood(forest, character, model, observed_frequencies):
                              '\tlog likelihood:\t{:.6f}'.format(likelihood))
                      )
     else:
-        logger.debug('Initial values for {} parameter optimisation:\n{}{}.'
+        logger.debug('Initial values for {} parameter optimisation:\n{}{}\n{}.'
                      .format(character,
                              model._print_parameters(),
-                             '\tlog likelihood:\t{:.6f}'.format(likelihood))
+                             '\tlog likelihood:\t{:.6f}'.format(likelihood),
+                             '\tAIC:\t{:.6f}'.format(2 * model.get_num_params() - 2 * likelihood))
                      )
         if not model.basic_params_fixed():
             model.fix_extra_params()
@@ -899,10 +905,15 @@ def optimise_likelihood(forest, character, model, observed_frequencies):
                                             .format(character))
             model.unfix_extra_params()
             if not model.extra_params_fixed():
-                logger.debug('Pre-optimised basic parameters for {}:\n{}{}.'
+                model.fix_extra_params()
+                logger.debug('Pre-optimised basic parameters for {}:\n{}{}\n{}.'
                              .format(character,
                                      model._print_basic_parameters(),
-                                     '\tlog likelihood:\t{:.6f}'.format(likelihood)))
+                                     '\tlog likelihood:\t{:.6f}'.format(likelihood),
+                                     '\tAIC:\t{:.6f}'.format(2 * model.get_num_params() - 2 * likelihood))
+                             )
+                model.unfix_extra_params()
+
         if not model.extra_params_fixed():
             likelihood = \
                 optimize_likelihood_params(forest=forest, character=character, model=model,
@@ -913,10 +924,12 @@ def optimise_likelihood(forest, character, model, observed_frequencies):
                                             'for internal tree nodes, '
                                             'and if not - submit a bug at https://github.com/evolbioinfo/pastml/issues'
                                             .format(character))
-        logger.debug('Optimised parameters for {}:\n{}{}'
+        logger.debug('Optimised parameters for {}:\n{}{}\n{}'
                      .format(character,
                              model._print_parameters(),
-                             '\tlog likelihood:\t{:.6f}'.format(likelihood)))
+                             '\tlog likelihood:\t{:.6f}'.format(likelihood),
+                             '\tAIC:\t{:.6f}'.format(2 * model.get_num_params() - 2 * likelihood))
+                     )
     return likelihood
 
 

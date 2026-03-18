@@ -1,0 +1,138 @@
+
+RAxML-NG v. 1.2.2-master released on 30.04.2024 by The Exelixis Lab.
+Developed by: Alexey M. Kozlov and Alexandros Stamatakis.
+Contributors: Diego Darriba, Tomas Flouri, Benoit Morel, Sarah Lutteropp, Ben Bettisworth, Julia Haag, Anastasis Togkousidis.
+Latest version: https://github.com/amkozlov/raxml-ng
+Questions/problems/suggestions? Please visit: https://groups.google.com/forum/#!forum/raxml
+
+System: 12th Gen Intel(R) Core(TM) i9-12900H, 14 cores, 31 GB RAM (allocated: 10 physical cores)
+
+RAxML-NG was called at 14-Mar-2026 21:39:25 as follows:
+
+raxml-ng --msa /home/azhukova/projects/pastml_main/examples/RABV/batRABV.fas --model GTR+G4+FO+I --tree pars{5}
+
+Analysis options:
+  run mode: ML tree search
+  start tree(s): parsimony (5)
+  random seed: 1773520765
+  tip-inner: OFF
+  pattern compression: ON
+  per-rate scalers: OFF
+  site repeats: ON
+  logLH epsilon: general: 10.000000, brlen-triplet: 1000.000000
+  fast spr radius: AUTO
+  spr subtree cutoff: 1.000000
+  fast CLV updates: ON
+  branch lengths: proportional (ML estimate, algorithm: NR-FAST)
+  SIMD kernels: AVX2
+  parallelization: coarse-grained (auto), PTHREADS (auto)
+
+[00:00:00] Reading alignment from file: /home/azhukova/projects/pastml_main/examples/RABV/batRABV.fas
+[00:00:00] Loaded alignment with 372 taxa and 1353 sites
+
+WARNING: Sequences WA369_1999.5 and WA1770_2005.5 are exactly identical!
+WARNING: Sequences TX5276_2004.5 and TX5565_2000.5 are exactly identical!
+WARNING: Sequences TX5276_2004.5 and TX5512_2002.5 are exactly identical!
+WARNING: Sequences MS076_2004.5 and MS079_2004.5 are exactly identical!
+WARNING: Sequences GA31217_2004.5 and GA31454_2004.5 are exactly identical!
+WARNING: Sequences IN133_2005.5 and TN259_2005.5 are exactly identical!
+WARNING: Sequences MI2114_2003.5 and CA32_2001.5 are exactly identical!
+WARNING: Sequences MI2114_2003.5 and TX2130_2004.5 are exactly identical!
+WARNING: Sequences MI2114_2003.5 and AZ6954_2005.5 are exactly identical!
+WARNING: Sequences NJ1772_2005.5 and NJ1793_2005.5 are exactly identical!
+WARNING: Sequences NJ1772_2005.5 and NJ1916_2005.5 are exactly identical!
+WARNING: Sequences NJ2282_2005.5 and NJ2405_2005.5 are exactly identical!
+WARNING: Sequences TN126_2005.5 and TN822_2005.5 are exactly identical!
+WARNING: Sequences VA964_2002.5 and VA579_2003.5 are exactly identical!
+WARNING: Sequences VA3448_2004.5 and VA2446_2003.5 are exactly identical!
+WARNING: Sequences AZ2944_2005.5 and AZ2991_2004.5 are exactly identical!
+WARNING: Sequences CA030_2002.5 and CA0044_2005.5 are exactly identical!
+WARNING: Sequences CA217_2002.5 and TN977_2005.5 are exactly identical!
+WARNING: Sequences CA217_2002.5 and CA6054_2000.5 are exactly identical!
+WARNING: Sequences CA25_2002.5 and CA4287_2005.5 are exactly identical!
+WARNING: Sequences CA3872_2002.5 and TX6362_2003.5 are exactly identical!
+WARNING: Sequences IN1487_2005.5 and TN169_2004.5 are exactly identical!
+WARNING: Sequences IN1487_2005.5 and VA1700_2005.5 are exactly identical!
+WARNING: Sequences CA0057_2005.5 and TX6127b_2004.5 are exactly identical!
+WARNING: Sequences FL2369_2003.5 and FL2835_2004.5 are exactly identical!
+WARNING: Sequences FL2369_2003.5 and FL412_2004.5 are exactly identical!
+WARNING: Duplicate sequences found: 26
+
+NOTE: Reduced alignment (with duplicates and gap-only sites/taxa removed) 
+NOTE: was saved to: /home/azhukova/projects/pastml_main/examples/RABV/batRABV.fas.raxml.reduced.phy
+
+Alignment comprises 1 partitions and 548 patterns
+
+Partition 0: noname
+Model: GTR+FO+I+G4m
+Alignment sites / patterns: 1353 / 548
+Gaps: 33.85 %
+Invariant sites: 60.24 %
+
+
+NOTE: Binary MSA file created: /home/azhukova/projects/pastml_main/examples/RABV/batRABV.fas.raxml.rba
+
+Parallelization scheme autoconfig: 5 worker(s) x 2 thread(s)
+
+[00:00:00] Generating 5 parsimony starting tree(s) with 372 taxa
+Parallel parsimony with 10 threads
+Parallel reduction/worker buffer size: 1 KB  / 0 KB
+
+[00:00:00] Data distribution: max. partitions/sites/weight per thread: 1 / 274 / 4384
+[00:00:00] Data distribution: max. searches per worker: 1
+
+Starting ML tree search with 5 distinct starting trees
+
+[00:00:00 -19958.885494] Initial branch length optimization
+[00:00:00 -14726.102909] Model parameter optimization (eps = 10.000000)
+[00:00:01 -13496.797935] AUTODETECT spr round 1 (radius: 5)
+[00:00:01 -13425.689089] AUTODETECT spr round 2 (radius: 10)
+[00:00:03 -13366.678984] AUTODETECT spr round 3 (radius: 15)
+[00:00:06 -13365.779409] AUTODETECT spr round 4 (radius: 20)
+[00:00:11 -13365.536141] AUTODETECT spr round 5 (radius: 25)
+[00:00:15 -13365.466023] SPR radius for FAST iterations: 20 (autodetect)
+[00:00:15 -13365.466023] Model parameter optimization (eps = 3.000000)
+[00:00:15 -13364.156677] FAST spr round 1 (radius: 20)
+[00:00:16 -13351.942265] FAST spr round 2 (radius: 20)
+[00:00:18 -13351.927696] Model parameter optimization (eps = 1.000000)
+[00:00:18 -13351.241791] SLOW spr round 1 (radius: 5)
+[00:00:20 -13347.746775] SLOW spr round 2 (radius: 10)
+[00:00:23 -13347.679666] SLOW spr round 3 (radius: 15)
+[00:00:29 -13347.678419] SLOW spr round 4 (radius: 20)
+[00:00:35] [worker #3] ML tree search #4, logLikelihood: -13355.636363
+[00:00:35 -13347.677784] SLOW spr round 5 (radius: 25)
+[00:00:36] [worker #4] ML tree search #5, logLikelihood: -13344.559315
+[00:00:48 -13347.677151] Model parameter optimization (eps = 0.100000)
+
+[00:00:50] [worker #0] ML tree search #1, logLikelihood: -13343.689496
+
+[00:01:03] [worker #2] ML tree search #3, logLikelihood: -13348.622029
+[00:01:07] [worker #1] ML tree search #2, logLikelihood: -13346.032221
+
+Optimized model parameters:
+
+   Partition 0: noname
+   Rate heterogeneity: GAMMA (4 cats, mean),  alpha: 1.103619 (ML),  weights&rates: (0.250000,0.157153) (0.250000,0.505825) (0.250000,1.015251) (0.250000,2.321771) 
+   P-inv (ML): 0.490468
+   Base frequencies (ML): 0.292405 0.205061 0.222869 0.279665 
+   Substitution rates (ML): 1.403692 7.590285 0.456755 0.135432 9.710026 1.000000 
+
+
+Final LogLikelihood: -13343.689496
+
+AIC score: 28189.378993 / AICc score: 30068.753369 / BIC score: 32102.148793
+Free parameters (model + branch lengths): 751
+
+WARNING: Best ML tree contains 148 near-zero branches!
+
+Best ML tree with collapsed near-zero branches saved to: /home/azhukova/projects/pastml_main/examples/RABV/batRABV.fas.raxml.bestTreeCollapsed
+Best ML tree saved to: /home/azhukova/projects/pastml_main/examples/RABV/batRABV.fas.raxml.bestTree
+All ML trees saved to: /home/azhukova/projects/pastml_main/examples/RABV/batRABV.fas.raxml.mlTrees
+Optimized model saved to: /home/azhukova/projects/pastml_main/examples/RABV/batRABV.fas.raxml.bestModel
+
+Execution log saved to: /home/azhukova/projects/pastml_main/examples/RABV/batRABV.fas.raxml.log
+
+Analysis started: 14-Mar-2026 21:39:25 / finished: 14-Mar-2026 21:40:32
+
+Elapsed time: 67.350 seconds
+

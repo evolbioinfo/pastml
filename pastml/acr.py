@@ -11,7 +11,7 @@ from Bio.Phylo import NewickIO, write
 from Bio.Phylo.NewickIO import StringIO
 from ete3 import Tree
 
-from pastml.models.GLMModel import GLM, GLMModel
+from pastml.models.GLMModel import GLM, GLMModel, read_predictors
 from pastml import col_name2cat, value2list, STATES, METHOD, CHARACTER, get_personalized_feature_name, numeric2datetime, \
     PASTML_VERSION, _set_up_pastml_logger
 from pastml.annotation import preannotate_forest, ForestStats
@@ -75,7 +75,7 @@ def _serialize_acr(args):
 
 
 def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPPA, model=F81,
-        column2parameters=None, column2rates=None, rates_for_GLM=None,
+        column2parameters=None, column2rates=None, column2GLM_predictors=None,
         force_joint=True, threads=0,
         reoptimise=False, tau=0, resolve_polytomies=False, frequency_smoothing=False):
     """
@@ -182,6 +182,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         elif is_ml(prediction_method):
             params = column2parameters[character] if character in column2parameters else None
             rate_file = column2rates[character] if character in column2rates else None
+            predictors = column2GLM_predictors[character] if column2GLM_predictors and character in column2GLM_predictors else None
             optimise_tau = tau is None or reoptimise
             if tau is None:
                 tau = 0
@@ -197,12 +198,8 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                                  '\n\tfraction of missing data:\t{:.6f}'
                                  .format(missing_data) if missing_data else '')
                          )
-            if model == GLM:
-                with open(rates_for_GLM + '/' + os.listdir(rates_for_GLM)[0], 'r') as f:
-                    states = f.readline().split(',')[1:]
-                    states[-1]=states[-1][:-1]
             model_instance = model2class[model](parameter_file=params, rate_matrix_file=rate_file,
-                                                rates_for_GLM=rates_for_GLM, reoptimise=reoptimise,
+                                                predictors=predictors, reoptimise=reoptimise,
                                                 frequency_smoothing=frequency_smoothing, tau=tau,
                                                 optimise_tau=optimise_tau, states=states, forest_stats=forest_stats,
                                                 observed_frequencies=observed_frequencies, character=character)
@@ -319,7 +316,7 @@ def _quote(str_list):
 
 def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     columns=None, prediction_method=MPPA, model=F81,
-                    parameters=None, rate_matrix=None, rate_matrix_directory=None,
+                    parameters=None, rate_matrix=None, GLM_directory=None,
                     name_column=None, root_date=None, timeline_type=TIMELINE_SAMPLED,
                     tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, colours=None,
                     out_data=None, html_compressed=None, html=None, html_mixed=None, work_dir=None,
@@ -408,12 +405,19 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         4 1 0 1
         1 4 1 0
     :type rate_matrix: str or list(str) or dict
-    :param rate_matrix_directory: (only for pastml.models.GLMModel model) path to the directory with raw
-    datas for predictors. Directory should contain:
-        (1) either a raw_location.csv file with Country,latitude and longitude columns, or a position.csv file with already-computed distance (mandatory)
-        (2) square matrices in csv files with pair-distance for each locality according to the predictor (optional)
-    all matrices must have headers and first columns with location names
-    :type rate_matrix_directory: str
+    :param GLM_directory: (only for pastml.models.GLMModel model) path to the directory(s)
+        containing predictors.
+        Could be specified as
+        (1) a dict {column: path_to_dir},
+        where column corresponds to the character for which this directory should be used,
+        or (2) as a list of paths to directories
+        (in the same order as ``columns`` argument that specifies characters,
+        counting only those for which the model is pastml.models.GLMModel);
+        or (3) as a path to the directory (if there is only one GLM character).
+        The specified directory(s) should contain square matrices in csv files,
+        with the header line specifying character states, and the first column containing the same character states.
+        The cell ij should contain the predictor value for the transition from state i to state j.
+    :type GLM_directory: str or list(str) or dict
     :param reoptimise: (False by default) if set to True and the parameters are specified,
         they will be considered as an optimisation starting point instead, and optimised.
     :type reoptimise: bool
@@ -537,10 +541,10 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     copy_only = COPY == prediction_method or (isinstance(prediction_method, list)
                                               and all(COPY == _ for _ in prediction_method))
 
-    roots, columns, column2states, name_column, age_label, parameters, rates, rates_for_GLM = \
+    roots, columns, column2states, name_column, age_label, parameters, rates, col2GLM_predictors = \
         _validate_input(tree, columns, name_column if html_compressed or html_mixed else None, data, data_sep, id_index,
                         root_date if html_compressed or html or html_mixed or upload_to_itol else None,
-                        copy_only=copy_only, parameters=parameters, rates=rate_matrix, rates_for_GLM=rate_matrix_directory)
+                        copy_only=copy_only, parameters=parameters, rates=rate_matrix, GLM_predictors=GLM_directory)
 
     if not work_dir:
         work_dir = get_pastml_work_dir(tree)
@@ -551,7 +555,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
 
     acr_results = acr(forest=roots, columns=columns, column2states=column2states,
                       prediction_method=prediction_method, model=model, column2parameters=parameters,
-                      column2rates=rates, rates_for_GLM=rates_for_GLM,
+                      column2rates=rates, column2GLM_predictors=col2GLM_predictors,
                       force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=None if smoothing else 0,
                       resolve_polytomies=resolve_polytomies, frequency_smoothing=frequency_smoothing)
 
@@ -685,7 +689,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
 
 
 def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_sep='\t', id_index=0,
-                    root_dates=None, copy_only=False, parameters=None, rates=None, rates_for_GLM=None):
+                    root_dates=None, copy_only=False, parameters=None, rates=None, GLM_predictors=None):
     logger = logging.getLogger('pastml')
     logger.debug('\n=============INPUT DATA VALIDATION=============')
 
@@ -832,10 +836,19 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
     else:
         rates = {}
 
+    col2GLM_predictors = {}
+    if GLM_predictors:
+        for (col, directory) in (GLM_predictors.items() if isinstance(GLM_predictors, dict) \
+                else zip(columns, GLM_predictors if isinstance(GLM_predictors, list) else [GLM_predictors])):
+            col = col_name2cat(col)
+            col_states, pred_names, preds = read_predictors(directory, sep=data_sep, states=column2states[col_name2cat(col)])
+            column2states[col] = col_states
+            col2GLM_predictors[col] = [pred_names, preds]
+
     for i, tree in enumerate(roots):
         name_tree(tree, suffix='' if len(roots) == 1 else '_{}'.format(i))
 
-    return roots, columns, column2states, name_column, age_label, parameters, rates, rates_for_GLM
+    return roots, columns, column2states, name_column, age_label, parameters, rates, col2GLM_predictors
 
 
 def _serialize_predicted_states(columns, out_data, roots, dates_are_dates=True):

@@ -1,0 +1,56 @@
+
+LEAST-SQUARE METHODS TO ESTIMATE RATES AND DATES - v.2.4.1 
+
+
+Input files:
+  i                                               Input tree file : /home/azhukova/projects/pastml_main/examples/RABV/batRABV.fas.raxml.bestTreeCollapsed
+  d                                               Input date file : /home/azhukova/projects/pastml_main/examples/RABV/batRABV.dates
+  p                                                Partition file : No
+  g                                               Given outgroups : No
+Output file:
+  o                                                  Output file  : /home/azhukova/projects/pastml_main/examples/RABV/batRABV.fas.raxml.bestTreeCollapsed.result
+Parameters:
+  a                                                     Root date : No
+  z                                                     Tips date : No
+  c                                              With constraints : Yes
+  t                                      Lower bound for the rate : 1e-10
+  v                                                With variances : Yes, use variances based on input branch lengths
+  b                              Adjusted parameter for variances : To estimate
+  r                                             Estimate the root : Use fast method to search on all branches
+  w                                       Given substitution rate : No
+  n                                             Multiple data set : No
+  f                                  Compute confidence intervals : Yes, sampling 1000 times
+  q                  Standard deviation of lognormal relaxed clock: 0.2 (for computing confidence intervals)
+  s                                               Sequence length : 1353
+  e                                          Exclude outlier tips : Yes, detect and exclude outliers from the analysis
+  m                   Number of sampling nodes to detect outliers : 10
+  e                       The Zscore threshold to detect outliers : 3
+  u                Min internal branch length of time scaled tree : 0
+  U                Min external branch length of time scaled tree : 0
+  l                        Collapsed internal branch length limit : 0.000369549
+  D                                            Output date format : Based on input date format
+  E  Estimate rates for external and internal branches separately : No
+
+  h to print Help 
+  y to accept or type a letter to change an option (x = Exit) 
+Tree 1 
+Parameter to adjust variances was set to 0.00739098 (settable via option -b)
+Minimum branch length of time scaled tree (settable via option -u and -U): 0
+
+*WARNINGS:
+- The tips TX5275_2002.5 do not have temporal constraint, their dates will be infered.
+- 10.4072% internal branches were collapsed.
+- The tips TX5275_2002.5 do not have temporal constraint, their dates will be infered.
+
+*RESULTS:
+- The input dates associated with the following 9 nodes are considered as
+ outliers, so the nodes were excluded from the analysis:
+ TX5565_2000.5 TX6197_1998.5 WA369_1999.5 WA1770_2005.5 WA0355_1999.5 WA0410_1997.5 WA580_1998.5 WA0524_1998.5 CA6054_2000.5
+- Dating results:
+ rate 0.000178053, tMRCA 1658.36 , objective function 0.227459
+- Results with confidence intervals:
+ rate 0.000178053 [2.8043e-05; 0.000272361], tMRCA 1658.36 [-264.267; 1778.53], objective function 0.227459
+
+*********************************************************
+
+TOTAL ELAPSED TIME: 0.938666 seconds

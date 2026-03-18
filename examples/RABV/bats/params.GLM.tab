@@ -1,0 +1,10 @@
+parameter	value
+GLM_INDICATOR:hostDistances.csv	1
+GLM_INDICATOR:rangeOverlap.csv	1
+GLM_INDICATOR:roostOverlap.csv	1
+GLM_INDICATOR:wingAspectRatio.csv	1
+GLM_INDICATOR:src_sampleSize.csv	0
+GLM_INDICATOR:tgt_sampleSize.csv	0
+GLM_INDICATOR:wingLoading.csv	1
+GLM_INDICATOR:bodySize.csv	1
+GLM_PREDICTOR_DIR	/home/azhukova/projects/pastml_main/examples/RABV/bats/predictors

@@ -1,42 +1,128 @@
+import logging
+import os
+
 import numpy as np
+import pandas as pd
+from scipy.linalg import expm
 
 from pastml.models import Model
-from pastml.models.generator import get_diagonalisation, get_pij_matrix
-import pastml.models.new_GLM as ng
+from pastml.models.generator import get_diagonalisation, get_pij_matrix, get_normalised_generator
 
 GLM = 'GLM'
-GLM_MATRICES = 'MATRICES'
-GLM_COEFFICIENTS = 'COEFFICIENTS'
-GLM_SELECTORS = 'SELECTORS'
+GLM_PREDICTOR_DIR = 'GLM_PREDICTOR_DIR'
+GLM_COEFFICIENT = 'GLM_COEFFICIENT'
+GLM_INDICATOR = 'GLM_INDICATOR'
 
+EPSILON = 1e-3
+
+
+def read_predictors(directory, states, sep=',', epsilon=EPSILON):
+    """
+    Reads user-provided predictors, shifts if there are non-positive values,
+    converts them to log scale and returns a tuple, whose first values contains the character states,
+    the second one file names, and the third log-scaled (potentially shifted) predictors in the same order.
+
+    :param states: list of possible character states,
+        which should be contained in to the row and column names of the predictor files.
+    :param directory: User-defined directory containing the predictor files.
+        Each file should be a CSV with a header line, where the first column contains character state names,
+         and the remaining columns contain predictor values.
+         Cell ij should contain the predictor value for the transition from state i to state j.
+         The predictor values should be non-negative, but if there are any non-positive values,
+         they will be shifted to make them positive before taking the log.
+         The diagonal will be set to zero (on the log scale).
+    :param sep: separator used in the predictor files (default is a comma).
+    :param epsilon: minimal value to consider as positive,
+        if the minimal predictor value (before log-scaling) is lower than that,
+        all its value will be shifted.
+    :return: (states, predictor_names, predictor_log_matrices)
+    """
+    df_state_set = None
+    state_set = set(states)
+    names, predictors = [], []
+    for file_name in os.listdir(directory):
+        file_path = os.path.join(directory, file_name)
+        df = pd.read_table(file_path, sep=sep, index_col=0, header=0)
+        if df_state_set is None:
+            df_state_set = set(df.index)
+            if state_set - df_state_set:
+                raise ValueError(f'The predictor file {file_name} does not contain the following states found at tree nodes: '
+                                 + ", ".join(sorted(state_set - df_state_set)))
+            if len(df_state_set) > len(state_set):
+                logging.getLogger('pastml')\
+                    .warning(f'The predictor file {file_name} contains additional states with respect to the annotated tree nodes: '
+                             + ", ".join(sorted(df_state_set - state_set)))
+                state_set = df_state_set
+                states = sorted(state_set | df_state_set)
+        # check that the state names in the current file match those in the first file
+        if state_set != set(df.index):
+            raise ValueError(f'All predictor files must have the same character state names, '
+                             f'but {file_name} has different state names in the first column'
+                             + ", ".join(sorted((state_set ^ set(df.index)))))
+
+        todo, todo_names = [], []
+        if len(df.columns) == 1:
+            logging.getLogger('pastml') \
+                .warning(f'The predictor file {file_name} contains only one column, will treat it as source/destination.')
+            predictor_vector = df.loc[states, df.columns[0]].to_numpy(dtype=float, na_value=0)
+            predictor_src = np.tile(predictor_vector.reshape(-1, 1), (1, len(state_set)))
+            predictor_tgt = np.tile(predictor_vector, (len(state_set), 1))
+            todo = [predictor_src, predictor_tgt]
+            todo_names = [f'src_{file_name}', f'tgt_{file_name}']
+        else:
+            if state_set != set(df.columns):
+                raise ValueError(f'All predictor files must have the same character state names, '
+                                     f'but {file_name} has different state names in the header: '
+                                     + ", ".join(sorted((state_set ^ set(df.columns[1:])))))
+            predictor = df.loc[states, states].to_numpy(dtype=float, na_value=0)
+            todo = [predictor]
+            todo_names = [file_name]
+        for predictor, predictor_name in zip(todo, todo_names):
+            # if it is a binary matrix we will not log-scale it
+            non_binary = np.any(~np.isin(predictor, [0, 1]))
+            if non_binary:
+                # Let's fill in the diagonal with 1s before shifting the non-positive values, and refill it with zeros after.
+                np.fill_diagonal(predictor, 1)
+                # Shift the predictor values if there are non-positive values, to make them positive before taking the log.
+                min_value = predictor.min()
+                if min_value < epsilon:
+                    predictor += (epsilon - min_value)
+
+                # normalize the predictor
+                np.fill_diagonal(predictor, 1)
+                predictor /= predictor.max()
+
+                # Set the diagonal to 1, so that it gets to be zero with the log.
+                np.fill_diagonal(predictor, 1)
+            names.append(predictor_name)
+            predictors.append(np.log(predictor) if non_binary else predictor)
+    return states, names, predictors
 
 class GLMModel(Model):
 
-    def __init__(self, states, forest_stats, parameter_file, coefficients=None, tau=0,
-                 optimise_tau=False, reoptimise=False, rates_for_GLM=None, optimise_coefficients=True,
-                 optimise_predictors=True, **kwargs):
+    def __init__(self, states, forest_stats, sf=None, tau=0, parameter_file=None, coefficients=None, indicators=None,
+                 optimise_sf=True, optimise_tau=False, reoptimise=False, predictors=None, optimise_coefficients=True,
+                 optimise_indicators=True, **kwargs):
         self._optimise_coefficients = optimise_coefficients
-        self._optimise_predictors = optimise_predictors
-        self._directory=rates_for_GLM
-        # This will initialize the basic model fixing the scaling factor to 1
+        self._optimise_indicators = optimise_indicators
+        self._predictor_names = np.array(predictors[0]) if predictors is not None else np.array([]) # shape: (n_predictors,)
+        self._predictors = np.stack(predictors[1]) if predictors is not None else np.array([]) # shape: (n_predictors, n_states, n_states)
+        n_predictors = len(self._predictors)
+        self._coefficients = np.array(coefficients, dtype=np.float64) if coefficients is not None \
+            else np.ones(n_predictors, dtype=np.float64) / (n_predictors if n_predictors > 0 else 1)
+        self._indicators = np.array(indicators, dtype=bool) if indicators is not None \
+            else np.ones(n_predictors, dtype=bool)
+        # This will initialize the basic model
         Model.__init__(self, states=states, forest_stats=forest_stats,
-                       sf=1, tau=tau, optimise_tau=optimise_tau,
-                       optimise_sf=False, reoptimise=reoptimise,
+                       sf=sf, tau=tau, optimise_sf=optimise_sf,
+                       optimise_tau=optimise_tau, reoptimise=reoptimise,
                        parameter_file=parameter_file, **kwargs)
-        self.index_mat=0
         self.name = GLM
-        self._coefficients=coefficients
-        self.nb_matrices=ng.filenumber(self._directory)
-        if self._coefficients is None:
-            self._coefficients = coefficients if coefficients is not None \
-                else np.ones(self.nb_matrices, dtype=np.float64) / self.nb_matrices
-            # If the user does not want to optimize coefficients, we will treat the input coefficients as fixed values,
-            # otherwise as starting values for optimization
 
         # We precalculate the diagonalization of the Lambda matrix here,
         # to use it for state change probability calculations (get_Pij).
         # These diagonalization need to be updated each time the coefficients are changed
-        self.D_DIAGONAL, self.A, self.A_INV = get_diagonalisation(rate_matrix=self.get_rate_matrix())
+        self.Q = get_normalised_generator(rate_matrix=self.get_rate_matrix())
 
     def get_rate_matrix(self):
         """
@@ -44,19 +130,11 @@ class GLMModel(Model):
 
         :return: np.array containing the rate matrix
         """
-        if self.index_mat == 0:
-            self.order,self.matrix_names=ng.create_predictors2(self._directory)
-            self.index_mat=1
-            print('COEFF:   ',{self.matrix_names[i][:-4]:float(self.coefficients[i]) for i in range(len(self.matrix_names))})
-        self.dict={self.matrix_names[i][:-4]:float(self.coefficients[i]) for i in range(len(self.matrix_names))}
-        print(self.index_mat)
-        self.index_mat+=1
-        m=ng.get_rate_matrix(len(self.order),self._directory,self.coefficients)
-        return m
-        ## multiply matrices by their coefficients and selectors
-        ## TODO: make sure that the final matrix has no negative values
-        ##weighted_matrices = np.array([m * c for (m, c) in zip(self.matrices, self.coefficients)])
-        ##return weighted_matrices.sum(axis=0)
+        logL = np.einsum('i,ijk->jk', self.coefficients[self.indicators], self._predictors[self.indicators])
+        np.fill_diagonal(logL, -np.inf)
+        L = np.exp(logL)
+        np.fill_diagonal(L, 0)
+        return L
 
     def parse_parameters(self, params, reoptimise=False):
         """
@@ -78,77 +156,72 @@ class GLMModel(Model):
         # and return a dictionary key->value with other named (by key) parameters and their values
         params = Model.parse_parameters(self, params, reoptimise)
 
-##        # We assume input GLM matrix filepaths are specified by key GLM_MATRICES and are semicolon-separated
-        ##        if GLM_MATRICES not in params.keys():
-        ##            raise ValueError('At least one GLM matrix must be given in the parameter file (parameter name "{}"), '
-        ##                             'when the model {} is used.'.format(GLM_MATRICES, GLM))
-        ##        matrix_files = params[GLM_MATRICES].split(';')
-        ##        states_matrices = [load_matrix(mf.strip()) for mf in matrix_files]
-        ##        if not states_matrices:
-        ##            raise ValueError('At least one GLM matrix must be given in the parameter file (parameter name "{}"), '
-        ##                             'when the model {} is used.'.format(GLM_MATRICES, GLM))
-        ##        self._matrices = []
-        ##        for (sts, mx) in states_matrices:
-        ##            if len(self.states) != len(sts) or not np.all(self.states == sts):
-        ##                raise ValueError('GLM matrices given in the parameter file are incompatible, '
-        ##                         'as they correspond to different states, e.g. "{}" vs "{}"'
-        ##                         .format(', '.join(self.states), ', '.join(sts)))
-        ##    self._matrices.append(mx)
-
-        # TODO: check that the matrices are not co-linear and raise an issue if they are
-        # ...
-
-        # Let's save the matrix location in order to be able to write it to the output file
-        ##        self._glm_matrix_location = params[GLM_MATRICES]
+        if GLM_PREDICTOR_DIR in params.keys():
+            states, names, predictors = read_predictors(params[GLM_PREDICTOR_DIR], self.states)
+            self.states = np.array(states)
+            self._predictor_names = np.array(names)
+            self._predictors = np.stack(predictors)
+            n_predictors = len(self._predictors)
+            self._coefficients = np.ones(n_predictors, dtype=np.float64) / (n_predictors if n_predictors > 0 else 1)
+            self._indicators = np.ones(n_predictors, dtype=bool)
 
         # We assume input GLM coefficients (if given) are specified by key GLM_COEFFICIENTS and are semicolon-separated
-        if GLM_COEFFICIENTS in params.keys():
-            try:
-                self._coefficients = np.array(params[GLM_COEFFICIENTS].strip().split(';')).astype(np.float64)
-                n_coefficients = len(self._coefficients)
-                n_matrices = len(self._matrices)
-                if n_coefficients != n_matrices:
-                    raise ValueError('The number of GLM coefficients ({}) given in the parameter file '
-                                     'must correspond to the number of GLM matrices ({}) but it does not.'
-                                     .format(n_coefficients, n_matrices))
-
-                # TODO: perform some coefficient checks here.
-                # Here we assume that
-                # each coefficient c should satisfy: 0 < c <= 1. TODO: check if this assumption is good
-                if np.any(self._coefficients > 1):
-                    raise ValueError('Coefficients given in parameters ({}) must all be not greater than 1, '
-                                     'but yours are not. Please fix them.'
-                                     .format(self._coefficients, self._coefficients.sum()))
-                if np.any(self._coefficients <= 0):
-                    raise ValueError('Coefficients given in parameters ({}) must all be positive, '
-                                     'but yours are not. Please fix them.'
-                                     .format(self._coefficients, self._coefficients.sum()))
-            except:
-                raise ValueError('GLM coefficients ({}) given in the parameter file are malformatted:'
-                                 'they should be float numbers separated by semicolon (;).'
-                                 .format(params[GLM_COEFFICIENTS]))
+        glm_coefficient_keys = [_ for _ in params.keys() if _.startswith(f'{GLM_COEFFICIENT}:')]
+        if glm_coefficient_keys:
+            n_predictors = len(self._predictors)
+            self._coefficients = np.ones(n_predictors, dtype=np.float64) / (n_predictors if n_predictors > 0 else 1)
+            for i, name in enumerate(self._predictor_names):
+                if f'{GLM_COEFFICIENT}:{name}' not in params.keys():
+                    raise ValueError(f'Some GLM coefficients are given in the parameter file, '
+                                     f'but the one for predictor "{name}" is missing. '
+                                     f'It is required as the predictor is given. Please fix the parameter file.')
+                try:
+                    self._coefficients[i] = float(params[f'{GLM_COEFFICIENT}:{name}'])
+                except:
+                    raise ValueError(f'GLM coefficient for predictor "{name}" given in the parameter file is malformatted:'
+                                     f'it should be a float number, but it is not. Please fix it.')
+                if self._coefficients[i] > 1 or self._coefficients[i] < -1:
+                    raise ValueError('GLM coefficients given in parameters must all be between -1 and 1, '
+                                     f'but the coefficient for {name} is {self._coefficients[i]}. Please fix it.')
             self._optimise_coefficients = reoptimise
 
-        # TODO: allow to specify selectors as well?
+        # We assume input GLM coefficients (if given) are specified by key GLM_COEFFICIENTS and are semicolon-separated
+        glm_indicator_keys = [_ for _ in params.keys() if _.startswith(f'{GLM_INDICATOR}:')]
+        if glm_indicator_keys:
+            n_predictors = len(self._predictors)
+            self._indicators = np.ones(n_predictors, dtype=bool)
+            for i, name in enumerate(self._predictor_names):
+                if f'{GLM_INDICATOR}:{name}' not in params.keys():
+                    raise ValueError(f'Some GLM indicators are given in the parameter file, '
+                                     f'but the one for predictor "{name}" is missing. '
+                                     f'It is required as the predictor is given. Please fix the parameter file.')
+                try:
+                    self._indicators[i] = bool(int(params[f'{GLM_INDICATOR}:{name}']))
+                except:
+                    raise ValueError(f'GLM indicator for predictor "{name}" given in the parameter file is malformatted:'
+                                     f'it should be either 0 or 1. Please fix it.')
         return params
 
     @property
     def coefficients(self):
         return self._coefficients
 
+    @property
+    def indicators(self):
+        return self._indicators
+
     @coefficients.setter
     def coefficients(self, coefficients):
         if self._optimise_coefficients:
-            self._coefficients = coefficients
+            self._coefficients = np.array(coefficients, dtype=np.float64)
         else:
             raise NotImplementedError('The coefficients are preset and cannot be changed.')
-        # If the coefficients just got changed, we need to update our precomputed diagonalization
-        #print(self.get_rate_matrix(),self.coefficients, self.sf)
-        self.D_DIAGONAL, self.A, self.A_INV = get_diagonalisation(rate_matrix=self.get_rate_matrix())
+        # If the coefficients just got changed, we need to update our precomputed generator
+        self.Q = get_normalised_generator(rate_matrix=self.get_rate_matrix())
 
-##    @property
-##    def matrices(self):
-##        return self._matrices
+    @property
+    def predictors(self):
+        return self._predictors
 
     def get_Pij_t(self, t, *args, **kwargs):
         """
@@ -158,7 +231,8 @@ class GLMModel(Model):
         :return: a function of t that calculates the probability matrix of substitutions i->j over time t.
         :rtype: lambda t: np.array
         """
-        return get_pij_matrix(self.transform_t(t), self.D_DIAGONAL, self.A, self.A_INV)
+        return expm(self.Q * self.transform_t(t))
+        # return get_pij_matrix(self.transform_t(t), self.D_DIAGONAL, self.A, self.A_INV)
 
     def get_num_params(self):
         """
@@ -168,9 +242,10 @@ class GLMModel(Model):
         """
         # TODO: check and update this method
 
-        # Basic model with frequencies parameters + GLM-specific ones (coefficients)
+        # Basic model with frequencies parameters + GLM-specific ones
+        # (as many coefficients as the indicators allow us to pick, if we optimize them)
         return Model.get_num_params(self) \
-            + (len(self.coefficients) if self._optimise_coefficients else 0)
+            + (sum(self.indicators) if self._optimise_coefficients else 0)
 
     def set_params_from_optimised(self, ps, **kwargs):
         """
@@ -189,9 +264,12 @@ class GLMModel(Model):
             # the parameters of the basic model are stored in the first n_params positions
             # of the ps array, GLM-specific parameters are stored after
 
-            n_coeff = len(self.coefficients)
+            # only set the coefficients that are selected by the indicators
+            n_coeff = sum(self.indicators)
             if self._optimise_coefficients:
-                self.coefficients = ps[n_params: n_params + n_coeff]
+                coefficients = np.array(self.coefficients)
+                coefficients[self.indicators] = ps[n_params: n_params + n_coeff]
+                self.coefficients = coefficients
 
     def get_optimised_parameters(self):
         """
@@ -200,11 +278,12 @@ class GLMModel(Model):
 
         :return: np.array containing parameters of the likelihood optimization algorithm
         """
-        # TODO: check this method
         if not self.extra_params_fixed():
-            # First put basic model with frequencies parameters, then GLM-specific ones (coefficients)
+            # First put basic model with frequencies parameters,
+            # then GLM-specific ones (coefficients that are selected by indicators, if we optimize them)
             return np.hstack((Model.get_optimised_parameters(self),
-                              self.coefficients if self._optimise_coefficients else []))
+                              self.coefficients[self.indicators] \
+                                  if self._optimise_coefficients else []))
         return Model.get_optimised_parameters(self)
 
     def get_bounds(self):
@@ -218,7 +297,7 @@ class GLMModel(Model):
             extras = []
             if self._optimise_coefficients:
                 # putting 1e-6 as a very small number close to zero, in order not to allow for zero itself
-                extras += [np.array([10e-3 , 10e3], np.float64)] * len(self.coefficients)
+                extras += [np.array([-1, 1], np.float64)] * sum(self.indicators)
             return np.array((*Model.get_bounds(self), *extras))
         return Model.get_bounds(self)
 
@@ -230,10 +309,11 @@ class GLMModel(Model):
         :return: str representing parameter values
         """
         return '{}' \
-               '\tGLM coefficients\t{}\t{}\n' \
-            .format(Model._print_parameters(self),
-                    '; '.join('\n\t\t\t\t{0}:{1}'.format(i,self.dict[i]) for i in self.dict),
-                    '(optimised)' if self._optimise_coefficients else '(fixed)')
+               '\tGLM coefficients\t{}\n' \
+               '{}\n'.format(Model._print_parameters(self),
+                             '(optimised)' if self._optimise_coefficients else '(fixed)',
+                             '\n'.join(f'\t\t{name}:\t{coeff:g}' for (name, coeff) \
+                                       in zip(self._predictor_names[self.indicators], self.coefficients[self.indicators])))
 
     def freeze(self):
         """
@@ -253,9 +333,11 @@ class GLMModel(Model):
         """
         # Save basic model with frequencies parameters
         Model.save_parameters(self, filehandle)
-        # Save GLM-specific parameters. # TODO: check and update
-        filehandle.write('{}\t{}\n'.format(GLM_COEFFICIENTS, '; '.join('{:g}'.format(_) for _ in self.coefficients)))
-        # Save the input GLM matrix locations which we memorized when reading the input parameters
-        filehandle.write('{}\t{}\n'.format(GLM_MATRICES, self._glm_matrix_location))
-
+        # Save GLM-specific parameters.
+        for (name, coeff) in zip(self._predictor_names[self.indicators], self.coefficients[self.indicators]):
+            filehandle.write('{}:{}\t{:g}\n'.format(GLM_COEFFICIENT, name, coeff))
+            filehandle.write('{}:{}\t{}\n'.format(GLM_INDICATOR, name, 1))
+        for name in self._predictor_names[~self.indicators]:
+            filehandle.write('{}:{}\t{:g}\n'.format(GLM_COEFFICIENT, name, 0))
+            filehandle.write('{}:{}\t{}\n'.format(GLM_INDICATOR, name, 0))
 
