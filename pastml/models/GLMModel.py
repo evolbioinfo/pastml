@@ -18,6 +18,7 @@ class GLMModel(Model):
         self._optimise_coefficients = optimise_coefficients
         self._optimise_predictors = optimise_predictors
         self._directory=rates_for_GLM
+        self.order, self.matrix_names, self.list_of_matrices = ng.create_predictors(self._directory)
         # This will initialize the basic model fixing the scaling factor to 1
         Model.__init__(self, states=states, forest_stats=forest_stats,
                        sf=1, tau=tau, optimise_tau=optimise_tau,
@@ -42,21 +43,17 @@ class GLMModel(Model):
         """
         Calculates the rate matrix from coefficients and input matrices
 
-        :return: np.array containing the rate matrix
+        :return: array containing the rate matrix
+        :rtype: np.array
         """
+        self.dict = {self.matrix_names[i][:-4]: float(self.coefficients[i]) for i in range(len(self.matrix_names))}
         if self.index_mat == 0:
-            self.order,self.matrix_names=ng.create_predictors2(self._directory)
             self.index_mat=1
-            print('COEFF:   ',{self.matrix_names[i][:-4]:float(self.coefficients[i]) for i in range(len(self.matrix_names))})
-        self.dict={self.matrix_names[i][:-4]:float(self.coefficients[i]) for i in range(len(self.matrix_names))}
-        print(self.index_mat)
+            print('COEFF:   ',self.dict)
+        print('iter: ',self.index_mat)
         self.index_mat+=1
-        m=ng.get_rate_matrix(len(self.order),self._directory,self.coefficients)
+        m=ng.get_rate_matrix(len(self.order),self.list_of_matrices,self.coefficients,predictors_dir=self._directory)
         return m
-        ## multiply matrices by their coefficients and selectors
-        ## TODO: make sure that the final matrix has no negative values
-        ##weighted_matrices = np.array([m * c for (m, c) in zip(self.matrices, self.coefficients)])
-        ##return weighted_matrices.sum(axis=0)
 
     def parse_parameters(self, params, reoptimise=False):
         """

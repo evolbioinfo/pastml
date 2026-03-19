@@ -75,7 +75,7 @@ def _serialize_acr(args):
 
 
 def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPPA, model=F81,
-        column2parameters=None, column2rates=None, rates_for_GLM=None,
+        column2parameters=None, column2rates=None, rates_for_GLM=None, coefficients_for_GLM=None,
         force_joint=True, threads=0,
         reoptimise=False, tau=0, resolve_polytomies=False, frequency_smoothing=False):
     """
@@ -202,7 +202,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                     states = f.readline().split(',')[1:]
                     states[-1]=states[-1][:-1]
             model_instance = model2class[model](parameter_file=params, rate_matrix_file=rate_file,
-                                                rates_for_GLM=rates_for_GLM, reoptimise=reoptimise,
+                                                rates_for_GLM=rates_for_GLM, coefficients=coefficients_for_GLM, reoptimise=reoptimise,
                                                 frequency_smoothing=frequency_smoothing, tau=tau,
                                                 optimise_tau=optimise_tau, states=states, forest_stats=forest_stats,
                                                 observed_frequencies=observed_frequencies, character=character)
@@ -319,7 +319,7 @@ def _quote(str_list):
 
 def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     columns=None, prediction_method=MPPA, model=F81,
-                    parameters=None, rate_matrix=None, rate_matrix_directory=None,
+                    parameters=None, rate_matrix=None, rate_matrix_directory=None, coefficients_for_GLM=None,
                     name_column=None, root_date=None, timeline_type=TIMELINE_SAMPLED,
                     tip_size_threshold=REASONABLE_NUMBER_OF_TIPS, colours=None,
                     out_data=None, html_compressed=None, html=None, html_mixed=None, work_dir=None,
@@ -410,10 +410,12 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     :type rate_matrix: str or list(str) or dict
     :param rate_matrix_directory: (only for pastml.models.GLMModel model) path to the directory with raw
     datas for predictors. Directory should contain:
-        (1) either a raw_location.csv file with Country,latitude and longitude columns, or a position.csv file with already-computed distance (mandatory)
+        (1) either a raw_location.csv file with Country,latitude and longitude columns, or a csv file with already-computed distance
         (2) square matrices in csv files with pair-distance for each locality according to the predictor (optional)
     all matrices must have headers and first columns with location names
     :type rate_matrix_directory: str
+    :param coefficients_for_GLM: user's input of fixed coefficients for GLM
+    :type coefficients_for_GLM: list
     :param reoptimise: (False by default) if set to True and the parameters are specified,
         they will be considered as an optimisation starting point instead, and optimised.
     :type reoptimise: bool
@@ -551,7 +553,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
 
     acr_results = acr(forest=roots, columns=columns, column2states=column2states,
                       prediction_method=prediction_method, model=model, column2parameters=parameters,
-                      column2rates=rates, rates_for_GLM=rates_for_GLM,
+                      column2rates=rates, rates_for_GLM=rates_for_GLM, coefficients_for_GLM=coefficients_for_GLM,
                       force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=None if smoothing else 0,
                       resolve_polytomies=resolve_polytomies, frequency_smoothing=frequency_smoothing)
 
