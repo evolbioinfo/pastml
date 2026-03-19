@@ -203,8 +203,11 @@ def optimize_likelihood_params(forest, character, observed_frequencies, model):
         if np.any(pd.isnull(ps)):
             return np.nan
         model.set_params_from_optimised(ps)
+
         res = sum(get_bottom_up_loglikelihood(tree=tree, character=character, is_marginal=True, model=model, alter=True)
                   for tree in forest)
+
+        print(res)
         return np.inf if pd.isnull(res) else -res
 
     if np.any(observed_frequencies <= 0):
