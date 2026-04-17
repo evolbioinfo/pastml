@@ -156,6 +156,21 @@ class Model(object):
         if self._optimise_tau:
             self.tau = ps[1 if self._optimise_sf else 0]
 
+    def set_parameters_with_optuna(self, trial):
+        """
+        Set model parameters during optuna optimization
+
+        :return: void, update this model
+        """
+        if self._optimise_sf:
+            self.sf = trial.suggest_float("sf",
+                                          0.001 / self.forest_stats.avg_nonzero_brlen,
+                                          10. / self.forest_stats.avg_nonzero_brlen)
+        if self._optimise_tau:
+            self.tau = trial.suggest_float("tau",
+                                           0,
+                                           self.forest_stats.avg_nonzero_brlen)
+
     def get_optimised_parameters(self):
         """
         Converts this model parameters to a vector representing parameters
@@ -333,6 +348,30 @@ class ModelWithFrequencies(Model):
                 freqs += ps[n_params]
                 freqs /= freqs.sum()
                 self.frequencies = freqs
+
+
+
+    def set_parameters_with_optuna(self, trial):
+        """
+        Set model parameters during optuna optimization
+
+        :return: void, update this model
+        """
+        Model.set_parameters_with_optuna(self, trial)
+        if not self.extra_params_fixed():
+            n_freq = len(self.frequencies)
+            freqs = self.frequencies
+
+            if self._optimise_frequencies:
+                freqs = np.hstack(([trial.suggest_float(f"pi_{i}", 1e-6, 10e6) for i in range(n_freq - 1)], [1.]))
+                freqs /= freqs.sum()
+                self.frequencies = freqs
+            elif self._frequency_smoothing:
+                freqs = freqs * self.forest_stats.num_tips
+                freqs += trial.suggest_float("smooth", 0, self.forest_stats.num_nodes)
+                freqs /= freqs.sum()
+                self.frequencies = freqs
+
 
     def get_optimised_parameters(self):
         """

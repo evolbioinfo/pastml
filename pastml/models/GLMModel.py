@@ -210,6 +210,15 @@ class GLMModel(Model):
     def indicators(self):
         return self._indicators
 
+    @indicators.setter
+    def indicators(self, inds):
+        if self._optimise_indicators:
+            self._indicators = inds
+        else:
+            raise NotImplementedError('The indicators are preset and cannot be changed.')
+        # If the coefficients just got changed, we need to update our precomputed generator
+        self.Q = get_normalised_generator(rate_matrix=self.get_rate_matrix())
+
     @coefficients.setter
     def coefficients(self, coefficients):
         if self._optimise_coefficients:
@@ -270,6 +279,29 @@ class GLMModel(Model):
                 coefficients = np.array(self.coefficients)
                 coefficients[self.indicators] = ps[n_params: n_params + n_coeff]
                 self.coefficients = coefficients
+
+
+
+    def set_parameters_with_optuna(self, trial):
+        """
+        Set model parameters during optuna optimization
+
+        :return: void, update this model
+        """
+        # Model.set_parameters_with_optuna(self, trial)
+        if not self.extra_params_fixed():
+            n_predictors = len(self.predictors)
+            if self._optimise_indicators:
+                self.indicators = np.array([trial.suggest_categorical(f"GLM_ind_{i}", [0, 1]) \
+                                            for i in range(n_predictors)], dtype=bool)
+            # if self._optimise_coefficients:
+            #     coeffs = np.array(self.coefficients)
+            #     coeffs[self.indicators] = np.array([trial.suggest_float(f"GLM_coeff_{i}", -1, 1) \
+            #                                         for i in np.arange(0, n_predictors)[self.indicators]],
+            #                                        dtype=np.float64)
+            #     self.coefficients = coeffs
+
+
 
     def get_optimised_parameters(self):
         """

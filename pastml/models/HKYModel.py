@@ -106,6 +106,20 @@ class HKYModel(ModelWithFrequencies):
             if self._optimise_kappa:
                 self.kappa = ps[n_params]
 
+
+    def set_parameters_with_optuna(self, trial):
+        """
+        Set model parameters during optuna optimization
+
+        :return: void, update this model
+        """
+        if self.extra_params_fixed():
+            Model.set_parameters_with_optuna(self, trial)
+        else:
+            ModelWithFrequencies.set_parameters_with_optuna(self, trial)
+            if self._optimise_kappa:
+                self.kappa = trial.suggest_float("kappa", 1e-6, 20.)
+
     def get_optimised_parameters(self):
         """
         Converts this model parameters to a vector representing parameters

@@ -4,7 +4,9 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
+import optuna
 
+from models.GLMModel import GLMModel, GLM
 from pastml import get_personalized_feature_name, CHARACTER, METHOD, NUM_SCENARIOS, NUM_UNRESOLVED_NODES, \
     NUM_STATES_PER_NODE, PERC_UNRESOLVED, STATES
 from pastml.models import ModelWithFrequencies
@@ -174,7 +176,7 @@ def rescale_log(loglikelihood_array):
     return factors
 
 
-def optimize_likelihood_params(forest, character, observed_frequencies, model):
+def optimize_likelihood_params(forest, character, observed_frequencies, model, optimize_AIC=True):
     """
     Optimizes the likelihood parameters (state frequencies and scaling factor) for the given trees.
 
@@ -184,6 +186,8 @@ def optimize_likelihood_params(forest, character, observed_frequencies, model):
     :type forest: list(ete3.Tree)
     :param character: character for which the likelihood is optimized
     :type character: str
+    :param optimize_AIC: whether to optimize AIC instead of the likelihood (default is False)
+    :type optimize_AIC: bool
     :return: optimized parameters and log likelihood: ((frequencies, scaling_factor), optimum)
     :rtype: tuple
     """
@@ -196,6 +200,8 @@ def optimize_likelihood_params(forest, character, observed_frequencies, model):
         model.set_params_from_optimised(ps)
         res = sum(get_bottom_up_loglikelihood(tree=tree, character=character, is_marginal=True, model=model, alter=True)
                   for tree in forest)
+        if optimize_AIC:
+            return np.inf if pd.isnull(res) else (2 * model.get_num_params() - 2 * res)
         # print(res)
         return np.inf if pd.isnull(res) else -res
 
@@ -213,6 +219,40 @@ def optimize_likelihood_params(forest, character, observed_frequencies, model):
 
     best_log_lh = max(log_lh_JC, log_lh_EFT)
 
+    if model.name == GLM and not model.extra_params_fixed():
+
+        def objective(trial):
+            model.set_parameters_with_optuna(trial)
+            bounds = model.get_bounds()
+            x0_JC = model.get_optimised_parameters()
+            best_log_lh = -get_v(x0_JC)
+
+            for i in range(100):
+                if i == 0:
+                    vs = x0_JC
+                else:
+                    vs = np.random.uniform(bounds[:, 0], bounds[:, 1])
+                fres = minimize(get_v, x0=vs, method='L-BFGS-B', bounds=bounds)
+                if fres.success and not np.any(np.isnan(fres.x)):
+                    if -fres.fun >= best_log_lh:
+                        model.set_params_from_optimised(fres.x)
+                        print(model.indicators, -fres.fun)
+                        return -fres.fun
+
+            model.set_params_from_optimised(x0_JC)
+            return (best_log_lh / 2 + model.get_num_params()) if optimize_AIC else best_log_lh
+
+        optuna.logging.set_verbosity(optuna.logging.WARNING)
+        study = optuna.create_study(direction="minimize" if optimize_AIC else "maximize")
+
+        study.optimize(objective, n_trials=100, show_progress_bar=True)
+        if optimize_AIC:
+            if study.best_value <= best_log_lh:
+                return -study.best_value / 2 + model.get_num_params()
+        else:
+            if study.best_value >= best_log_lh:
+                return study.best_value
+
     for i in range(100):
         if i == 0:
             vs = x0_JC
@@ -226,7 +266,7 @@ def optimize_likelihood_params(forest, character, observed_frequencies, model):
                 model.set_params_from_optimised(fres.x)
                 return -fres.fun
     model.set_params_from_optimised(x0_JC if log_lh_JC >= log_lh_EFT else x0_EFT)
-    return best_log_lh
+    return (best_log_lh / 2 + model.get_num_params()) if optimize_AIC else best_log_lh
 
 
 def calculate_top_down_likelihood(tree, character, model):
