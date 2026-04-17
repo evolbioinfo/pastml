@@ -112,7 +112,7 @@ def get_bottom_up_loglikelihood(tree, character, model, is_marginal=True, alter=
     if isinstance(model, ModelWithFrequencies):
         root_likelihoods = getattr(tree, lh_feature) * model.frequencies
     else:
-        root_likelihoods = np.array(getattr(tree, lh_feature))
+        root_likelihoods = np.array(getattr(tree, lh_feature)) / len(getattr(tree, lh_feature))
     root_likelihoods = root_likelihoods.sum() if is_marginal else root_likelihoods.max()
 
     if altered_nodes:
