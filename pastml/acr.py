@@ -18,6 +18,8 @@ from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, 
     get_pastml_marginal_prob_file, get_pastml_work_dir
 from pastml.ml import MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
     ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method
+from pastml.sb_corrector import ARITHMETIC, GEOMETRIC, ALPHA, _LAMBDA, \
+    sampling_bias_correction_pipeline, check_copy, prune_tree_by_state_counts, PruneMethod
 from pastml.models import MODEL, SCALING_FACTOR, SMOOTHING_FACTOR
 from pastml.models.CustomRatesModel import CustomRatesModel, CUSTOM_RATES
 from pastml.models.EFTModel import EFTModel, EFT
@@ -56,7 +58,38 @@ def _serialize_acr(args):
         f.write('pastml_version\t{}\n'.format(PASTML_VERSION))
         for name in sorted(acr_result.keys()):
             if name not in [STATES, MARGINAL_PROBABILITIES, METHOD, MODEL]:
-                f.write('{}\t{}\n'.format(name, acr_result[name]))
+                try:
+                    f.write('{}\t{}\n'.format(name, acr_result[name]))
+
+                except ValueError as e:
+                    value = acr_result[name]
+
+                    print('\n[PastML DEBUG] Failed to serialize ACR result')
+                    print('[PastML DEBUG] key:', name)
+                    print('[PastML DEBUG] type:', type(value))
+                    print('[PastML DEBUG] error:', e)
+
+                    if isinstance(value, int):
+                        # Estimate decimal magnitude without converting the integer to a string.
+                        # digits ~= floor(log10(value)) + 1
+                        import math
+
+                        if value == 0:
+                            n_digits = 1
+                        else:
+                            n_digits = int(value.bit_length() * math.log10(2)) + 1
+
+                        print('[PastML DEBUG] integer bit length:', value.bit_length())
+                        print('[PastML DEBUG] approximate decimal digits:', n_digits)
+                        print('[PastML DEBUG] approximate magnitude: ~1e{}'.format(n_digits - 1))
+
+                        # Write a placeholder instead of crashing
+                        f.write('{}\t<integer with approximately {} decimal digits>\n'.format(
+                            name, n_digits
+                        ))
+                    else:
+                        raise
+        
         f.write('{}\t{}\n'.format(METHOD, acr_result[METHOD]))
         if is_ml(acr_result[METHOD]):
             acr_result[MODEL].save_parameters(f)
@@ -72,11 +105,13 @@ def _serialize_acr(args):
         logging.getLogger('pastml').debug('Serialized marginal probabilities for {} to {}.'
                                           .format(acr_result[CHARACTER], out_mp_file))
 
-
+# TODO: modify function description
 def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPPA, model=F81,
         column2parameters=None, column2rates=None,
         force_joint=True, threads=0,
-        reoptimise=False, tau=0, resolve_polytomies=False, frequency_smoothing=False):
+        reoptimise=False, tau=0, resolve_polytomies=False, frequency_smoothing=False,
+        sampling_bias_correction=False, optimized_counts=None, 
+        prune_method = PruneMethod.RETAIN_SHORTEST_TIP_BRANCHES):
     """
     Reconstructs ancestral states for the given tree and
     all the characters specified as columns of the given annotation dataframe.
@@ -136,6 +171,24 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
 
     forest_stats = ForestStats(forest)
 
+    copied_forest = []
+    # BEFORE ACR RESULTS, I HAVE TO SUBSAMPLE THE TREE 
+    if sampling_bias_correction:
+        assert len(optimized_counts) > 0
+        copied_forest = [root.copy() for root in forest]
+        #check_copy(copied_root=copied_forest[0], root=forest[0], columns=columns)
+        #input("Wait ...........")
+    
+    prune_tree_by_state_counts(root=copied_forest[0], 
+                               optimized_counts=optimized_counts, 
+                               state_column=columns[0])
+
+    print("Pruning complete ....")
+    print(optimized_counts)
+    copied_root = copied_forest[0]
+    print(len(copied_root))
+    input(" ..................... ")
+
     logging.getLogger('pastml').debug('\n=============ACR===============================')
 
     column2parameters = column2parameters if column2parameters else {}
@@ -161,6 +214,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         return states
 
     # If we gonna resolve polytomies we might need to get back to the initial states so let's memorise them
+    # TODO: Use this as a mapping for the copied forest
     n2c2states = defaultdict(dict)
     for root in forest:
         for n in root.traverse():
@@ -312,7 +366,7 @@ def flatten_lists(lists):
 def _quote(str_list):
     return ', '.join('"{}"'.format(_) for _ in str_list) if str_list is not None else ''
 
-
+# TODO: complete parameter description
 def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     columns=None, prediction_method=MPPA, model=F81,
                     parameters=None, rate_matrix=None,
@@ -322,7 +376,10 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     verbose=False, forced_joint=False, upload_to_itol=False, itol_id=None, itol_project=None,
                     itol_tree_name=None, offline=False, threads=0, reoptimise=False, focus=None,
                     resolve_polytomies=False, smoothing=False, frequency_smoothing=False,
-                    pajek=None, pajek_timing=VERTICAL, recursion_limit=0):
+                    pajek=None, pajek_timing=VERTICAL, recursion_limit=0, 
+                    sampling_bias_correction = False, freq_priors = None, 
+                    alpha = ALPHA, _lambda = _LAMBDA, interpolation_method = GEOMETRIC, 
+                    prune_method = PruneMethod.RETAIN_SHORTEST_TIP_BRANCHES):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -337,7 +394,9 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     :type data_sep: char
     :param id_index: (optional, by default is 0) index of the column in the annotation table
         that contains the tree tip names, indices start from zero.
-    :type id_index: int
+    :type id_index: intlogger = logging.getLogger('pastml')
+    logger.debug('\n=============INPUT DATA VALIDATION=============')
+
 
     :param columns: (optional) name(s) of the annotation table column(s) that contain character(s)
         to be analysed. If not specified all annotation table columns will be considered.
@@ -527,10 +586,12 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     copy_only = COPY == prediction_method or (isinstance(prediction_method, list)
                                               and all(COPY == _ for _ in prediction_method))
 
-    roots, columns, column2states, name_column, age_label, parameters, rates = \
+    roots, columns, column2states, name_column, age_label, parameters, rates, optimized_counts = \
         _validate_input(tree, columns, name_column if html_compressed or html_mixed else None, data, data_sep, id_index,
                         root_date if html_compressed or html or html_mixed or upload_to_itol else None,
-                        copy_only=copy_only, parameters=parameters, rates=rate_matrix)
+                        copy_only=copy_only, parameters=parameters, rates=rate_matrix, 
+                        sampling_bias_correction = sampling_bias_correction, freq_priors = freq_priors, alpha=alpha, 
+                        _lambda = _lambda, interpolation_method=interpolation_method)
 
     if not work_dir:
         work_dir = get_pastml_work_dir(tree)
@@ -543,7 +604,9 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                       prediction_method=prediction_method, model=model, column2parameters=parameters,
                       column2rates=rates,
                       force_joint=forced_joint, threads=threads, reoptimise=reoptimise, tau=None if smoothing else 0,
-                      resolve_polytomies=resolve_polytomies, frequency_smoothing=frequency_smoothing)
+                      resolve_polytomies=resolve_polytomies, frequency_smoothing=frequency_smoothing,
+                      sampling_bias_correction=sampling_bias_correction, optimized_counts=optimized_counts, 
+                      prune_method = prune_method)
 
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
 
@@ -675,7 +738,9 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
 
 
 def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_sep='\t', id_index=0,
-                    root_dates=None, copy_only=False, parameters=None, rates=None):
+                    root_dates=None, copy_only=False, parameters=None, rates=None,
+                    sampling_bias_correction = False, freq_priors = None,
+                    alpha = ALPHA, _lambda = _LAMBDA, interpolation_method = GEOMETRIC):
     logger = logging.getLogger('pastml')
     logger.debug('\n=============INPUT DATA VALIDATION=============')
 
@@ -683,9 +748,20 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
         raise ValueError("If you don't provide the metadata file, "
                          "you need to provide an annotated tree and specify the columns argument, "
                          "which will be used to look for character annotations in your input tree.")
-
+    
     if columns and isinstance(columns, str):
         columns = [columns]
+    
+    # TODO: add a better description
+    if sampling_bias_correction and (not columns or data is None):
+        raise ValueError("Sampling bias correction currently works only with providing a "
+                         "a metadata file (i.e., with '-d <data_file>' option) "
+                         "and specifiying the same column of interest as in the metadata file (e.g., '-c Country')")
+
+    # TODO: add for >1 columns
+    if sampling_bias_correction and len(columns) > 1:
+        raise ValueError(f"Currently works with only one column, "
+                         f"e.g., only '{columns[0]}'")
 
     roots = read_forest(tree_nwk, columns=columns if data is None else None)
 
@@ -705,7 +781,25 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
                                          'is' if len(unknown_columns) == 1 else 'are',
                                          _quote(df.columns)))
             df = df[columns]
+        
+        optimized_counts = defaultdict()
+        if sampling_bias_correction:
+            print(f"Alpha value {alpha}, lambda = {_lambda}, interpolation {interpolation_method}")
+            input("Press a key to continue ....")
+            optimized_counts = sampling_bias_correction_pipeline(df = df, 
+                                                                freq_priors=freq_priors,
+                                                                data_sep=data_sep,
+                                                                columns=columns,
+                                                                alpha=alpha,
+                                                                interpolation_method=interpolation_method,
+                                                                _lambda = _lambda)
+        input("Press a key to continue ....")
+        #print(f"Prior distribution: {freq_priors_dict}")
+        #print(f"Obs distribution: {obs_dict}")
+        #print(f"Target distribution {target_dist_dict}")
+        
         df.columns = [col_name2cat(column) for column in df.columns]
+        
         if name_column:
             name_column = col_name2cat(name_column)
         columns = df.columns
@@ -825,7 +919,17 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
     for i, tree in enumerate(roots):
         name_tree(tree, suffix='' if len(roots) == 1 else '_{}'.format(i))
 
-    return roots, columns, column2states, name_column, age_label, parameters, rates
+    #for root in roots:
+    #    for i,n in enumerate(root.traverse()):
+    #        print('Node {}, name {}'.format(i, n.name))
+    
+
+    #node_names = [node.name for node in roots[0].traverse()]
+    #node_names_set = set(node_names)
+    #assert len(node_names) == len(node_names_set)
+    #input("Press anything to continue.....")
+
+    return roots, columns, column2states, name_column, age_label, parameters, rates, optimized_counts
 
 
 def _serialize_predicted_states(columns, out_data, roots, dates_are_dates=True):
@@ -972,6 +1076,43 @@ def main():
                                 ' this option will be ignored. '
                                 'If --reoptimise is also specified, '
                                 'the frequencies will only be smoothed but not reoptimised. ')
+    
+    
+    # TODO: check group
+    sb_group = parser.add_argument_group('Sampling bias correciton related arguments')
+    
+    # TODO: complete description
+    sb_group.add_argument('-sbc', '--sampling_bias_correction',
+                           action='store_true',
+                           help='Sampling bias correction.')
+    
+    # TODO: complete description
+    sb_group.add_argument('-fp', '--freq_priors', required=False, type=str, default=None,
+                                help="Tab/csv file (same format as the metadata file) with one column having identical name "
+                                    "to the selected column in the data file (e.g., Country) "
+                                    "and the second storing the prior frequences (declared cases).")
+    # TODO: complete description
+    sb_group.add_argument('--alpha', required=False, type=float, default=ALPHA, dest = "alpha",
+                            help='Alpha value for distribution interpolation (arithmetic or geometric) DEFAULT: {}'.format(ALPHA))
+    
+    # TODO: complete description
+    sb_group.add_argument('--lambda', required=False, type=float, default=_LAMBDA, dest="_lambda",
+                            help='Lambda value country counts optimizer. DEFAULT: {}'.format(_LAMBDA))
+
+    sb_group.add_argument('--interpolation_method',
+                           choices=["arithmetic", "geometric"],
+                           type=str, nargs=1, default="geometric",
+                           help='Choose a method for target distribution interpolation. '
+                                'choises: "{}" or "{}", DEFAULT: "{}"'.format(GEOMETRIC, ARITHMETIC, GEOMETRIC))
+    # TODO: complete description
+    sb_group.add_argument("--prune_method",
+        type=PruneMethod, choices = [method.value for method in PruneMethod], metavar="METHOD (str)",
+        default=PruneMethod.RETAIN_SHORTEST_TIP_BRANCHES, dest = "prune_method",
+        help='Criterion used to select leaves within each state. '
+        'Pruning options: {pr_opts}. '
+        'DEFAULT: {_def}'.format(pr_opts = ', '.join([method.value for method in PruneMethod]),
+                                 _def = "RETAIN_SHORTEST_TIP_BRANCHES"),
+    )
 
     vis_group = parser.add_argument_group('visualisation-related arguments')
     vis_group.add_argument('-n', '--name_column', type=str, default=None,
@@ -1085,9 +1226,10 @@ def main():
                                  "(must exist, and --itol_id must be specified). By default set to 'Sample project'.")
     itol_group.add_argument('--itol_tree_name', required=False, default=None, type=str,
                             help="name for the tree uploaded to iTOL.")
-
+    
     params = parser.parse_args()
 
+    #print(vars(params))
     pastml_pipeline(**vars(params))
 
 
