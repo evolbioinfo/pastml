@@ -28,12 +28,13 @@ def get_min_forest_stats(forest):
 
 class ForestStats(object):
 
-    def __init__(self, forest):
-        self.avg_nonzero_brlen, self.num_nodes, self.num_tips, self.forest_length = get_forest_stats(forest)
+    def __init__(self, forest, sampling_bias_correction = False):
+        self.avg_nonzero_brlen, self.num_nodes, self.num_tips, self.forest_length = \
+            get_forest_stats(forest, sampling_bias_correction)
         self.num_trees = len(forest)
 
 
-def get_forest_stats(forest):
+def get_forest_stats(forest, sampling_bias_correction = False):
     len_sum_ext = 0
     len_sum_int = 0
     num_zero_nodes = 0
@@ -75,8 +76,12 @@ def get_forest_stats(forest):
     avg_len_int = len_sum_int / (num_nodes - num_tips - num_zero_nodes + num_zero_tips) \
         if (num_nodes - num_tips - num_zero_nodes + num_zero_tips) > 0 else 0
 
-    logging.getLogger('pastml').debug('\n=============TREE STATISTICS===================\n'
-                                      '\tnumber of tips:\t{}\n'
+    if sampling_bias_correction:
+        logging.getLogger('pastml').debug('\n==========SUBSAMPLED TREE STATISTICS===========')
+    else:
+        logging.getLogger('pastml').debug('\n=============TREE STATISTICS===================')
+    
+    logging.getLogger('pastml').debug('\tnumber of tips:\t{}\n'
                                       '\tnumber of zero-branch tips:\t{}\n'
                                       '\tnumber of internal nodes:\t{}\n'
                                       '\tmax number of children per node:\t{}\n'

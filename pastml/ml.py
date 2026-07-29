@@ -310,9 +310,9 @@ def initialize_allowed_states(tree, feature, states):
     for node in tree.traverse():
         node_states = getattr(node, feature, set())
         if not node_states:
-            allowed_states = np.ones(n, dtype=int)
+            allowed_states = np.ones(n, dtype=int) # TODO: Change that to np.float64 ?
         else:
-            allowed_states = np.zeros(n, dtype=int)
+            allowed_states = np.zeros(n, dtype=int) # TODO: Change that to np.float64 ?
             for state in node_states:
                 allowed_states[state2index[state]] = 1
         node.add_feature(allowed_states_feature, allowed_states)
@@ -636,8 +636,8 @@ def get_state2allowed_states(states, by_name=True):
         state2array[''] = all_ones
     return all_ones, state2array
 
-
-def ml_acr(forest, character, prediction_method, model, observed_frequencies, force_joint=True):
+# TODO: modify description
+def ml_acr(forest, character, prediction_method, model, observed_frequencies, force_joint=True, model_freeze = False):
     """
     Calculates ML states on the trees and stores them in the corresponding feature.
 
@@ -652,10 +652,14 @@ def ml_acr(forest, character, prediction_method, model, observed_frequencies, fo
     :return: mapping between reconstruction parameters and values
     :rtype: dict
     """
+    
     logger = logging.getLogger('pastml')
     likelihood = \
-        optimise_likelihood(forest=forest, character=character, model=model,
-                            observed_frequencies=observed_frequencies)
+        optimise_likelihood(forest=forest, # change that 
+                            character=character, 
+                            model=model,
+                            observed_frequencies=observed_frequencies,
+                            model_freeze = model_freeze)
     result = {LOG_LIKELIHOOD: likelihood, CHARACTER: character, METHOD: prediction_method, MODEL: model,
               STATES: model.states}
 
@@ -862,10 +866,11 @@ def marginal_counts(forest, character, model, n_repetitions=1_000):
     return result / n_repetitions
 
 
-def optimise_likelihood(forest, character, model, observed_frequencies):
+def optimise_likelihood(forest, character, model, observed_frequencies, model_freeze = False):
     for tree in forest:
         initialize_allowed_states(tree, character, model.states)
     logger = logging.getLogger('pastml')
+    # TODO: Ask Anna why 
     likelihood = sum(get_bottom_up_loglikelihood(tree=tree, character=character,
                                                  is_marginal=True, model=model, alter=True)
                      for tree in forest)
@@ -875,6 +880,9 @@ def optimise_likelihood(forest, character, model, observed_frequencies):
                                     'for internal tree nodes, '
                                     'and if not - submit a bug at https://github.com/evolbioinfo/pastml/issues'
                                     .format(character))
+    if model_freeze:
+        model.freeze()
+
     if not model.get_num_params():
         logger.debug('All the parameters are fixed for {}:\n{}{}.'
                      .format(character,

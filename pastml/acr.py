@@ -19,7 +19,8 @@ from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, 
 from pastml.ml import MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
     ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method
 from pastml.sb_corrector import ARITHMETIC, GEOMETRIC, ALPHA, _LAMBDA, \
-    sampling_bias_correction_pipeline, check_copy, prune_tree_by_state_counts, PruneMethod
+    sampling_bias_correction_pipeline, check_copy, prune_tree_by_state_counts, PruneMethod, \
+    map_states_to_original_tree
 from pastml.models import MODEL, SCALING_FACTOR, SMOOTHING_FACTOR
 from pastml.models.CustomRatesModel import CustomRatesModel, CUSTOM_RATES
 from pastml.models.EFTModel import EFTModel, EFT
@@ -169,25 +170,25 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                          for column in columns}
         preannotate_forest(forest, df=df)
 
-    forest_stats = ForestStats(forest)
-
-    copied_forest = []
+    subsampled_forest = []
     # BEFORE ACR RESULTS, I HAVE TO SUBSAMPLE THE TREE 
     if sampling_bias_correction:
         assert len(optimized_counts) > 0
-        copied_forest = [root.copy() for root in forest]
-        #check_copy(copied_root=copied_forest[0], root=forest[0], columns=columns)
+        subsampled_forest = [
+            prune_tree_by_state_counts(root=root, 
+                                        optimized_counts=optimized_counts, 
+                                        state_column=columns[0], 
+                                        copy_tree=True) 
+            for root in forest
+        ]
+        #check_copy(copied_root=subsampled_forest[0], root=forest[0], columns=columns)
         #input("Wait ...........")
-    
-    prune_tree_by_state_counts(root=copied_forest[0], 
-                               optimized_counts=optimized_counts, 
-                               state_column=columns[0])
 
-    print("Pruning complete ....")
-    print(optimized_counts)
-    copied_root = copied_forest[0]
-    print(len(copied_root))
-    input(" ..................... ")
+    forest_stats = \
+        ForestStats(forest = subsampled_forest if sampling_bias_correction else forest,
+                    sampling_bias_correction = sampling_bias_correction)
+
+    # TODO: Add some log information for the prunning process
 
     logging.getLogger('pastml').debug('\n=============ACR===============================')
 
@@ -202,6 +203,11 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         if not is_ml(method) or model not in {HKY, JTT}:
             return initial_states
         states = HKY_STATES if HKY == model else JTT_STATES
+
+        # HKY model allows only for DNA characters
+        # JTT only for AA sequences
+        # TODO: check what's going on with those two models
+
         if not set(initial_states) & set(states):
             raise ValueError('The allowed states for model {} are {}, '
                              'but your annotation file specifies {} as states in column {}.'
@@ -241,7 +247,10 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                 tau = 0
             states = get_states(prediction_method, model, character)
 
-            missing_data, observed_frequencies, state2index = calculate_observed_freqs(character, forest, states)
+            missing_data, observed_frequencies, state2index = \
+                calculate_observed_freqs(character=character, 
+                                         forest=subsampled_forest if sampling_bias_correction else forest, 
+                                         states=states)
 
             logger = logging.getLogger('pastml')
             logger.debug('Observed frequencies for {}:{}{}.'
@@ -266,10 +275,19 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
 
     def _work(character):
         prediction_method, model_or_states, observed_frequencies = character2settings[character]
-        if COPY == prediction_method:
+        if COPY == prediction_method: # TODO: I am not sure what COPY does :) This is just a comment, nothing TBD
             return {CHARACTER: character, STATES: model_or_states, METHOD: prediction_method}
         if is_ml(prediction_method):
-            return ml_acr(forest=forest, character=character, prediction_method=prediction_method,
+            if sampling_bias_correction:
+                _ = ml_acr(forest=subsampled_forest, character=character, prediction_method=prediction_method,
+                          model=model_or_states,
+                          force_joint=force_joint, observed_frequencies=observed_frequencies)
+                map_states_to_original_tree(subsampled_forest=subsampled_forest, forest=forest, character=character)
+                return ml_acr(forest=forest, character=character, prediction_method=prediction_method,
+                          model=model_or_states,
+                          force_joint=force_joint, observed_frequencies=observed_frequencies, model_freeze=True)
+            else:
+                return ml_acr(forest=forest, character=character, prediction_method=prediction_method,
                           model=model_or_states,
                           force_joint=force_joint, observed_frequencies=observed_frequencies)
         if is_parsimonious(prediction_method):
@@ -784,8 +802,6 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
         
         optimized_counts = defaultdict()
         if sampling_bias_correction:
-            print(f"Alpha value {alpha}, lambda = {_lambda}, interpolation {interpolation_method}")
-            input("Press a key to continue ....")
             optimized_counts = sampling_bias_correction_pipeline(df = df, 
                                                                 freq_priors=freq_priors,
                                                                 data_sep=data_sep,
@@ -793,11 +809,8 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
                                                                 alpha=alpha,
                                                                 interpolation_method=interpolation_method,
                                                                 _lambda = _lambda)
-        input("Press a key to continue ....")
-        #print(f"Prior distribution: {freq_priors_dict}")
-        #print(f"Obs distribution: {obs_dict}")
-        #print(f"Target distribution {target_dist_dict}")
         
+        #logger.debug('M optimal = {}'.format(sum(optimized_counts.values())))
         df.columns = [col_name2cat(column) for column in df.columns]
         
         if name_column:

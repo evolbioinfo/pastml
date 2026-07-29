@@ -4,12 +4,21 @@ import pandas as pd
 from pandas.api.types import is_numeric_dtype
 from pathlib import Path
 import time
+from enum import Enum
+import heapq
+from collections import defaultdict
+
+class PruneMethod(str, Enum):
+    RETAIN_LONGEST_TIP_BRANCHES = "RETAIN_LONGEST_TIP_BRANCHES"
+    RETAIN_SHORTEST_TIP_BRANCHES = "RETAIN_SHORTEST_TIP_BRANCHES"
+    RETAIN_LONGEST_DIST_TO_ROOT = "RETAIN_LONGEST_DIST_TO_ROOT"
+    RETAIN_SHORTEST_DIST_TO_ROOT = "RETAIN_SHORTEST_DIST_TO_ROOT"
+
 
 GEOMETRIC = 'geometric'
 ARITHMETIC = 'arithmetic'
 ALPHA = 0.5
 _LAMBDA = 0.5
-
 
 def sampling_bias_correction_pipeline(
     df: pd.DataFrame,
@@ -19,6 +28,7 @@ def sampling_bias_correction_pipeline(
     alpha: float = ALPHA,
     interpolation_method: str = GEOMETRIC,
     _lambda: float = _LAMBDA,
+    optimized = True
 ) -> dict[str, int]:
     """
     Calculate sampling-bias-corrected sequence counts for each geographic state.
@@ -70,7 +80,8 @@ def sampling_bias_correction_pipeline(
     """
 
     logger = logging.getLogger('pastml')
-    logger.debug('Sampling bias correction option enabled. Optimizing subsampling frequences ...')
+    logger.debug('Sampling bias correction option enabled. Optimizing subsampling frequences.')
+    logger.debug('Alpha value {}, lambda = {}, interpolation {}'.format(alpha, _lambda, interpolation_method))
 
     begin_time = time.time()
 
@@ -115,17 +126,21 @@ def sampling_bias_correction_pipeline(
                                                     alpha = alpha, 
                                                     method = interpolation_method)
 
-    optimized_counts = optimize_counts(target_distribution = target_dist_dict,
-                                        observed_counts = obs_counts_dict,
-                                        _lambda = _lambda)
-
+    if optimized:
+        optimized_counts = optimize_counts_optimized(target_distribution = target_dist_dict,
+                                                    observed_counts = obs_counts_dict,
+                                                    _lambda = _lambda)
+    else:
+        optimized_counts = optimize_counts(target_distribution = target_dist_dict,
+                                            observed_counts = obs_counts_dict,
+                                            _lambda = _lambda)
     #print(optimized_counts)
 
     m_opt = sum(optimized_counts.values())
 
     end_time = time.time()
     elapsed_time = round(end_time - begin_time,2)
-    logger.debug(f"Completed. Best M = {m_opt} Elapsed time {elapsed_time} s")
+    logger.debug(f"Completed. M_optimal = {m_opt} Elapsed time {elapsed_time} s")
 
     return optimized_counts
 
@@ -239,8 +254,6 @@ def interpolate_distributions(
         for label, value in target.items()
     }
 
-
-# TODO: add a M_min and M_max parameters
 def optimize_counts(
     target_distribution: dict[str, float],
     observed_counts: dict[str, int],
@@ -329,6 +342,109 @@ def optimize_counts(
         for label, count in zip(labels, best_counts)
     }
 
+# TODO: add a M_min and M_max parameters
+def optimize_counts_optimized(
+    target_distribution: dict[str, float],
+    observed_counts: dict[str, int],
+    _lambda: float,
+) -> dict[str, int]:
+    """
+    Optimize integer state (e.g., country) counts 
+
+    Parameters
+    ----------
+    target_distribution
+        Target probability q_c for every state (e.g., country).
+
+    observed_counts
+        Number N_c of available sequences for every state (e.g., country).
+
+    _lambda
+        Trade-off parameter in [0, 1]. Larger values prioritize matching
+        the target distribution, while smaller values prioritize retaining
+        sequences.
+
+    Returns
+    -------
+    dict[str, int]
+        Optimized count m_c for every state (e.g., country).
+    """
+    
+    # TODO: Implement also for the case where the is an non-empty intersection
+    if set(target_distribution) != set(observed_counts):
+        raise ValueError(
+            "target_distribution and observed_counts must contain "
+            "exactly the same country labels."
+        )
+
+    labels = list(target_distribution)
+
+    target = np.asarray(
+        [target_distribution[label] for label in labels],
+        dtype=float,
+    )
+
+    available = np.asarray(
+        [observed_counts[label] for label in labels],
+        dtype=int,
+    )
+
+    if not np.isclose(target.sum(), 1.0):
+        raise ValueError(
+            f"target_distribution sums to {target.sum()}, not 1.0."
+        )
+
+    initial_size = int(available.sum())
+    best_counts = None
+    best_objective = np.inf
+
+    for final_size in range(initial_size, 0, -1):
+        retention_error = (
+            1.0 - final_size / initial_size
+        ) ** 2
+
+        # Safe lower bound: geographic error cannot be negative.
+        objective_lower_bound = (
+            (1.0 - _lambda)
+            * retention_error
+        )
+
+        if objective_lower_bound >= best_objective:
+            break
+
+        counts = bounded_integer_allocation_optimized(
+            target=target,
+            available=available,
+            final_size=final_size,
+        )
+
+        achieved_distribution = counts / final_size
+
+        geographic_error = np.mean(
+            (achieved_distribution - target) ** 2
+        )
+
+        objective = (
+            _lambda * geographic_error
+            + (1.0 - _lambda) * retention_error
+        )
+
+        #print(f"M = {final_size}, objective = {objective}")
+
+        if objective < best_objective:
+            best_objective = objective
+            best_counts = counts.copy()
+
+    if best_counts is None:
+        raise RuntimeError(
+            "No feasible count allocation was found."
+        )
+
+    return {
+        label: int(count)
+        for label, count in zip(labels, best_counts)
+    }
+
 
 def bounded_integer_allocation(
     target: np.ndarray,
@@ -371,6 +487,87 @@ def bounded_integer_allocation(
 
     return counts
 
+
+def bounded_integer_allocation_optimized(
+    target: np.ndarray,
+    available: np.ndarray,
+    final_size: int,
+) -> np.ndarray:
+    """
+    Allocate exactly ``final_size`` items while respecting state-specific
+    upper bounds.
+
+    The function minimizes
+
+        sum_c (m_c - final_size * target_c) ** 2
+
+    subject to
+
+        0 <= m_c <= available_c
+        sum_c m_c = final_size
+        m_c integer.
+    """
+    total_available = int(available.sum())
+
+    if not 0 <= final_size <= total_available:
+        raise ValueError(
+            f"final_size must be between 0 and {total_available}, "
+            f"but received {final_size}."
+        )
+
+    quotas = final_size * target
+
+    # Start near the unconstrained optimum rather than from zero.
+    counts = np.minimum(
+        np.floor(quotas).astype(int),
+        available,
+    )
+
+    remaining = final_size - int(counts.sum())
+
+    if remaining == 0:
+        return counts
+
+    # Each entry is:
+    #     (marginal error increase, state index)
+    heap = []
+
+    for index in range(len(target)):
+        if counts[index] < available[index]:
+            marginal_cost = (
+                2.0 * (counts[index] - quotas[index]) + 1.0
+            )
+
+            heapq.heappush(
+                heap,
+                (marginal_cost, index),
+            )
+
+    for _ in range(remaining):
+        if not heap:
+            raise RuntimeError(
+                "No state has sufficient remaining capacity."
+            )
+
+        _, selected_index = heapq.heappop(heap)
+
+        counts[selected_index] += 1
+
+        # If this state still has capacity, insert its new marginal cost.
+        if counts[selected_index] < available[selected_index]:
+            new_marginal_cost = (
+                2.0
+                * (counts[selected_index] - quotas[selected_index])
+                + 1.0
+            )
+
+            heapq.heappush(
+                heap,
+                (new_marginal_cost, selected_index),
+            )
+
+    return counts
+
 # TODO: delete this function
 def check_copy(root, copied_root, columns):
 
@@ -400,14 +597,6 @@ def check_copy(root, copied_root, columns):
             print('{} - {}'.format(is_leaf_nodes_orig[i], is_leaf_nodes_copied[i]))
     
     return
-
-from enum import Enum
-
-class PruneMethod(str, Enum):
-    RETAIN_LONGEST_TIP_BRANCHES = "RETAIN_LONGEST_TIP_BRANCHES"
-    RETAIN_SHORTEST_TIP_BRANCHES = "RETAIN_SHORTEST_TIP_BRANCHES"
-    RETAIN_LONGEST_DIST_TO_ROOT = "RETAIN_LONGEST_DIST_TO_ROOT"
-    RETAIN_SHORTEST_DIST_TO_ROOT = "RETAIN_SHORTEST_DIST_TO_ROOT"
 
 def prune_tree_by_state_counts(
     root,
@@ -569,3 +758,58 @@ def prune_tree_by_state_counts(
     )
 
     return tree
+
+def map_states_to_original_tree(subsampled_forest, forest, character):
+
+    logger = logging.getLogger('pastml')
+    logger.debug("Mapping the states inferred on the subsampled tree(s) back to original tree(s)")
+
+    rows = []
+
+    for root in subsampled_forest:
+        for node in root.traverse():
+            states = getattr(node, character, set())
+
+            if not states:
+                continue
+
+            # Defensive handling in case a single state is stored as a string.
+            if isinstance(states, str):
+                states = {states}
+
+            for state in states:
+                rows.append({
+                    "ids": node.name,
+                    character: str(state),
+                })
+
+    states_df = pd.DataFrame(
+        rows,
+        columns=["ids", character],
+    ).set_index("ids")
+
+    # Convert the expanded representation into:
+    # node name -> set of reconstructed states.
+    node_states = (
+        states_df
+        .groupby(level="ids")[character]
+        .agg(set)
+    )
+
+    for root in forest:
+        for node in root.traverse():
+            if node.is_leaf():
+                continue
+
+            if node.name in node_states.index:
+                node.add_feature(
+                    character,
+                    node_states.loc[node.name]
+                )
+    for root in forest:
+        for n in root.traverse():
+            vs = getattr(n, character, set())
+            #print('{} - {}'.format(n.name, vs))
+    
+    #input("Wait ......")
+    return
