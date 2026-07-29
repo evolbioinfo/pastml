@@ -1,7 +1,15 @@
-import pytest
+# Execute from the project root:
+# $ python -m unittest tests.Pruning_tree_tests -v
+#
+# Or discover all unittest tests:
+# $ python -m unittest tests/*.py -v
+
+import unittest
+
 from ete3 import Tree
 
 from pastml.sb_corrector import PruneMethod, prune_tree_by_state_counts
+
 
 def make_test_tree() -> Tree:
     tree = Tree(
@@ -21,85 +29,97 @@ def make_test_tree() -> Tree:
 
     return tree
 
-@pytest.mark.parametrize(
-    ("method", "expected_leaves"),
-    [
-        (
-            PruneMethod.RETAIN_SHORTEST_TIP_BRANCHES,
-            {"A1", "B1"},
-        ),
-        (
-            PruneMethod.RETAIN_LONGEST_TIP_BRANCHES,
-            {"A2", "B2"},
-        ),
-        (
-            PruneMethod.RETAIN_SHORTEST_DIST_TO_ROOT,
-            {"A2", "B1"},
-        ),
-        (
-            PruneMethod.RETAIN_LONGEST_DIST_TO_ROOT,
-            {"A1", "B2"},
-        ),
-    ],
-)
 
-def test_pruning_methods(method, expected_leaves):
-    tree = make_test_tree()
+class TestPruneTreeByStateCounts(unittest.TestCase):
 
-    pruned = prune_tree_by_state_counts(
-        root=tree,
-        optimized_counts={"A": 1, "B": 1},
-        state_column="Country",
-        copy_tree=True,
-        method=method,
-    )
+    def test_pruning_methods(self):
+        test_cases = [
+            (
+                PruneMethod.RETAIN_SHORTEST_TIP_BRANCHES,
+                {"A1", "B1"}
+            ),
+            (
+                PruneMethod.RETAIN_LONGEST_TIP_BRANCHES,
+                {"A2", "B2"}
+            ),
+            (
+                PruneMethod.RETAIN_SHORTEST_DIST_TO_ROOT,
+                {"A2", "B1"}
+            ),
+            (
+                PruneMethod.RETAIN_LONGEST_DIST_TO_ROOT,
+                {"A1", "B2"}
+            ),
+        ]
 
-    assert set(pruned.get_leaf_names()) == expected_leaves
+        for method, expected_leaves in test_cases:
+            with self.subTest(method=method):
+                tree = make_test_tree()
 
-def test_copy_tree_does_not_modify_original():
-    tree = make_test_tree()
+                pruned = prune_tree_by_state_counts(
+                    root=tree,
+                    optimized_counts={"A": 1, "B": 1},
+                    state_column="Country",
+                    copy_tree=True,
+                    method=method
+                )
 
-    original_leaves = set(tree.get_leaf_names())
+                self.assertEqual(
+                    set(pruned.get_leaf_names()),
+                    expected_leaves
+                )
 
-    pruned = prune_tree_by_state_counts(
-        root=tree,
-        optimized_counts={"A": 1, "B": 1},
-        state_column="Country",
-        copy_tree=True,
-    )
+    def test_copy_tree_does_not_modify_original(self):
+        tree = make_test_tree()
+        original_leaves = set(tree.get_leaf_names())
 
-    assert set(tree.get_leaf_names()) == original_leaves
-    assert len(pruned.get_leaf_names()) == 2
-
-
-def test_requested_count_exceeds_available():
-    tree = make_test_tree()
-
-    with pytest.raises(
-        ValueError,
-        match="Cannot retain 3 leaves for state 'A'",
-    ):
-        prune_tree_by_state_counts(
+        pruned = prune_tree_by_state_counts(
             root=tree,
-            optimized_counts={"A": 3, "B": 1},
+            optimized_counts={"A": 1, "B": 1},
             state_column="Country",
-            copy_tree=True,
+            copy_tree=True
         )
 
-def test_pruning_preserves_distance_between_retained_leaves():
-    tree = make_test_tree()
+        self.assertEqual(
+            set(tree.get_leaf_names()),
+            original_leaves
+        )
 
-    original_distance = tree.get_distance("A1", "B1")
+        self.assertEqual(
+            len(pruned.get_leaf_names()),
+            2
+        )
 
-    pruned = prune_tree_by_state_counts(
-        root=tree,
-        optimized_counts={"A": 1, "B": 1},
-        state_column="Country",
-        copy_tree=True,
-        method=PruneMethod.RETAIN_SHORTEST_TIP_BRANCHES,
-    )
+    def test_requested_count_exceeds_available(self):
+        tree = make_test_tree()
 
-    pruned_distance = pruned.get_distance("A1", "B1")
+        with self.assertRaisesRegex(
+            ValueError,
+            r"Cannot retain 3 leaves for state 'A'",
+        ):
+            prune_tree_by_state_counts(
+                root=tree,
+                optimized_counts={"A": 3, "B": 1},
+                state_column="Country",
+                copy_tree=True
+            )
 
-    assert pruned_distance == pytest.approx(original_distance)
+    def test_pruning_preserves_distance_between_retained_leaves(self):
+        tree = make_test_tree()
 
+        original_distance = tree.get_distance("A1", "B1")
+
+        pruned = prune_tree_by_state_counts(
+            root=tree,
+            optimized_counts={"A": 1, "B": 1},
+            state_column="Country",
+            copy_tree=True,
+            method=PruneMethod.RETAIN_SHORTEST_TIP_BRANCHES
+        )
+
+        pruned_distance = pruned.get_distance("A1", "B1")
+
+        self.assertAlmostEqual(
+            pruned_distance,
+            original_distance
+        )

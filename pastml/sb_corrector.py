@@ -127,11 +127,11 @@ def sampling_bias_correction_pipeline(
                                                     method = interpolation_method)
 
     if optimized:
-        optimized_counts = optimize_counts_optimized(target_distribution = target_dist_dict,
+        optimized_counts, _ = optimize_counts_optimized(target_distribution = target_dist_dict,
                                                     observed_counts = obs_counts_dict,
                                                     _lambda = _lambda)
     else:
-        optimized_counts = optimize_counts(target_distribution = target_dist_dict,
+        optimized_counts, _ = optimize_counts(target_distribution = target_dist_dict,
                                             observed_counts = obs_counts_dict,
                                             _lambda = _lambda)
     #print(optimized_counts)
@@ -258,7 +258,7 @@ def optimize_counts(
     target_distribution: dict[str, float],
     observed_counts: dict[str, int],
     _lambda: float,
-) -> dict[str, int]:
+) -> tuple[dict[str, int], float]:
     """
     Optimize integer state (e.g., country) counts 
 
@@ -279,6 +279,9 @@ def optimize_counts(
     -------
     dict[str, int]
         Optimized count m_c for every state (e.g., country).
+    
+    float
+        The optimal criterion value 
     """
     
     # TODO: Implement also for the case where the is an non-empty intersection
@@ -331,7 +334,7 @@ def optimize_counts(
             + (1.0 - _lambda) * retention_error
         )
 
-        print(f"M = {final_size}, objective = {objective}")
+        #print(f"M = {final_size}, objective = {objective}")
 
         if objective < best_objective:
             best_objective = objective
@@ -340,14 +343,14 @@ def optimize_counts(
     return {
         label: int(count)
         for label, count in zip(labels, best_counts)
-    }
+    }, best_objective
 
 # TODO: add a M_min and M_max parameters
 def optimize_counts_optimized(
     target_distribution: dict[str, float],
     observed_counts: dict[str, int],
     _lambda: float,
-) -> dict[str, int]:
+) -> tuple[dict[str, int], float]:
     """
     Optimize integer state (e.g., country) counts 
 
@@ -368,6 +371,9 @@ def optimize_counts_optimized(
     -------
     dict[str, int]
         Optimized count m_c for every state (e.g., country).
+    
+    float
+        The optimal criterion value 
     """
     
     # TODO: Implement also for the case where the is an non-empty intersection
@@ -443,7 +449,7 @@ def optimize_counts_optimized(
     return {
         label: int(count)
         for label, count in zip(labels, best_counts)
-    }
+    }, best_objective
 
 
 def bounded_integer_allocation(
