@@ -137,11 +137,17 @@ def sampling_bias_correction_pipeline(
     #print(optimized_counts)
 
     m_opt = sum(optimized_counts.values())
+    m_obs = sum(obs_counts_dict.values())
 
     end_time = time.time()
     elapsed_time = round(end_time - begin_time,2)
     logger.debug(f"Completed. M_optimal = {m_opt} Elapsed time {elapsed_time} s")
 
+    # In this case, pruning is deactivated
+    if m_opt == m_obs:
+        del optimized_counts
+        return
+                
     return optimized_counts
 
 
@@ -185,7 +191,7 @@ def interpolate_distributions(
             f"alpha parameter (--alpha) must be between 0.0 and 1.0, but received {alpha}."
         )
 
-    if method not in {ARITHMETIC, GEOMETRIC}:
+    if method not in [ARITHMETIC, GEOMETRIC]:
         raise ValueError(
             f"method must be either '{ARITHMETIC}' or '{GEOMETRIC}', "
             f"but received '{method}'."

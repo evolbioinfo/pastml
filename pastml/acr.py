@@ -618,6 +618,9 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     if threads < 1:
         threads = max(os.cpu_count(), 1)
 
+    if not optimized_counts:
+        sampling_bias_correction = False
+
     acr_results = acr(forest=roots, columns=columns, column2states=column2states,
                       prediction_method=prediction_method, model=model, column2parameters=parameters,
                       column2rates=rates,
