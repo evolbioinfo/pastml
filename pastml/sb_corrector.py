@@ -197,8 +197,22 @@ def interpolate_distributions(
             f"but received '{method}'."
         )
 
+    observed_distribution = {
+        str(label): value
+        for label, value in observed_distribution.items()
+    }
+
+    prior_distribution = {
+        str(label): value
+        for label, value in prior_distribution.items()
+    }
+
     observed_labels = set(observed_distribution)
     prior_labels = set(prior_distribution)
+
+    #print(observed_labels)
+    #print(prior_labels)
+    #print("HEY OP!")
 
     # TODO: for now we assume that observed and prior labels are identical
     # TODO: I'll see how I will handle non-identical sets later
