@@ -112,7 +112,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         force_joint=True, threads=0,
         reoptimise=False, tau=0, resolve_polytomies=False, frequency_smoothing=False,
         sampling_bias_correction=False, optimized_counts=None, 
-        prune_method = PruneMethod.RETAIN_SHORTEST_TIP_BRANCHES):
+        prune_method = PruneMethod.PRUNE_LONGEST_TIP_BRANCHES):
     """
     Reconstructs ancestral states for the given tree and
     all the characters specified as columns of the given annotation dataframe.
@@ -397,7 +397,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     pajek=None, pajek_timing=VERTICAL, recursion_limit=0, 
                     sampling_bias_correction = False, freq_priors = None, 
                     alpha = ALPHA, _lambda = _LAMBDA, interpolation_method = GEOMETRIC, 
-                    prune_method = PruneMethod.RETAIN_SHORTEST_TIP_BRANCHES):
+                    prune_method = PruneMethod.PRUNE_LONGEST_TIP_BRANCHES):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -1123,11 +1123,11 @@ def main():
     # TODO: complete description
     sb_group.add_argument("--prune_method",
         type=PruneMethod, choices = [method.value for method in PruneMethod], metavar="METHOD (str)",
-        default=PruneMethod.RETAIN_SHORTEST_TIP_BRANCHES, dest = "prune_method",
+        default=PruneMethod.PRUNE_LONGEST_TIP_BRANCHES, dest = "prune_method",
         help='Criterion used to select leaves within each state. '
         'Pruning options: {pr_opts}. '
         'DEFAULT: {_def}'.format(pr_opts = ', '.join([method.value for method in PruneMethod]),
-                                 _def = "RETAIN_SHORTEST_TIP_BRANCHES"),
+                                 _def = "PRUNE_LONGEST_TIP_BRANCHES"),
     )
 
     vis_group = parser.add_argument_group('visualisation-related arguments')

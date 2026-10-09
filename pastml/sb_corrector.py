@@ -9,11 +9,10 @@ import heapq
 from collections import defaultdict
 
 class PruneMethod(str, Enum):
-    RETAIN_LONGEST_TIP_BRANCHES = "RETAIN_LONGEST_TIP_BRANCHES"
-    RETAIN_SHORTEST_TIP_BRANCHES = "RETAIN_SHORTEST_TIP_BRANCHES"
-    RETAIN_LONGEST_DIST_TO_ROOT = "RETAIN_LONGEST_DIST_TO_ROOT"
-    RETAIN_SHORTEST_DIST_TO_ROOT = "RETAIN_SHORTEST_DIST_TO_ROOT"
-
+    PRUNE_LONGEST_TIP_BRANCHES = "PRUNE_LONGEST_TIP_BRANCHES"
+    PRUNE_SHORTEST_TIP_BRANCHES = "PRUNE_SHORTEST_TIP_BRANCHES"
+    PRUNE_LONGEST_DIST_TO_ROOT = "PRUNE_LONGEST_DIST_TO_ROOT"
+    PRUNE_SHORTEST_DIST_TO_ROOT = "PRUNE_SHORTEST_DIST_TO_ROOT"
 
 GEOMETRIC = 'geometric'
 ARITHMETIC = 'arithmetic'
@@ -629,24 +628,29 @@ def prune_tree_by_state_counts(
     optimized_counts: dict[str, int],
     state_column: str,
     copy_tree: bool = False,
-    method: PruneMethod = PruneMethod.RETAIN_SHORTEST_TIP_BRANCHES,
+    method: PruneMethod = PruneMethod.PRUNE_LONGEST_TIP_BRANCHES,
 ):
     """
     Prune a phylogenetic tree to retain specified leaf counts per state.
 
     Pruning options/methods:
-    - ``RETAIN_SHORTEST_TIP_BRANCHES``:
-      retain leaves with the shortest terminal branches.
-    - ``RETAIN_LONGEST_TIP_BRANCHES``:
-      retain leaves with the longest terminal branches.
-    - ``RETAIN_SHORTEST_DIST_TO_ROOT``:
-      retain leaves with the smallest root-to-tip distances.
-    - ``RETAIN_LONGEST_DIST_TO_ROOT``:
-      retain leaves with the largest root-to-tip distances.
 
-    After selecting the requested number of leaves per state, all remaining
-    leaves are removed. Suppressible internal nodes are removed while
-    preserving branch lengths.
+    - ``PRUNE_SHORTEST_TIP_BRANCHES``:
+      iteratively prune the currently shortest eligible terminal branch.
+      Terminal branch lengths are recomputed after every pruning operation.
+
+    - ``PRUNE_LONGEST_TIP_BRANCHES``:
+      iteratively prune the currently longest eligible terminal branch.
+      Terminal branch lengths are recomputed after every pruning operation.
+
+    - ``PRUNE_SHORTEST_DIST_TO_ROOT``:
+      prune leaves having the shortest root-to-tip distances.
+
+    - ``PRUNE_LONGEST_DIST_TO_ROOT``:
+      prune leaves having the longest root-to-tip distances.
+
+    A leaf is eligible for pruning only if removing it would leave at least
+    ``optimized_counts[state]`` leaves for its state.
 
     Parameters
     ----------
@@ -666,50 +670,86 @@ def prune_tree_by_state_counts(
         If False, prune the input tree in place.
 
     method
-        Criterion used to rank leaves within each state. Must be one of the
-        values in ``PRUNE_METHODS``.
+        Criterion used to choose leaves for pruning.
 
     Returns
     -------
     ETE TreeNode
         The pruned tree.
     """
+
     if not optimized_counts:
         raise ValueError("optimized_counts must not be empty.")
 
     if not state_column:
         raise ValueError("state_column must be a non-empty string.")
 
+    try:
+        method = PruneMethod(method)
+    except ValueError:
+        raise ValueError(
+            f"Unknown pruning method '{method}'. "
+            f"Expected one of: {[m.value for m in PruneMethod]}."
+        )
+
     tree = root.copy(method="deepcopy") if copy_tree else root
 
-    leaves_by_state: dict[str, list] = {}
+    def get_leaf_state(leaf):
+        """
+        Return the single unambiguous state of a leaf.
 
-    for leaf in tree.iter_leaves():
+        TODO:
+        Decide how to handle leaves without annotations, empty states,
+        and ambiguous states. For now, such leaves are ignored.
+        """
 
-        # TODO: see how to deal with empty leaves
         if not hasattr(leaf, state_column):
-            continue
+            return None
 
         state = getattr(leaf, state_column)
 
         if state is None or state == "":
-            continue
+            return None
 
         # PastML state annotations are generally stored as sets.
-        # TODO: see how to deal with leafs of ambiguous states
-        # Probably I will have to go to the function where I calculate the empirical distribution
-        # and exclude ambiguous levaes from the computation
+        #
+        # TODO:
+        # Decide how to handle ambiguous leaf states.
+        # For now, leaves with multiple possible states are ignored.
         if isinstance(state, set):
+
             if len(state) != 1:
-                continue
+                return None
 
             state = next(iter(state))
 
+        return state
+
+    # ------------------------------------------------------------
+    # Collect leaves by state.
+    # ------------------------------------------------------------
+    leaves_by_state: dict[str, list] = {}
+
+    for leaf in tree.iter_leaves():
+
+        state = get_leaf_state(leaf)
+
+        if state is None:
+            continue
+
         leaves_by_state.setdefault(state, []).append(leaf)
-    
-    # Validate the requested counts.
+
+    # ------------------------------------------------------------
+    # Validate requested counts.
+    # ------------------------------------------------------------
     for state, requested_count in optimized_counts.items():
-        
+
+        if requested_count < 0:
+            raise ValueError(
+                f"Cannot retain a negative number of leaves for "
+                f"state '{state}': {requested_count}."
+            )
+
         available_count = len(leaves_by_state.get(state, []))
 
         if requested_count > available_count:
@@ -729,8 +769,8 @@ def prune_tree_by_state_counts(
         raise ValueError(
             "No optimized count was provided for the following states "
             f"present in the tree: {sorted(missing_counts)}. "
-            "This is because, probably, no prior frequencies were specified for the above states as well. "
-            "Please check the prior frequencies file"
+            "This is probably because no prior frequencies were specified "
+            "for these states. Please check the prior frequencies file."
         )
 
     unknown_states = optimized_states - tree_states
@@ -741,37 +781,191 @@ def prune_tree_by_state_counts(
             f"the tree leaves: {sorted(unknown_states)}."
         )
 
+    if sum(optimized_counts.values()) == 0:
+        raise ValueError(
+            "The optimized counts would remove every annotated leaf "
+            "from the tree."
+        )
+
+    # ============================================================
+    # Iterative terminal-branch pruning
+    # ============================================================
     if method in {
-        PruneMethod.RETAIN_LONGEST_TIP_BRANCHES,
-        PruneMethod.RETAIN_SHORTEST_TIP_BRANCHES,
+        PruneMethod.PRUNE_SHORTEST_TIP_BRANCHES,
+        PruneMethod.PRUNE_LONGEST_TIP_BRANCHES,
     }:
-        distance_function = lambda leaf: float(leaf.dist)
-    else:
-        distance_function = lambda leaf: float(leaf.get_distance(tree))
 
-    retain_longest = method in {
-        PruneMethod.RETAIN_LONGEST_TIP_BRANCHES,
-        PruneMethod.RETAIN_LONGEST_DIST_TO_ROOT
-    }
+        current_counts = {
+            state: len(leaves)
+            for state, leaves in leaves_by_state.items()
+        }
 
-    leaves_to_keep = []
+        remaining_to_prune = sum(
+            current_counts[state] - optimized_counts[state]
+            for state in current_counts
+        )
+
+        prune_shortest = (
+            method == PruneMethod.PRUNE_SHORTEST_TIP_BRANCHES
+        )
+
+        def leaf_priority(leaf):
+            dist = float(leaf.dist)
+
+            if prune_shortest:
+                return dist
+
+            return -dist
+
+        def push_if_eligible(heap, leaf):
+            state = get_leaf_state(leaf)
+
+            if state is None:
+                return
+
+            if current_counts[state] <= optimized_counts[state]:
+                return
+
+            priority = leaf_priority(leaf)
+
+            heapq.heappush(
+                heap,
+                (
+                    priority,
+                    str(leaf.name),
+                    id(leaf),
+                    leaf,
+                    state,
+                ),
+            )
+
+        heap = []
+
+        for leaf in tree.iter_leaves():
+            push_if_eligible(heap, leaf)
+
+        while remaining_to_prune > 0:
+
+            selected_leaf = None
+            selected_state = None
+
+            while heap:
+
+                (
+                    stored_priority,
+                    _stored_name,
+                    _stored_id,
+                    candidate_leaf,
+                    candidate_state,
+                ) = heapq.heappop(heap)
+
+                # Skip leaves already removed from the tree.
+                if candidate_leaf.up is None:
+                    continue
+
+                current_state = get_leaf_state(candidate_leaf)
+
+                if current_state is None:
+                    continue
+
+                if current_state != candidate_state:
+                    continue
+
+                if current_counts[current_state] <= optimized_counts[current_state]:
+                    continue
+
+                # Skip stale heap entries.
+                #
+                # This matters because when a sister leaf is pruned,
+                # this leaf's terminal branch length may change. We then push
+                # a fresh heap entry with the updated distance, but the old
+                # entry may still exist in the heap.
+                current_priority = leaf_priority(candidate_leaf)
+
+                if current_priority != stored_priority:
+                    continue
+
+                selected_leaf = candidate_leaf
+                selected_state = current_state
+                break
+
+            if selected_leaf is None:
+                raise RuntimeError(
+                    "No eligible leaf could be found although pruning "
+                    "is still required."
+                )
+
+            parent = selected_leaf.up
+
+            affected_sisters = []
+
+            if parent is not None:
+                affected_sisters = [
+                    child
+                    for child in parent.children
+                    if child is not selected_leaf
+                ]
+
+            selected_leaf.delete(
+                prevent_nondicotomic=True,
+                preserve_branch_length=True,
+            )
+
+            current_counts[selected_state] -= 1
+            remaining_to_prune -= 1
+
+            # Only local neighbours can have changed terminal branch length.
+            # Reinsert affected sister leaves with their updated distance.
+            for sister in affected_sisters:
+
+                if sister.up is None:
+                    continue
+
+                if not sister.is_leaf():
+                    continue
+
+                push_if_eligible(heap, sister)
+
+        return tree
+
+    # ============================================================
+    # One-shot root-distance pruning
+    # ============================================================
+
+    prune_longest = (
+        method == PruneMethod.PRUNE_LONGEST_DIST_TO_ROOT
+    )
+
+    leaves_to_prune = set()
 
     for state, leaves in leaves_by_state.items():
-        requested_count = optimized_counts[state]
 
-        if requested_count == 0:
+        requested_count = optimized_counts[state]
+        available_count = len(leaves)
+
+        n_to_prune = available_count - requested_count
+
+        if n_to_prune == 0:
             continue
 
         sorted_leaves = sorted(
             leaves,
             key=lambda leaf: (
-                distance_function(leaf),
-                str(leaf.name)
+                float(leaf.get_distance(tree)),
+                str(leaf.name),
             ),
-            reverse=retain_longest
+            reverse=prune_longest,
         )
 
-        leaves_to_keep.extend(sorted_leaves[:requested_count])
+        leaves_to_prune.update(
+            sorted_leaves[:n_to_prune]
+        )
+
+    leaves_to_keep = [
+        leaf
+        for leaf in tree.iter_leaves()
+        if leaf not in leaves_to_prune
+    ]
 
     if not leaves_to_keep:
         raise ValueError(

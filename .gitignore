@@ -112,3 +112,6 @@ examples/*/snakemake/logs/
 .idea
 
 *.sh
+
+# ignore this non-unit test file
+tests/check_prune_100_taxa.py
