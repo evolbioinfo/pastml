@@ -4,6 +4,8 @@
 # Or discover all unittest tests:
 # $ python -m unittest tests/*.py -v
 
+import itertools
+import random
 import unittest
 
 from ete3 import Tree
@@ -106,7 +108,133 @@ def make_iterative_longest_tip_tree() -> Tree:
     return add_country_states(tree, states)
 
 
+def get_single_state(leaf) -> str:
+    return next(iter(leaf.Country))
+
+
+def count_states(tree: Tree) -> dict[str, int]:
+    counts = {}
+    for leaf in tree.iter_leaves():
+        state = get_single_state(leaf)
+        counts[state] = counts.get(state, 0) + 1
+    return counts
+
+
+def make_random_tree(rng: random.Random, n_tips: int, polytomies: bool) -> Tree:
+    """
+    Random tree with uniquely named nodes and states drawn from {A, B, C}.
+
+    Tip branch lengths are partly drawn from a small set of values,
+    to make sure that ties are present.
+    """
+    tree = Tree()
+    tree.populate(n_tips, random_branches=True)
+
+    if polytomies:
+        for node in list(tree.traverse()):
+            if not node.is_leaf() and not node.is_root() and rng.random() < 0.3:
+                node.delete(preserve_branch_length=True)
+
+    for i, leaf in enumerate(tree.iter_leaves()):
+        leaf.name = f"L{i}"
+        leaf.dist = round(rng.choice([rng.random(), 0.1, 0.5]), 3)
+        leaf.add_feature("Country", {rng.choice("ABC")})
+
+    for i, node in enumerate(tree.traverse()):
+        if not node.is_leaf():
+            node.name = f"n{i}"
+
+    return tree
+
+
+def make_random_counts(rng: random.Random, tree: Tree) -> dict[str, int]:
+    counts = {
+        state: rng.randint(0, count)
+        for state, count in count_states(tree).items()
+    }
+    if not sum(counts.values()):
+        counts[next(iter(counts))] = 1
+    return counts
+
+
+def naive_iterative_tip_pruning(tree: Tree, optimized_counts: dict[str, int], prune_shortest: bool) -> Tree:
+    """
+    Slow reference implementation of the iterative tip-branch pruning:
+    at every step, all terminal branches are re-read and the best eligible leaf is pruned.
+    Ties are broken by leaf name, as in prune_tree_by_state_counts.
+    """
+    tree = tree.copy(method="deepcopy")
+    current_counts = count_states(tree)
+
+    def key(leaf):
+        return (leaf.dist if prune_shortest else -leaf.dist, leaf.name)
+
+    while any(current_counts[state] > optimized_counts[state] for state in current_counts):
+        candidates = [
+            leaf for leaf in tree.iter_leaves()
+            if current_counts[get_single_state(leaf)] > optimized_counts[get_single_state(leaf)]
+        ]
+        leaf = min(candidates, key=key)
+        current_counts[get_single_state(leaf)] -= 1
+        leaf.delete(prevent_nondicotomic=True, preserve_branch_length=True)
+
+    return tree
+
+
 class TestPruneTreeByStateCounts(unittest.TestCase):
+
+    def test_random_trees_against_reference(self):
+        """
+        Regression test on seeded random trees (with and without polytomies) for all pruning methods:
+            - the retained per-state counts match optimized_counts;
+            - the distances between retained leaves are preserved;
+            - no unary inner node remains (except possibly the root);
+            - tip-branch methods retain the same leaves as the naive reference implementation.
+        """
+        rng = random.Random(2026)
+        random.seed(2026)  # Tree.populate uses the global generator
+
+        for i in range(300):
+            tree = make_random_tree(rng, n_tips=rng.randint(2, 30), polytomies=bool(i % 2))
+            optimized_counts = make_random_counts(rng, tree)
+
+            for method in PruneMethod:
+                with self.subTest(tree=i, method=method.value, counts=optimized_counts):
+                    pruned = prune_tree_by_state_counts(
+                        root=tree,
+                        optimized_counts=optimized_counts,
+                        state_column="Country",
+                        copy_tree=True,
+                        method=method,
+                    )
+
+                    self.assertEqual(
+                        count_states(pruned),
+                        {state: count for state, count in optimized_counts.items() if count},
+                    )
+
+                    for leaf1, leaf2 in itertools.combinations(pruned.get_leaf_names()[:8], 2):
+                        self.assertAlmostEqual(
+                            pruned.get_distance(leaf1, leaf2),
+                            tree.get_distance(leaf1, leaf2),
+                        )
+
+                    self.assertFalse(
+                        [node.name for node in pruned.traverse()
+                         if len(node.children) == 1 and not node.is_root()]
+                    )
+
+                    if method in {PruneMethod.PRUNE_SHORTEST_TIP_BRANCHES,
+                                  PruneMethod.PRUNE_LONGEST_TIP_BRANCHES}:
+                        reference = naive_iterative_tip_pruning(
+                            tree,
+                            optimized_counts,
+                            prune_shortest=method == PruneMethod.PRUNE_SHORTEST_TIP_BRANCHES,
+                        )
+                        self.assertEqual(
+                            set(pruned.get_leaf_names()),
+                            set(reference.get_leaf_names()),
+                        )
 
     def test_pruning_methods_basic_behavior(self):
         test_cases = [

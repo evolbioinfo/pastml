@@ -28,13 +28,13 @@ def get_min_forest_stats(forest):
 
 class ForestStats(object):
 
-    def __init__(self, forest, sampling_bias_correction = False):
+    def __init__(self, forest, log=True):
         self.avg_nonzero_brlen, self.num_nodes, self.num_tips, self.forest_length = \
-            get_forest_stats(forest, sampling_bias_correction)
+            get_forest_stats(forest, log)
         self.num_trees = len(forest)
 
 
-def get_forest_stats(forest, sampling_bias_correction = False):
+def get_forest_stats(forest, log=True):
     len_sum_ext = 0
     len_sum_int = 0
     num_zero_nodes = 0
@@ -76,11 +76,12 @@ def get_forest_stats(forest, sampling_bias_correction = False):
     avg_len_int = len_sum_int / (num_nodes - num_tips - num_zero_nodes + num_zero_tips) \
         if (num_nodes - num_tips - num_zero_nodes + num_zero_tips) > 0 else 0
 
-    if sampling_bias_correction:
-        logging.getLogger('pastml').debug('\n==========SUBSAMPLED TREE STATISTICS===========')
-    else:
-        logging.getLogger('pastml').debug('\n=============TREE STATISTICS===================')
-    
+    # Only the statistics of the original (unpruned) forest are logged:
+    # the pruned forests used for sampling bias correction are column-specific
+    if not log:
+        return [avg_len, num_nodes, num_tips, len_sum_ext + len_sum_int]
+
+    logging.getLogger('pastml').debug('\n=============TREE STATISTICS===================')
     logging.getLogger('pastml').debug('\tnumber of tips:\t{}\n'
                                       '\tnumber of zero-branch tips:\t{}\n'
                                       '\tnumber of internal nodes:\t{}\n'

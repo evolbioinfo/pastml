@@ -115,3 +115,6 @@ examples/*/snakemake/logs/
 
 # ignore this non-unit test file
 tests/check_prune_100_taxa.py
+
+# ignore the test dataset file
+1512

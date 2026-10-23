@@ -1,4 +1,5 @@
 import logging
+import json
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
@@ -6,7 +7,8 @@ from pathlib import Path
 import time
 from enum import Enum
 import heapq
-from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
+
 
 class PruneMethod(str, Enum):
     PRUNE_LONGEST_TIP_BRANCHES = "PRUNE_LONGEST_TIP_BRANCHES"
@@ -19,15 +21,184 @@ ARITHMETIC = 'arithmetic'
 ALPHA = 0.5
 _LAMBDA = 0.5
 
+def read_frequency_priors(
+    freq_priors: str | Path,
+    freq_priors_format: str,
+) -> dict[str, dict[str, float]]:
+    """
+    Read prior state frequencies from JSON, CSV, or TSV.
+
+    Returns
+    -------
+    dict[str, dict[str, float]]
+        Mapping from annotation columns to state-frequency dictionaries.
+    """
+
+    fmt = freq_priors_format.upper()
+
+    if fmt == 'JSON':
+        with open(freq_priors, 'r', encoding='utf-8') as f:
+            priors = json.load(f)
+
+        # Validate the common dictionary representation.
+        if not isinstance(priors, dict):
+            raise ValueError(
+                "Frequency priors must map annotation columns "
+                "to state-frequency dictionaries."
+            )
+
+    elif fmt in ('CSV', 'TSV'):
+        sep = ',' if fmt == 'CSV' else '\t'
+
+        data = pd.read_csv(
+            freq_priors,
+            sep=sep,
+            dtype={'Column': str, 'State': str},
+            keep_default_na=False,
+        )
+
+        expected_columns = {'Column', 'State', 'Frequency'}
+
+        if set(data.columns) != expected_columns:
+            raise ValueError(
+                f"File '{freq_priors}' must contain exactly three "
+                "columns: 'Column', 'State', and 'Frequency'."
+            )
+
+        if (data[['Column', 'State']] == '').any().any():
+            raise ValueError(
+                f"File '{freq_priors}' contains missing column or state names."
+            )
+
+        if data.duplicated(subset=['Column', 'State']).any():
+            raise ValueError(
+                f"File '{freq_priors}' contains duplicate "
+                "column-state combinations."
+            )
+
+        priors = {
+            column: dict(zip(group['State'], group['Frequency']))
+            for column, group in data.groupby('Column', sort=False)
+        }
+
+    else:
+        raise ValueError(
+            f"Unsupported frequency priors format: '{fmt}'. "
+            "Expected JSON, CSV, or TSV."
+        )
+
+    validated_priors = {}
+    
+    for column, distribution in priors.items():
+        
+        if not isinstance(column, str) or not column:
+            raise ValueError("Invalid annotation column name.")
+
+        if not isinstance(distribution, dict) or not distribution:
+            raise ValueError(
+                f"Prior distribution for '{column}' must "
+                "be a non-empty dictionary."
+            )
+
+        validated_distribution = {}
+
+        for state, frequency in distribution.items():
+
+            if not isinstance(state, str) or not state:
+                raise ValueError(
+                    f"Invalid state name in column '{column}'."
+                )
+
+            try:
+                if isinstance(frequency, (bool, dict, list)):
+                    raise TypeError
+                value = float(frequency)
+            except (TypeError, ValueError):
+                raise ValueError(
+                    f"Invalid frequency for state '{state}' "
+                    f"in column '{column}': {frequency!r}."
+                )
+
+            if not np.isfinite(value) or not 0 <= value <= 1:
+                raise ValueError(
+                    f"Frequency for state '{state}' in "
+                    f"column '{column}' must be between 0 and 1."
+                )
+
+            validated_distribution[state] = value
+
+        freq_sum = sum(validated_distribution.values())
+
+        if not np.isclose(freq_sum, 1.0):
+            raise ValueError(
+                f"Prior frequencies for column '{column}' "
+                f"sum to {freq_sum}, but must sum to 1.0."
+            )
+
+        validated_priors[column] = validated_distribution
+
+    return validated_priors
+
+def optimize_column_counts(
+    column: str,
+    df: pd.DataFrame,
+    prior_distribution: dict[str, float],
+    alpha: float,
+    interpolation_method: str,
+    _lambda: float,
+) -> tuple[str, dict[str, int] | None]:
+    """
+    Optimize the retained sequence counts for one annotation column.
+    """
+
+    logger = logging.getLogger('pastml')
+
+    # Calculate the observed frequencies and counts.
+    obs_dict = df[column].value_counts(normalize=True).to_dict()
+
+    obs_counts_dict = df[column].value_counts(
+        normalize=False
+    ).to_dict()
+
+    # Construct the target distribution.
+    target_dist_dict = interpolate_distributions(
+        observed_distribution=obs_dict,
+        prior_distribution=prior_distribution,
+        alpha=alpha,
+        method=interpolation_method,
+    )
+
+    # Optimize sequence counts.
+    optimized_counts, _ = optimize_counts_optimized(
+        target_distribution=target_dist_dict,
+        observed_counts=obs_counts_dict,
+        _lambda=_lambda,
+    )
+
+    m_opt = sum(optimized_counts.values())
+    m_obs = sum(obs_counts_dict.values())
+
+    logger.debug(
+        f"Column '{column}': M_optimal = {m_opt}, "
+        f"M_observed = {m_obs}"
+    )
+
+    # No pruning is required.
+    if m_opt == m_obs:
+        return column, None
+
+    return column, optimized_counts
+
+
 def sampling_bias_correction_pipeline(
     df: pd.DataFrame,
     freq_priors: str | Path,
-    data_sep: str,
+    freq_priors_format: str,
     columns: list[str],
     alpha: float = ALPHA,
     interpolation_method: str = GEOMETRIC,
     _lambda: float = _LAMBDA,
-    optimized = True
+    threads: int = 1,
 ) -> dict[str, int]:
     """
     Calculate sampling-bias-corrected sequence counts for each geographic state.
@@ -43,11 +214,10 @@ def sampling_bias_correction_pipeline(
         Metadata table containing the geographic-state column.
 
     freq_priors
-        Path to a delimited file containing exactly two columns: the geographic
-        state column and a prior-frequency column.
+        Path to a prior-frequencies column.
 
-    data_sep
-        Column separator used in the prior-frequency file.
+    freq_priors_format
+        JSON, CSV, or TSV (str)
 
     columns
         Sequence containing the metadata columns used for ancestral-state
@@ -62,10 +232,15 @@ def sampling_bias_correction_pipeline(
         Interpolation method used to construct the target distribution, such
         as ``"arithmetic"`` or ``"geometric"``.
 
-    optimizer_lambda
+    _lambda
         Trade-off parameter between matching the target distribution and
         retaining sequences. Must lie in the interval [0, 1].
 
+    threads
+        Number of threads to be used (Default: 1)
+        Parallelization only takes place across independent columns, hence
+        if a single column is specified, only one thread is used.
+    
     Returns
     -------
     dict[str, int]
@@ -84,70 +259,81 @@ def sampling_bias_correction_pipeline(
 
     begin_time = time.time()
 
-    assert len(freq_priors) > 0
-    freq_priors_data = pd.read_csv(freq_priors, sep=data_sep, header=0)
-    freq_priors_data_cols = freq_priors_data.columns
-    
-    if not columns[0] in freq_priors_data_cols:
-        # TODO: complete the description
-        raise ValueError(f"Column '{columns[0]}' does not appear in '{freq_priors}' file. "
-                            "This file should have two columns ... (complete) ...")
+    # Read the frequency priors once.
+    freq_priors_dict = read_frequency_priors(
+        freq_priors=freq_priors,
+        freq_priors_format=freq_priors_format,
+    )
 
-    if not len(freq_priors_data_cols) == 2:
-        raise ValueError(f"File '{freq_priors}' should contain exactly two columns, "
-                            f"one of them named as '{columns[0]}'")
-
-    freq_column = next(col for col in freq_priors_data.columns if col != columns[0])
+    # Ensure all requested columns exist in the metadata.
+    missing_columns = set(columns) - set(df.columns)
     
-    # Check: only numeric non-missing data
-    if not is_numeric_dtype(freq_priors_data[freq_column]) \
-        or freq_priors_data[freq_column].isna().any():
+    if missing_columns:
+        raise ValueError(
+            f"Annotation columns not found in the metadata: "
+            f"{sorted(missing_columns)}"
+        )
+
+    # Priors for unselected columns are ignored.
+    unknown_columns = set(freq_priors_dict) - set(columns)
+
+    if unknown_columns:
+        logger.warning(
+            f"Prior frequencies specified for unselected "
+            f"columns {sorted(unknown_columns)}: they will be ignored. "
+            f"The specified columns are: {columns}."
+        )
+
+    # Only optimize columns with explicitly specified priors.
+    columns_with_priors = [
+        column for column in dict.fromkeys(columns)
+        if column in freq_priors_dict
+    ]
+
+    if not columns_with_priors:
+        logger.debug(
+            "No prior frequencies specified for selected columns."
+        )
+        return {}
+
+    # Never create more workers than independent tasks.
+    threads = min(threads, len(columns_with_priors))
+
+    logger.debug(
+        f"Optimizing {len(columns_with_priors)} columns "
+        f"using {threads} thread(s)."
+    )
+
+    optimized_counts = {}
+
+    def worker(column):
+        return optimize_column_counts(
+            column=column,
+            df=df,
+            prior_distribution=freq_priors_dict[column],
+            alpha=alpha,
+            interpolation_method=interpolation_method,
+            _lambda=_lambda,
+        )
+
+    with ThreadPoolExecutor(max_workers=threads) as executor:
+
+        # executor.map preserves input ordering.
+        results = executor.map(worker, columns_with_priors)
         
-        raise ValueError(
-            f"Column '{freq_column}' in '{freq_priors}' must contain only numeric, non-missing values."
-        )
+        for column, counts in results:
+            if counts is not None:
+                optimized_counts[column] = counts
+
+    elapsed_time = round(time.time() - begin_time, 2)
+
+    logger.debug(
+        f"Computing optimized frequencies completed in "
+        f"{elapsed_time} s."
+    )
     
-    # Check: frequencies must sum to 1.0
-    freq_sum = freq_priors_data[freq_column].sum()
-    if not np.isclose(freq_sum, 1.0):
-        raise ValueError(
-            f"Values in column '{freq_column}' in '{freq_priors}' sum to "
-            f"{freq_sum}, but they must sum to 1.0."
-        )
-    
-    # prior and observed distribitons into dictionaries
-    freq_priors_dict = freq_priors_data.set_index(columns[0])[freq_column].to_dict()
-    obs_dict = df[columns[0]].value_counts(normalize=True).to_dict()
-    obs_counts_dict = df[columns[0]].value_counts(normalize=False).to_dict()
-
-    target_dist_dict = interpolate_distributions(observed_distribution = obs_dict, 
-                                                    prior_distribution = freq_priors_dict, 
-                                                    alpha = alpha, 
-                                                    method = interpolation_method)
-
-    if optimized:
-        optimized_counts, _ = optimize_counts_optimized(target_distribution = target_dist_dict,
-                                                    observed_counts = obs_counts_dict,
-                                                    _lambda = _lambda)
-    else:
-        optimized_counts, _ = optimize_counts(target_distribution = target_dist_dict,
-                                            observed_counts = obs_counts_dict,
-                                            _lambda = _lambda)
-    #print(optimized_counts)
-
-    m_opt = sum(optimized_counts.values())
-    m_obs = sum(obs_counts_dict.values())
-
-    end_time = time.time()
-    elapsed_time = round(end_time - begin_time,2)
-    logger.debug(f"Completed. M_optimal = {m_opt} Elapsed time {elapsed_time} s")
-
-    # In this case, pruning is deactivated
-    if m_opt == m_obs:
-        del optimized_counts
-        return
-                
     return optimized_counts
+
 
 
 # TODO: Optimize
@@ -710,7 +896,7 @@ def prune_tree_by_state_counts(
 
         if state is None or state == "":
             return None
-
+        
         # PastML state annotations are generally stored as sets.
         #
         # TODO:
@@ -780,13 +966,7 @@ def prune_tree_by_state_counts(
             "The following states occur in optimized_counts but not among "
             f"the tree leaves: {sorted(unknown_states)}."
         )
-
-    if sum(optimized_counts.values()) == 0:
-        raise ValueError(
-            "The optimized counts would remove every annotated leaf "
-            "from the tree."
-        )
-
+    
     # ============================================================
     # Iterative terminal-branch pruning
     # ============================================================
@@ -979,15 +1159,23 @@ def prune_tree_by_state_counts(
 
     return tree
 
-def map_states_to_original_tree(subsampled_forest, forest, character):
+def get_inner_node_states(subsampled_forest, character):
+    """
+    Collect the states inferred on the inner nodes of the subsampled tree(s).
 
-    logger = logging.getLogger('pastml')
-    logger.debug("Mapping the states inferred on the subsampled tree(s) back to original tree(s)")
+    Returns
+    -------
+    dict[str, set]
+        Mapping from inner node names to their (possibly ambiguous) sets of states.
+    """
 
-    rows = []
+    node_states = {}
 
     for root in subsampled_forest:
         for node in root.traverse():
+            if node.is_leaf():
+                continue
+
             states = getattr(node, character, set())
 
             if not states:
@@ -997,39 +1185,24 @@ def map_states_to_original_tree(subsampled_forest, forest, character):
             if isinstance(states, str):
                 states = {states}
 
-            for state in states:
-                rows.append({
-                    "ids": node.name,
-                    character: str(state),
-                })
+            node_states[node.name] = set(states)
 
-    states_df = pd.DataFrame(
-        rows,
-        columns=["ids", character],
-    ).set_index("ids")
+    return node_states
 
-    # Convert the expanded representation into:
-    # node name -> set of reconstructed states.
-    node_states = (
-        states_df
-        .groupby(level="ids")[character]
-        .agg(set)
-    )
+
+def set_inner_node_states(forest, character, node_states):
+    """
+    Fix the states inferred on the subsampled tree(s) on the corresponding inner nodes of the original tree(s).
+    Ambiguous states are kept as sets, i.e. they restrict the allowed states of the node.
+    """
+
+    logger = logging.getLogger('pastml')
+    logger.debug("Mapping the states inferred on the subsampled tree(s) back to original tree(s)")
 
     for root in forest:
         for node in root.traverse():
             if node.is_leaf():
                 continue
 
-            if node.name in node_states.index:
-                node.add_feature(
-                    character,
-                    node_states.loc[node.name]
-                )
-    for root in forest:
-        for n in root.traverse():
-            vs = getattr(n, character, set())
-            #print('{} - {}'.format(n.name, vs))
-    
-    #input("Wait ......")
-    return
+            if node.name in node_states:
+                node.add_feature(character, set(node_states[node.name]))
