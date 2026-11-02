@@ -2,7 +2,6 @@ import logging
 import json
 import numpy as np
 import pandas as pd
-from pandas.api.types import is_numeric_dtype
 from pathlib import Path
 import time
 from enum import Enum
@@ -336,10 +335,6 @@ def sampling_bias_correction_pipeline(
 
 
 
-# TODO: Optimize
-# I have to optimize this function.
-# IDEAS:
-# - Basically, this is a curved function, once it finds the optimum, it start increasing. I should stop there and not test further values.
 def interpolate_distributions(
     observed_distribution: dict[str, float],
     prior_distribution: dict[str, float],
@@ -394,10 +389,6 @@ def interpolate_distributions(
 
     observed_labels = set(observed_distribution)
     prior_labels = set(prior_distribution)
-
-    #print(observed_labels)
-    #print(prior_labels)
-    #print("HEY OP!")
 
     # TODO: for now we assume that observed and prior labels are identical
     # TODO: I'll see how I will handle non-identical sets later
@@ -458,97 +449,6 @@ def interpolate_distributions(
         label: value / normalization_constant
         for label, value in target.items()
     }
-
-def optimize_counts(
-    target_distribution: dict[str, float],
-    observed_counts: dict[str, int],
-    _lambda: float,
-) -> tuple[dict[str, int], float]:
-    """
-    Optimize integer state (e.g., country) counts 
-
-    Parameters
-    ----------
-    target_distribution
-        Target probability q_c for every state (e.g., country).
-
-    observed_counts
-        Number N_c of available sequences for every state (e.g., country).
-
-    _lambda
-        Trade-off parameter in [0, 1]. Larger values prioritize matching
-        the target distribution, while smaller values prioritize retaining
-        sequences.
-
-    Returns
-    -------
-    dict[str, int]
-        Optimized count m_c for every state (e.g., country).
-    
-    float
-        The optimal criterion value 
-    """
-    
-    # TODO: Implement also for the case where the is an non-empty intersection
-    if set(target_distribution) != set(observed_counts):
-        raise ValueError(
-            "target_distribution and observed_counts must contain "
-            "exactly the same country labels."
-        )
-
-    labels = list(target_distribution)
-
-    target = np.asarray(
-        [target_distribution[label] for label in labels],
-        dtype=float,
-    )
-
-    available = np.asarray(
-        [observed_counts[label] for label in labels],
-        dtype=int,
-    )
-
-    if not np.isclose(target.sum(), 1.0):
-        raise ValueError(
-            f"target_distribution sums to {target.sum()}, not 1.0."
-        )
-
-    initial_size = int(available.sum())
-    best_counts = None
-    best_objective = np.inf
-
-    for final_size in range(1, initial_size + 1):
-        counts = bounded_integer_allocation(
-            target=target,
-            available=available,
-            final_size=final_size,
-        )
-
-        achieved_distribution = counts / final_size
-
-        geographic_error = np.mean(
-            (achieved_distribution - target) ** 2
-        )
-
-        retention_error = (
-            1.0 - final_size / initial_size
-        ) ** 2
-
-        objective = (
-            _lambda * geographic_error
-            + (1.0 - _lambda) * retention_error
-        )
-
-        #print(f"M = {final_size}, objective = {objective}")
-
-        if objective < best_objective:
-            best_objective = objective
-            best_counts = counts.copy()
-
-    return {
-        label: int(count)
-        for label, count in zip(labels, best_counts)
-    }, best_objective
 
 # TODO: add a M_min and M_max parameters
 def optimize_counts_optimized(
@@ -640,8 +540,6 @@ def optimize_counts_optimized(
             + (1.0 - _lambda) * retention_error
         )
 
-        #print(f"M = {final_size}, objective = {objective}")
-
         if objective < best_objective:
             best_objective = objective
             best_counts = counts.copy()
@@ -655,48 +553,6 @@ def optimize_counts_optimized(
         label: int(count)
         for label, count in zip(labels, best_counts)
     }, best_objective
-
-
-def bounded_integer_allocation(
-    target: np.ndarray,
-    available: np.ndarray,
-    final_size: int,
-) -> np.ndarray:
-    """
-    Allocate exactly final_size items while respecting upper bounds.
-
-    At each step, assign one item to the country that yields the largest
-    reduction in squared distance from its ideal quota.
-    """
-
-    if final_size > available.sum():
-        raise ValueError(
-            "final_size cannot exceed the total available count."
-        )
-
-    quotas = final_size * target
-    counts = np.zeros(len(target), dtype=int)
-
-    for _ in range(final_size):
-        eligible = counts < available
-
-        if not np.any(eligible):
-            raise RuntimeError(
-                "No country has remaining capacity."
-            )
-
-        current_error = (counts - quotas) ** 2
-        updated_error = (counts + 1 - quotas) ** 2
-
-        error_change = updated_error - current_error
-
-        # Ineligible countries must never be selected.
-        error_change[~eligible] = np.inf
-
-        selected_country = int(np.argmin(error_change))
-        counts[selected_country] += 1
-
-    return counts
 
 
 def bounded_integer_allocation_optimized(
@@ -779,36 +635,6 @@ def bounded_integer_allocation_optimized(
 
     return counts
 
-# TODO: delete this function
-def check_copy(root, copied_root, columns):
-
-    nodes_orig = [n.name for n in root.traverse()]
-    copied_nodes = [n.name for n in copied_root.traverse()]
-
-    nodes_orig_id = [hex(id(node)) for node in root.traverse()]
-    copied_nodes_id = [hex(id(node)) for node in copied_root.traverse()]
-
-    label_name = columns[0]
-
-    nodes_orig_labels = [getattr(n, label_name, "") if hasattr(n, columns[0]) else "" for n in root.traverse()]
-    copied_nodes_labels = [getattr(n, label_name, "") if hasattr(n, columns[0]) else "" for n in copied_root.traverse()]
-    
-    is_leaf_nodes_orig = [True if n.is_leaf() else False for n in root.traverse()]
-    is_leaf_nodes_copied = [True if n.is_leaf() else False for n in copied_root.traverse()]
-
-    for i in range(len(nodes_orig)):
-        assert nodes_orig[i] == copied_nodes[i]
-        assert nodes_orig_id[i] != copied_nodes_id[i]
-        assert nodes_orig_labels[i] == copied_nodes_labels[i]
-        assert is_leaf_nodes_orig[i] == is_leaf_nodes_copied[i]
-
-        if i < 50:
-            print('{} ({}) - {} ({})'.format(nodes_orig[i], nodes_orig_id[i], copied_nodes[i], copied_nodes_id[i]))
-            print('{} - {}'.format(nodes_orig_labels[i], copied_nodes_labels[i]))
-            print('{} - {}'.format(is_leaf_nodes_orig[i], is_leaf_nodes_copied[i]))
-    
-    return
-
 def prune_tree_by_state_counts(
     root,
     optimized_counts: dict[str, int],
@@ -884,9 +710,8 @@ def prune_tree_by_state_counts(
         """
         Return the single unambiguous state of a leaf.
 
-        TODO:
-        Decide how to handle leaves without annotations, empty states,
-        and ambiguous states. For now, such leaves are ignored.
+        Leaves without annotations, with empty states or with ambiguous states
+        are ignored (None is returned), hence they are never pruned.
         """
 
         if not hasattr(leaf, state_column):
@@ -898,10 +723,7 @@ def prune_tree_by_state_counts(
             return None
         
         # PastML state annotations are generally stored as sets.
-        #
-        # TODO:
-        # Decide how to handle ambiguous leaf states.
-        # For now, leaves with multiple possible states are ignored.
+        # Leaves with multiple possible states are ignored.
         if isinstance(state, set):
 
             if len(state) != 1:

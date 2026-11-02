@@ -20,7 +20,7 @@ from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, 
 from pastml.ml import MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
     ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method
 from pastml.sb_corrector import ARITHMETIC, GEOMETRIC, ALPHA, _LAMBDA, \
-    sampling_bias_correction_pipeline, check_copy, prune_tree_by_state_counts, PruneMethod, \
+    sampling_bias_correction_pipeline, prune_tree_by_state_counts, PruneMethod, \
     get_inner_node_states, set_inner_node_states, read_frequency_priors
 from pastml.models import MODEL, SCALING_FACTOR, SMOOTHING_FACTOR
 from pastml.models.CustomRatesModel import CustomRatesModel, CUSTOM_RATES
@@ -180,7 +180,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
     if isinstance(forest, Tree):
         forest = [forest]
 
-    if columns is None:
+    if columns is None: # This block is only relevant for users calling acr() through the Python API
         if df is None:
             raise ValueError('Either the tree should be preannotated with character values '
                              'and columns and column2states specified, '
@@ -203,8 +203,13 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             #  so they would have to be split between the trees
             raise ValueError('Sampling bias correction currently works only with one tree.')
         logger.debug('\n=============SAMPLING BIAS CORRECTION==========')
+        unknown_columns = set(optimized_counts) - set(columns)
+        if unknown_columns:
+            logger.warning('Optimized counts given for unknown columns: {}. '
+                           'The sampling bias correction will be skipped for them.'
+                           .format(', '.join(sorted(unknown_columns))))
         for column, counts in optimized_counts.items():
-            if column not in columns:
+            if column in unknown_columns:
                 continue
             subsampled_forest = [prune_tree_by_state_counts(root=root, optimized_counts=counts, state_column=column,
                                                             copy_tree=True, method=prune_method)
@@ -229,10 +234,6 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             return initial_states
         states = HKY_STATES if HKY == model else JTT_STATES
 
-        # HKY model allows only for DNA characters
-        # JTT only for AA sequences
-        # TODO: check what's going on with those two models
-
         if not set(initial_states) & set(states):
             raise ValueError('The allowed states for model {} are {}, '
                              'but your annotation file specifies {} as states in column {}.'
@@ -245,7 +246,6 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         return states
 
     # If we gonna resolve polytomies we might need to get back to the initial states so let's memorise them
-    # TODO: Use this as a mapping for the copied forest
     n2c2states = defaultdict(dict)
     for root in forest:
         for n in root.traverse():
@@ -312,7 +312,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         :return: tuple (list of ACR results, states reconstructed on the pruned forest or None)
         """
         prediction_method, model_or_states, observed_frequencies = character2settings[character]
-        if COPY == prediction_method: # TODO: I am not sure what COPY does :) This is just a comment, nothing TBD
+        if COPY == prediction_method:
             return [{CHARACTER: character, STATES: model_or_states, METHOD: prediction_method}], None
         if is_ml(prediction_method):
             if character in column2subsampled_forest:
@@ -344,7 +344,13 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                                                    states=model_or_states,
                                                    num_nodes=forest_stats.num_nodes,
                                                    num_tips=forest_stats.num_tips)]), None
-
+    def _work_and_collect_features(character):
+        character_results, subsampled_states = _work(character)
+        nodes = [n for root in forest for n in root.traverse()]
+        feature2values = {acr_result[CHARACTER]: [getattr(n, acr_result[CHARACTER], None) for n in nodes]
+                          for acr_result in character_results}
+        return character_results, subsampled_states, feature2values
+    
     def _run_acr():
         """
         Runs the ACR for all the characters, in parallel if possible.
@@ -375,7 +381,7 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                                 n.del_feature(feature)
                         else:
                             n.add_feature(feature, value)
-        elif threads > 1:
+        elif threads > 1: # If the previous if (fork) fails, it falls back to the original approach
             with ThreadPool(processes=threads - 1) as pool:
                 outputs = pool.map(func=_work, iterable=characters)
         else:
@@ -392,13 +398,6 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                     character2settings[character][1] = acr_result[MODEL]
             results.extend(character_results)
         return results
-
-    def _work_and_collect_features(character):
-        character_results, subsampled_states = _work(character)
-        nodes = [n for root in forest for n in root.traverse()]
-        feature2values = {acr_result[CHARACTER]: [getattr(n, acr_result[CHARACTER], None) for n in nodes]
-                          for acr_result in character_results}
-        return character_results, subsampled_states, feature2values
 
     acr_results = _run_acr()
 
@@ -470,14 +469,14 @@ def _quote(str_list):
 # TODO: complete parameter description
 def _check_sampling_bias_correction_methods(columns, prediction_method, freq_priors, freq_priors_format):
     """
-    Checks that the columns with prior frequencies are analysed with an ML method:
-    the sampling bias correction optimises the model parameters on the pruned tree,
-    hence it makes no sense for parsimony (or COPY). ALL is not allowed either, as it includes the MP methods.
+    Checks if the columns with prior frequencies are analysed with an ML method. 
+    For now, non-ML methods are not supported with sampling bias correction.
+    Also, COPY-mode is irrelevant in sampling bias correction.
     """
     if isinstance(columns, str):
         columns = [columns]
     prior_columns = set(read_frequency_priors(freq_priors, freq_priors_format))
-    sb_ml_methods = ML_METHODS | {ML}
+    sb_ml_methods = ML_METHODS # | {ML} - TODO: correct for ML
     wrong_columns = ['{} ({})'.format(column, method)
                      for column, method in zip(columns, value2list(len(columns), prediction_method, MPPA))
                      if column in prior_columns and method not in sb_ml_methods]
@@ -487,6 +486,7 @@ def _check_sampling_bias_correction_methods(columns, prediction_method, freq_pri
                          .format(', '.join(sorted(sb_ml_methods)), ', '.join(wrong_columns)))
 
 
+# TODO: complete argument documentation
 def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     columns=None, prediction_method=MPPA, model=F81,
                     parameters=None, rate_matrix=None,
@@ -1053,16 +1053,6 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
     for i, tree in enumerate(roots):
         name_tree(tree, suffix='' if len(roots) == 1 else '_{}'.format(i))
 
-    #for root in roots:
-    #    for i,n in enumerate(root.traverse()):
-    #        print('Node {}, name {}'.format(i, n.name))
-    
-
-    #node_names = [node.name for node in roots[0].traverse()]
-    #node_names_set = set(node_names)
-    #assert len(node_names) == len(node_names_set)
-    #input("Press anything to continue.....")
-
     return roots, columns, column2states, name_column, age_label, parameters, rates, optimized_counts
 
 
@@ -1212,55 +1202,41 @@ def main():
                                 'the frequencies will only be smoothed but not reoptimised. ')
     
     
-    # TODO: check group
+    # Sampling Bias Correction group
     sb_group = parser.add_argument_group('Sampling bias correciton related arguments')
-    
-    # TODO: complete description
     sb_group.add_argument('-sbc', '--sampling_bias_correction',
                            action='store_true',
                            help='Sampling bias correction.')
-    
-    # TODO: complete description
     sb_group.add_argument('-fp', '--freq_priors',
         required=False, type=str, default=None,
         help="JSON, CSV, or TSV file specifying prior state frequencies for one or more "
-            "annotation columns (default: JSON ; see below). For JSON, the file must contain a dictionary mapping "
+            "annotation columns. For JSON, the file must contain a dictionary mapping "
             "of annotation column-names to dictionaries of state-frequency pairs. "
             "For CSV/TSV, the file must contain three columns: 'Column', 'State', "
             "and 'Frequency'. Columns without specified "
-            "priors are handled without subsampling. "
-            "The file format is specified independently using --freq_priors_format."
+            "priors are handled without subsampling. (DEFAULT: JSON)"
     )
-
     sb_group.add_argument('-fp_format', '--freq_priors_format',
         required=False, type=str, default='JSON',
         choices=['JSON', 'CSV', 'TSV'],
         help="Format of the prior frequencies file supplied with --freq_priors "
-            "(default: JSON). CSV files use comma separators, while TSV files "
-            "use tab separators. This format is independent of the separator "
-            "used in the annotation data file."
+            "(DEFAULT: JSON). "
     )
-
-    # TODO: complete description
     sb_group.add_argument('--alpha', required=False, type=float, default=ALPHA, dest = "alpha",
-                            help='Alpha value for distribution interpolation (arithmetic or geometric) DEFAULT: {}'.format(ALPHA))
-    
-    # TODO: complete description
+                            help='Alpha value for arithmetic/geometric distribution interpolation (DEFAULT: {})'.format(ALPHA))
     sb_group.add_argument('--lambda', required=False, type=float, default=_LAMBDA, dest="_lambda",
-                            help='Lambda value country counts optimizer. DEFAULT: {}'.format(_LAMBDA))
-
+                            help='Lambda parameter in optimization criterion. (DEFAULT: {})'.format(_LAMBDA))
     sb_group.add_argument('--interpolation_method',
                            choices=["arithmetic", "geometric"],
                            type=str, nargs=1, default="geometric",
-                           help='Choose a method for target distribution interpolation. '
-                                'choises: "{}" or "{}", DEFAULT: "{}"'.format(GEOMETRIC, ARITHMETIC, GEOMETRIC))
-    # TODO: complete description
+                           help='Mmethod for target distribution interpolation. '
+                                'choises: "{}" or "{}", (DEFAULT: "{}")'.format(GEOMETRIC, ARITHMETIC, GEOMETRIC))
     sb_group.add_argument("--prune_method",
         type=PruneMethod, choices = [method.value for method in PruneMethod], metavar="METHOD (str)",
         default=PruneMethod.PRUNE_LONGEST_TIP_BRANCHES, dest = "prune_method",
-        help='Criterion used to select leaves within each state. '
+        help='Criterion used to prune tips within each state. '
         'Pruning options: {pr_opts}. '
-        'DEFAULT: {_def}'.format(pr_opts = ', '.join([method.value for method in PruneMethod]),
+        '(DEFAULT: {_def})'.format(pr_opts = ', '.join([method.value for method in PruneMethod]),
                                  _def = "PRUNE_LONGEST_TIP_BRANCHES"),
     )
 
@@ -1378,8 +1354,6 @@ def main():
                             help="name for the tree uploaded to iTOL.")
     
     params = parser.parse_args()
-
-    #print(vars(params))
     pastml_pipeline(**vars(params))
 
 

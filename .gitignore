@@ -118,3 +118,6 @@ tests/check_prune_100_taxa.py
 
 # ignore the test dataset file
 1512
+
+# Claude Code personal instructions
+CLAUDE.local.md
