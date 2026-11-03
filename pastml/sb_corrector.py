@@ -6,7 +6,6 @@ from pathlib import Path
 import time
 from enum import Enum
 import heapq
-from concurrent.futures import ThreadPoolExecutor
 
 
 class PruneMethod(str, Enum):
@@ -191,13 +190,12 @@ def optimize_column_counts(
 
 def sampling_bias_correction_pipeline(
     df: pd.DataFrame,
-    freq_priors: str | Path,
+    freq_priors: str | Path | dict[str, dict[str, float]],
     freq_priors_format: str,
     columns: list[str],
     alpha: float = ALPHA,
     interpolation_method: str = GEOMETRIC,
     _lambda: float = _LAMBDA,
-    threads: int = 1,
 ) -> dict[str, int]:
     """
     Calculate sampling-bias-corrected sequence counts for each geographic state.
@@ -213,7 +211,8 @@ def sampling_bias_correction_pipeline(
         Metadata table containing the geographic-state column.
 
     freq_priors
-        Path to a prior-frequencies column.
+        Path to a prior-frequencies file, or the prior frequencies already read
+        from it (see read_frequency_priors).
 
     freq_priors_format
         JSON, CSV, or TSV (str)
@@ -235,11 +234,6 @@ def sampling_bias_correction_pipeline(
         Trade-off parameter between matching the target distribution and
         retaining sequences. Must lie in the interval [0, 1].
 
-    threads
-        Number of threads to be used (Default: 1)
-        Parallelization only takes place across independent columns, hence
-        if a single column is specified, only one thread is used.
-    
     Returns
     -------
     dict[str, int]
@@ -258,11 +252,14 @@ def sampling_bias_correction_pipeline(
 
     begin_time = time.time()
 
-    # Read the frequency priors once.
-    freq_priors_dict = read_frequency_priors(
-        freq_priors=freq_priors,
-        freq_priors_format=freq_priors_format,
-    )
+    # The frequency priors might have been read already (e.g. by pastml_pipeline).
+    if isinstance(freq_priors, dict):
+        freq_priors_dict = freq_priors
+    else:
+        freq_priors_dict = read_frequency_priors(
+            freq_priors=freq_priors,
+            freq_priors_format=freq_priors_format,
+        )
 
     # Ensure all requested columns exist in the metadata.
     missing_columns = set(columns) - set(df.columns)
@@ -295,18 +292,16 @@ def sampling_bias_correction_pipeline(
         )
         return {}
 
-    # Never create more workers than independent tasks.
-    threads = min(threads, len(columns_with_priors))
-
     logger.debug(
-        f"Optimizing {len(columns_with_priors)} columns "
-        f"using {threads} thread(s)."
+        f"Optimizing {len(columns_with_priors)} columns."
     )
 
+    # The columns are optimized sequentially: this step is fast,
+    # and threads would not speed it up anyway (the optimizer is limited by Python's GIL).
     optimized_counts = {}
 
-    def worker(column):
-        return optimize_column_counts(
+    for column in columns_with_priors:
+        _, counts = optimize_column_counts(
             column=column,
             df=df,
             prior_distribution=freq_priors_dict[column],
@@ -315,14 +310,9 @@ def sampling_bias_correction_pipeline(
             _lambda=_lambda,
         )
 
-    with ThreadPoolExecutor(max_workers=threads) as executor:
-
-        # executor.map preserves input ordering.
-        results = executor.map(worker, columns_with_priors)
-        
-        for column, counts in results:
-            if counts is not None:
-                optimized_counts[column] = counts
+        # None means that no pruning is required for this column.
+        if counts is not None:
+            optimized_counts[column] = counts
 
     elapsed_time = round(time.time() - begin_time, 2)
 
@@ -865,15 +855,8 @@ def prune_tree_by_state_counts(
                 if candidate_leaf.up is None:
                     continue
 
-                current_state = get_leaf_state(candidate_leaf)
-
-                if current_state is None:
-                    continue
-
-                if current_state != candidate_state:
-                    continue
-
-                if current_counts[current_state] <= optimized_counts[current_state]:
+                # (the leaf states do not change during pruning, so the stored state is up to date)
+                if current_counts[candidate_state] <= optimized_counts[candidate_state]:
                     continue
 
                 # Skip stale heap entries.
@@ -888,7 +871,7 @@ def prune_tree_by_state_counts(
                     continue
 
                 selected_leaf = candidate_leaf
-                selected_state = current_state
+                selected_state = candidate_state
                 break
 
             if selected_leaf is None:
@@ -950,13 +933,14 @@ def prune_tree_by_state_counts(
         if n_to_prune == 0:
             continue
 
+        # The distance is negated (rather than reversing the sort) for the longest distances,
+        # so that ties are always broken by ascending leaf name, as for the tip-branch methods.
         sorted_leaves = sorted(
             leaves,
             key=lambda leaf: (
-                float(leaf.get_distance(tree)),
+                -float(leaf.get_distance(tree)) if prune_longest else float(leaf.get_distance(tree)),
                 str(leaf.name),
             ),
-            reverse=prune_longest,
         )
 
         leaves_to_prune.update(

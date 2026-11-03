@@ -300,10 +300,22 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
     if threads < 1:
         threads = max(os.cpu_count(), 1)
 
-    # Sampling bias correction: the states reconstructed on the pruned forest, per column.
+    # Sampling bias correction: the states reconstructed on the pruned forest, per column and per method.
     # They are cached so that the pruned-forest ACR is not relaunched (e.g. after polytomy resolution),
     # as its parameters are frozen by then anyway.
     column2subsampled_states = {}
+
+    def _reset_states(forest,character):
+        """
+        Resets the character states on the original forest to the initial (input) annotations.
+        """
+        for root in forest:
+            for n in root.traverse():
+                states = n2c2states.get(n, {}).get(character, None)
+                if states:
+                    n.add_feature(character, states)
+                elif hasattr(n, character):
+                    n.del_feature(character)
 
     def _work(character):
         """
@@ -319,20 +331,45 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                 # 1. optimise the parameters and reconstruct the states on the pruned forest;
                 # 2. fix the reconstructed states on the corresponding nodes of the original forest;
                 # 3. reconstruct the remaining states on the original forest, without reoptimising the parameters.
+                # The meta-method ML stores the states of each of its methods in a separate feature
+                # (e.g. Country_MPPA), but ml_acr only takes the input states from the character feature (e.g. Country),
+                # hence steps 2-3 are performed for each of its methods separately.
+                is_meta = (ML == prediction_method)
+                methods = [JOINT, MAP, MPPA] if is_meta else [prediction_method]
+
+                def get_method_character(method):
+                    return get_personalized_feature_name(character, method) if is_meta else character
+
                 subsampled_states = column2subsampled_states.get(character, None)
                 if subsampled_states is None:
                     subsampled_forest = column2subsampled_forest[character]
                     ml_acr(forest=subsampled_forest, character=character, prediction_method=prediction_method,
                            model=model_or_states,
                            force_joint=force_joint, observed_frequencies=observed_frequencies)
-                    subsampled_states = get_inner_node_states(subsampled_forest=subsampled_forest,
-                                                              character=character)
-                set_inner_node_states(forest=forest, character=character, node_states=subsampled_states)
+                    subsampled_states = {method: get_inner_node_states(subsampled_forest=subsampled_forest,
+                                                                       character=get_method_character(method))
+                                         for method in methods}
                 model_or_states.forest_stats = forest_stats
-                return flatten_lists([ml_acr(forest=forest, character=character, prediction_method=prediction_method,
-                                             model=model_or_states,
-                                             force_joint=force_joint, observed_frequencies=observed_frequencies,
-                                             model_freeze=True)]), subsampled_states
+                results = []
+                for method in methods:
+                    set_inner_node_states(forest=forest, character=character, node_states=subsampled_states[method])
+                    method_results = flatten_lists([ml_acr(forest=forest, character=character,
+                                                           prediction_method=method, model=model_or_states,
+                                                           force_joint=force_joint,
+                                                           observed_frequencies=observed_frequencies,
+                                                           model_freeze=True)])
+                    if is_meta:
+                        method_character = get_method_character(method)
+                        for root in forest:
+                            for n in root.traverse():
+                                n.add_feature(method_character, getattr(n, character))
+                        for method_result in method_results:
+                            method_result[CHARACTER] = method_character
+                        # as the meta-method ML, keep the reconstructed states only in the method features
+                        # (this also removes them before the next method's pass)
+                        _reset_states(forest, character)
+                    results.extend(method_results)
+                return results, subsampled_states
             else:
                 return flatten_lists([ml_acr(forest=forest, character=character, prediction_method=prediction_method,
                                              model=model_or_states,
@@ -402,7 +439,8 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
     acr_results = _run_acr()
 
     column2states = {acr_result[CHARACTER]: acr_result[STATES] for acr_result in acr_results}
-    column2copy = {acr_result[CHARACTER]: acr_result[METHOD] == COPY for acr_result in acr_results}
+    # keyed by the input column, as the results of the meta-methods have suffixed characters (e.g. Country_MPPA)
+    column2copy = {character: COPY == settings[0] for character, settings in character2settings.items()}
     if resolve_polytomies and resolve_trees(column2states, forest):
         level = logger.level
         logger.setLevel(logging.ERROR)
@@ -467,16 +505,19 @@ def _quote(str_list):
     return ', '.join('"{}"'.format(_) for _ in str_list) if str_list is not None else ''
 
 # TODO: complete parameter description
-def _check_sampling_bias_correction_methods(columns, prediction_method, freq_priors, freq_priors_format):
+def _check_sampling_bias_correction_methods(columns, prediction_method, freq_priors):
     """
-    Checks if the columns with prior frequencies are analysed with an ML method. 
+    Checks if the columns with prior frequencies are analysed with an ML method.
     For now, non-ML methods are not supported with sampling bias correction.
     Also, COPY-mode is irrelevant in sampling bias correction.
+
+    :param freq_priors: prior frequencies, as read by pastml.sb_corrector.read_frequency_priors
+    :type freq_priors: dict(str, dict(str, float))
     """
     if isinstance(columns, str):
         columns = [columns]
-    prior_columns = set(read_frequency_priors(freq_priors, freq_priors_format))
-    sb_ml_methods = ML_METHODS # | {ML} - TODO: correct for ML
+    prior_columns = set(freq_priors)
+    sb_ml_methods = ML_METHODS | {ML}
     wrong_columns = ['{} ({})'.format(column, method)
                      for column, method in zip(columns, value2list(len(columns), prediction_method, MPPA))
                      if column in prior_columns and method not in sb_ml_methods]
@@ -709,8 +750,11 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
     if threads < 1:
         threads = max(os.cpu_count(), 1)
 
-    if sampling_bias_correction and columns and freq_priors:
-        _check_sampling_bias_correction_methods(columns, prediction_method, freq_priors, freq_priors_format)
+    if sampling_bias_correction and freq_priors:
+        # Read the prior frequencies once: the dictionary is then used by both the checks and the SB pipeline
+        freq_priors = read_frequency_priors(freq_priors, freq_priors_format)
+        if columns:
+            _check_sampling_bias_correction_methods(columns, prediction_method, freq_priors)
 
     roots, columns, column2states, name_column, age_label, parameters, rates, optimized_counts = \
         _validate_input(tree, columns, name_column if html_compressed or html_mixed else None, data, data_sep, id_index,
@@ -718,7 +762,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                         copy_only=copy_only, parameters=parameters, rates=rate_matrix, 
                         sampling_bias_correction = sampling_bias_correction, freq_priors = freq_priors, 
                         alpha=alpha, freq_priors_format = freq_priors_format, 
-                        _lambda = _lambda, interpolation_method=interpolation_method, threads = threads)
+                        _lambda = _lambda, interpolation_method=interpolation_method)
 
     if not work_dir:
         work_dir = get_pastml_work_dir(tree)
@@ -866,8 +910,8 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
 
 def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_sep='\t', id_index=0,
                     root_dates=None, copy_only=False, parameters=None, rates=None,
-                    sampling_bias_correction = False, freq_priors = None, freq_priors_format = "",
-                    alpha = ALPHA, _lambda = _LAMBDA, interpolation_method = GEOMETRIC, threads = 1):
+                    sampling_bias_correction = False, freq_priors = None, freq_priors_format = "JSON",
+                    alpha = ALPHA, _lambda = _LAMBDA, interpolation_method = GEOMETRIC):
     logger = logging.getLogger('pastml')
     logger.debug('\n=============INPUT DATA VALIDATION=============')
 
@@ -886,7 +930,8 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
                          "and specifiying the column-names of interest in this file file "
                          "(e.g., '-c <name1 name2 ... >')")
 
-    if sampling_bias_correction and not freq_priors:
+    # (freq_priors can be a file or the dictionary of priors already read from it)
+    if sampling_bias_correction and (freq_priors is None or '' == freq_priors):
         raise ValueError("Sampling bias correction requires a prior frequencies file "
                          "(i.e., with '-fp <freq_priors_file>' option)")
 
@@ -964,8 +1009,7 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
                                                   columns=raw_columns,
                                                   alpha=alpha,
                                                   interpolation_method=interpolation_method,
-                                                  _lambda=_lambda,
-                                                  threads=threads)
+                                                  _lambda=_lambda)
             # The columns were renamed, so the keys have to follow
             optimized_counts = {col_name2cat(column): counts for column, counts in optimized_counts.items()}
 

@@ -14,7 +14,7 @@ from ete3 import Tree
 
 import pastml.acr
 from pastml.acr import pastml_pipeline
-from pastml.ml import MPPA, ALL
+from pastml.ml import MPPA, MAP, JOINT, ML, ALL
 from pastml.parsimony import DOWNPASS
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
@@ -75,6 +75,8 @@ class SBMultiColumnTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        # PastML computes log10(0) = -inf on purpose (impossible states)
+        cls.np_err = np.seterr(divide='ignore')
         cls.tmp = tempfile.TemporaryDirectory()
         cls.data, cls.priors = write_input_files(cls.tmp.name)
         cls.work_dirs = {}
@@ -100,6 +102,7 @@ class SBMultiColumnTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        np.seterr(**cls.np_err)
         cls.tmp.cleanup()
 
     @classmethod
@@ -212,6 +215,25 @@ class SBMultiColumnTest(unittest.TestCase):
                 self.assertTrue(read_states(work_dirs[1], column).equals(read_states(work_dirs[4], column)))
                 np.testing.assert_allclose(read_marginals(work_dirs[1], column).values,
                                            read_marginals(work_dirs[4], column).values, atol=1e-10)
+
+    def test_ml_meta_method(self):
+        """
+        With the meta-method ML, each of its methods (JOINT, MAP, MPPA) must give the same result
+        as when it is used alone.
+        """
+        self.run_pastml('ml', priors='all', threads=4, prediction_method=ML)
+        self.run_pastml('map', priors='all', threads=4, prediction_method=MAP)
+        self.run_pastml('joint', priors='all', threads=4, prediction_method=JOINT)
+        for method, run in ((JOINT, 'joint'), (MAP, 'map'), (MPPA, 'all_json')):
+            for column in CAT_COLUMNS:
+                with self.subTest(method=method, column=column):
+                    ml_column = '{}_{}'.format(column, method)
+                    if JOINT == method:
+                        # JOINT gives no marginal probabilities
+                        self.assertTrue(read_states(self.work_dirs['ml'], ml_column)
+                                        .equals(read_states(self.work_dirs[run], column)))
+                    else:
+                        self.assertSameColumn('ml', run, ml_column, column)
 
     def test_parsimony_on_column_with_priors_raises(self):
         for method in (DOWNPASS, ALL):
