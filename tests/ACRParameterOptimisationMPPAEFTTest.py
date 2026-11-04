@@ -11,6 +11,9 @@ from pastml.models import MODEL, SCALING_FACTOR
 from pastml.models.EFTModel import EFT
 from pastml.tree import read_tree
 
+# PastML computes log10(0) = -inf on purpose (impossible states)
+np.seterr(divide='ignore')
+
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')
 STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')

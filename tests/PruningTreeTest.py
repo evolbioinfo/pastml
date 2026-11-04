@@ -1,5 +1,5 @@
 # Execute from the project root:
-# $ python -m unittest tests.Pruning_tree_tests -v
+# $ python -m unittest tests.PruningTreeTest -v
 #
 # Or discover all unittest tests:
 # $ python -m unittest tests/*.py -v

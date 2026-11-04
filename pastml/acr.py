@@ -418,7 +418,9 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
                                 n.del_feature(feature)
                         else:
                             n.add_feature(feature, value)
-        elif threads > 1: # If the previous if (fork) fails, it falls back to the original approach
+        # If the previous if (fork) fails, it falls back to the original approach
+        # (but not for a single character, as there is nothing to parallelise then)
+        elif n_processes > 1:
             with ThreadPool(processes=threads - 1) as pool:
                 outputs = pool.map(func=_work, iterable=characters)
         else:

@@ -11,6 +11,9 @@ from pastml import get_personalized_feature_name, STATES
 from pastml.acr import acr
 from pastml.ml import LH, LH_SF, MPPA, LOG_LIKELIHOOD, RESTRICTED_LOG_LIKELIHOOD_FORMAT_STR, MARGINAL_PROBABILITIES
 
+# PastML computes log10(0) = -inf on purpose (impossible states)
+np.seterr(divide='ignore')
+
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'Albanian.tree.152tax.tre')
 STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')

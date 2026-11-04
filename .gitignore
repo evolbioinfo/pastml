@@ -121,3 +121,6 @@ tests/check_prune_100_taxa.py
 
 # Claude Code personal instructions
 CLAUDE.local.md
+
+# Claude Code project settings and hooks (personal)
+.claude/

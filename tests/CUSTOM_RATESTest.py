@@ -14,6 +14,9 @@ from pastml.models.JTTModel import JTTModel, JTT_STATES, JTT_RATE_MATRIX, JTT
 from pastml.models.generator import save_matrix
 from pastml.utilities.state_simulator import simulate_states
 
+# PastML computes log10(0) = -inf on purpose (impossible states)
+np.seterr(divide='ignore')
+
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 RM = os.path.join(DATA_DIR, 'rate_matrix.txt')

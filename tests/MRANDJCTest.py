@@ -11,6 +11,9 @@ from pastml.models.JCModel import JCModel
 from pastml.tree import read_tree
 from pastml.utilities.state_simulator import simulate_states
 
+# PastML computes log10(0) = -inf on purpose (impossible states)
+np.seterr(divide='ignore')
+
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 TREE_NWK = os.path.join(DATA_DIR, 'Albanian.minitree.tre')
 STATES_INPUT = os.path.join(DATA_DIR, 'data.txt')
