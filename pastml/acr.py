@@ -19,7 +19,7 @@ from pastml.file import get_combined_ancestral_state_file, get_named_tree_file, 
     get_pastml_marginal_prob_file, get_pastml_work_dir
 from pastml.ml import MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, \
     ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method
-from pastml.sb_corrector import ARITHMETIC, GEOMETRIC, ALPHA, _LAMBDA, \
+from pastml.sb_corrector import ARITHMETIC, GEOMETRIC, ALPHA, _LAMBDA, M_MIN, M_MAX, \
     sampling_bias_correction_pipeline, prune_tree_by_state_counts, PruneMethod, \
     get_inner_node_states, set_inner_node_states, read_frequency_priors
 from pastml.models import MODEL, SCALING_FACTOR, SMOOTHING_FACTOR
@@ -198,10 +198,6 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
     column2subsampled_forest = {}
     column2subsampled_forest_stats = {}
     if sampling_bias_correction and optimized_counts:
-        if len(forest) > 1:
-            # TODO: the optimized counts are calculated over all the trees together,
-            #  so they would have to be split between the trees
-            raise ValueError('Sampling bias correction currently works only with one tree.')
         logger.debug('\n=============SAMPLING BIAS CORRECTION==========')
         unknown_columns = set(optimized_counts) - set(columns)
         if unknown_columns:
@@ -211,12 +207,12 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
         for column, counts in optimized_counts.items():
             if column in unknown_columns:
                 continue
-            subsampled_forest = [prune_tree_by_state_counts(root=root, optimized_counts=counts, state_column=column,
-                                                            copy_tree=True, method=prune_method)
-                                 for root in forest]
+            subsampled_forest = prune_tree_by_state_counts(forest=forest, optimized_counts=counts, state_column=column,
+                                                            copy_trees=True, method=prune_method)
+            
             column2subsampled_forest[column] = subsampled_forest
             column2subsampled_forest_stats[column] = ForestStats(subsampled_forest, log=False)
-            logger.debug('Pruned the tree for {} ({}): {} of {} tips retained.'
+            logger.debug('Pruned the tree(s) for {} ({}): {} of {} tips retained.'
                          .format(column, PruneMethod(prune_method).value,
                                  column2subsampled_forest_stats[column].num_tips, forest_stats.num_tips))
 
@@ -542,7 +538,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                     pajek=None, pajek_timing=VERTICAL, recursion_limit=0, 
                     sampling_bias_correction = False, freq_priors = None, freq_priors_format = "JSON",
                     alpha = ALPHA, _lambda = _LAMBDA, interpolation_method = GEOMETRIC, 
-                    prune_method = PruneMethod.PRUNE_LONGEST_TIP_BRANCHES):
+                    prune_method = PruneMethod.PRUNE_LONGEST_TIP_BRANCHES, m_min = M_MIN, m_max = M_MAX):
     """
     Applies PastML to the given tree(s) with the specified states and visualises the result (as html maps).
 
@@ -725,6 +721,14 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
         for trees of up to several thousand tips.
     :type recursion_limit: int
 
+    :param m_min: (optional, default is 1) sampling bias correction: minimum number of annotated tips
+        to be retained per column (the same for all columns; if a column has at most m_min annotated tips,
+        all of them are retained).
+    :type m_min: int
+    :param m_max: (optional, default is None, i.e. all the annotated tips) sampling bias correction:
+        maximum number of annotated tips to be retained per column (the same for all columns).
+    :type m_max: int
+
     :param upload_to_itol: (optional, default is False) whether iTOL annotations
         for the reconstructed characters associated with the named tree (i.e. the one found in work_dir) should be created.
         If additionally itol_id and itol_project are specified,
@@ -764,7 +768,7 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
                         copy_only=copy_only, parameters=parameters, rates=rate_matrix, 
                         sampling_bias_correction = sampling_bias_correction, freq_priors = freq_priors, 
                         alpha=alpha, freq_priors_format = freq_priors_format, 
-                        _lambda = _lambda, interpolation_method=interpolation_method)
+                        _lambda = _lambda, interpolation_method=interpolation_method, m_min=m_min, m_max=m_max)
 
     if not work_dir:
         work_dir = get_pastml_work_dir(tree)
@@ -913,7 +917,8 @@ def pastml_pipeline(tree, data=None, data_sep='\t', id_index=0,
 def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_sep='\t', id_index=0,
                     root_dates=None, copy_only=False, parameters=None, rates=None,
                     sampling_bias_correction = False, freq_priors = None, freq_priors_format = "JSON",
-                    alpha = ALPHA, _lambda = _LAMBDA, interpolation_method = GEOMETRIC):
+                    alpha = ALPHA, _lambda = _LAMBDA, interpolation_method = GEOMETRIC,
+                    m_min = M_MIN, m_max = M_MAX):
     logger = logging.getLogger('pastml')
     logger.debug('\n=============INPUT DATA VALIDATION=============')
 
@@ -938,6 +943,21 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
                          "(i.e., with '-fp <freq_priors_file>' option)")
 
     roots = read_forest(tree_nwk, columns=columns if data is None else None)
+
+    if sampling_bias_correction:
+        # The bounds on the number of retained (annotated) tips: 0 < m_min <= m_max
+        # (m_max = None stands for all the annotated tips)
+        if m_min <= 0:
+            raise ValueError('M_min should be a positive integer, but you specified --M_min {}.'.format(m_min))
+        if m_max is not None and m_max <= 0:
+            raise ValueError('M_max should be a positive integer, but you specified --M_max {}.'.format(m_max))
+        if m_max is not None and m_min > m_max:
+            raise ValueError('M_min should not exceed M_max, but you specified --M_min {} and --M_max {}.'
+                             .format(m_min, m_max))
+        total_leaves = sum(len(root) for root in roots)
+        if m_max is not None and m_max > total_leaves:
+            logger.warning('The specified M_max ({}) exceeds the total number of tips ({}), '
+                           'hence it is not limiting.'.format(m_max, total_leaves))
 
     column2annotated = Counter()
     column2states = defaultdict(set)
@@ -997,7 +1017,7 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
             column2states[c] |= {_ for _ in df[c].unique() if pd.notnull(_) and _ != ''}
 
         if sampling_bias_correction:
-            # The observed counts are calculated over the tree tips with exactly one state,
+            # The observed counts are calculated over the tree(s) tips with exactly one state,
             # i.e. the tips that can be pruned (see prune_tree_by_state_counts)
             tips = [tip for root in roots for tip in root.iter_leaves()]
             tip_df = pd.DataFrame({raw_column: [next(iter(getattr(tip, column))) if len(getattr(tip, column, set())) == 1
@@ -1011,7 +1031,10 @@ def _validate_input(tree_nwk, columns=None, name_column=None, data=None, data_se
                                                   columns=raw_columns,
                                                   alpha=alpha,
                                                   interpolation_method=interpolation_method,
-                                                  _lambda=_lambda)
+                                                  _lambda=_lambda,
+                                                  M_min=m_min,
+                                                  M_max=m_max)
+
             # The columns were renamed, so the keys have to follow
             optimized_counts = {col_name2cat(column): counts for column, counts in optimized_counts.items()}
 
@@ -1285,7 +1308,23 @@ def main():
         '(DEFAULT: {_def})'.format(pr_opts = ', '.join([method.value for method in PruneMethod]),
                                  _def = "PRUNE_LONGEST_TIP_BRANCHES"),
     )
-
+    sb_group.add_argument('--M_min', required=False, type=int, default=M_MIN, dest = "m_min",
+                            help='Minimum number of annotated tips to be retained in the sampling-bias corrected tree(s), '
+                            'per column (the same bound applies to all the columns). '
+                            'Only the tips annotated with exactly one state can be pruned: '
+                            'the unannotated or ambiguous tips are always retained, in addition to these. '
+                            'These bounds are useful for very large tree(s) (e.g., comprising > 10,000 taxa overall), '
+                            'to substantially subsample this/these input tree(s), retaining taxa within the range [M_min, M_max] '
+                            'for Model-Parameter Optimization (e.g., number of retained taxa in [500, 1000]; see also M_max parameter below). '
+                            'If a column has at most M_min annotated tips, all of them are retained. '
+                            '(DEFAULT: {})'.format(M_MIN))
+    sb_group.add_argument('--M_max', required=False, type=int, default=M_MAX, dest = "m_max",
+                            help='Maximum number of annotated tips to be retained in the sampling-bias corrected tree(s), '
+                            'per column (the same bound applies to all the columns; '
+                            'the unannotated or ambiguous tips are always retained, in addition to these). '
+                            'See also the M_min parameter above. '
+                            '(DEFAULT: all the annotated tips)')
+    
     vis_group = parser.add_argument_group('visualisation-related arguments')
     vis_group.add_argument('-n', '--name_column', type=str, default=None,
                            help="name of the character to be used for node names "

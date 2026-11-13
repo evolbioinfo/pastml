@@ -6,6 +6,7 @@ from pathlib import Path
 import time
 from enum import Enum
 import heapq
+from ete3 import Tree
 
 
 class PruneMethod(str, Enum):
@@ -18,6 +19,8 @@ GEOMETRIC = 'geometric'
 ARITHMETIC = 'arithmetic'
 ALPHA = 0.5
 _LAMBDA = 0.5
+M_MIN = 1
+M_MAX = None
 
 def read_frequency_priors(
     freq_priors: str | Path,
@@ -144,6 +147,8 @@ def optimize_column_counts(
     alpha: float,
     interpolation_method: str,
     _lambda: float,
+    M_min: int,
+    M_max: int | None,
 ) -> tuple[str, dict[str, int] | None]:
     """
     Optimize the retained sequence counts for one annotation column.
@@ -158,6 +163,19 @@ def optimize_column_counts(
         normalize=False
     ).to_dict()
 
+    # The bounds on the number of retained tips concern the annotated tips of this column
+    # (the only ones that can be pruned).
+    total_labeled_tips = sum(obs_counts_dict.values())
+
+    if M_min >= total_labeled_tips:
+        logger.debug(
+            f"Column '{column}': M_min = {M_min} is not smaller than the number of "
+            f"annotated tips ({total_labeled_tips}), hence all of them are retained."
+        )
+        return column, None
+
+    M_max = total_labeled_tips if M_max is None else min(M_max, total_labeled_tips)
+
     # Construct the target distribution.
     target_dist_dict = interpolate_distributions(
         observed_distribution=obs_dict,
@@ -171,6 +189,8 @@ def optimize_column_counts(
         target_distribution=target_dist_dict,
         observed_counts=obs_counts_dict,
         _lambda=_lambda,
+        M_min=M_min,
+        M_max=M_max
     )
 
     m_opt = sum(optimized_counts.values())
@@ -196,6 +216,8 @@ def sampling_bias_correction_pipeline(
     alpha: float = ALPHA,
     interpolation_method: str = GEOMETRIC,
     _lambda: float = _LAMBDA,
+    M_min: int = M_MIN,
+    M_max: int | None = M_MAX,
 ) -> dict[str, int]:
     """
     Calculate sampling-bias-corrected sequence counts for each geographic state.
@@ -233,6 +255,14 @@ def sampling_bias_correction_pipeline(
     _lambda
         Trade-off parameter between matching the target distribution and
         retaining sequences. Must lie in the interval [0, 1].
+
+    M_min
+        Minimum number of annotated tips to be retained (per column, the same for all columns).
+        If a column has at most M_min annotated tips, all of them are retained.
+
+    M_max
+        Maximum number of annotated tips to be retained (per column, the same for all columns).
+        None stands for all the annotated tips of the column.
 
     Returns
     -------
@@ -308,6 +338,8 @@ def sampling_bias_correction_pipeline(
             alpha=alpha,
             interpolation_method=interpolation_method,
             _lambda=_lambda,
+            M_min=M_min,
+            M_max=M_max
         )
 
         # None means that no pruning is required for this column.
@@ -440,11 +472,12 @@ def interpolate_distributions(
         for label, value in target.items()
     }
 
-# TODO: add a M_min and M_max parameters
 def optimize_counts_optimized(
     target_distribution: dict[str, float],
     observed_counts: dict[str, int],
     _lambda: float,
+    M_min: int,
+    M_max: int,
 ) -> tuple[dict[str, int], float]:
     """
     Optimize integer state (e.g., country) counts 
@@ -461,6 +494,12 @@ def optimize_counts_optimized(
         Trade-off parameter in [0, 1]. Larger values prioritize matching
         the target distribution, while smaller values prioritize retaining
         sequences.
+
+    M_min
+        Minimum total number M of retained sequences (1 <= M_min).
+
+    M_max
+        Maximum total number M of retained sequences (M_min <= M_max <= sum of observed_counts).
 
     Returns
     -------
@@ -499,7 +538,7 @@ def optimize_counts_optimized(
     best_counts = None
     best_objective = np.inf
 
-    for final_size in range(initial_size, 0, -1):
+    for final_size in range(M_max, M_min-1, -1):
         retention_error = (
             1.0 - final_size / initial_size
         ) ** 2
@@ -626,14 +665,14 @@ def bounded_integer_allocation_optimized(
     return counts
 
 def prune_tree_by_state_counts(
-    root,
+    forest,
     optimized_counts: dict[str, int],
     state_column: str,
-    copy_tree: bool = False,
+    copy_trees: bool = False,
     method: PruneMethod = PruneMethod.PRUNE_LONGEST_TIP_BRANCHES,
 ):
     """
-    Prune a phylogenetic tree to retain specified leaf counts per state.
+    Prune the tree(s) of a forest to retain specified leaf counts per state.
 
     Pruning options/methods:
 
@@ -656,8 +695,8 @@ def prune_tree_by_state_counts(
 
     Parameters
     ----------
-    root
-        Root node of an ETE phylogenetic tree.
+    forest
+        List of ETE phylogenetic tree(s).
 
     optimized_counts
         Number of leaves to retain for every state. For example:
@@ -667,18 +706,21 @@ def prune_tree_by_state_counts(
         Name of the node feature containing the state annotation, such as
         ``"Country"`` or ``"subtype"``.
 
-    copy_tree
-        If True, prune a copy of the tree and leave the original unchanged.
-        If False, prune the input tree in place.
+    copy_trees
+        If True, prune a copy of the tree(s) and leave the original unchanged.
+        If False, prune the input tree(s) in place.
 
     method
         Criterion used to choose leaves for pruning.
 
     Returns
     -------
-    ETE TreeNode
-        The pruned tree.
+    List of ETE TreeNode(s)
+        The root node(s) of the pruned tree(s).
     """
+
+    if isinstance(forest, Tree):
+        forest = [forest]
 
     if not optimized_counts:
         raise ValueError("optimized_counts must not be empty.")
@@ -694,7 +736,7 @@ def prune_tree_by_state_counts(
             f"Expected one of: {[m.value for m in PruneMethod]}."
         )
 
-    tree = root.copy(method="deepcopy") if copy_tree else root
+    trees = [root.copy(method="deepcopy") if copy_trees else root for root in forest]
 
     def get_leaf_state(leaf):
         """
@@ -727,15 +769,20 @@ def prune_tree_by_state_counts(
     # Collect leaves by state.
     # ------------------------------------------------------------
     leaves_by_state: dict[str, list] = {}
+    # leaf -> distance to the root of its tree (used by the root-distance methods)
+    leaves_to_root_distances: dict = {}
 
-    for leaf in tree.iter_leaves():
+    for tree in trees:
+        for leaf in tree.iter_leaves():
 
-        state = get_leaf_state(leaf)
+            state = get_leaf_state(leaf)
 
-        if state is None:
-            continue
+            if state is None:
+                continue
 
-        leaves_by_state.setdefault(state, []).append(leaf)
+            leaves_by_state.setdefault(state, []).append(leaf)
+            # the distance to the root of its own tree (the leaf names might not be unique across the forest)
+            leaves_to_root_distances[leaf] = leaf.get_distance(tree)
 
     # ------------------------------------------------------------
     # Validate requested counts.
@@ -833,8 +880,9 @@ def prune_tree_by_state_counts(
 
         heap = []
 
-        for leaf in tree.iter_leaves():
-            push_if_eligible(heap, leaf)
+        for tree in trees:
+            for leaf in tree.iter_leaves():
+                push_if_eligible(heap, leaf)
 
         while remaining_to_prune > 0:
 
@@ -911,7 +959,7 @@ def prune_tree_by_state_counts(
 
                 push_if_eligible(heap, sister)
 
-        return tree
+        return trees
 
     # ============================================================
     # One-shot root-distance pruning
@@ -938,7 +986,7 @@ def prune_tree_by_state_counts(
         sorted_leaves = sorted(
             leaves,
             key=lambda leaf: (
-                -float(leaf.get_distance(tree)) if prune_longest else float(leaf.get_distance(tree)),
+                -leaves_to_root_distances[leaf] if prune_longest else leaves_to_root_distances[leaf],
                 str(leaf.name),
             ),
         )
@@ -947,23 +995,25 @@ def prune_tree_by_state_counts(
             sorted_leaves[:n_to_prune]
         )
 
-    leaves_to_keep = [
-        leaf
-        for leaf in tree.iter_leaves()
-        if leaf not in leaves_to_prune
-    ]
+    for i,tree in enumerate(trees):
 
-    if not leaves_to_keep:
-        raise ValueError(
-            "The optimized counts would remove every leaf from the tree."
+        leaves_to_keep = [
+            leaf
+            for leaf in tree.iter_leaves()
+            if leaf not in leaves_to_prune
+        ]
+
+        if not leaves_to_keep:
+            raise ValueError(
+                f"The optimized counts would remove every leaf from tree {i+1}."
+            )
+
+        tree.prune(
+            leaves_to_keep,
+            preserve_branch_length=True,
         )
 
-    tree.prune(
-        leaves_to_keep,
-        preserve_branch_length=True,
-    )
-
-    return tree
+    return trees
 
 def get_inner_node_states(subsampled_forest, character):
     """

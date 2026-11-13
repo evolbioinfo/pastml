@@ -200,11 +200,11 @@ class TestPruneTreeByStateCounts(unittest.TestCase):
 
             for method in PruneMethod:
                 with self.subTest(tree=i, method=method.value, counts=optimized_counts):
-                    pruned = prune_tree_by_state_counts(
-                        root=tree,
+                    pruned, = prune_tree_by_state_counts(
+                        forest=tree,
                         optimized_counts=optimized_counts,
                         state_column="Country",
-                        copy_tree=True,
+                        copy_trees=True,
                         method=method,
                     )
 
@@ -260,11 +260,11 @@ class TestPruneTreeByStateCounts(unittest.TestCase):
             with self.subTest(method=method):
                 tree = make_test_tree()
 
-                pruned = prune_tree_by_state_counts(
-                    root=tree,
+                pruned, = prune_tree_by_state_counts(
+                    forest=tree,
                     optimized_counts={"A": 1, "B": 1},
                     state_column="Country",
-                    copy_tree=True,
+                    copy_trees=True,
                     method=method,
                 )
 
@@ -276,11 +276,11 @@ class TestPruneTreeByStateCounts(unittest.TestCase):
     def test_prune_shortest_tip_branches_is_iterative(self):
         tree = make_iterative_shortest_tip_tree()
 
-        pruned = prune_tree_by_state_counts(
-            root=tree,
+        pruned, = prune_tree_by_state_counts(
+            forest=tree,
             optimized_counts={"A": 2},
             state_column="Country",
-            copy_tree=True,
+            copy_trees=True,
             method=PruneMethod.PRUNE_SHORTEST_TIP_BRANCHES,
         )
 
@@ -292,11 +292,11 @@ class TestPruneTreeByStateCounts(unittest.TestCase):
     def test_prune_longest_tip_branches_is_iterative(self):
         tree = make_iterative_longest_tip_tree()
 
-        pruned = prune_tree_by_state_counts(
-            root=tree,
+        pruned, = prune_tree_by_state_counts(
+            forest=tree,
             optimized_counts={"A": 2},
             state_column="Country",
-            copy_tree=True,
+            copy_trees=True,
             method=PruneMethod.PRUNE_LONGEST_TIP_BRANCHES,
         )
 
@@ -305,15 +305,15 @@ class TestPruneTreeByStateCounts(unittest.TestCase):
             {"A3", "A4"},
         )
 
-    def test_copy_tree_does_not_modify_original(self):
+    def test_copy_trees_does_not_modify_original(self):
         tree = make_test_tree()
         original_leaves = set(tree.get_leaf_names())
 
-        pruned = prune_tree_by_state_counts(
-            root=tree,
+        pruned, = prune_tree_by_state_counts(
+            forest=tree,
             optimized_counts={"A": 1, "B": 1},
             state_column="Country",
-            copy_tree=True,
+            copy_trees=True,
             method=PruneMethod.PRUNE_SHORTEST_TIP_BRANCHES,
         )
 
@@ -327,14 +327,14 @@ class TestPruneTreeByStateCounts(unittest.TestCase):
             2,
         )
 
-    def test_copy_tree_false_modifies_original(self):
+    def test_copy_trees_false_modifies_original(self):
         tree = make_test_tree()
 
-        pruned = prune_tree_by_state_counts(
-            root=tree,
+        pruned, = prune_tree_by_state_counts(
+            forest=tree,
             optimized_counts={"A": 1, "B": 1},
             state_column="Country",
-            copy_tree=False,
+            copy_trees=False,
             method=PruneMethod.PRUNE_SHORTEST_TIP_BRANCHES,
         )
 
@@ -353,10 +353,10 @@ class TestPruneTreeByStateCounts(unittest.TestCase):
             r"Cannot retain 3 leaves for state 'A'",
         ):
             prune_tree_by_state_counts(
-                root=tree,
+                forest=tree,
                 optimized_counts={"A": 3, "B": 1},
                 state_column="Country",
-                copy_tree=True,
+                copy_trees=True,
                 method=PruneMethod.PRUNE_SHORTEST_TIP_BRANCHES,
             )
 
@@ -368,10 +368,10 @@ class TestPruneTreeByStateCounts(unittest.TestCase):
             r"No optimized count was provided",
         ):
             prune_tree_by_state_counts(
-                root=tree,
+                forest=tree,
                 optimized_counts={"A": 1},
                 state_column="Country",
-                copy_tree=True,
+                copy_trees=True,
                 method=PruneMethod.PRUNE_SHORTEST_TIP_BRANCHES,
             )
 
@@ -380,11 +380,11 @@ class TestPruneTreeByStateCounts(unittest.TestCase):
 
         original_distance = tree.get_distance("A2", "B2")
 
-        pruned = prune_tree_by_state_counts(
-            root=tree,
+        pruned, = prune_tree_by_state_counts(
+            forest=tree,
             optimized_counts={"A": 1, "B": 1},
             state_column="Country",
-            copy_tree=True,
+            copy_trees=True,
             method=PruneMethod.PRUNE_SHORTEST_TIP_BRANCHES,
         )
 
@@ -403,10 +403,10 @@ class TestPruneTreeByStateCounts(unittest.TestCase):
             r"Unknown pruning method",
         ):
             prune_tree_by_state_counts(
-                root=tree,
+                forest=tree,
                 optimized_counts={"A": 1, "B": 1},
                 state_column="Country",
-                copy_tree=True,
+                copy_trees=True,
                 method="NOT_A_REAL_METHOD",
             )
 
