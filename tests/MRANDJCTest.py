@@ -22,6 +22,11 @@ PARAMS_INPUT = os.path.join(DATA_DIR, 'params.character_Country.method_MPPA.mode
 
 class MRANDJCTest(unittest.TestCase):
 
+    def setUp(self):
+        # Both marginal_counts and simulate_states draw from the global numpy generator:
+        # without a fixed seed this Monte-Carlo comparison fails in ~3% of the runs.
+        np.random.seed(2026)
+
     def test_counts(self):
 
         tree = read_tree(TREE_NWK)

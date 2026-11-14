@@ -47,6 +47,10 @@ acr_result = acr(tree, df, prediction_method=MPPA, model=JC)[0]
 
 class ACRParameterOptimisationMPPAJCTest(unittest.TestCase):
 
+    def setUp(self):
+        # the trees are rerooted randomly: fix the seed for reproducibility
+        np.random.seed(2026)
+
     def test_rerooted_values_are_the_same(self):
         for _ in range(5):
             rerooted_tree = reroot_tree_randomly()

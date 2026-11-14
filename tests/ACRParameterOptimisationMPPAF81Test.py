@@ -46,6 +46,10 @@ acr_result = acr(tree, df, prediction_method=MPPA, model=F81)[0]
 
 class ACRParameterOptimisationMPPAF81Test(unittest.TestCase):
 
+    def setUp(self):
+        # the trees are rerooted randomly: fix the seed for reproducibility
+        np.random.seed(2026)
+
     def test_likelihood(self):
         self.assertAlmostEqual(-110.178, acr_result[LOG_LIKELIHOOD], places=3,
                                msg='Likelihood was supposed to be the {:.3f}, got {:3f}'

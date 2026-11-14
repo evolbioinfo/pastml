@@ -11,6 +11,10 @@ from pastml.models.HKYModel import A, G, T, C, HKY_STATES
 
 class PijTest(unittest.TestCase):
 
+    def setUp(self):
+        # the tests draw random times and frequencies: fix the seed for reproducibility
+        np.random.seed(2026)
+
     def test_pij_f81(self):
         for _ in range(10):
             t = 10 * np.random.rand(1)[0]

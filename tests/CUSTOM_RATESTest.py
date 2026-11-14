@@ -26,6 +26,10 @@ WD = os.path.join(DATA_DIR, 'cr_vs_jtt_test')
 
 class CUSTOM_RATESTest(unittest.TestCase):
 
+    def setUp(self):
+        # the tip states are simulated randomly: fix the seed for reproducibility
+        np.random.seed(2026)
+
     def test_rate_serialisation(self):
         save_matrix(JTT_STATES, JTT_RATE_MATRIX, RM)
         states, rate_matrix = load_custom_rates(RM)
