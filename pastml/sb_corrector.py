@@ -22,6 +22,11 @@ _LAMBDA = 0.5
 M_MIN = 1
 M_MAX = None
 
+# Minimum number of annotated tips retained per state over the whole forest
+# (or all of them, if the state has fewer annotated tips), so that no state 
+# disappears from the subsampled forest.
+M_MIN_PER_STATE = 2
+
 def read_frequency_priors(
     freq_priors: str | Path,
     freq_priors_format: str,
@@ -167,6 +172,19 @@ def optimize_column_counts(
     # (the only ones that can be pruned).
     total_labeled_tips = sum(obs_counts_dict.values())
 
+    # Every state keeps at least M_MIN_PER_STATE tips (or all of them, if it has fewer).
+    floors = {state: min(M_MIN_PER_STATE, count) for state, count in obs_counts_dict.items()}
+    M_floor = sum(floors.values())
+
+    # M_floor > total_labeled_tips is impossible (min(M_MIN_PER_STATE, N_c) <= N_c), the '>' is only defensive.
+    # The actual edge case is M_floor == total_labeled_tips, i.e. the floors already retain every annotated tip.
+    if M_floor >= total_labeled_tips:
+        logger.debug(
+            f"Column '{column}': the minimum of {M_MIN_PER_STATE} tips per state "
+            f"already retains all the {total_labeled_tips} annotated tips, hence no pruning."
+        )
+        return column, None
+
     if M_min >= total_labeled_tips:
         logger.debug(
             f"Column '{column}': M_min = {M_min} is not smaller than the number of "
@@ -174,7 +192,23 @@ def optimize_column_counts(
         )
         return column, None
 
+    # The per-state minimum is a hard constraint: the bounds on the total are adjusted to it.
+    if M_min < M_floor:
+        if M_min > M_MIN:
+            logger.info(
+                f"Column '{column}': M_min = {M_min} is raised to {M_floor}, "
+                f"to retain at least {M_MIN_PER_STATE} tips per state."
+            )
+        M_min = M_floor
+
     M_max = total_labeled_tips if M_max is None else min(M_max, total_labeled_tips)
+
+    if M_max < M_floor:
+        logger.warning(
+            f"Column '{column}': M_max = {M_max} is raised to {M_floor}, "
+            f"to retain at least {M_MIN_PER_STATE} tips per state."
+        )
+        M_max = M_floor
 
     # Construct the target distribution.
     target_dist_dict = interpolate_distributions(
@@ -190,7 +224,8 @@ def optimize_column_counts(
         observed_counts=obs_counts_dict,
         _lambda=_lambda,
         M_min=M_min,
-        M_max=M_max
+        M_max=M_max,
+        min_counts=floors,
     )
 
     m_opt = sum(optimized_counts.values())
@@ -478,6 +513,7 @@ def optimize_counts_optimized(
     _lambda: float,
     M_min: int,
     M_max: int,
+    min_counts: dict[str, int] | None = None,
 ) -> tuple[dict[str, int], float]:
     """
     Optimize integer state (e.g., country) counts 
@@ -500,6 +536,10 @@ def optimize_counts_optimized(
 
     M_max
         Maximum total number M of retained sequences (M_min <= M_max <= sum of observed_counts).
+
+    min_counts
+        Minimum count L_c to retain for every state (e.g., country), 0 by default
+        (L_c <= N_c, and sum of min_counts <= M_min).
 
     Returns
     -------
@@ -534,6 +574,12 @@ def optimize_counts_optimized(
             f"target_distribution sums to {target.sum()}, not 1.0."
         )
 
+    # The minimum counts, in the same state order as target and available (0 for states without a minimum)
+    lower = np.asarray(
+        [(min_counts or {}).get(label, 0) for label in labels],
+        dtype=int,
+    )
+
     initial_size = int(available.sum())
     best_counts = None
     best_objective = np.inf
@@ -556,6 +602,7 @@ def optimize_counts_optimized(
             target=target,
             available=available,
             final_size=final_size,
+            lower=lower,
         )
 
         achieved_distribution = counts / final_size
@@ -588,10 +635,11 @@ def bounded_integer_allocation_optimized(
     target: np.ndarray,
     available: np.ndarray,
     final_size: int,
+    lower: np.ndarray | None = None,
 ) -> np.ndarray:
     """
     Allocate exactly ``final_size`` items while respecting state-specific
-    upper bounds.
+    lower and upper bounds.
 
     The function minimizes
 
@@ -599,29 +647,71 @@ def bounded_integer_allocation_optimized(
 
     subject to
 
-        0 <= m_c <= available_c
+        lower_c <= m_c <= available_c
         sum_c m_c = final_size
         m_c integer.
+
+    The objective is separable and convex, hence adding (or removing) one item at a time
+    to (from) the state with the smallest marginal cost is optimal.
     """
     total_available = int(available.sum())
 
-    if not 0 <= final_size <= total_available:
+    if lower is None:
+        lower = np.zeros_like(available)
+
+    total_lower = int(lower.sum())
+
+    if not total_lower <= final_size <= total_available:
         raise ValueError(
-            f"final_size must be between 0 and {total_available}, "
+            f"final_size must be between {total_lower} and {total_available}, "
             f"but received {final_size}."
         )
 
     quotas = final_size * target
 
-    # Start near the unconstrained optimum rather than from zero.
-    counts = np.minimum(
-        np.floor(quotas).astype(int),
-        available,
+    # Start near the unconstrained optimum rather than from zero, within the bounds.
+    counts = np.maximum(
+        np.minimum(
+            np.floor(quotas).astype(int),
+            available,
+        ),
+        lower,
     )
 
     remaining = final_size - int(counts.sum())
 
     if remaining == 0:
+        return counts
+
+    # The lower bounds might have pushed the start above final_size:
+    # then remove items, one at a time, from the state where it increases the error the least.
+    if remaining < 0:
+        # Each entry is:
+        #     (marginal error increase of removing one item, state index)
+        heap = [
+            (-2.0 * (counts[index] - quotas[index]) + 1.0, index)
+            for index in range(len(target))
+            if counts[index] > lower[index]
+        ]
+        heapq.heapify(heap)
+
+        for _ in range(-remaining):
+            if not heap:
+                raise RuntimeError(
+                    "No state can be decreased without breaking its minimum count."
+                )
+
+            _, selected_index = heapq.heappop(heap)
+
+            counts[selected_index] -= 1
+
+            # If this state can still be decreased, insert its new marginal cost.
+            if counts[selected_index] > lower[selected_index]:
+                heapq.heappush(
+                    heap,
+                    (-2.0 * (counts[selected_index] - quotas[selected_index]) + 1.0, selected_index),
+                )
+
         return counts
 
     # Each entry is:
@@ -691,7 +781,12 @@ def prune_tree_by_state_counts(
       prune leaves having the longest root-to-tip distances.
 
     A leaf is eligible for pruning only if removing it would leave at least
-    ``optimized_counts[state]`` leaves for its state.
+    ``optimized_counts[state]`` leaves for its state (over the whole forest).
+    A state may hence disappear from some trees (but not from the forest, if its count is positive).
+
+    The trees left without annotated leaves are dropped from the returned forest:
+    they would not contribute to the model optimisation on the subsampled forest,
+    and their inner nodes are inferred later, on the full forest.
 
     Parameters
     ----------
@@ -716,7 +811,7 @@ def prune_tree_by_state_counts(
     Returns
     -------
     List of ETE TreeNode(s)
-        The root node(s) of the pruned tree(s).
+        The root node(s) of the pruned tree(s), without the trees left without annotated leaves.
     """
 
     if isinstance(forest, Tree):
@@ -826,6 +921,24 @@ def prune_tree_by_state_counts(
             f"the tree leaves: {sorted(unknown_states)}."
         )
     
+    def drop_unannotated_trees(pruned_trees):
+        """
+        Drop the trees left without annotated leaves.
+
+        (When all the leaves of a tree are pruned, ete3 cannot delete its root,
+        which then stays as a single unannotated leaf: such a tree is dropped as well.)
+        """
+        kept = [tree for tree in pruned_trees
+                if any(get_leaf_state(leaf) is not None for leaf in tree.iter_leaves())]
+
+        if len(kept) < len(trees):
+            logging.getLogger('pastml').debug(
+                f"{len(trees) - len(kept)} tree(s) left without leaves annotated with '{state_column}' "
+                f"were dropped from the subsampled forest."
+            )
+
+        return kept
+
     # ============================================================
     # Iterative terminal-branch pruning
     # ============================================================
@@ -959,7 +1072,7 @@ def prune_tree_by_state_counts(
 
                 push_if_eligible(heap, sister)
 
-        return trees
+        return drop_unannotated_trees(trees)
 
     # ============================================================
     # One-shot root-distance pruning
@@ -995,7 +1108,9 @@ def prune_tree_by_state_counts(
             sorted_leaves[:n_to_prune]
         )
 
-    for i,tree in enumerate(trees):
+    pruned_trees = []
+
+    for tree in trees:
 
         leaves_to_keep = [
             leaf
@@ -1003,17 +1118,19 @@ def prune_tree_by_state_counts(
             if leaf not in leaves_to_prune
         ]
 
-        if not leaves_to_keep:
-            raise ValueError(
-                f"The optimized counts would remove every leaf from tree {i+1}."
-            )
+        # A tree left without annotated leaves is dropped (see drop_unannotated_trees),
+        # it does not need to be pruned.
+        if not any(get_leaf_state(leaf) is not None for leaf in leaves_to_keep):
+            continue
 
         tree.prune(
             leaves_to_keep,
             preserve_branch_length=True,
         )
 
-    return trees
+        pruned_trees.append(tree)
+
+    return drop_unannotated_trees(pruned_trees)
 
 def get_inner_node_states(subsampled_forest, character):
     """

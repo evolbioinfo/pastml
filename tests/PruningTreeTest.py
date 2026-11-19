@@ -10,7 +10,13 @@ import unittest
 
 from ete3 import Tree
 
-from pastml.sb_corrector import PruneMethod, prune_tree_by_state_counts
+import logging
+
+import numpy as np
+import pandas as pd
+
+from pastml.sb_corrector import PruneMethod, prune_tree_by_state_counts, optimize_column_counts, \
+    bounded_integer_allocation_optimized
 
 
 def add_country_states(tree: Tree, states: dict[str, set[str]]) -> Tree:
@@ -409,6 +415,155 @@ class TestPruneTreeByStateCounts(unittest.TestCase):
                 copy_trees=True,
                 method="NOT_A_REAL_METHOD",
             )
+
+
+def make_forest() -> list[Tree]:
+    """
+    Forest of 3 trees (A/B/C tips): tree 0 has A3 B2 C1, tree 1 has A2 B2 C1 and an unannotated tip x1,
+    tree 2 has A1 B2.
+    """
+    forest = [
+        Tree("((a1:0.3,b1:0.2):0.4,((a2:0.5,c1:0.1):0.2,(b2:0.3,a3:0.6):0.2):0.3);", format=1),
+        Tree("((a4:0.2,b3:0.4):0.3,((c2:0.3,a5:0.2):0.1,(b4:0.5,x1:0.1):0.2):0.2);", format=1),
+        Tree("((b5:0.3,a6:0.2):0.1,b6:0.4);", format=1),
+    ]
+    for tree in forest:
+        for leaf in tree.iter_leaves():
+            if not leaf.name.startswith("x"):
+                leaf.add_feature("Country", {leaf.name[0].upper()})
+    return forest
+
+
+def count_tree_states(tree: Tree) -> dict[str, int]:
+    counts = {}
+    for leaf in tree.iter_leaves():
+        states = getattr(leaf, "Country", None)
+        if states:
+            state = next(iter(states))
+            counts[state] = counts.get(state, 0) + 1
+    return counts
+
+
+class TestForestAndMinTipsPerState(unittest.TestCase):
+    """
+    Forest pruning (states may vanish from a tree, emptied trees are dropped)
+    and the minimum number of tips per state over the whole forest (M_MIN_PER_STATE) in the count optimisation.
+    """
+
+    def test_state_vanishes_from_a_tree(self):
+        """B kept only once: it disappears from some trees, the counts over the forest are met."""
+        for method in PruneMethod:
+            with self.subTest(method=method.value):
+                pruned = prune_tree_by_state_counts(
+                    forest=make_forest(),
+                    optimized_counts={"A": 6, "B": 1, "C": 2},
+                    state_column="Country",
+                    copy_trees=True,
+                    method=method,
+                )
+                per_tree = [count_tree_states(tree) for tree in pruned]
+                self.assertEqual(sum(c.get("A", 0) for c in per_tree), 6)
+                self.assertEqual(sum(c.get("B", 0) for c in per_tree), 1)
+                self.assertEqual(sum(c.get("C", 0) for c in per_tree), 2)
+                self.assertEqual(len(pruned), 3)
+
+    def test_emptied_trees_are_dropped(self):
+        """Very small counts: every returned tree has an annotated tip, and the counts are met."""
+        for method in PruneMethod:
+            with self.subTest(method=method.value):
+                forest = make_forest()
+                pruned = prune_tree_by_state_counts(
+                    forest=forest,
+                    optimized_counts={"A": 1, "B": 1, "C": 1},
+                    state_column="Country",
+                    copy_trees=True,
+                    method=method,
+                )
+                per_tree = [count_tree_states(tree) for tree in pruned]
+                self.assertTrue(all(per_tree))
+                self.assertEqual({state: sum(c.get(state, 0) for c in per_tree) for state in "ABC"},
+                                 {"A": 1, "B": 1, "C": 1})
+                # the original forest is unchanged (copy_trees=True)
+                self.assertEqual(len(forest[2].get_leaves()), 3)
+
+    def test_single_tree_emptied_but_unannotated_tip(self):
+        """
+        The trees whose annotated tips are all pruned are dropped: tree 0 keeps only an unannotated tip,
+        tree 2 loses all its tips (for the tip-branch methods, ete3 cannot delete its root).
+        """
+        forest = [Tree("((a1:0.1,x1:0.2):0.3,a2:0.4);", format=1), Tree("((a3:0.2,b1:0.3):0.1,b2:0.5);", format=1),
+                  Tree("((a4:0.1,a5:0.2):0.2,a6:0.3);", format=1)]
+        for tree in forest:
+            for leaf in tree.iter_leaves():
+                if not leaf.name.startswith("x"):
+                    leaf.add_feature("Country", {leaf.name[0].upper()})
+        for method in PruneMethod:
+            with self.subTest(method=method.value):
+                # A = 0: tree 0 keeps only its unannotated tip x1, tree 2 is emptied
+                pruned = prune_tree_by_state_counts(
+                    forest=forest,
+                    optimized_counts={"A": 0, "B": 1},
+                    state_column="Country",
+                    copy_trees=True,
+                    method=method,
+                )
+                self.assertEqual(len(pruned), 1)
+                self.assertIn(pruned[0].get_leaf_names(), [["b1"], ["b2"]])
+
+    def test_allocation_lower_bounds(self):
+        """The allocation respects the lower bounds, also when they push the start above final_size."""
+        available = np.array([20, 5, 5])
+        counts = bounded_integer_allocation_optimized(np.array([0.9, 0.05, 0.05]), available, 10,
+                                                      lower=np.array([0, 2, 2]))
+        self.assertEqual(list(counts), [6, 2, 2])
+        # without lower bounds, the old behaviour
+        counts = bounded_integer_allocation_optimized(np.array([0.9, 0.05, 0.05]), available, 10)
+        self.assertEqual(list(counts), [9, 1, 0])
+        # quotas 3/3/0 and lower 0/0/4: the start (3/3/4 = 10) exceeds 6, so items are removed
+        counts = bounded_integer_allocation_optimized(np.array([0.5, 0.5, 0.0]), available, 6,
+                                                      lower=np.array([0, 0, 4]))
+        self.assertEqual(list(counts), [1, 1, 4])
+        with self.assertRaises(ValueError):
+            bounded_integer_allocation_optimized(np.array([0.5, 0.5, 0.0]), available, 3,
+                                                 lower=np.array([2, 2, 0]))
+
+    def _optimize(self, df, M_min=1, M_max=None):
+        prior = {state: 1 / 6 for state in "ABCDEF"}
+        return optimize_column_counts(column="Country", df=df, prior_distribution=prior, alpha=1.0,
+                                      interpolation_method="geometric", _lambda=0.8, M_min=M_min, M_max=M_max)
+
+    def test_optimizer_min_tips_per_state(self):
+        """6 states, A over-sampled: every state keeps >= 2 tips; M_min = 10 is raised to 12; M_max = 8 to 12."""
+        df = pd.DataFrame({"Country": list("A" * 40 + "BBBCCCDDDEEEFFF")})
+        _, counts = self._optimize(df)
+        self.assertTrue(all(counts[state] >= 2 for state in "ABCDEF"))
+        _, counts = self._optimize(df, M_min=10)
+        self.assertGreaterEqual(sum(counts.values()), 12)
+        with self.assertLogs("pastml", level=logging.WARNING):
+            _, counts = self._optimize(df, M_max=8)
+        self.assertEqual(counts, {state: 2 for state in "ABCDEF"})
+
+    def test_optimizer_state_with_prior_zero(self):
+        """A state with prior 0 keeps 2 tips (it does not disappear from the subsampled forest)."""
+        df = pd.DataFrame({"Country": list("A" * 10 + "B" * 10)})
+        _, counts = optimize_column_counts(column="Country", df=df, prior_distribution={"A": 1.0, "B": 0.0},
+                                           alpha=1.0, interpolation_method="arithmetic", _lambda=0.99,
+                                           M_min=1, M_max=None)
+        self.assertEqual(counts["B"], 2)
+
+    def test_optimizer_single_tip_state(self):
+        """A state with a single tip keeps it."""
+        df = pd.DataFrame({"Country": list("A" * 30 + "B" * 3 + "C")})
+        prior = {"A": 0.1, "B": 0.1, "C": 0.8}
+        _, counts = optimize_column_counts(column="Country", df=df, prior_distribution=prior, alpha=1.0,
+                                           interpolation_method="geometric", _lambda=0.8, M_min=1, M_max=None)
+        self.assertEqual(counts["C"], 1)
+        self.assertGreaterEqual(counts["B"], 2)
+
+    def test_optimizer_floor_covers_all_tips(self):
+        """No pruning when the per-state minimum already retains all the annotated tips."""
+        df = pd.DataFrame({"Country": list("AABBCDEF")})
+        self.assertIsNone(self._optimize(df)[1])
 
 
 if __name__ == "__main__":
