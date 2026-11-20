@@ -21,7 +21,7 @@ from pastml.ml import MARGINAL_PROBABILITIES, is_ml, is_marginal, MPPA, ml_acr, 
     ML_METHODS, MAP, JOINT, ALL, ML, META_ML_METHODS, MARGINAL_ML_METHODS, get_default_ml_method
 from pastml.sb_corrector import ARITHMETIC, GEOMETRIC, ALPHA, _LAMBDA, M_MIN, M_MAX, \
     sampling_bias_correction_pipeline, prune_tree_by_state_counts, PruneMethod, \
-    get_inner_node_states, set_inner_node_states, read_frequency_priors
+    get_inner_node_states, set_inner_node_states, read_frequency_priors, add_tree_suffixes, remove_tree_suffixes
 from pastml.models import MODEL, SCALING_FACTOR, SMOOTHING_FACTOR
 from pastml.models.CustomRatesModel import CustomRatesModel, CUSTOM_RATES
 from pastml.models.EFTModel import EFTModel, EFT
@@ -197,8 +197,15 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
     # The columns without optimized counts are analysed on the original forest.
     column2subsampled_forest = {}
     column2subsampled_forest_stats = {}
+    # inner nodes temporarily renamed for the sampling bias correction on a forest (see below)
+    renamed_nodes = []
     if sampling_bias_correction and optimized_counts:
         logger.debug('\n=============SAMPLING BIAS CORRECTION==========')
+        # The states inferred on the pruned forest are mapped back by inner-node name,
+        # hence the inner nodes get the index of their tree as a suffix ('<name>_<i>'), so that their names
+        # do not repeat across trees. The original names are restored at the end.
+        if len(forest) > 1:
+            renamed_nodes = add_tree_suffixes(forest)
         unknown_columns = set(optimized_counts) - set(columns)
         if unknown_columns:
             logger.warning('Optimized counts given for unknown columns: {}. '
@@ -466,6 +473,15 @@ def acr(forest, df=None, columns=None, column2states=None, prediction_method=MPP
             acr_results = _run_acr()
             logger.setLevel(level)
         logger.setLevel(level)
+
+    # Restore the inner-node names changed for the sampling bias correction on a forest
+    # (after the polytomy resolution, as it maps the states of the pruned forest again)
+    suffixed2original = remove_tree_suffixes(renamed_nodes)
+    # The marginal probabilities were indexed with the suffixed names: rename them too
+    if suffixed2original:
+        for acr_result in acr_results:
+            if MARGINAL_PROBABILITIES in acr_result:
+                acr_result[MARGINAL_PROBABILITIES] = acr_result[MARGINAL_PROBABILITIES].rename(index=suffixed2original)
     return acr_results
 
 

@@ -15,8 +15,10 @@ import logging
 import numpy as np
 import pandas as pd
 
+from pastml.acr import acr
+from pastml.ml import MARGINAL_PROBABILITIES
 from pastml.sb_corrector import PruneMethod, prune_tree_by_state_counts, optimize_column_counts, \
-    bounded_integer_allocation_optimized
+    bounded_integer_allocation_optimized, add_tree_suffixes, remove_tree_suffixes
 
 
 def add_country_states(tree: Tree, states: dict[str, set[str]]) -> Tree:
@@ -564,6 +566,81 @@ class TestForestAndMinTipsPerState(unittest.TestCase):
         """No pruning when the per-state minimum already retains all the annotated tips."""
         df = pd.DataFrame({"Country": list("AABBCDEF")})
         self.assertIsNone(self._optimize(df)[1])
+
+
+def make_twin_forest(clashing_names: bool) -> list[Tree]:
+    """
+    Two trees with the same topology, the first one with A tips only, the second one with B tips only.
+    Their inner nodes are named n0, n1, ... either restarting in each tree (the names clash across the trees),
+    or continuing (the names are unique).
+    """
+    nwk = "(((t1:0.1,t2:0.2):0.3,t3:0.4):0.2,(t4:0.3,t5:0.1):0.2);"
+    forest = [Tree(nwk.replace("t", prefix), format=1) for prefix in ("a", "b")]
+    k = 0
+    for tree in forest:
+        if clashing_names:
+            k = 0
+        for node in tree.traverse("preorder"):
+            if node.is_leaf():
+                node.add_feature("Country", {node.name[0].upper()})
+            else:
+                node.name = "n{}".format(k)
+                k += 1
+    return forest
+
+
+def inner_node_names(forest: list[Tree]) -> list[str]:
+    return [node.name for tree in forest for node in tree.traverse("preorder") if not node.is_leaf()]
+
+
+class TestForestInnerNodeNames(unittest.TestCase):
+    """
+    The states of the pruned forest are mapped back by inner-node name,
+    so the inner nodes are temporarily suffixed with their tree index (add_tree_suffixes / remove_tree_suffixes).
+    """
+
+    def test_suffix_round_trip(self):
+        forest = make_twin_forest(clashing_names=True)
+        forest[1].children[0].name = ""
+        names = inner_node_names(forest)
+
+        renamed_nodes = add_tree_suffixes(forest)
+        suffixed = inner_node_names(forest)
+        self.assertEqual(len(suffixed), len(set(suffixed)))
+        self.assertTrue(all(name.endswith("_0") for name in suffixed[:len(suffixed) // 2]))
+
+        remove_tree_suffixes(renamed_nodes)
+        self.assertEqual(inner_node_names(forest), names)
+        # the tips are not renamed
+        self.assertEqual(forest[0].get_leaf_names(), ["a1", "a2", "a3", "a4", "a5"])
+
+    def test_acr_with_clashing_names(self):
+        """
+        A forest SB run gives the same states whether the inner-node names clash across trees or not
+        (with clashing names, the states of one tree would otherwise be mapped onto the nodes of the other),
+        and the original names are restored.
+        """
+        np_err = np.seterr(divide="ignore", invalid="ignore")
+        logging.getLogger("pastml").setLevel(logging.CRITICAL)
+        try:
+            states = []
+            for clashing_names in (True, False):
+                forest = make_twin_forest(clashing_names)
+                names = inner_node_names(forest)
+                acr_result, = acr(forest, columns=["Country"], column2states={"Country": np.array(["A", "B"])},
+                                  prediction_method="MPPA", model="F81", sampling_bias_correction=True,
+                                  optimized_counts={"Country": {"A": 3, "B": 3}})
+                self.assertEqual(inner_node_names(forest), names)
+                # the marginal probabilities are indexed with the restored names too
+                self.assertEqual(sorted(acr_result[MARGINAL_PROBABILITIES].index),
+                                 sorted(node.name for tree in forest for node in tree.traverse()))
+                states.append([sorted(node.Country) for tree in forest for node in tree.traverse("preorder")])
+            self.assertEqual(states[0], states[1])
+            # the A tree only has A ancestors
+            self.assertTrue(all(s == ["A"] for s in states[0][:len(states[0]) // 2]))
+        finally:
+            np.seterr(**np_err)
+            logging.getLogger("pastml").setLevel(logging.NOTSET)
 
 
 if __name__ == "__main__":

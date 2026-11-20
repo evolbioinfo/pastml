@@ -1132,6 +1132,55 @@ def prune_tree_by_state_counts(
 
     return drop_unannotated_trees(pruned_trees)
 
+def add_tree_suffixes(forest):
+    """
+    Temporarily append the tree index to the names of the inner nodes of a forest ('<name>_<i>' in tree i).
+
+    The states inferred on the subsampled forest are mapped back to the original forest by inner-node name
+    (see get_inner_node_states and set_inner_node_states), hence the names must not repeat across trees.
+    The original names are restored with remove_tree_suffixes.
+
+    Returns
+    -------
+    list of (node, str)
+        The renamed inner nodes with their original names.
+    """
+
+    renamed_nodes = []
+
+    for i, root in enumerate(forest):
+        for node in root.traverse():
+            if node.is_leaf():
+                continue
+
+            renamed_nodes.append((node, node.name))
+            node.name = '{}_{}'.format(node.name, i)
+
+    return renamed_nodes
+
+
+def remove_tree_suffixes(renamed_nodes):
+    """
+    Restore the original inner-node names changed by add_tree_suffixes.
+
+    (The nodes created in between, e.g. when resolving polytomies, keep their names.)
+
+    Returns
+    -------
+    dict[str, str]
+        Mapping from the suffixed names to the original ones
+        (e.g. to rename the tables built from the suffixed names).
+    """
+
+    suffixed2original = {}
+
+    for node, name in renamed_nodes:
+        suffixed2original[node.name] = name
+        node.name = name
+
+    return suffixed2original
+
+
 def get_inner_node_states(subsampled_forest, character):
     """
     Collect the states inferred on the inner nodes of the subsampled tree(s).
