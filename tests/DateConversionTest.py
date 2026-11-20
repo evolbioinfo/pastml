@@ -2,6 +2,7 @@ import unittest
 from datetime import datetime
 
 from pastml import datetime2numeric, numeric2datetime
+from pastml.tree import parse_date
 
 
 class DateConversionTest(unittest.TestCase):
@@ -49,3 +50,7 @@ class DateConversionTest(unittest.TestCase):
     def test_7_May_2021(self):
         d = datetime(2021, 5, 7)
         self.assertEqual(d, numeric2datetime(datetime2numeric(d)), msg='Was supposed to be 7 May 2021')
+
+    def test_parse_date_string(self):
+        self.assertEqual(datetime2numeric(datetime(2020, 3, 1)), parse_date('2020-03-01'),
+                         msg='Was supposed to be 1 Mar 2020')

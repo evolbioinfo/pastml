@@ -34,7 +34,7 @@ def parse_date(d):
         return float(d)
     except ValueError:
         try:
-            return datetime2numeric(pd.to_datetime(d, infer_datetime_format=True))
+            return datetime2numeric(pd.to_datetime(d))
         except ValueError:
             raise ValueError('Could not infer the date format for root date "{}", please check it.'.format(d))
 
