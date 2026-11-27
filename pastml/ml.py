@@ -560,7 +560,7 @@ def choose_ancestral_states_mppa(tree, feature, states, force_joint=True):
         num_states += best_k
         if force_joint:
             indices_selected = sorted(range(n),
-                                      key=lambda _: (0 if n == joint_index else 1, -marginal_likelihoods[_]))[:best_k]
+                                      key=lambda _: (0 if _ == joint_index else 1, -marginal_likelihoods[_]))[:best_k]
         else:
             indices_selected = sorted(range(n), key=lambda _: -marginal_likelihoods[_])[:best_k]
         if best_k == 1:
